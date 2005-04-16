@@ -64,9 +64,10 @@ static int handler(struct sockaddr_nl *sock, struct nlmsghdr *nlh, void *arg)
 		int attrlen = nlh->nlmsg_len - NLMSG_ALIGN(min_len);
 
 		struct ip_conntrack_tuple *orig, *reply;
+		struct cta_counters *ctr;
 		unsigned long *status, *timeout;
 		struct cta_proto *proto;
-		unsigned long *id;
+		unsigned long *id, *mark;
 
 		while (NFA_OK(attr, attrlen)) {
 			switch(attr->nfa_type) {
@@ -90,23 +91,34 @@ static int handler(struct sockaddr_nl *sock, struct nlmsghdr *nlh, void *arg)
 				break;
 			case CTA_STATUS:
 				status = NFA_DATA(attr);
-				printf("status:%u ", *status);
+				printf("status=%u ", *status);
 				break;
 			case CTA_PROTOINFO:
 				proto = NFA_DATA(attr);
 				if (proto2str[proto->num_proto])
-					printf("%s %d", proto2str[proto->num_proto], proto->num_proto);
+					printf("%s %d ", proto2str[proto->num_proto], proto->num_proto);
 				else
 					printf("unknown %d ", proto->num_proto);
 				break;
 			case CTA_TIMEOUT:
 				timeout = NFA_DATA(attr);
-				printf("timeout:%lu ", *timeout);
+				printf("timeout=%lu ", *timeout);
 				break;
 /*			case CTA_ID:
 				id = NFA_DATA(attr);
 				printf(" id:%lu ", *id);
 				break;*/
+			case CTA_MARK:
+				mark = NFA_DATA(attr);
+				printf("mark=%lu ", *mark);
+				break;
+			case CTA_COUNTERS:
+				ctr = NFA_DATA(attr);
+				printf("orig_packets=%lu orig_bytes=%lu, "
+				       "reply_packets=%lu reply_bytes=%lu ",
+				       ctr->orig.packets, ctr->orig.bytes,
+				       ctr->reply.packets, ctr->reply.bytes);
+				break;
 			}
 			DEBUGP("nfa->nfa_type: %d\n", attr->nfa_type);
 			DEBUGP("nfa->nfa_len: %d\n", attr->nfa_len);
@@ -121,12 +133,20 @@ static int handler(struct sockaddr_nl *sock, struct nlmsghdr *nlh, void *arg)
 	return 0;
 }
 
-/* FIXME: use event messages better */
-static char *typemsg2str[] = {
-	"NEW",
-	"GET", 
-	"DESTROY"
-};
+static char *typemsg2str(type, flags)
+{
+	char *ret = "UNKNOWN";
+
+	if (type == IPCTNL_MSG_CT_NEW) {
+		if (flags & NLM_F_CREATE)
+			ret = "NEW";
+		else
+			ret = "UPDATE";
+	} else if (type == IPCTNL_MSG_CT_DELETE)
+		ret = "DESTROY";
+
+	return ret;
+}
 
 static int event_handler(struct sockaddr_nl *sock, struct nlmsghdr *nlh, 
 			 void *arg)
@@ -151,14 +171,15 @@ static int event_handler(struct sockaddr_nl *sock, struct nlmsghdr *nlh,
 
 	DEBUGP("size:%d\n", nlh->nlmsg_len);
 
-	printf("type: [%s] ", typemsg2str[type]);
+	printf("type: [%s] ", typemsg2str(type, nlh->nlmsg_flags));
 
 	while (nlh->nlmsg_len > min_len) {
 		struct nfattr *attr = NFM_NFA(NLMSG_DATA(nlh));
 		int attrlen = nlh->nlmsg_len - NLMSG_ALIGN(min_len);
 
 		struct ip_conntrack_tuple *orig, *reply;
-		unsigned long *status, *timeout;
+		struct cta_counters *ctr;
+		unsigned long *status, *timeout, *mark;
 		struct cta_proto *proto;
 		unsigned long *id;
 
@@ -189,7 +210,7 @@ static int event_handler(struct sockaddr_nl *sock, struct nlmsghdr *nlh,
 			case CTA_PROTOINFO:
 				proto = NFA_DATA(attr);
 				if (proto2str[proto->num_proto])
-					printf("%s %d", proto2str[proto->num_proto], proto->num_proto);
+					printf("%s %d ", proto2str[proto->num_proto], proto->num_proto);
 				else
 					printf("unknown %d ", proto->num_proto);
 				break;
@@ -201,6 +222,17 @@ static int event_handler(struct sockaddr_nl *sock, struct nlmsghdr *nlh,
 				id = NFA_DATA(attr);
 				printf(" id:%lu ", *id);
 				break;*/
+			case CTA_MARK:
+				mark = NFA_DATA(attr);
+				printf("mark=%lu ", *mark);
+				break;
+			case CTA_COUNTERS:
+				ctr = NFA_DATA(attr);
+				printf("orig_packets=%lu orig_bytes=%lu, "
+				       "reply_packets=%lu reply_bytes=%lu ",
+				       ctr->orig.packets, ctr->orig.bytes,
+				       ctr->reply.packets, ctr->reply.bytes);
+				break;
 			}
 			DEBUGP("nfa->nfa_type: %d\n", attr->nfa_type);
 			DEBUGP("nfa->nfa_len: %d\n", attr->nfa_len);
@@ -365,8 +397,9 @@ void get_conntrack(struct ip_conntrack_tuple *tuple,
 	}
 }
 
-void dump_conntrack_table()
+void dump_conntrack_table(int zero)
 {
+	int ret;
 	struct ctnl_handle cth;
 	struct ctnl_msg_handler h = {
 		.type = 0, /* Hm... really? */
@@ -380,7 +413,12 @@ void dump_conntrack_table()
 
 	ctnl_register_handler(&cth, &h);
 
-	if (ctnl_list_conntrack(&cth, AF_INET) != -100) {
+	if (zero) {
+		ret = ctnl_list_conntrack_zero_counters(&cth, AF_INET);
+	} else
+		ret = ctnl_list_conntrack(&cth, AF_INET);
+
+	if (ret != -100) {
 		printf("error list\n");
 		exit(0);
 	}

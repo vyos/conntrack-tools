@@ -22,6 +22,10 @@
  *	for introducing me to advanced firewalling stuff.
  *
  *						--pablo 13/04/2005
+ *
+ * 2005-04-16 Harald Welte <laforge@netfilter.org>: 
+ * 	Add support for conntrack accounting and conntrack mark
+ *
  */
 #include <stdio.h>
 #include <getopt.h>
@@ -37,7 +41,7 @@
 #include "libct_proto.h"
 
 #define PROGNAME "conntrack"
-#define VERSION "0.12"
+#define VERSION "0.13"
 
 #if 0
 #define DEBUGP printf
@@ -94,11 +98,14 @@ enum options {
 
 	CT_OPT_STATUS_BIT	= 7,
 	CT_OPT_STATUS		= (1 << CT_OPT_STATUS_BIT),
+
+	CT_OPT_ZERO_BIT		= 8,
+	CT_OPT_ZERO		= (1 << CT_OPT_ZERO_BIT),
 };
-#define NUMBER_OF_OPT   8
+#define NUMBER_OF_OPT   9
 
 static const char optflags[NUMBER_OF_OPT]
-= { 's', 'd', 'r', 'q', 'p', 'i', 't', 'u'};
+= { 's', 'd', 'r', 'q', 'p', 'i', 't', 'u', 'z'};
 
 static struct option original_opts[] = {
 	{"dump", 1, 0, 'L'},
@@ -115,6 +122,7 @@ static struct option original_opts[] = {
 	{"timeout", 1, 0, 't'},
 	{"id", 1, 0, 'i'},
 	{"status", 1, 0, 'u'},
+	{"zero", 0, 0, 'z'},
 	{0, 0, 0, 0}
 };
 
@@ -135,13 +143,13 @@ static unsigned int global_option_offset = 0;
 static char commands_v_options[NUMBER_OF_CMD][NUMBER_OF_OPT] =
 /* Well, it's better than "Re: Linux vs FreeBSD" */
 {
-          /*   -s  -d  -r  -q  -p  -i  -t  -u*/
-/*LIST*/      {'x','x','x','x','x','x','x','x'},
-/*CREATE*/    {'+','+','+','+','+','x','+','+'},
-/*DELETE*/    {' ',' ',' ',' ',' ','+','x','x'},
-/*GET*/       {' ',' ',' ',' ','+','+','x','x'},
-/*FLUSH*/     {'x','x','x','x','x','x','x','x'},
-/*EVENT*/     {'x','x','x','x','x','x','x','x'}
+          /*   -s  -d  -r  -q  -p  -i  -t  -u  -z */
+/*LIST*/      {'x','x','x','x','x','x','x','x',' '},
+/*CREATE*/    {'+','+','+','+','+','x','+','+','x'},
+/*DELETE*/    {' ',' ',' ',' ',' ','+','x','x','x'},
+/*GET*/       {' ',' ',' ',' ','+','+','x','x','x'},
+/*FLUSH*/     {'x','x','x','x','x','x','x','x','x'},
+/*EVENT*/     {'x','x','x','x','x','x','x','x','x'}
 };
 
 LIST_HEAD(proto_list);
@@ -293,6 +301,7 @@ printf("-p 			Layer 4 Protocol\n");
 printf("-t			Timeout\n");
 printf("-i			Conntrack ID\n");
 printf("-u			Status\n");
+printf("-z			Zero Counters\n");
 }
 
 int main(int argc, char *argv[])
@@ -314,7 +323,7 @@ int main(int argc, char *argv[])
 	reply.dst.dir = IP_CT_DIR_REPLY;
 	
 	while ((c = getopt_long(argc, argv, 
-			"L:I:D:G:E:s:d:r:q:p:i:t:u:", opts, NULL)) != -1) {
+			"L:I:D:G:E:s:d:r:q:p:i:t:u:z", opts, NULL)) != -1) {
 	switch(c) {
 		case 'L':
 			command |= CT_LIST;
@@ -396,6 +405,9 @@ int main(int argc, char *argv[])
 					   "flag: %s\n", optarg);
 			break;
 		}
+		case 'z':
+			options |= CT_OPT_ZERO;
+			break;
 		default:
 			if (h && !h->parse(c - h->option_offset, argv, 
 					   &orig, &reply))
@@ -416,9 +428,12 @@ int main(int argc, char *argv[])
 	switch(command) {
 		case CT_LIST:
 			printf("list\n");
-			if (type == 0)
-				dump_conntrack_table();
-			else
+			if (type == 0) {
+				if (options & CT_OPT_ZERO)
+					dump_conntrack_table(1);
+				else
+					dump_conntrack_table(0);
+			} else
 				dump_expect_list();
 			break;
 		case CT_CREATE:
