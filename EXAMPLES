@@ -1,0 +1,23 @@
+o List conntrack table
+
+     $ conntrack -L conntrack
+
+o Get a conntrack
+
+     $ conntrack -G conntrack --reply-src 85.136.102.173 \
+       --reply-dst 66.111.58.51 -p tcp --reply-port-src 44843 \
+       --reply-port-dst 993 -i 13
+
+o Delete a conntrack
+
+     $ conntrack -D conntrack --reply-src 85.136.102.173 \
+       --reply-dst 66.111.58.51 -p tcp --reply-port-src 44843 \
+       --reply-port-dst 993 -i 13
+
+o Create a conntrack 
+
+     $ conntrack -I conntrack --orig-src 1.1.1.4 --orig-dst 2.2.2.3 \
+     --reply-src 2.2.2.3 --reply-dst 1.1.1.4 -p tcp --orig-port-src 20 \
+     --orig-port-dst 10 --reply-port-src 10 --orig-port-dst 20 \
+     -u ASSURED -t 100
+
