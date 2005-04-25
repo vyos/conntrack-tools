@@ -10,9 +10,14 @@ struct ctproto_handler {
 	char 			*name;
 	u_int16_t 		protonum;
 	
-	int (*parse)(char c, char *argv[], struct ip_conntrack_tuple *orig,
-		     struct ip_conntrack_tuple *reply);
+	int (*parse)(char c, char *argv[], 
+		     struct ip_conntrack_tuple *orig,
+		     struct ip_conntrack_tuple *reply, 
+		     union ip_conntrack_proto *proto,
+		     unsigned int *flags);
 	void (*print)(struct ip_conntrack_tuple *t);
+
+	int (*final_check)(unsigned int flags);
 
 	struct option 		*opts;
 

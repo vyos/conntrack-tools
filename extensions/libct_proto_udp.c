@@ -16,7 +16,9 @@ static struct option opts[] = {
 
 int parse(char c, char *argv[], 
 	   struct ip_conntrack_tuple *orig,
-	   struct ip_conntrack_tuple *reply)
+	   struct ip_conntrack_tuple *reply,
+	   union ip_conntrack_proto *proto,
+	   unsigned int *flags)
 {
 	switch(c) {
 		case '1':

@@ -11,29 +11,83 @@ static struct option opts[] = {
 	{"orig-port-dst", 1, 0, '2'},
 	{"reply-port-src", 1, 0, '3'},
 	{"reply-port-dst", 1, 0, '4'},
+	{"state", 1, 0, '5'},
 	{0, 0, 0, 0}
+};
+
+enum tcp_param_flags {
+	ORIG_SPORT_BIT = 0,
+	ORIG_SPORT = (1 << ORIG_SPORT_BIT),
+
+	ORIG_DPORT_BIT = 1,
+	ORIG_DPORT = (1 << ORIG_DPORT_BIT),
+
+	REPL_SPORT_BIT = 2,
+	REPL_SPORT = (1 << REPL_SPORT_BIT),
+
+	REPL_DPORT_BIT = 3,
+	REPL_DPORT = (1 << REPL_DPORT_BIT),
+
+	STATE_BIT = 4,
+	STATE = (1 << STATE_BIT)
+};
+
+static const char *states[] = {
+	"NONE",
+	"SYN_SENT",
+	"SYN_RECV",
+	"ESTABLISHED",
+	"FIN_WAIT",
+	"CLOSE_WAIT",
+	"LAST_ACK",
+	"TIME_WAIT",
+	"CLOSE",
+	"LISTEN"
 };
 
 int parse(char c, char *argv[], 
 	   struct ip_conntrack_tuple *orig,
-	   struct ip_conntrack_tuple *reply)
+	   struct ip_conntrack_tuple *reply,
+	   union ip_conntrack_proto *proto,
+	   unsigned int *flags)
 {
 	switch(c) {
 		case '1':
-			if (optarg)
+			if (optarg) {
 				orig->src.u.tcp.port = htons(atoi(optarg));
+				*flags |= ORIG_SPORT;
+			}
 			break;
 		case '2':
-			if (optarg)
+			if (optarg) {
 				orig->dst.u.tcp.port = htons(atoi(optarg));
+				*flags |= ORIG_DPORT;
+			}
 			break;
 		case '3':
-			if (optarg)
+			if (optarg) {
 				reply->src.u.tcp.port = htons(atoi(optarg));
+				*flags |= REPL_SPORT;
+			}
 			break;
 		case '4':
-			if (optarg)
+			if (optarg) {
 				reply->dst.u.tcp.port = htons(atoi(optarg));
+				*flags |= REPL_DPORT;
+			}
+			break;
+		case '5':
+			if (optarg) {
+				int i;
+				for (i=0; i<10; i++) {
+					if (strcmp(optarg, states[i]) == 0) {
+						proto->tcp.state = i;
+						break;
+					}
+				}
+				if (i == 10)
+					printf("doh?\n");
+			}
 			break;
 	}
 	return 1;
