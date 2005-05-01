@@ -1,0 +1,13 @@
+# not a GNU package. You can remove this line, if
+# have all needed files, that a GNU package needs
+AUTOMAKE_OPTIONS = foreign 1.4
+
+INCLUDES  = $(all_includes) -I$(top_srcdir)/include -I${KERNELDIR}
+SUBDIRS   = src extensions
+DIST_SUBDIRS = include src extensions
+LINKOPTS  = -ldl -lnfnetlink -lctnetlink
+AM_CFLAGS = -g
+
+$(OBJECTS): libtool
+libtool: $(LIBTOOL_DEPS)
+	$(SHELL) ./config.status --recheck

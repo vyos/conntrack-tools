@@ -1,10 +1,19 @@
+/*
+ * (C) 2005 by Pablo Neira Ayuso <pablo@eurodev.net>
+ *
+ *      This program is free software; you can redistribute it and/or modify
+ *      it under the terms of the GNU General Public License as published by
+ *      the Free Software Foundation; either version 2 of the License, or
+ *      (at your option) any later version.
+ *
+ */
 #include <stdio.h>
 #include <getopt.h>
 #include <stdlib.h>
 #include <netinet/in.h> /* For htons */
 #include <linux/netfilter_ipv4/ip_conntrack_tuple.h>
 #include <linux/netfilter_ipv4/ip_conntrack.h>
-#include "../include/libct_proto.h"
+#include "libct_proto.h"
 
 static struct option opts[] = {
 	{"orig-port-src", 1, 0, '1'},
@@ -12,6 +21,20 @@ static struct option opts[] = {
 	{"reply-port-src", 1, 0, '3'},
 	{"reply-port-dst", 1, 0, '4'},
 	{0, 0, 0, 0}
+};
+
+enum udp_param_flags {
+	ORIG_SPORT_BIT = 0,
+	ORIG_SPORT = (1 << ORIG_SPORT_BIT),
+
+	ORIG_DPORT_BIT = 1,
+	ORIG_DPORT = (1 << ORIG_DPORT_BIT),
+
+	REPL_SPORT_BIT = 2,
+	REPL_SPORT = (1 << REPL_SPORT_BIT),
+
+	REPL_DPORT_BIT = 3,
+	REPL_DPORT = (1 << REPL_DPORT_BIT),
 };
 
 int parse(char c, char *argv[], 
@@ -22,36 +45,44 @@ int parse(char c, char *argv[],
 {
 	switch(c) {
 		case '1':
-			if (optarg)
+			if (optarg) {
 				orig->src.u.udp.port = htons(atoi(optarg));
+				*flags |= ORIG_SPORT;
+			}
 			break;
 		case '2':
-			if (optarg)
+			if (optarg) {
 				orig->dst.u.udp.port = htons(atoi(optarg));
+				*flags |= ORIG_DPORT;
+			}
 			break;
 		case '3':
-			if (optarg)
+			if (optarg) {
 				reply->src.u.udp.port = htons(atoi(optarg));
+				*flags |= REPL_SPORT;
+			}
 			break;
 		case '4':
-			if (optarg)
+			if (optarg) {
 				reply->dst.u.udp.port = htons(atoi(optarg));
+				*flags |= REPL_DPORT;
+			}
 			break;
 	}
 	return 1;
 }
 
-void print(struct ip_conntrack_tuple *t)
+void print_tuple(struct ip_conntrack_tuple *t)
 {
-	printf("sport=%d dport=%d ", ntohs(t->src.u.udp.port), 
-				     ntohs(t->dst.u.udp.port));
+	fprintf(stdout, "sport=%d dport=%d ", ntohs(t->src.u.udp.port), 
+				             ntohs(t->dst.u.udp.port));
 }
 
 static struct ctproto_handler udp = {
 	.name 		= "udp",
 	.protonum	= 17,
 	.parse		= parse,
-	.print		= print,
+	.print_tuple	= print_tuple,
 	.opts		= opts
 };
 

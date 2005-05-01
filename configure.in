@@ -1,0 +1,88 @@
+AC_INIT
+
+AC_CANONICAL_SYSTEM
+
+AM_INIT_AUTOMAKE(conntrack, 0.50)
+AM_CONFIG_HEADER(config.h)
+
+AC_PROG_CC
+AM_PROG_LIBTOOL
+AC_PROG_INSTALL
+AC_PROG_LN_S
+
+case $target in
+*-*-linux*) ;;
+*) AC_MSG_ERROR([Linux only, dude!]);;
+esac
+
+# Checks for libraries.
+# FIXME: Replace `main' with a function in `-lc':
+dnl AC_CHECK_LIB([c], [main])
+# FIXME: Replace `main' with a function in `-ldl':
+
+AC_CHECK_LIB([dl], [dlopen])
+AC_CHECK_LIB([nfnetlink], [nfnl_listen])
+AC_CHECK_LIB([ctnetlink], [ctnl_register_handler] ,,,[-lnfnetlink])
+
+# Checks for header files.
+dnl AC_HEADER_STDC
+dnl AC_CHECK_HEADERS([netinet/in.h stdlib.h])
+
+# Checks for typedefs, structures, and compiler characteristics.
+dnl AC_C_CONST
+dnl AC_C_INLINE
+
+# Checks for library functions.
+dnl AC_FUNC_MALLOC
+dnl AC_FUNC_VPRINTF
+dnl AC_CHECK_FUNCS([memset])
+
+dnl--------------------------------
+
+AC_DEFUN([NF_KERNEL_SOURCE],[
+    
+  if test "$with_kernel" = ""; then
+    KERNEL="`uname -r`"
+  else
+    KERNEL="$with_kernel"
+  fi
+
+  THIS_PREFIX=""
+  for i in "/lib/modules/$KERNEL/build/include" "$KERNEL" "$KERNEL/include" "/usr/src/linux-$KERNEL" "/usr/src/kernel-$KERNEL" "/usr/src/linux-headers-$KERNEL" "/usr/src/kernel-headers-$KERNEL"
+  do  
+    AC_MSG_CHECKING([Looking for kernel source or headers in $i])
+    if test -r "$i/linux/config.h"
+    then
+      THIS_PREFIX="$i"
+      AC_MSG_RESULT([found])
+      break
+    fi
+    AC_MSG_RESULT([ ])    
+  done
+  if test -r "$THIS_PREFIX/linux/config.h" ; then
+    AC_SUBST(KERNELDIR,[$THIS_PREFIX])
+    AC_MSG_RESULT([found])
+  else
+    AC_MSG_ERROR([not found $THIS_PREFIX])  
+  fi
+
+  # somehow add this as an include path
+])
+
+AC_ARG_WITH(kernel,
+               AC_HELP_STRING([--with-kernel=DIR],
+                              [ Show location of kernel source. Default is to use uname -r and look in /lib/modules/KERNEL/build/include. ]),
+	       NF_KERNEL_SOURCE($with_kernel),NF_KERNEL_SOURCE())
+
+CONNTRACK_LIB_DIR=$PREFIX/lib
+AC_SUBST(CONNTRACK_LIB_DIR)
+
+dnl--------------------------------
+
+dnl AC_CONFIG_FILES([Makefile
+dnl                  debug/Makefile
+dnl                  debug/src/Makefile
+dnl                  extensions/Makefile
+dnl                  src/Makefile])
+
+AC_OUTPUT(Makefile src/Makefile extensions/Makefile include/Makefile)

@@ -46,7 +46,7 @@
 #include "libct_proto.h"
 
 #define PROGNAME "conntrack"
-#define VERSION "0.25"
+#define VERSION "0.50"
 
 #if 0
 #define DEBUGP printf
@@ -78,9 +78,15 @@ enum action {
 	CT_EVENT	= (1 << CT_EVENT_BIT),
 
 	CT_ACTION_BIT	= 6,
-	CT_ACTION	= (1 << CT_ACTION_BIT)
+	CT_ACTION	= (1 << CT_ACTION_BIT),
+
+	CT_VERSION_BIT	= 7,
+	CT_VERSION	= (1 << CT_VERSION_BIT),
+
+	CT_HELP_BIT	= 8,
+	CT_HELP		= (1 << CT_HELP_BIT),
 };
-#define NUMBER_OF_CMD   7
+#define NUMBER_OF_CMD   9
 
 enum options {
 	CT_OPT_ORIG_SRC_BIT	= 0,
@@ -102,28 +108,29 @@ enum options {
 	CT_OPT_PROTO_BIT	= 4,
 	CT_OPT_PROTO		= (1 << CT_OPT_PROTO_BIT),
 
-	CT_OPT_ID_BIT		= 5,
-	CT_OPT_ID		= (1 << CT_OPT_ID_BIT),
-
-	CT_OPT_TIMEOUT_BIT	= 6,
+	CT_OPT_TIMEOUT_BIT	= 5,
 	CT_OPT_TIMEOUT		= (1 << CT_OPT_TIMEOUT_BIT),
 
-	CT_OPT_STATUS_BIT	= 7,
+	CT_OPT_STATUS_BIT	= 6,
 	CT_OPT_STATUS		= (1 << CT_OPT_STATUS_BIT),
 
-	CT_OPT_ZERO_BIT		= 8,
+	CT_OPT_ZERO_BIT		= 7,
 	CT_OPT_ZERO		= (1 << CT_OPT_ZERO_BIT),
 
-	CT_OPT_DUMP_MASK_BIT	= 9,
+	CT_OPT_DUMP_MASK_BIT	= 8,
 	CT_OPT_DUMP_MASK	= (1 << CT_OPT_DUMP_MASK_BIT),
+
+	CT_OPT_GROUP_MASK_BIT	= 9,
+	CT_OPT_GROUP_MASK	= (1 << CT_OPT_GROUP_MASK_BIT),
 
 	CT_OPT_EVENT_MASK_BIT	= 10,
 	CT_OPT_EVENT_MASK	= (1 << CT_OPT_EVENT_MASK_BIT),
+
 };
 #define NUMBER_OF_OPT   11
 
 static const char optflags[NUMBER_OF_OPT]
-= { 's', 'd', 'r', 'q', 'p', 'i', 't', 'u', 'z','m','g'};
+= { 's', 'd', 'r', 'q', 'p', 't', 'u', 'z','m','g','e'};
 
 static struct option original_opts[] = {
 	{"dump", 2, 0, 'L'},
@@ -133,17 +140,19 @@ static struct option original_opts[] = {
 	{"flush", 1, 0, 'F'},
 	{"event", 1, 0, 'E'},
 	{"action", 1, 0, 'A'},
+	{"version", 0, 0, 'V'},
+	{"help", 0, 0, 'h'},
 	{"orig-src", 1, 0, 's'},
 	{"orig-dst", 1, 0, 'd'},
 	{"reply-src", 1, 0, 'r'},
 	{"reply-dst", 1, 0, 'q'},
 	{"protonum", 1, 0, 'p'},
 	{"timeout", 1, 0, 't'},
-	{"id", 1, 0, 'i'},
 	{"status", 1, 0, 'u'},
 	{"zero", 0, 0, 'z'},
 	{"dump-mask", 1, 0, 'm'},
 	{"groups", 1, 0, 'g'},
+	{"event-mask", 1, 0, 'e'},
 	{0, 0, 0, 0}
 };
 
@@ -164,19 +173,24 @@ static unsigned int global_option_offset = 0;
 static char commands_v_options[NUMBER_OF_CMD][NUMBER_OF_OPT] =
 /* Well, it's better than "Re: Linux vs FreeBSD" */
 {
-          /*   -s  -d  -r  -q  -p  -i  -t  -u  -z  -m  -g*/
-/*LIST*/      {'x','x','x','x','x','x','x','x',' ','x','x'},
-/*CREATE*/    {'+','+','+','+','+','x','+','+','x','x','x'},
-/*DELETE*/    {' ',' ',' ',' ',' ','+','x','x','x','x','x'},
-/*GET*/       {' ',' ',' ',' ','+','+','x','x','x','x','x'},
+          /*   -s  -d  -r  -q  -p  -t  -u  -z  -m  -g  -e */
+/*LIST*/      {'x','x','x','x','x','x','x',' ','x','x','x'},
+/*CREATE*/    {'+','+','+','+','+','+','+','x','x','x','x'},
+/*DELETE*/    {' ',' ',' ',' ',' ','x','x','x','x','x','x'},
+/*GET*/       {' ',' ',' ',' ','+','x','x','x','x','x','x'},
 /*FLUSH*/     {'x','x','x','x','x','x','x','x','x','x','x'},
-/*EVENT*/     {'x','x','x','x','x','x','x','x','x','x',' '},
-/*ACTION*/    {'x','x','x','x','x','x','x','x',' ',' ','x'},
+/*EVENT*/     {'x','x','x','x','x','x','x','x','x',' ','x'},
+/*ACTION*/    {'x','x','x','x','x','x','x','x',' ','x',' '},
+/*VERSION*/   {'x','x','x','x','x','x','x','x','x','x','x'},
+/*HELP*/      {'x','x','x','x','x','x','x','x','x','x','x'},
 };
+
+/* FIXME: hardcoded!, this must be defined during compilation time */
+char *lib_dir = CONNTRACK_LIB_DIR;
 
 LIST_HEAD(proto_list);
 
-char *proto2str[] = {
+char *proto2str[IPPROTO_MAX] = {
 	[IPPROTO_TCP] = "tcp",
         [IPPROTO_UDP] = "udp",
         [IPPROTO_ICMP] = "icmp",
@@ -249,7 +263,7 @@ generic_opt_check(int command, int options)
 			}
 		}
 		if (legal == -1)
-			exit_error(PARAMETER_PROBLEM, "Illegal option `-%c'"
+			exit_error(PARAMETER_PROBLEM, "Illegal option `-%c' "
 				   "with this command\n", optflags[i]);
 	}
 }
@@ -280,7 +294,7 @@ merge_options(struct option *oldopts, const struct option *newopts,
 
 static void dump_tuple(struct ip_conntrack_tuple *tp)
 {
-	fprintf(stderr, "tuple %p: %u %u.%u.%u.%u:%hu -> %u.%u.%u.%u:%hu\n",
+	fprintf(stdout, "tuple %p: %u %u.%u.%u.%u:%hu -> %u.%u.%u.%u:%hu\n",
 		tp, tp->dst.protonum,
 		NIPQUAD(tp->src.ip), ntohs(tp->src.u.all),
 		NIPQUAD(tp->dst.ip), ntohs(tp->dst.u.all));
@@ -291,64 +305,67 @@ void not_implemented_yet()
 	exit_error(OTHER_PROBLEM, "Sorry, not implemented yet :(\n");
 }
 
+
+#define PARSE_STATUS 0
+#define PARSE_GROUP 1
+#define PARSE_EVENT 2
+#define PARSE_DUMP 3
+#define PARSE_MAX PARSE_DUMP+1
+
+static struct parse_parameter {
+	char 	*parameter[10];
+	size_t  size;
+	unsigned int value[10];
+} parse_array[PARSE_MAX] = {
+	{ {"ASSURED", "SEEN_REPLY", "UNSET"},
+	  3,
+	  { IPS_ASSURED, IPS_SEEN_REPLY, 0} },
+	{ {"ALL", "TCP", "UDP", "ICMP"},
+	  4,
+	  {~0U, NFGRP_IPV4_CT_TCP, NFGRP_IPV4_CT_UDP, NFGRP_IPV4_CT_ICMP} },
+	{ {"ALL", "NEW", "RELATED", "DESTROY", "REFRESH", "STATUS", 
+	   "PROTOINFO", "HELPER", "HELPINFO", "NATINFO"},
+	  10,
+	  {~0U, IPCT_NEW, IPCT_RELATED, IPCT_DESTROY, IPCT_REFRESH, IPCT_STATUS,
+	   IPCT_PROTOINFO, IPCT_HELPER, IPCT_HELPINFO, IPCT_NATINFO} },
+	{ {"ALL", "TUPLE", "STATUS", "TIMEOUT", "PROTOINFO", "HELPINFO", 
+	   "COUNTERS", "MARK"}, 8,
+	  {~0U, DUMP_TUPLE, DUMP_STATUS, DUMP_TIMEOUT, DUMP_PROTOINFO,
+	   DUMP_HELPINFO, DUMP_COUNTERS, DUMP_MARK} }
+};
+
 static int
-do_parse_status(const char *str, size_t strlen, unsigned int *status)
+do_parse_parameter(const char *str, size_t strlen, unsigned int *value, 
+		   int parse_type)
 {
-	if (strncasecmp(str, "ASSURED", strlen) == 0)
-		*status |= IPS_ASSURED;
-	else if (strncasecmp(str, "SEEN_REPLY", strlen) == 0)
-		*status |= IPS_SEEN_REPLY;
-	else if (strncasecmp(str, "UNSET", strlen) == 0)
-		*status |= 0;
-	else
-		return 0;
-	return 1;
+	int i, ret = 0;
+	struct parse_parameter *p = &parse_array[parse_type];
+	
+	for (i = 0; i < p->size; i++)
+		if (strncasecmp(str, p->parameter[i], strlen) == 0) {
+			*value |= p->value[i];
+			ret = 1;
+			break;
+		}
+	
+	return ret;
 }
 
 static void
-parse_status(const char *arg, unsigned int *status)
+parse_parameter(const char *arg, unsigned int *status, int parse_type)
 {
 	const char *comma;
 
 	while ((comma = strchr(arg, ',')) != NULL) {
-		if (comma == arg || !do_parse_status(arg, comma-arg, status))
-			exit_error(PARAMETER_PROBLEM, "Bad status `%s'", arg);
+		if (comma == arg 
+		    || !do_parse_parameter(arg, comma-arg, status, parse_type))
+			exit_error(PARAMETER_PROBLEM,"Bad parameter `%s'", arg);
 		arg = comma+1;
 	}
 
-	if (strlen(arg) == 0 || !do_parse_status(arg, strlen(arg), status))
-		exit_error(PARAMETER_PROBLEM, "Bad status `%s'", arg);
-}
-
-static int
-do_parse_group(const char *str, size_t strlen, unsigned int *group)
-{
-	if (strncasecmp(str, "ALL", strlen) == 0)
-		*group |= ~0U;
-	else if (strncasecmp(str, "TCP", strlen) == 0)
-		*group |= NFGRP_IPV4_CT_TCP;
-	else if (strncasecmp(str, "UDP", strlen) == 0)
-		*group |= NFGRP_IPV4_CT_UDP;
-	else if (strncasecmp(str, "ICMP", strlen) == 0)
-		*group |= NFGRP_IPV4_CT_ICMP;
-	else
-		return 0;
-	return 1;
-}
-
-static void
-parse_group(const char *arg, unsigned int *group)
-{
-	const char *comma;
-
-	while ((comma = strchr(arg, ',')) != NULL) {
-		if (comma == arg || !do_parse_group(arg, comma-arg, group))
-			exit_error(PARAMETER_PROBLEM, "Bad status `%s'", arg);
-		arg = comma+1;
-	}
-
-	if (strlen(arg) == 0 || !do_parse_group(arg, strlen(arg), group))
-		exit_error(PARAMETER_PROBLEM, "Bad status `%s'", arg);
+	if (strlen(arg) == 0
+	    || !do_parse_parameter(arg, strlen(arg), status, parse_type))
+		exit_error(PARAMETER_PROBLEM, "Bad parameter `%s'", arg);
 }
 
 unsigned int check_type(int argc, char *argv[])
@@ -442,27 +459,30 @@ int iptables_insmod(const char *modname, const char *modprobe)
 }
 
 void usage(char *prog) {
-fprintf(stderr, "Tool to manipulate conntrack and expectations. Version %s\n", VERSION);
-fprintf(stderr, "Usage: %s [commands] [options]\n", prog);
-fprintf(stderr, "\n");
-fprintf(stderr, "Commands:\n");
-fprintf(stderr, "-L table	    	List conntrack or expectation table\n");
-fprintf(stderr, "-G table [options]  	Get conntrack or expectation\n");
-fprintf(stderr, "-D table [options]	Delete conntrack or expectation\n");
-fprintf(stderr, "-I table [options]	Create a conntrack or expectation\n");
-fprintf(stderr, "-E table	    	Show events\n");
-fprintf(stderr, "-F table	     	Flush table\n");
-fprintf(stderr, "\n");
-fprintf(stderr, "Options:\n");
-fprintf(stderr, "--orig-src	     	Source address from original direction\n");
-fprintf(stderr, "--orig-dst	     	Destination address from original direction\n");
-fprintf(stderr, "--reply-src		Source addres from reply direction\n");
-fprintf(stderr, "--reply-dst		Destination address from reply direction\n");
-fprintf(stderr, "-p 			Layer 4 Protocol\n");
-fprintf(stderr, "-t			Timeout\n");
-fprintf(stderr, "-i			Conntrack ID\n");
-fprintf(stderr, "-u			Status\n");
-fprintf(stderr, "-z			Zero Counters\n");
+fprintf(stdout, "Tool to manipulate conntrack and expectations. Version %s\n", VERSION);
+fprintf(stdout, "Usage: %s [commands] [options]\n", prog);
+fprintf(stdout, "\n");
+fprintf(stdout, "Commands:\n");
+fprintf(stdout, "-L [table] [-z]   	List conntrack or expectation table\n");
+fprintf(stdout, "-G [table] parameters  Get conntrack or expectation\n");
+fprintf(stdout, "-D [table] parameters	Delete conntrack or expectation\n");
+fprintf(stdout, "-I [table] parameters	Create a conntrack or expectation\n");
+fprintf(stdout, "-E [table] [options]	Show events\n");
+fprintf(stdout, "-F [table]	     	Flush table\n");
+fprintf(stdout, "-A [table] [options]	Set action\n");
+fprintf(stdout, "\n");
+fprintf(stdout, "Options:\n");
+fprintf(stdout, "--orig-src ip	     	Source address from original direction\n");
+fprintf(stdout, "--orig-dst ip	     	Destination address from original direction\n");
+fprintf(stdout, "--reply-src ip		Source addres from reply direction\n");
+fprintf(stdout, "--reply-dst ip		Destination address from reply direction\n");
+fprintf(stdout, "-p proto		Layer 4 Protocol\n");
+fprintf(stdout, "-t timeout		Set timeout\n");
+fprintf(stdout, "-u status		Set status\n");
+fprintf(stdout, "-m dumpmask		Set dump mask\n");
+fprintf(stdout, "-g groupmask		Set group mask\n");
+fprintf(stdout, "-e eventmask		Set event mask\n");
+fprintf(stdout, "-z 			Zero Counters\n");
 }
 
 int main(int argc, char *argv[])
@@ -473,11 +493,11 @@ int main(int argc, char *argv[])
 	struct ctproto_handler *h = NULL;
 	union ip_conntrack_proto proto;
 	unsigned long timeout = 0;
-	unsigned int status = 0;
+	unsigned int status = 0, group_mask = 0;
 	unsigned long id = 0;
-	unsigned int type = 0, mask = 0, extra_flags = 0, event_mask = 0;
+	unsigned int type = 0, dump_mask = 0, extra_flags = 0, event_mask = 0;
 	int res = 0, retry = 2;
-	
+
 	memset(&proto, 0, sizeof(union ip_conntrack_proto));
 	memset(&orig, 0, sizeof(struct ip_conntrack_tuple));
 	memset(&reply, 0, sizeof(struct ip_conntrack_tuple));
@@ -485,7 +505,7 @@ int main(int argc, char *argv[])
 	reply.dst.dir = IP_CT_DIR_REPLY;
 	
 	while ((c = getopt_long(argc, argv, 
-		"L::I::D::G::E::A::s:d:r:q:p:i:t:u:m:g:z", 
+		"L::I::D::G::E::A::F::hVs:d:r:q:p:t:u:m:g:e:z", 
 		opts, NULL)) != -1) {
 	switch(c) {
 		case 'L':
@@ -515,12 +535,19 @@ int main(int argc, char *argv[])
 		case 'A':
 			command |= CT_ACTION;
 			type = check_type(argc, argv);
+			break;
+		case 'V':
+			command |= CT_VERSION;
+			break;
+		case 'h':
+			command |= CT_HELP;
+			break;
 		case 'm':
 			if (!optarg)
 				continue;
 			
 			options |= CT_OPT_DUMP_MASK;
-			mask = atoi(optarg);
+			parse_parameter(optarg, &dump_mask, PARSE_DUMP);
 			break;
 		case 's':
 			options |= CT_OPT_ORIG_SRC;
@@ -552,10 +579,6 @@ int main(int argc, char *argv[])
 			opts = merge_options(opts, h->opts, 
 					     &h->option_offset);
 			break;
-		case 'i':
-			options |= CT_OPT_ID;
-			id = atoi(optarg);
-			break;
 		case 't':
 			options |= CT_OPT_TIMEOUT;
 			if (optarg)
@@ -567,14 +590,18 @@ int main(int argc, char *argv[])
 				continue;
 
 			options |= CT_OPT_STATUS;
-			parse_status(optarg, &status);
+			parse_parameter(optarg, &status, PARSE_STATUS);
 			/* Just insert confirmed conntracks */
 			status |= IPS_CONFIRMED;
 			break;
 		}
 		case 'g':
+			options |= CT_OPT_GROUP_MASK;
+			parse_parameter(optarg, &group_mask, PARSE_GROUP);
+			break;
+		case 'e':
 			options |= CT_OPT_EVENT_MASK;
-			parse_group(optarg, &event_mask);
+			parse_parameter(optarg, &event_mask, PARSE_EVENT);
 			break;
 		case 'z':
 			options |= CT_OPT_ZERO;
@@ -611,16 +638,14 @@ int main(int argc, char *argv[])
 			break;
 			
 		case CT_CREATE:
-			fprintf(stderr, "create\n");
 			if (type == 0)
-				create_conntrack(&orig, &reply, timeout, 
-						 &proto, status);
+				res = create_conntrack(&orig, &reply, timeout, 
+						       &proto, status);
 			else
 				not_implemented_yet();
 			break;
 			
 		case CT_DELETE:
-			fprintf(stderr, "delete\n");
 			if (type == 0) {
 				if (options & CT_OPT_ORIG)
 					res =delete_conntrack(&orig, CTA_ORIG, 
@@ -633,7 +658,6 @@ int main(int argc, char *argv[])
 			break;
 			
 		case CT_GET:
-			fprintf(stderr, "get\n");
 			if (type == 0) {
 				if (options & CT_OPT_ORIG)
 					res = get_conntrack(&orig, CTA_ORIG, 
@@ -646,26 +670,35 @@ int main(int argc, char *argv[])
 			break;
 			
 		case CT_FLUSH:
-			not_implemented_yet();
+			if (type == 0)
+				res = flush_conntrack();
+			else
+				not_implemented_yet();
 			break;
 			
 		case CT_EVENT:
 			if (type == 0) {
-				if (options & CT_OPT_EVENT_MASK)
-					res = event_conntrack(event_mask);
+				if (options & CT_OPT_GROUP_MASK)
+					res = event_conntrack(group_mask);
 				else
 					res = event_conntrack(~0U);
 			} else
-				/* and surely it won't ever... */
 				not_implemented_yet();
 			
 		case CT_ACTION:
 			if (type == 0)
 				if (options & CT_OPT_DUMP_MASK)
-					res = set_dump_mask(mask);
+					res = set_mask(dump_mask, 0);
+				else if (options & CT_OPT_EVENT_MASK)
+					res = set_mask(event_mask, 1);
 			break;
-			
-			default:
+		case CT_VERSION:
+			fprintf(stdout, "%s v%s\n", PROGNAME, VERSION);
+			break;
+		case CT_HELP:
+			usage(argv[0]);
+			break;
+		default:
 			usage(argv[0]);
 			break;
 		}
@@ -684,5 +717,5 @@ int main(int argc, char *argv[])
 	}
 
 	if (res == -1)
-		fprintf(stderr, "Operations failed\n");
+		fprintf(stderr, "Operation failed\n");
 }

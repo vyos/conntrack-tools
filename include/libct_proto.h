@@ -1,8 +1,14 @@
 #ifndef _LIBCT_PROTO_H
 #define _LIBCT_PROTO_H
 
+/* FIXME: Rename this file pablo... */
+
 #include "linux_list.h"
 #include <getopt.h>
+
+#define CONNTRACK_LIB_DIR "/usr/local/lib"
+
+struct cta_proto;
 
 struct ctproto_handler {
 	struct list_head 	head;
@@ -15,7 +21,8 @@ struct ctproto_handler {
 		     struct ip_conntrack_tuple *reply, 
 		     union ip_conntrack_proto *proto,
 		     unsigned int *flags);
-	void (*print)(struct ip_conntrack_tuple *t);
+	void (*print_tuple)(struct ip_conntrack_tuple *t);
+	void (*print_proto)(union ip_conntrack_proto *proto);
 
 	int (*final_check)(unsigned int flags);
 

@@ -1,0 +1,23 @@
+2005-04-25
+<pablo@eurodev.net>
+	o Added support for mask based event dumping
+	o Added support for mask based event notification
+	o On-demand autoload of ip_conntrack_netlink
+
+2005-05-01
+<pablo@eurodev.net>
+	o Created changelog file
+	o Deleted libctnetlink.h and libnfnetlink.h from the include/ dir.
+	o Added support for version (-V) and help (-h)
+	o Added event mask based support
+	o Added GPLv2 headers
+	o Use fprintf instead of printf
+	o Defined print_tuple and print_proto output interfaces
+	o ctnl_[get|del]_conntrack handles return value from kernel via msgerr
+	o Added support for conntrack table flushing
+	o Added test case file (test.sh)
+	o Improve dump output
+
+<azez@ufomechanic.net>
+	o Autoconf stuff for conntrack + some pablo's modifications.
+	o Fixed packet counters formatting (use %llu instead of %lu)

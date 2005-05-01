@@ -1,10 +1,19 @@
+/*
+ * (C) 2005 by Pablo Neira Ayuso <pablo@eurodev.net>
+ *
+ *      This program is free software; you can redistribute it and/or modify
+ *      it under the terms of the GNU General Public License as published by
+ *      the Free Software Foundation; either version 2 of the License, or
+ *      (at your option) any later version.
+ *
+ */
 #include <stdio.h>
 #include <getopt.h>
 #include <stdlib.h>
 #include <netinet/in.h> /* For htons */
 #include <linux/netfilter_ipv4/ip_conntrack_tuple.h>
 #include <linux/netfilter_ipv4/ip_conntrack.h>
-#include "../include/libct_proto.h"
+#include "libct_proto.h"
 
 static struct option opts[] = {
 	{"orig-port-src", 1, 0, '1'},
@@ -85,25 +94,33 @@ int parse(char c, char *argv[],
 						break;
 					}
 				}
-				if (i == 10)
+				if (i == 10) {
 					printf("doh?\n");
+					return 0;
+				}
 			}
 			break;
 	}
 	return 1;
 }
 
-void print(struct ip_conntrack_tuple *t)
+void print_tuple(struct ip_conntrack_tuple *t)
 {
-	printf("sport=%d dport=%d ", ntohs(t->src.u.tcp.port), 
-				     ntohs(t->dst.u.tcp.port));
+	fprintf(stdout, "sport=%d dport=%d ", ntohs(t->src.u.tcp.port), 
+				             ntohs(t->dst.u.tcp.port));
+}
+
+void print_proto(union ip_conntrack_proto *proto)
+{
+	fprintf(stdout, "[%s] ", states[proto->tcp.state]);
 }
 
 static struct ctproto_handler tcp = {
 	.name 		= "tcp",
 	.protonum	= 6,
 	.parse		= parse,
-	.print		= print,
+	.print_tuple	= print_tuple,
+	.print_proto	= print_proto,
 	.opts		= opts
 };
 
