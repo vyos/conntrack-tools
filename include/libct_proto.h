@@ -6,8 +6,6 @@
 #include "linux_list.h"
 #include <getopt.h>
 
-#define CONNTRACK_LIB_DIR "/usr/local/lib"
-
 struct cta_proto;
 
 struct ctproto_handler {
