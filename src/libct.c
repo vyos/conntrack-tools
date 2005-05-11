@@ -142,93 +142,9 @@ static char *typemsg2str(type, flags)
 static int event_handler(struct sockaddr_nl *sock, struct nlmsghdr *nlh, 
 			 void *arg)
 {
-	struct nfgenmsg *nfmsg;
-	struct nfattr *nfa;
-	int min_len = 0;
-	struct ctproto_handler *h = NULL;
 	int type = NFNL_MSG_TYPE(nlh->nlmsg_type);
-	struct nfattr *attr = NFM_NFA(NLMSG_DATA(nlh));
-	int attrlen = nlh->nlmsg_len - NLMSG_ALIGN(min_len);
-
-	struct ip_conntrack_tuple *orig, *reply;
-	struct cta_counters *ctr;
-	unsigned long *status, *timeout, *mark;
-	struct cta_proto *proto;
-	unsigned long *id;
-
-	DEBUGP("netlink header\n");
-	DEBUGP("len: %d type: %d flags: %d seq: %d pid: %d\n", 
-		nlh->nlmsg_len, nlh->nlmsg_type, nlh->nlmsg_flags, 
-		nlh->nlmsg_seq, nlh->nlmsg_pid);
-
-	nfmsg = NLMSG_DATA(nlh);
-	DEBUGP("nfmsg->nfgen_family: %d\n", nfmsg->nfgen_family);
-
-	min_len = sizeof(struct nfgenmsg);
-	if (nlh->nlmsg_len < min_len)
-		return -EINVAL;
-
-	DEBUGP("size:%d\n", nlh->nlmsg_len);
-
 	fprintf(stdout, "[%s] ", typemsg2str(type, nlh->nlmsg_flags));
-
-	while (NFA_OK(attr, attrlen)) {
-		switch(attr->nfa_type) {
-		case CTA_ORIG:
-			orig = NFA_DATA(attr);
-			fprintf(stdout, "src=%u.%u.%u.%u dst=%u.%u.%u.%u ", 
-					NIPQUAD(orig->src.ip), 
-					NIPQUAD(orig->dst.ip));
-			h = findproto(proto2str[orig->dst.protonum]);
-			if (h && h->print_tuple)
-				h->print_tuple(orig);
-			break;
-		case CTA_RPLY:
-			reply = NFA_DATA(attr);
-			fprintf(stdout, "src=%u.%u.%u.%u dst=%u.%u.%u.%u ",
-					NIPQUAD(reply->src.ip), 
-					NIPQUAD(reply->dst.ip));
-			h = findproto(proto2str[reply->dst.protonum]);
-			if (h && h->print_tuple)
-				h->print_tuple(reply);	
-			break;
-		case CTA_STATUS:
-			status = NFA_DATA(attr);
-			print_status(*status);
-			break;
-		case CTA_PROTOINFO:
-			proto = NFA_DATA(attr);
-			if (proto2str[proto->num_proto]) {
-				fprintf(stdout, "%s %d ", proto2str[proto->num_proto], proto->num_proto);
-				h = findproto(proto2str[proto->num_proto]);
-				if (h && h->print_proto)
-					h->print_proto(&proto->proto);
-			} else
-				fprintf(stdout, "unknown %d ", proto->num_proto);
-			break;
-		case CTA_TIMEOUT:
-			timeout = NFA_DATA(attr);
-			fprintf(stdout, "timeout:%lu ", *timeout);
-			break;
-		case CTA_MARK:
-			mark = NFA_DATA(attr);
-			fprintf(stdout, "mark=%lu ", *mark);
-			break;
-		case CTA_COUNTERS:
-			ctr = NFA_DATA(attr);
-			fprintf(stdout, "orig_packets=%llu orig_bytes=%llu, "
-			       "reply_packets=%llu reply_bytes=%llu ",
-			       ctr->orig.packets, ctr->orig.bytes,
-			       ctr->reply.packets, ctr->reply.bytes);
-			break;
-		}
-		DEBUGP("nfa->nfa_type: %d\n", attr->nfa_type);
-		DEBUGP("nfa->nfa_len: %d\n", attr->nfa_len);
-		attr = NFA_NEXT(attr, attrlen);
-	}
-	fprintf(stdout, "\n");
-
-	return 0;
+	return handler(sock, nlh, arg);
 }
 
 static int expect_handler(struct sockaddr_nl *sock, struct nlmsghdr *nlh, void *arg)
