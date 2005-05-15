@@ -32,7 +32,12 @@ case $1 in
 		 --reply-port-src $DPORT --reply-port-dst $SPORT \
 		--state LISTEN -u SEEN_REPLY -t 50
 		;;
-
+	get)
+		echo "getting a conntrack"
+		$CONNTRACK -G --orig-src $SRC --orig-dst $DST \
+		-p tcp --orig-port-src $SPORT --orig-port-dst $DPORT \
+		--reply-port-src $DPORT --reply-port-dst $SPORT
+		;;
 	change)
 		echo "change a conntrack"
 		$CONNTRACK -I --orig-src $SRC --orig-dst $DST \

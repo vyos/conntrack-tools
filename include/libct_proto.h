@@ -24,6 +24,8 @@ struct ctproto_handler {
 
 	int (*final_check)(unsigned int flags);
 
+	void (*help)();
+
 	struct option 		*opts;
 
 	unsigned int		option_offset;

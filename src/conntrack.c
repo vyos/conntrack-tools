@@ -46,7 +46,7 @@
 #include "libct_proto.h"
 
 #define PROGNAME "conntrack"
-#define VERSION "0.50"
+#define VERSION "0.60"
 
 #if 0
 #define DEBUGP printf
@@ -182,7 +182,7 @@ static char commands_v_options[NUMBER_OF_CMD][NUMBER_OF_OPT] =
 /*EVENT*/     {'x','x','x','x','x','x','x','x','x',' ','x'},
 /*ACTION*/    {'x','x','x','x','x','x','x','x',' ','x',' '},
 /*VERSION*/   {'x','x','x','x','x','x','x','x','x','x','x'},
-/*HELP*/      {'x','x','x','x','x','x','x','x','x','x','x'},
+/*HELP*/      {'x','x','x','x',' ','x','x','x','x','x','x'},
 };
 
 /* FIXME: hardcoded!, this must be defined during compilation time */
@@ -202,6 +202,13 @@ enum exittype {
         PARAMETER_PROBLEM,
         VERSION_PROBLEM
 };
+
+void extension_help(struct ctproto_handler *h)
+{
+	fprintf(stdout, "\n");
+	fprintf(stdout, "Proto `%s' help:\n", h->name);
+	h->help();
+}
 
 void
 exit_tryhelp(int status)
@@ -624,6 +631,13 @@ int main(int argc, char *argv[])
 
 	generic_opt_check(command, options);
 
+	if (!(command & CT_HELP)
+	    && h && h->final_check && !h->final_check(extra_flags)) {
+		usage(argv[0]);
+		extension_help(h);
+		exit_error(PARAMETER_PROBLEM, "Missing protocol arguments!\n");
+	}
+
 	while (retry > 0) {
 		retry--;
 		switch(command) {
@@ -697,6 +711,8 @@ int main(int argc, char *argv[])
 			break;
 		case CT_HELP:
 			usage(argv[0]);
+			if (options & CT_OPT_PROTO)
+				extension_help(h);
 			break;
 		default:
 			usage(argv[0]);

@@ -54,6 +54,15 @@ static const char *states[] = {
 	"LISTEN"
 };
 
+void help()
+{
+	fprintf(stdout, "--orig-port-src        original source port\n");
+	fprintf(stdout, "--orig-port-dst        original destination port\n");
+	fprintf(stdout, "--reply-port-src       reply source port\n");
+	fprintf(stdout, "--reply-port-dst       reply destination port\n");
+	fprintf(stdout, "--state                TCP state, fe. ESTABLISHED\n");
+}
+
 int parse(char c, char *argv[], 
 	   struct ip_conntrack_tuple *orig,
 	   struct ip_conntrack_tuple *reply,
@@ -104,6 +113,20 @@ int parse(char c, char *argv[],
 	return 1;
 }
 
+int final_check(unsigned int flags)
+{
+	if (!(flags & ORIG_SPORT))
+		return 0;
+	else if (!(flags & ORIG_DPORT))
+		return 0;
+	else if (!(flags & REPL_SPORT))
+		return 0;
+	else if (!(flags & REPL_DPORT))
+		return 0;
+
+	return 1;
+}
+
 void print_tuple(struct ip_conntrack_tuple *t)
 {
 	fprintf(stdout, "sport=%d dport=%d ", ntohs(t->src.u.tcp.port), 
@@ -121,6 +144,8 @@ static struct ctproto_handler tcp = {
 	.parse		= parse,
 	.print_tuple	= print_tuple,
 	.print_proto	= print_proto,
+	.final_check	= final_check,
+	.help		= help,
 	.opts		= opts
 };
 
