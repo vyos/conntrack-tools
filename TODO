@@ -1,12 +1,15 @@
+X = done
+N = forget it
+
 user space tool
 ---------------
 [X] Proper Makefiles
 [X] Modify Event Display (-E conntrack).
 
 Extensions:
-[ ] ICMP library
+[X] ICMP library
 [X] finish TCP: protocol specific stuff: --state, etc...
-[ ] finish UDP, TCP, ICMP: help
+[X] finish UDP, TCP, ICMP: help
 
 nfnetlink_conntrack:
 --------------------
@@ -15,11 +18,11 @@ Now:
 [X] Error handling (nlerrmsg)
 [X] Use id's to identify conntracks
 [ ] Split NEW and CHANGE
-[ ] Split DUMP and GET
-[ ] Kill Change API. Move locks to ip_conntrack_[protocol|helper].
+[N] Split DUMP and GET
+[N] Kill Change API. Move locks to ip_conntrack_[protocol|helper].
 [X] implement conntrack FLUSH
 
 Later:
-[ ] convert CTA_SOMETHING-1 to CTA_SOMETHING, annoying!
+[N] convert CTA_SOMETHING-1 to CTA_SOMETHING, annoying!
 [ ] NAT handlings
 [ ] Expectations

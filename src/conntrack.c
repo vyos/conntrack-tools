@@ -38,6 +38,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <string.h>
 #include <linux/netfilter_ipv4/ip_conntrack_tuple.h>
 #include <linux/netfilter_ipv4/ip_conntrack.h>
 #include "libctnetlink.h"
@@ -46,7 +47,7 @@
 #include "libct_proto.h"
 
 #define PROGNAME "conntrack"
-#define VERSION "0.60"
+#define VERSION "0.62"
 
 #if 0
 #define DEBUGP printf
@@ -297,6 +298,36 @@ merge_options(struct option *oldopts, const struct option *newopts,
 	memset(merge + num_old + num_new, 0, sizeof(struct option));
 
 	return merge;
+}
+
+/* From linux/errno.h */
+#define ENOTSUPP        524     /* Operation is not supported */
+
+/* Translates errno numbers into more human-readable form than strerror. */
+const char *
+err2str(int err, enum action command)
+{
+	unsigned int i;
+	struct table_struct {
+		enum action act;
+		int err;
+		const char *message;
+	} table [] =
+	  { { CT_LIST, -ENOTSUPP, "function not implemented" },
+	    { 0xFFFF, -EINVAL, "invalid parameters" },
+	    { CT_CREATE|CT_GET|CT_DELETE, -ENOENT, 
+		    "such conntrack doesn't exist" },
+	    { CT_CREATE|CT_GET, -ENOMEM, "not enough memory" },
+	    { CT_GET, -EAFNOSUPPORT, "protocol not supported" },
+	    { CT_CREATE, -ETIME, "conntrack has expired" },
+	  };
+
+	for (i = 0; i < sizeof(table)/sizeof(struct table_struct); i++) {
+		if ((table[i].act & command) && table[i].err == err)
+			return table[i].message;
+	}
+
+	return strerror(err);
 }
 
 static void dump_tuple(struct ip_conntrack_tuple *tp)
@@ -732,6 +763,6 @@ int main(int argc, char *argv[])
 		global_option_offset = 0;
 	}
 
-	if (res == -1)
-		fprintf(stderr, "Operation failed\n");
+	if (res < 0)
+		fprintf(stderr, "Operation failed: %s\n", err2str(res, command));
 }

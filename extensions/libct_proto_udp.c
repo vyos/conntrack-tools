@@ -82,16 +82,12 @@ int parse(char c, char *argv[],
 
 int final_check(unsigned int flags)
 {
-	if (!(flags & ORIG_SPORT))
-		return 0;
-	else if (!(flags & ORIG_DPORT))
-		return 0;
-	else if (!(flags & REPL_SPORT))
-		return 0;
-	else if (!(flags & REPL_DPORT))
-		return 0;
+	if ((flags & ORIG_SPORT) && (flags & ORIG_DPORT))
+		return 1;
+	else if ((flags & REPL_SPORT) && (flags & REPL_DPORT))
+		return 1;
 
-	return 1;
+	return 0;
 }
 
 void print_tuple(struct ip_conntrack_tuple *t)

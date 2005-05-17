@@ -21,3 +21,13 @@
 <azez@ufomechanic.net>
 	o Autoconf stuff for conntrack + some pablo's modifications.
 	o Fixed packet counters formatting (use %llu instead of %lu)
+
+2005-05-16
+<pablo@eurodev.net>
+	o Implemented ICMP proto helper
+	o Added help() and final_check() functions for proto helpers.
+
+2005-05-17
+<pablo@eurodev.net>
+	o Added descriptive error messages.
+	o Fix wrong flags check in [tcp|udp] proto helpers.

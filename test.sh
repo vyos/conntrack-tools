@@ -44,13 +44,11 @@ case $1 in
 		--reply-src $DST --reply-dst $SRC -p tcp \
 		--orig-port-src $SPORT --orig-port-dst $DPORT \
 		--reply-port-src $DPORT --reply-port-dst $SPORT \
-		--state TIME_WAIT -u ASSURED -t 500
+		--state TIME_WAIT -u ASSURED,SEEN_REPLY -t 500
 		;;
 	delete)
-		# 66.111.58.52 dst=85.136.125.64 sport=22 dport=60239
-		$CONNTRACK -D conntrack --orig-src 66.111.58.1 \
-		--orig-dst 85.136.125.64 -p tcp --orig-port-src 22 \
-		--orig-port-dst 60239
+		$CONNTRACK -D --orig-src $SRC --orig-dst $DST \
+		-p tcp --orig-port-src $SPORT --orig-port-dst $DPORT
 		;;
 	output)
 		proc=$(cat /proc/net/ip_conntrack | wc -l)

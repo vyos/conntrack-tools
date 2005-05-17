@@ -216,18 +216,19 @@ int create_conntrack(struct ip_conntrack_tuple *orig,
 	struct cta_proto cta;
 	struct nfattr *cda[CTA_MAX];
 	struct ctnl_handle cth;
+	int ret;
 	
 	cta.num_proto = orig->dst.protonum;
 	memcpy(&cta.proto, proto, sizeof(*proto));
-	if (ctnl_open(&cth, 0) < 0)
-		return -1;
+	if ((ret = ctnl_open(&cth, 0)) < 0)
+		return ret;
 
-	/* FIXME: please unify returns values... */
-	if (ctnl_new_conntrack(&cth, orig, reply, timeout, &cta, status) < 0)
-		return -1;
+	if ((ret = ctnl_new_conntrack(&cth, orig, reply, timeout, &cta, 
+					status)) < 0)
+		return ret;
 
-	if (ctnl_close(&cth) < 0)
-		return -1;
+	if ((ret = ctnl_close(&cth)) < 0)
+		return ret;
 	
 	return 0;
 }
@@ -237,16 +238,16 @@ int delete_conntrack(struct ip_conntrack_tuple *tuple,
 {
 	struct nfattr *cda[CTA_MAX];
 	struct ctnl_handle cth;
+	int ret;
 
-	if (ctnl_open(&cth, 0) < 0)
-		return -1;
+	if ((ret = ctnl_open(&cth, 0)) < 0)
+		return ret;
 
-	/* FIXME: please unify returns values... */
-	if (ctnl_del_conntrack(&cth, tuple, t) < 0)
-		return -1;
+	if ((ret = ctnl_del_conntrack(&cth, tuple, t)) < 0)
+		return ret;
 
-	if (ctnl_close(&cth) < 0)
-		return -1;
+	if ((ret = ctnl_close(&cth)) < 0)
+		return ret;
 
 	return 0;
 }
@@ -262,18 +263,19 @@ int get_conntrack(struct ip_conntrack_tuple *tuple,
 		.type = 0,
 		.handler = handler
 	};
+	int ret;
 
-	if (ctnl_open(&cth, 0) < 0)
-		return -1;
+	if ((ret = ctnl_open(&cth, 0)) < 0)
+		return ret;
 
 	ctnl_register_handler(&cth, &h);
 
 	/* FIXME!!!! get_conntrack_handler returns -100 */
-	if (ctnl_get_conntrack(&cth, tuple, t) != -100)
-		return -1;
+	if ((ret = ctnl_get_conntrack(&cth, tuple, t)) != -100)
+		return ret;
 
-	if (ctnl_close(&cth) < 0)
-		return -1;
+	if ((ret = ctnl_close(&cth)) < 0)
+		return ret;
 
 	return 0;
 }
@@ -287,8 +289,8 @@ int dump_conntrack_table(int zero)
 		.handler = handler
 	};
 	
-	if (ctnl_open(&cth, 0) < 0) 
-		return -1;
+	if ((ret = ctnl_open(&cth, 0)) < 0) 
+		return ret;
 
 	ctnl_register_handler(&cth, &h);
 
@@ -298,10 +300,10 @@ int dump_conntrack_table(int zero)
 		ret = ctnl_list_conntrack(&cth, AF_INET);
 
 	if (ret != -100)
-		return -1;
+		return ret;
 
-	if (ctnl_close(&cth) < 0)
-		return -1;
+	if ((ret = ctnl_close(&cth)) < 0)
+		return ret;
 
 	return 0;
 }
@@ -317,17 +319,18 @@ int event_conntrack(unsigned int event_mask)
 		.type = 2, /* destroy */
 		.handler = event_handler
 	};
+	int ret;
 	
-	if (ctnl_open(&cth, event_mask) < 0)
-		return -1;
+	if ((ret = ctnl_open(&cth, event_mask)) < 0)
+		return ret;
 
 	ctnl_register_handler(&cth, &hnew);
 	ctnl_register_handler(&cth, &hdestroy);
-	if (ctnl_event_conntrack(&cth, AF_INET) < 0)
-		return -1;
+	if ((ret = ctnl_event_conntrack(&cth, AF_INET)) < 0)
+		return ret;
 
-	if (ctnl_close(&cth) < 0)
-		return -1;
+	if ((ret = ctnl_close(&cth)) < 0)
+		return ret;
 
 	return 0;
 }
@@ -383,17 +386,18 @@ int dump_expect_list()
 		.type = 0, /* Hm... really? */
 		.handler = expect_handler
 	};
+	int ret;
 	
-	if (ctnl_open(&cth, 0) < 0)
-		return -1;
+	if ((ret = ctnl_open(&cth, 0)) < 0)
+		return ret;
 
 	ctnl_register_handler(&cth, &h);
 
-	if (ctnl_list_expect(&cth, AF_INET) != -100)
-		return -1;
+	if ((ret = ctnl_list_expect(&cth, AF_INET)) != -100)
+		return ret;
 
-	if (ctnl_close(&cth) < 0)
-		return -1;
+	if ((ret = ctnl_close(&cth)) < 0)
+		return ret;
 
 	return 0;
 }
@@ -402,6 +406,7 @@ int set_mask(unsigned int mask, int type)
 {
 	struct ctnl_handle cth;
 	enum ctattr_type_t cta_type;
+	int ret;
 
 	switch(type) {
 		case 0:
@@ -411,17 +416,18 @@ int set_mask(unsigned int mask, int type)
 			cta_type = CTA_EVENTMASK;
 			break;
 		default:
+			/* Shouldn't happen */
 			return -1;
 	}
 
-	if (ctnl_open(&cth, 0) < 0)
-		return -1;
+	if ((ret = ctnl_open(&cth, 0)) < 0)
+		return ret;
 	
-	if (ctnl_set_mask(&cth, mask, cta_type) < 0)
-		return -1;
+	if ((ret = ctnl_set_mask(&cth, mask, cta_type)) < 0)
+		return ret;
 	
-	if (ctnl_close(&cth) < 0)
-		return -1;
+	if ((ret = ctnl_close(&cth)) < 0)
+		return ret;
 
 	return 0;
 }
@@ -429,15 +435,16 @@ int set_mask(unsigned int mask, int type)
 int flush_conntrack()
 {
 	struct ctnl_handle cth;
+	int ret;
 	
-	if (ctnl_open(&cth, 0) < 0)
-		return -1;
+	if ((ret = ctnl_open(&cth, 0)) < 0)
+		return ret;
 
-	if (ctnl_flush_conntrack(&cth) < 0)
-		return -1;
+	if ((ret = ctnl_flush_conntrack(&cth)) < 0)
+		return ret;
 
-	if (ctnl_close(&cth) < 0)
-		return -1;
+	if ((ret = ctnl_close(&cth)) < 0)
+		return ret;
 
 	return 0;
 }
