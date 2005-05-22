@@ -383,7 +383,7 @@ int dump_expect_list()
 {
 	struct ctnl_handle cth;
 	struct ctnl_msg_handler h = {
-		.type = 0, /* Hm... really? */
+		.type = 5, /* Hm... really? */
 		.handler = expect_handler
 	};
 	int ret;
