@@ -1,10 +1,9 @@
 /*
- * (C) 2005 by Pablo Neira Ayuso <pablo@eurodev.net>
+ * (C) 2005 by Harald Welte <lafoorge@netfilter.org>
  *
  *      This program is free software; you can redistribute it and/or modify
- *      it under the terms of the GNU General Public License as published by
- *      the Free Software Foundation; either version 2 of the License, or
- *      (at your option) any later version.
+ *      it under the terms of the GNU General Public License Version 2 as
+ *      published by the Free Software Foundation
  *
  */
 #include <stdio.h>
@@ -25,7 +24,7 @@ static struct option opts[] = {
 	{0, 0, 0, 0}
 };
 
-enum tcp_param_flags {
+enum sctp_param_flags {
 	ORIG_SPORT_BIT = 0,
 	ORIG_SPORT = (1 << ORIG_SPORT_BIT),
 
@@ -44,15 +43,13 @@ enum tcp_param_flags {
 
 static const char *states[] = {
 	"NONE",
-	"SYN_SENT",
-	"SYN_RECV",
+	"CLOSED",
+	"COOKIE_WAIT",
+	"COOKIE_ECHOED",
 	"ESTABLISHED",
-	"FIN_WAIT",
-	"CLOSE_WAIT",
-	"LAST_ACK",
-	"TIME_WAIT",
-	"CLOSE",
-	"LISTEN"
+	"SHUTDOWN_SENT",
+	"SHUTDOWN_RECV",
+	"SHUTDOWN_ACK_SENT",
 };
 
 static void help()
@@ -61,7 +58,7 @@ static void help()
 	fprintf(stdout, "--orig-port-dst        original destination port\n");
 	fprintf(stdout, "--reply-port-src       reply source port\n");
 	fprintf(stdout, "--reply-port-dst       reply destination port\n");
-	fprintf(stdout, "--state                TCP state, fe. ESTABLISHED\n");
+	fprintf(stdout, "--state                SCTP state, eg. ESTABLISHED\n");
 }
 
 static int parse(char c, char *argv[], 
@@ -73,25 +70,25 @@ static int parse(char c, char *argv[],
 	switch(c) {
 		case '1':
 			if (optarg) {
-				orig->src.u.tcp.port = htons(atoi(optarg));
+				orig->src.u.sctp.port = htons(atoi(optarg));
 				*flags |= ORIG_SPORT;
 			}
 			break;
 		case '2':
 			if (optarg) {
-				orig->dst.u.tcp.port = htons(atoi(optarg));
+				orig->dst.u.sctp.port = htons(atoi(optarg));
 				*flags |= ORIG_DPORT;
 			}
 			break;
 		case '3':
 			if (optarg) {
-				reply->src.u.tcp.port = htons(atoi(optarg));
+				reply->src.u.sctp.port = htons(atoi(optarg));
 				*flags |= REPL_SPORT;
 			}
 			break;
 		case '4':
 			if (optarg) {
-				reply->dst.u.tcp.port = htons(atoi(optarg));
+				reply->dst.u.sctp.port = htons(atoi(optarg));
 				*flags |= REPL_DPORT;
 			}
 			break;
@@ -100,7 +97,7 @@ static int parse(char c, char *argv[],
 				int i;
 				for (i=0; i<10; i++) {
 					if (strcmp(optarg, states[i]) == 0) {
-						proto->tcp.state = i;
+						proto->sctp.state = i;
 						break;
 					}
 				}
@@ -126,21 +123,21 @@ static int final_check(unsigned int flags)
 
 static void print_tuple(struct ip_conntrack_tuple *t)
 {
-	fprintf(stdout, "sport=%d dport=%d ", ntohs(t->src.u.tcp.port), 
-				             ntohs(t->dst.u.tcp.port));
+	fprintf(stdout, "sport=%d dport=%d ", ntohs(t->src.u.sctp.port), 
+				             ntohs(t->dst.u.sctp.port));
 }
 
 static void print_proto(union ip_conntrack_proto *proto)
 {
-	if (proto->tcp.state > sizeof(states)/sizeof(char *))
-		fprintf(stdout, "[%u] ", states[proto->tcp.state]);
+	if (proto->sctp.state > sizeof(states)/sizeof(char *))
+		fprintf(stdout, "[%u] ", proto->sctp.state);
 	else
-		fprintf(stdout, "[%s] ", states[proto->tcp.state]);
+		fprintf(stdout, "[%s] ", states[proto->sctp.state]);
 }
 
-static struct ctproto_handler tcp = {
-	.name 		= "tcp",
-	.protonum	= 6,
+static struct ctproto_handler sctp = {
+	.name 		= "sctp",
+	.protonum	= 132,
 	.parse		= parse,
 	.print_tuple	= print_tuple,
 	.print_proto	= print_proto,
@@ -154,10 +151,10 @@ void __attribute__ ((destructor)) fini(void);
 
 void init(void)
 {
-	register_proto(&tcp);
+	register_proto(&sctp);
 }
 
 void fini(void)
 {
-	unregister_proto(&tcp);
+	unregister_proto(&sctp);
 }

@@ -1,0 +1,13 @@
+This module matches on UDP-specific fields.
+.TP
+.BI "--orig-port-src " "PORT"
+Source port in original direction
+.TP
+.BI "--orig-port-dst " "PORT"
+Destination port in original direction
+.TP
+.BI "--reply-port-src " "PORT"
+Source port in reply direction
+.TP
+.BI "--reply-port-dst " "PORT"
+Destination port in reply direction

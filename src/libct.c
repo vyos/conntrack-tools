@@ -1,5 +1,6 @@
 /*
- * (C) 2005 by Pablo Neira Ayuso <pablo@eurodev.net>
+ * (C) 2005 by Pablo Neira Ayuso <pablo@eurodev.net>,
+ *             Harald Welte <laforge@netfilter.org>
  *
  *      This program is free software; you can redistribute it and/or modify
  *      it under the terms of the GNU General Public License as published by
@@ -231,6 +232,28 @@ int create_conntrack(struct ip_conntrack_tuple *orig,
 		return ret;
 	
 	return 0;
+}
+
+int create_expect(struct ip_conntrack_tuple *tuple,
+		  struct ip_conntrack_tuple *mask,
+		  struct ip_conntrack_tuple *master_tuple_orig,
+		  struct ip_conntrack_tuple *master_tuple_reply,
+		  unsigned long timeout)
+{
+	struct ctnl_handle cth;
+	int ret;
+
+	if ((ret = ctnl_open(&cth, 0)) < 0)
+		return ret;
+
+	if ((ret = ctnl_new_expect(&cth, tuple, mask, master_tuple_orig,
+				   master_tuple_reply, timeout)) < 0)
+		return ret;
+
+	if ((ret = ctnl_close(&cth)) < 0)
+		return ret;
+
+	return -1;
 }
 
 int delete_conntrack(struct ip_conntrack_tuple *tuple,

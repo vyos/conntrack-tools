@@ -1,0 +1,16 @@
+This module matches on TCP-specific fields.
+.TP
+.BI "--orig-port-src " "PORT"
+Source port in original direction
+.TP
+.BI "--orig-port-dst " "PORT"
+Destination port in original direction
+.TP
+.BI "--reply-port-src " "PORT"
+Source port in reply direction
+.TP
+.BI "--reply-port-dst " "PORT"
+Destination port in reply direction
+.TP
+.BI "--state " "[NONE|SYN_SENT|SYN_RECV|ESTABLISHED|FIN_WAIT|CLOSE_WAIT|LAST_ACK|TIME_WAIT|CLOSE|LISTEN]"
+TCP state

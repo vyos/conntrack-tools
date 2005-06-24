@@ -25,6 +25,8 @@
  *
  * 2005-04-16 Harald Welte <laforge@netfilter.org>: 
  * 	Add support for conntrack accounting and conntrack mark
+ * 2005-06-23 Harald Welte <laforge@netfilter.org>:
+ * 	Add support for expect creation
  *
  */
 #include <stdio.h>
@@ -47,7 +49,7 @@
 #include "libct_proto.h"
 
 #define PROGNAME "conntrack"
-#define VERSION "0.62"
+#define VERSION "0.63"
 
 #if 0
 #define DEBUGP printf
@@ -127,11 +129,22 @@ enum options {
 	CT_OPT_EVENT_MASK_BIT	= 10,
 	CT_OPT_EVENT_MASK	= (1 << CT_OPT_EVENT_MASK_BIT),
 
+	CT_OPT_TUPLE_SRC_BIT	= 11,
+	CT_OPT_TUPLE_SRC	= (1 << CT_OPT_TUPLE_SRC_BIT),
+
+	CT_OPT_TUPLE_DST_BIT	= 12,
+	CT_OPT_TUPLE_DST	= (1 << CT_OPT_TUPLE_DST_BIT),
+
+	CT_OPT_MASK_SRC_BIT	= 13,
+	CT_OPT_MASK_SRC		= (1 << CT_OPT_MASK_SRC_BIT),
+
+	CT_OPT_MASK_DST_BIT	= 14,
+	CT_OPT_MASK_DST		= (1 << CT_OPT_MASK_DST_BIT),
 };
-#define NUMBER_OF_OPT   11
+#define NUMBER_OF_OPT   15
 
 static const char optflags[NUMBER_OF_OPT]
-= { 's', 'd', 'r', 'q', 'p', 't', 'u', 'z','m','g','e'};
+= { 's', 'd', 'r', 'q', 'p', 't', 'u', 'z','m','g','e', '[',']','{','}'};
 
 static struct option original_opts[] = {
 	{"dump", 2, 0, 'L'},
@@ -154,6 +167,10 @@ static struct option original_opts[] = {
 	{"dump-mask", 1, 0, 'm'},
 	{"groups", 1, 0, 'g'},
 	{"event-mask", 1, 0, 'e'},
+	{"tuple-src", 1, 0, '['},
+	{"tuple-dst", 1, 0, ']'},
+	{"mask-src", 1, 0, '{'},
+	{"mask-dst", 1, 0, '}'},
 	{0, 0, 0, 0}
 };
 
@@ -174,16 +191,16 @@ static unsigned int global_option_offset = 0;
 static char commands_v_options[NUMBER_OF_CMD][NUMBER_OF_OPT] =
 /* Well, it's better than "Re: Linux vs FreeBSD" */
 {
-          /*   -s  -d  -r  -q  -p  -t  -u  -z  -m  -g  -e */
-/*LIST*/      {'x','x','x','x','x','x','x',' ','x','x','x'},
-/*CREATE*/    {'+','+','+','+','+','+','+','x','x','x','x'},
-/*DELETE*/    {' ',' ',' ',' ',' ','x','x','x','x','x','x'},
-/*GET*/       {' ',' ',' ',' ','+','x','x','x','x','x','x'},
-/*FLUSH*/     {'x','x','x','x','x','x','x','x','x','x','x'},
-/*EVENT*/     {'x','x','x','x','x','x','x','x','x',' ','x'},
-/*ACTION*/    {'x','x','x','x','x','x','x','x',' ','x',' '},
-/*VERSION*/   {'x','x','x','x','x','x','x','x','x','x','x'},
-/*HELP*/      {'x','x','x','x',' ','x','x','x','x','x','x'},
+          /*   -s  -d  -r  -q  -p  -t  -u  -z  -m  -g  -e  ts  td  ms  md */
+/*LIST*/      {'x','x','x','x','x','x','x',' ','x','x','x','x','x','x','x'},
+/*CREATE*/    {'+','+','+','+','+','+','+','x','x','x','x','+','+','+','+'},
+/*DELETE*/    {' ',' ',' ',' ',' ','x','x','x','x','x','x',' ',' ',' ',' '},
+/*GET*/       {' ',' ',' ',' ','+','x','x','x','x','x','x',' ',' ',' ',' '},
+/*FLUSH*/     {'x','x','x','x','x','x','x','x','x','x','x','x','x','x','x'},
+/*EVENT*/     {'x','x','x','x','x','x','x','x','x',' ','x','x','x','x','x'},
+/*ACTION*/    {'x','x','x','x','x','x','x','x',' ','x',' ','x','x','x','x'},
+/*VERSION*/   {'x','x','x','x','x','x','x','x','x','x','x','x','x','x','x'},
+/*HELP*/      {'x','x','x','x',' ','x','x','x','x','x','x','x','x','x','x'},
 };
 
 /* FIXME: hardcoded!, this must be defined during compilation time */
@@ -355,9 +372,11 @@ static struct parse_parameter {
 	size_t  size;
 	unsigned int value[10];
 } parse_array[PARSE_MAX] = {
-	{ {"ASSURED", "SEEN_REPLY", "UNSET"},
-	  3,
-	  { IPS_ASSURED, IPS_SEEN_REPLY, 0} },
+	{ {"EXPECTED", "ASSURED", "SEEN_REPLY", "CONFIRMED", "SNAT", "DNAT", 
+	   "SEQ_ADJUST", "UNSET"},
+	  8,
+	  { IPS_EXPECTED, IPS_ASSURED, IPS_SEEN_REPLY, IPS_CONFIRMED,
+	    IPS_SRC_NAT, IPS_DST_NAT, IPS_SEQ_ADJUST, 0} },
 	{ {"ALL", "TCP", "UDP", "ICMP"},
 	  4,
 	  {~0U, NFGRP_IPV4_CT_TCP, NFGRP_IPV4_CT_UDP, NFGRP_IPV4_CT_ICMP} },
@@ -502,7 +521,7 @@ fprintf(stdout, "Usage: %s [commands] [options]\n", prog);
 fprintf(stdout, "\n");
 fprintf(stdout, "Commands:\n");
 fprintf(stdout, "-L [table] [-z]   	List conntrack or expectation table\n");
-fprintf(stdout, "-G [table] parameters  Get conntrack or expectation\n");
+fprintf(stdout, "-G [table] parameters	Get conntrack or expectation\n");
 fprintf(stdout, "-D [table] parameters	Delete conntrack or expectation\n");
 fprintf(stdout, "-I [table] parameters	Create a conntrack or expectation\n");
 fprintf(stdout, "-E [table] [options]	Show events\n");
@@ -514,6 +533,10 @@ fprintf(stdout, "--orig-src ip	     	Source address from original direction\n");
 fprintf(stdout, "--orig-dst ip	     	Destination address from original direction\n");
 fprintf(stdout, "--reply-src ip		Source addres from reply direction\n");
 fprintf(stdout, "--reply-dst ip		Destination address from reply direction\n");
+fprintf(stdout, "--tuple-src ip		Source address in expect tuple\n");
+fprintf(stdout, "--tuple-dst ip		Destination address in expect tuple\n");
+fprintf(stdout, "--mask-src ip		Source mask in expect\n");
+fprintf(stdout, "--mask-dst ip		Destination mask in expect\n");
 fprintf(stdout, "-p proto		Layer 4 Protocol\n");
 fprintf(stdout, "-t timeout		Set timeout\n");
 fprintf(stdout, "-u status		Set status\n");
@@ -525,9 +548,9 @@ fprintf(stdout, "-z 			Zero Counters\n");
 
 int main(int argc, char *argv[])
 {
-	char c;
+	int c;
 	unsigned int command = 0, options = 0;
-	struct ip_conntrack_tuple orig, reply, *o = NULL, *r = NULL;
+	struct ip_conntrack_tuple orig, reply, tuple, mask, *o = NULL, *r = NULL;
 	struct ctproto_handler *h = NULL;
 	union ip_conntrack_proto proto;
 	unsigned long timeout = 0;
@@ -543,7 +566,7 @@ int main(int argc, char *argv[])
 	reply.dst.dir = IP_CT_DIR_REPLY;
 	
 	while ((c = getopt_long(argc, argv, 
-		"L::I::D::G::E::A::F::hVs:d:r:q:p:t:u:m:g:e:z", 
+		"L::I::D::G::E::A::F::hVs:d:r:q:p:t:u:m:g:e:z[:]:{:}:", 
 		opts, NULL)) != -1) {
 	switch(c) {
 		case 'L':
@@ -644,6 +667,26 @@ int main(int argc, char *argv[])
 		case 'z':
 			options |= CT_OPT_ZERO;
 			break;
+		case '[':
+			options |= CT_OPT_TUPLE_SRC;
+			if (optarg)
+				tuple.src.ip = inet_addr(optarg);
+			break;
+		case ']':
+			options |= CT_OPT_TUPLE_DST;
+			if (optarg)
+				tuple.dst.ip = inet_addr(optarg);
+			break;
+		case '{':
+			options |= CT_OPT_MASK_SRC;
+			if (optarg)
+				mask.src.ip = inet_addr(optarg);
+			break;
+		case '}':
+			options |= CT_OPT_MASK_DST;
+			if (optarg)
+				mask.dst.ip = inet_addr(optarg);
+			break;
 		default:
 			if (h && h->parse && !h->parse(c - h->option_offset, 
 						       argv, &orig, &reply,
@@ -687,7 +730,8 @@ int main(int argc, char *argv[])
 				res = create_conntrack(&orig, &reply, timeout, 
 						       &proto, status);
 			else
-				not_implemented_yet();
+				res = create_expect(&tuple, &mask, &orig, 
+						    &reply, timeout);
 			break;
 			
 		case CT_DELETE:

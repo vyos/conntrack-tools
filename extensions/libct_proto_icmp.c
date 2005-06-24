@@ -81,7 +81,7 @@ int final_check(unsigned int flags)
 
 void print_tuple(struct ip_conntrack_tuple *t)
 {
-	fprintf(stdout, "type=%d code=%d id=%d", t->dst.u.icmp.type, 
+	fprintf(stdout, "type=%d code=%d id=%d ", t->dst.u.icmp.type, 
 				             	 t->dst.u.icmp.code,
 						 t->src.u.icmp.id);
 }
