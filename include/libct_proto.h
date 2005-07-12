@@ -5,6 +5,7 @@
 
 #include "linux_list.h"
 #include <getopt.h>
+#include "libctnetlink.h"
 
 struct cta_proto;
 
@@ -13,16 +14,24 @@ struct ctproto_handler {
 
 	char 			*name;
 	u_int16_t 		protonum;
-	
-	int (*parse)(char c, char *argv[], 
-		     struct ip_conntrack_tuple *orig,
-		     struct ip_conntrack_tuple *reply, 
-		     union ip_conntrack_proto *proto,
-		     unsigned int *flags);
-	void (*print_tuple)(struct ip_conntrack_tuple *t);
-	void (*print_proto)(union ip_conntrack_proto *proto);
 
-	int (*final_check)(unsigned int flags);
+	enum ctattr_protoinfo	protoinfo_attr;
+	
+	int (*parse_opts)(char c, char *argv[], 
+		     struct ctnl_tuple *orig,
+		     struct ctnl_tuple *reply,
+		     struct ctnl_tuple *mask,
+		     union ctnl_protoinfo *proto,
+		     unsigned int *flags);
+	void (*parse_proto)(struct nfattr *cda[], struct ctnl_tuple *tuple);
+	void (*parse_protoinfo)(struct nfattr *cda[], 
+				struct ctnl_conntrack *ct);
+	void (*print_proto)(struct ctnl_tuple *t);
+	void (*print_protoinfo)(union ctnl_protoinfo *protoinfo);
+
+	int (*final_check)(unsigned int flags,
+			   struct ctnl_tuple *orig,
+			   struct ctnl_tuple *reply);
 
 	void (*help)();
 

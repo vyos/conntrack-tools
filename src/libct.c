@@ -1,5 +1,5 @@
 /*
- * (C) 2005 by Pablo Neira Ayuso <pablo@eurodev.net>,
+ * (C) 2005 by Pablo Neira Ayuso <pablo@eurodev.net>
  *             Harald Welte <laforge@netfilter.org>
  *
  *      This program is free software; you can redistribute it and/or modify
@@ -11,9 +11,13 @@
 #include <getopt.h>
 #include <dlfcn.h>
 #include <stdlib.h>
+#include <signal.h>
 #include <errno.h>
-#include <linux/netfilter_ipv4/ip_conntrack_tuple.h>
+/* From kernel.h */
+#define INT_MAX         ((int)(~0U>>1))
+#define INT_MIN         (-INT_MAX - 1)
 #include <linux/netfilter_ipv4/ip_conntrack.h>
+#include <linux/netfilter_ipv4/ip_conntrack_netlink.h>
 #include "libctnetlink.h"
 #include "libnfnetlink.h"
 #include "linux_list.h"
@@ -25,6 +29,7 @@
 #define DEBUGP
 #endif
 
+static struct ctnl_handle cth;
 extern char *lib_dir;
 extern struct list_head proto_list;
 extern char *proto2str[];
@@ -37,89 +42,192 @@ static void print_status(unsigned int status)
 		fprintf(stdout, "[UNREPLIED] ");
 }
 
+static void parse_ip(struct nfattr *attr, struct ctnl_tuple *tuple)
+{
+	struct nfattr *tb[CTA_IP_MAX];
+
+	memset(tb, 0, CTA_IP_MAX * sizeof(struct nfattr *));
+
+        nfnl_parse_attr(tb, CTA_IP_MAX, NFA_DATA(attr), NFA_PAYLOAD(attr));
+	if (tb[CTA_IP_V4_SRC-1])
+		tuple->src.v4 = *(u_int32_t *)NFA_DATA(tb[CTA_IP_V4_SRC-1]);
+
+	if (tb[CTA_IP_V4_DST-1])
+		tuple->dst.v4 = *(u_int32_t *)NFA_DATA(tb[CTA_IP_V4_DST-1]);
+}
+
+static void parse_proto(struct nfattr *attr, struct ctnl_tuple *tuple)
+{
+	struct nfattr *tb[CTA_PROTO_MAX];
+	struct ctproto_handler *h;
+	int dir = CTNL_DIR_REPLY;
+
+	memset(tb, 0, CTA_PROTO_MAX * sizeof(struct nfattr *));
+
+	nfnl_parse_attr(tb, CTA_IP_MAX, NFA_DATA(attr), NFA_PAYLOAD(attr));	
+	if (tb[CTA_PROTO_NUM-1])
+		tuple->protonum = *(u_int8_t *)NFA_DATA(tb[CTA_PROTO_NUM-1]);
+	
+	h = findproto(proto2str[tuple->protonum]);
+	if (h && h->parse_proto)
+		h->parse_proto(tb, tuple);
+}
+
+static void parse_tuple(struct nfattr *attr, struct ctnl_tuple *tuple)
+{
+	struct nfattr *tb[CTA_TUPLE_MAX];
+
+	memset(tb, 0, CTA_TUPLE_MAX*sizeof(struct nfattr *));
+
+	nfnl_parse_attr(tb, CTA_TUPLE_MAX, NFA_DATA(attr), NFA_PAYLOAD(attr));
+	if (tb[CTA_TUPLE_IP-1])
+		parse_ip(tb[CTA_TUPLE_IP-1], tuple);
+	if (tb[CTA_TUPLE_PROTO-1])
+		parse_proto(tb[CTA_TUPLE_PROTO-1], tuple);
+}
+
+static void parse_protoinfo(struct nfattr *attr, struct ctnl_conntrack *ct)
+{
+	struct nfattr *tb[CTA_PROTOINFO_MAX];
+	struct ctproto_handler *h;
+
+	memset(tb, 0, CTA_PROTOINFO_MAX*sizeof(struct nfattr *));
+
+	nfnl_parse_attr(tb,CTA_PROTOINFO_MAX,NFA_DATA(attr), NFA_PAYLOAD(attr));
+
+	h = findproto(proto2str[ct->tuple[CTNL_DIR_ORIGINAL].protonum]);
+        if (h && h->parse_protoinfo)
+		h->parse_protoinfo(tb, ct);
+}
+	
+static void parse_counters(struct nfattr *attr, struct ctnl_conntrack *ct,
+			   enum ctattr_type parent)
+{
+	struct nfattr *tb[CTA_COUNTERS_MAX];
+
+	memset(tb, 0, CTA_COUNTERS_MAX*sizeof(struct nfattr *));
+
+	nfnl_parse_attr(tb, CTA_COUNTERS_MAX, NFA_DATA(attr),NFA_PAYLOAD(attr));
+	if (tb[CTA_COUNTERS_PACKETS_ORIG-1])
+		ct->counters[CTNL_DIR_ORIGINAL].packets
+		      = *(u_int64_t *)NFA_DATA(tb[CTA_COUNTERS_PACKETS_ORIG-1]);
+	if (tb[CTA_COUNTERS_BYTES_ORIG-1])
+		ct->counters[CTNL_DIR_ORIGINAL].bytes
+		      = *(u_int64_t *)NFA_DATA(tb[CTA_COUNTERS_BYTES_ORIG-1]);
+	if (tb[CTA_COUNTERS_PACKETS_RPLY-1])
+		ct->counters[CTNL_DIR_REPLY].packets
+		      = *(u_int64_t *)NFA_DATA(tb[CTA_COUNTERS_PACKETS_RPLY-1]);
+	if (tb[CTA_COUNTERS_BYTES_RPLY-1])
+		ct->counters[CTNL_DIR_REPLY].bytes
+		      = *(u_int64_t *)NFA_DATA(tb[CTA_COUNTERS_BYTES_RPLY-1]);
+}
+
+#define STATUS		1
+#define PROTOINFO 	2
+#define TIMEOUT		4
+#define MARK		8
+#define COUNTERS	16
+#define USE		32
+
 static int handler(struct sockaddr_nl *sock, struct nlmsghdr *nlh, void *arg)
 {
 	struct nfgenmsg *nfmsg;
 	struct nfattr *nfa;
-	int min_len = 0;
+	int min_len = sizeof(struct nfgenmsg);;
 	struct ctproto_handler *h = NULL;
 	struct nfattr *attr = NFM_NFA(NLMSG_DATA(nlh));
 	int attrlen = nlh->nlmsg_len - NLMSG_ALIGN(min_len);
+	struct ctnl_conntrack ct;
+	unsigned int flags = 0;
 
-	struct ip_conntrack_tuple *orig, *reply;
-	struct cta_counters *ctr;
-	unsigned long *status, *timeout;
-	struct cta_proto *proto;
-	unsigned long *id, *mark;
-
-	DEBUGP("netlink header\n");
-	DEBUGP("len: %d type: %d flags: %d seq: %d pid: %d\n", 
-		nlh->nlmsg_len, nlh->nlmsg_type, nlh->nlmsg_flags, 
-		nlh->nlmsg_seq, nlh->nlmsg_pid);
+	memset(&ct, 0, sizeof(struct ctnl_conntrack));
 
 	nfmsg = NLMSG_DATA(nlh);
-	DEBUGP("nfmsg->nfgen_family: %d\n", nfmsg->nfgen_family);
+//	min_len = sizeof(struct nfgenmsg);
 
-	min_len = sizeof(struct nfgenmsg);
 	if (nlh->nlmsg_len < min_len)
 		return -EINVAL;
 
-	DEBUGP("size:%d\n", nlh->nlmsg_len);
-
 	while (NFA_OK(attr, attrlen)) {
 		switch(attr->nfa_type) {
-		case CTA_ORIG:
-			orig = NFA_DATA(attr);
-			fprintf(stdout, "src=%u.%u.%u.%u dst=%u.%u.%u.%u ", 
-					NIPQUAD(orig->src.ip), 
-					NIPQUAD(orig->dst.ip));
-			h = findproto(proto2str[orig->dst.protonum]);
-			if (h && h->print_tuple)
-				h->print_tuple(orig);
+		case CTA_TUPLE_ORIG:
+			parse_tuple(attr, &ct.tuple[CTNL_DIR_ORIGINAL]);
 			break;
-		case CTA_RPLY:
-			reply = NFA_DATA(attr);
-			fprintf(stdout, "src=%u.%u.%u.%u dst=%u.%u.%u.%u ",
-					NIPQUAD(reply->src.ip), 
-					NIPQUAD(reply->dst.ip));
-			h = findproto(proto2str[reply->dst.protonum]);
-			if (h && h->print_tuple)
-				h->print_tuple(reply);	
+		case CTA_TUPLE_RPLY:
+			parse_tuple(attr, &ct.tuple[CTNL_DIR_REPLY]);
 			break;
 		case CTA_STATUS:
-			status = NFA_DATA(attr);
-			print_status(*status);
+			ct.status = *(unsigned int *)NFA_DATA(attr);
+			flags |= STATUS;
 			break;
 		case CTA_PROTOINFO:
-			proto = NFA_DATA(attr);
-			if (proto2str[proto->num_proto]) {
-				fprintf(stdout, "%s %d ", proto2str[proto->num_proto], proto->num_proto);
-				h = findproto(proto2str[proto->num_proto]);
-				if (h && h->print_proto)
-					h->print_proto(&proto->proto);
-			} else
-				fprintf(stdout, "unknown %d ", proto->num_proto);
+			parse_protoinfo(attr, &ct);
+			flags |= PROTOINFO;
 			break;
 		case CTA_TIMEOUT:
-			timeout = NFA_DATA(attr);
-			fprintf(stdout, "timeout=%lu ", *timeout);
+			ct.timeout = *(unsigned long *)NFA_DATA(attr);
+			flags |= TIMEOUT;
 			break;
 		case CTA_MARK:
-			mark = NFA_DATA(attr);
-			fprintf(stdout, "mark=%lu ", *mark);
+			ct.mark = *(unsigned long *)NFA_DATA(attr);
+			flags |= MARK;
 			break;
 		case CTA_COUNTERS:
-			ctr = NFA_DATA(attr);
-			fprintf(stdout, "orig_packets=%llu orig_bytes=%llu, "
-			       "reply_packets=%llu reply_bytes=%llu ",
-			       ctr->orig.packets, ctr->orig.bytes,
-			       ctr->reply.packets, ctr->reply.bytes);
+			parse_counters(attr, &ct, CTA_COUNTERS-1);
+			flags |= COUNTERS;
+			break;
+		case CTA_USE:
+			ct.use = *(unsigned int *)NFA_DATA(attr);
+			flags |= USE;
 			break;
 		}
-		DEBUGP("nfa->nfa_type: %d\n", attr->nfa_type);
-		DEBUGP("nfa->nfa_len: %d\n", attr->nfa_len);
 		attr = NFA_NEXT(attr, attrlen);
 	}
+
+	fprintf(stdout, "%-8s %u ", 
+		proto2str[ct.tuple[CTNL_DIR_ORIGINAL].protonum] == NULL ?
+		"unknown" : proto2str[ct.tuple[CTNL_DIR_ORIGINAL].protonum], 
+		ct.tuple[CTNL_DIR_ORIGINAL].protonum);
+
+	if (flags & TIMEOUT)
+		fprintf(stdout, "%lu ", ct.timeout);
+
+        h = findproto(proto2str[ct.tuple[CTNL_DIR_ORIGINAL].protonum]);
+        if ((flags & PROTOINFO) && h && h->print_protoinfo)
+                h->print_protoinfo(&ct.protoinfo);
+
+	fprintf(stdout, "src=%u.%u.%u.%u dst=%u.%u.%u.%u ",
+		NIPQUAD(ct.tuple[CTNL_DIR_ORIGINAL].src.v4),
+		NIPQUAD(ct.tuple[CTNL_DIR_ORIGINAL].dst.v4));
+
+	if (h && h->print_proto)
+		h->print_proto(&ct.tuple[CTNL_DIR_ORIGINAL]);
+
+	if (flags & COUNTERS)
+		fprintf(stdout, "packets=%llu bytes=%llu ",
+			ct.counters[CTNL_DIR_ORIGINAL].packets,
+			ct.counters[CTNL_DIR_ORIGINAL].bytes);
+
+        fprintf(stdout, "src=%u.%u.%u.%u dst=%u.%u.%u.%u ",
+		NIPQUAD(ct.tuple[CTNL_DIR_REPLY].src.v4),
+		NIPQUAD(ct.tuple[CTNL_DIR_REPLY].dst.v4));
+
+        h = findproto(proto2str[ct.tuple[CTNL_DIR_ORIGINAL].protonum]);
+	if (h && h->print_proto)
+		h->print_proto(&ct.tuple[CTNL_DIR_REPLY]);
+
+	if (flags & COUNTERS)
+		fprintf(stdout, "packets=%llu bytes=%llu ",
+			ct.counters[CTNL_DIR_REPLY].packets,
+			ct.counters[CTNL_DIR_REPLY].bytes);
+	
+	print_status(ct.status);
+
+	if (flags & MARK)
+		fprintf(stdout, "mark=%lu ", ct.mark);
+	if (flags & USE)
+		fprintf(stdout, "use=%u ", ct.use);
+
 	fprintf(stdout, "\n");
 
 	return 0;
@@ -148,140 +256,133 @@ static int event_handler(struct sockaddr_nl *sock, struct nlmsghdr *nlh,
 	return handler(sock, nlh, arg);
 }
 
+void parse_expect(struct nfattr *attr, struct ctnl_tuple *tuple, 
+		  struct ctnl_tuple *mask, unsigned long *timeout)
+{
+	struct nfattr *tb[CTA_EXPECT_MAX];
+
+	memset(tb, 0, CTA_EXPECT_MAX*sizeof(struct nfattr *));
+
+	nfnl_parse_attr(tb, CTA_EXPECT_MAX, NFA_DATA(attr), NFA_PAYLOAD(attr));
+	if (tb[CTA_EXPECT_TUPLE-1])
+		parse_tuple(tb[CTA_EXPECT_TUPLE-1], tuple);
+	if (tb[CTA_EXPECT_MASK-1])
+		parse_tuple(tb[CTA_EXPECT_MASK-1], mask);
+	if (tb[CTA_EXPECT_TIMEOUT-1])
+		*timeout = *(unsigned long *)NFA_DATA(tb[CTA_EXPECT_TIMEOUT-1]);
+}
+
 static int expect_handler(struct sockaddr_nl *sock, struct nlmsghdr *nlh, void *arg)
 {
 	struct nfgenmsg *nfmsg;
 	struct nfattr *nfa;
-	int min_len = 0;
+	int min_len = sizeof(struct nfgenmsg);;
 	struct ctproto_handler *h = NULL;
 	struct nfattr *attr = NFM_NFA(NLMSG_DATA(nlh));
 	int attrlen = nlh->nlmsg_len - NLMSG_ALIGN(min_len);
+	struct ctnl_tuple tuple, mask;
+	unsigned long timeout = 0;
 
-	struct ip_conntrack_tuple *exp, *mask;
-	unsigned long *timeout;
-
-	DEBUGP("netlink header\n");
-	DEBUGP("len: %d type: %d flags: %d seq: %d pid: %d\n", 
-		nlh->nlmsg_len, nlh->nlmsg_type, nlh->nlmsg_flags, 
-		nlh->nlmsg_seq, nlh->nlmsg_pid);
+	memset(&tuple, 0, sizeof(struct ctnl_tuple));
+	memset(&mask, 0, sizeof(struct ctnl_tuple));
 
 	nfmsg = NLMSG_DATA(nlh);
-	DEBUGP("nfmsg->nfgen_family: %d\n", nfmsg->nfgen_family);
 
-	min_len = sizeof(struct nfgenmsg);
 	if (nlh->nlmsg_len < min_len)
 		return -EINVAL;
 
-	DEBUGP("size:%d\n", nlh->nlmsg_len);
-
 	while (NFA_OK(attr, attrlen)) {
 		switch(attr->nfa_type) {
-		case CTA_EXP_TUPLE:
-			exp = NFA_DATA(attr);
-			fprintf(stdout, "src=%u.%u.%u.%u dst=%u.%u.%u.%u ", 
-					NIPQUAD(exp->src.ip), 
-					NIPQUAD(exp->dst.ip));
-			h = findproto(proto2str[exp->dst.protonum]);
-			if (h && h->print_tuple)
-				h->print_tuple(exp);
-			break;
-		case CTA_EXP_MASK:
-			mask = NFA_DATA(attr);
-			fprintf(stdout, "src=%u.%u.%u.%u dst=%u.%u.%u.%u ",
-					NIPQUAD(mask->src.ip), 
-					NIPQUAD(mask->dst.ip));
-			h = findproto(proto2str[mask->dst.protonum]);
-			if (h && h->print_tuple)
-				h->print_tuple(mask);	
-			break;
-		case CTA_EXP_TIMEOUT:
-			timeout = NFA_DATA(attr);
-			fprintf(stdout, "timeout:%lu ", *timeout);
-			break;
+			case CTA_EXPECT:
+				parse_expect(attr, &tuple, &mask, &timeout);
+				break;
 		}
-		DEBUGP("nfa->nfa_type: %d\n", attr->nfa_type);
-		DEBUGP("nfa->nfa_len: %d\n", attr->nfa_len);
 		attr = NFA_NEXT(attr, attrlen);
 	}
-	fprintf(stdout, "\n");
+	fprintf(stdout, "%ld proto=%d ", timeout, tuple.protonum);
+
+        fprintf(stdout, "src=%u.%u.%u.%u dst=%u.%u.%u.%u ",
+		NIPQUAD(tuple.src.v4),
+		NIPQUAD(tuple.dst.v4));
+
+	fprintf(stdout, "src=%u.%u.%u.%u dst=%u.%u.%u.%u\n",
+		NIPQUAD(mask.src.v4),
+		NIPQUAD(mask.dst.v4));
 
 	return 0;
 }
 
-int create_conntrack(struct ip_conntrack_tuple *orig,
-		     struct ip_conntrack_tuple *reply,
+int create_conntrack(struct ctnl_tuple *orig,
+		     struct ctnl_tuple *reply,
 		     unsigned long timeout,
-		     union ip_conntrack_proto *proto,
+		     union ctnl_protoinfo *proto,
+		     unsigned int status,
+		     struct ctnl_nat *range)
+{
+	struct ctnl_conntrack ct;
+	int ret;
+
+	memset(&ct, 0, sizeof(struct ctnl_conntrack));
+	ct.tuple[CTNL_DIR_ORIGINAL] = *orig;
+	ct.tuple[CTNL_DIR_REPLY] = *reply;
+	ct.timeout = timeout;
+	ct.status = status;
+	ct.protoinfo = *proto;
+	if (range)
+		ct.nat = *range;
+	
+	if ((ret = ctnl_open(&cth, 0)) < 0)
+		return ret;
+
+	ret = ctnl_new_conntrack(&cth, &ct);
+
+	ctnl_close(&cth);
+	
+	return ret;
+}
+
+int update_conntrack(struct ctnl_tuple *orig,
+		     struct ctnl_tuple *reply,
+		     unsigned long timeout,
+		     union ctnl_protoinfo *proto,
 		     unsigned int status)
 {
-	struct cta_proto cta;
-	struct nfattr *cda[CTA_MAX];
-	struct ctnl_handle cth;
+	struct ctnl_conntrack ct;
 	int ret;
+
+	memset(&ct, 0, sizeof(struct ctnl_conntrack));
+	ct.tuple[CTNL_DIR_ORIGINAL] = *orig;
+	ct.tuple[CTNL_DIR_REPLY] = *reply;
+	ct.timeout = timeout;
+	ct.status = status;
+	ct.protoinfo = *proto;
 	
-	cta.num_proto = orig->dst.protonum;
-	memcpy(&cta.proto, proto, sizeof(*proto));
 	if ((ret = ctnl_open(&cth, 0)) < 0)
 		return ret;
 
-	if ((ret = ctnl_new_conntrack(&cth, orig, reply, timeout, &cta, 
-					status)) < 0)
-		return ret;
+	ret = ctnl_upd_conntrack(&cth, &ct);
 
-	if ((ret = ctnl_close(&cth)) < 0)
-		return ret;
+	ctnl_close(&cth);
 	
-	return 0;
+	return ret;
 }
 
-int create_expect(struct ip_conntrack_tuple *tuple,
-		  struct ip_conntrack_tuple *mask,
-		  struct ip_conntrack_tuple *master_tuple_orig,
-		  struct ip_conntrack_tuple *master_tuple_reply,
-		  unsigned long timeout)
+int delete_conntrack(struct ctnl_tuple *tuple, int dir)
 {
-	struct ctnl_handle cth;
 	int ret;
 
 	if ((ret = ctnl_open(&cth, 0)) < 0)
 		return ret;
 
-	if ((ret = ctnl_new_expect(&cth, tuple, mask, master_tuple_orig,
-				   master_tuple_reply, timeout)) < 0)
-		return ret;
+	ret = ctnl_del_conntrack(&cth, tuple, dir);
+	ctnl_close(&cth);
 
-	if ((ret = ctnl_close(&cth)) < 0)
-		return ret;
-
-	return -1;
-}
-
-int delete_conntrack(struct ip_conntrack_tuple *tuple,
-		     enum ctattr_type_t t)
-{
-	struct nfattr *cda[CTA_MAX];
-	struct ctnl_handle cth;
-	int ret;
-
-	if ((ret = ctnl_open(&cth, 0)) < 0)
-		return ret;
-
-	if ((ret = ctnl_del_conntrack(&cth, tuple, t)) < 0)
-		return ret;
-
-	if ((ret = ctnl_close(&cth)) < 0)
-		return ret;
-
-	return 0;
+	return ret;
 }
 
 /* get_conntrack_handler */
-int get_conntrack(struct ip_conntrack_tuple *tuple, 
-		  enum ctattr_type_t t,
-		  unsigned long id)
+int get_conntrack(struct ctnl_tuple *tuple, int dir)
 {
-	struct nfattr *cda[CTA_MAX];
-	struct ctnl_handle cth;
 	struct ctnl_msg_handler h = {
 		.type = 0,
 		.handler = handler
@@ -293,22 +394,17 @@ int get_conntrack(struct ip_conntrack_tuple *tuple,
 
 	ctnl_register_handler(&cth, &h);
 
-	/* FIXME!!!! get_conntrack_handler returns -100 */
-	if ((ret = ctnl_get_conntrack(&cth, tuple, t)) != -100)
-		return ret;
+	ret = ctnl_get_conntrack(&cth, tuple, dir);
+	ctnl_close(&cth);
 
-	if ((ret = ctnl_close(&cth)) < 0)
-		return ret;
-
-	return 0;
+	return ret;
 }
 
 int dump_conntrack_table(int zero)
 {
 	int ret;
-	struct ctnl_handle cth;
 	struct ctnl_msg_handler h = {
-		.type = 0, /* Hm... really? */
+		.type = IPCTNL_MSG_CT_NEW, /* Hm... really? */
 		.handler = handler
 	};
 	
@@ -322,38 +418,37 @@ int dump_conntrack_table(int zero)
 	} else
 		ret = ctnl_list_conntrack(&cth, AF_INET);
 
-	if (ret != -100)
-		return ret;
+	ctnl_close(&cth);
 
-	if ((ret = ctnl_close(&cth)) < 0)
-		return ret;
+	return ret;
+}
 
-	return 0;
+static void event_sighandler(int s)
+{
+	fprintf(stdout, "Now closing conntrack event dumping...\n");
+	ctnl_close(&cth);
 }
 
 int event_conntrack(unsigned int event_mask)
 {
-	struct ctnl_handle cth;
 	struct ctnl_msg_handler hnew = {
-		.type = 0, /* new */
+		.type = IPCTNL_MSG_CT_NEW,
 		.handler = event_handler
 	};
 	struct ctnl_msg_handler hdestroy = {
-		.type = 2, /* destroy */
+		.type = IPCTNL_MSG_CT_DELETE,
 		.handler = event_handler
 	};
 	int ret;
-	
+
 	if ((ret = ctnl_open(&cth, event_mask)) < 0)
 		return ret;
 
+	signal(SIGINT, event_sighandler);
 	ctnl_register_handler(&cth, &hnew);
 	ctnl_register_handler(&cth, &hdestroy);
-	if ((ret = ctnl_event_conntrack(&cth, AF_INET)) < 0)
-		return ret;
-
-	if ((ret = ctnl_close(&cth)) < 0)
-		return ret;
+	ret = ctnl_event_conntrack(&cth, AF_INET);
+	ctnl_close(&cth);
 
 	return 0;
 }
@@ -404,9 +499,8 @@ void unregister_proto(struct ctproto_handler *h)
 
 int dump_expect_list()
 {
-	struct ctnl_handle cth;
 	struct ctnl_msg_handler h = {
-		.type = 5, /* Hm... really? */
+		.type = IPCTNL_MSG_EXP_NEW,
 		.handler = expect_handler
 	};
 	int ret;
@@ -416,58 +510,114 @@ int dump_expect_list()
 
 	ctnl_register_handler(&cth, &h);
 
-	if ((ret = ctnl_list_expect(&cth, AF_INET)) != -100)
-		return ret;
-
-	if ((ret = ctnl_close(&cth)) < 0)
-		return ret;
-
-	return 0;
-}
-
-int set_mask(unsigned int mask, int type)
-{
-	struct ctnl_handle cth;
-	enum ctattr_type_t cta_type;
-	int ret;
-
-	switch(type) {
-		case 0:
-			cta_type = CTA_DUMPMASK;
-			break;
-		case 1:
-			cta_type = CTA_EVENTMASK;
-			break;
-		default:
-			/* Shouldn't happen */
-			return -1;
-	}
-
-	if ((ret = ctnl_open(&cth, 0)) < 0)
-		return ret;
+	ret = ctnl_list_expect(&cth, AF_INET);
+	ctnl_close(&cth);
 	
-	if ((ret = ctnl_set_mask(&cth, mask, cta_type)) < 0)
-		return ret;
-	
-	if ((ret = ctnl_close(&cth)) < 0)
-		return ret;
-
-	return 0;
+	return ret;
 }
 
 int flush_conntrack()
 {
-	struct ctnl_handle cth;
 	int ret;
 	
 	if ((ret = ctnl_open(&cth, 0)) < 0)
 		return ret;
 
-	if ((ret = ctnl_flush_conntrack(&cth)) < 0)
-		return ret;
+	ret = ctnl_flush_conntrack(&cth);
+	ctnl_close(&cth);
 
-	if ((ret = ctnl_close(&cth)) < 0)
-		return ret;
-
-	return 0;
+	return ret;
 }
+
+int get_expect(struct ctnl_tuple *tuple,
+	       enum ctattr_type t)
+{
+	/*
+	struct ctnl_msg_handler h = {
+		.type = IPCTNL_MSG_EXP_NEW,
+		.handler = expect_handler
+	};
+	int ret;
+
+	if ((ret = ctnl_open(&cth, 0)) < 0)
+		return 0;
+
+	ctnl_register_handler(&cth, &h);
+
+	ret = ctnl_get_expect(&cth, tuple, t);
+	ctnl_close(&cth);
+
+	return ret;
+	*/
+}
+
+int create_expectation(struct ctnl_tuple *tuple,
+		       enum ctattr_type t,
+		       struct ctnl_tuple *exptuple,
+		       struct ctnl_tuple *mask,
+		       unsigned long timeout)
+{
+	/*
+	int ret;
+	
+	if ((ret = ctnl_open(&cth, 0)) < 0)
+		return ret;
+
+	ret = ctnl_new_expect(&cth, tuple, t, exptuple, mask, timeout);
+	ctnl_close(&cth);
+
+	return ret;
+	*/
+}
+
+int delete_expectation(struct ctnl_tuple *tuple, enum ctattr_type t)
+{
+	/*
+	int ret;
+	
+	if ((ret = ctnl_open(&cth, 0)) < 0)
+		return ret;
+
+	ret = ctnl_del_expect(&cth, tuple, t);
+	ctnl_close(&cth);
+
+	return ret;
+	*/
+}
+
+int event_expectation(unsigned int event_mask)
+{
+	struct ctnl_msg_handler hnew = {
+		.type = IPCTNL_MSG_EXP_NEW,
+		.handler = expect_handler
+	};
+	struct ctnl_msg_handler hdestroy = {
+		.type = IPCTNL_MSG_EXP_DELETE,
+		.handler = expect_handler
+	};
+	int ret;
+	
+	if ((ret = ctnl_open(&cth, event_mask)) < 0)
+		return ret;
+
+	ctnl_register_handler(&cth, &hnew);
+	ctnl_register_handler(&cth, &hdestroy);
+	ret = ctnl_event_expect(&cth, AF_INET);
+	ctnl_close(&cth);
+
+	return ret;
+}
+
+int flush_expectation()
+{
+	int ret;
+	
+	if ((ret = ctnl_open(&cth, 0)) < 0)
+		return ret;
+
+	ret = ctnl_flush_expect(&cth);
+	ctnl_close(&cth);
+
+	return ret;
+}
+

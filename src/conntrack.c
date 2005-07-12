@@ -41,7 +41,6 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <string.h>
-#include <linux/netfilter_ipv4/ip_conntrack_tuple.h>
 #include <linux/netfilter_ipv4/ip_conntrack.h>
 #include "libctnetlink.h"
 #include "libnfnetlink.h"
@@ -62,34 +61,60 @@
 #endif
 
 enum action {
+	CT_NONE		= 0,
+	
 	CT_LIST_BIT 	= 0,
 	CT_LIST 	= (1 << CT_LIST_BIT),
 	
 	CT_CREATE_BIT	= 1,
 	CT_CREATE	= (1 << CT_CREATE_BIT),
+
+	CT_UPDATE_BIT	= 2,
+	CT_UPDATE	= (1 << CT_UPDATE_BIT),
 	
-	CT_DELETE_BIT	= 2,
+	CT_DELETE_BIT	= 3,
 	CT_DELETE	= (1 << CT_DELETE_BIT),
 	
-	CT_GET_BIT	= 3,
+	CT_GET_BIT	= 4,
 	CT_GET		= (1 << CT_GET_BIT),
 
-	CT_FLUSH_BIT	= 4,
+	CT_FLUSH_BIT	= 5,
 	CT_FLUSH	= (1 << CT_FLUSH_BIT),
 
-	CT_EVENT_BIT	= 5,
+	CT_EVENT_BIT	= 6,
 	CT_EVENT	= (1 << CT_EVENT_BIT),
-
-	CT_ACTION_BIT	= 6,
-	CT_ACTION	= (1 << CT_ACTION_BIT),
 
 	CT_VERSION_BIT	= 7,
 	CT_VERSION	= (1 << CT_VERSION_BIT),
 
 	CT_HELP_BIT	= 8,
 	CT_HELP		= (1 << CT_HELP_BIT),
+
+	EXP_LIST_BIT 	= 9,
+	EXP_LIST 	= (1 << EXP_LIST_BIT),
+	
+	EXP_CREATE_BIT	= 10,
+	EXP_CREATE	= (1 << EXP_CREATE_BIT),
+	
+	EXP_DELETE_BIT	= 11,
+	EXP_DELETE	= (1 << EXP_DELETE_BIT),
+	
+	EXP_GET_BIT	= 12,
+	EXP_GET		= (1 << EXP_GET_BIT),
+
+	EXP_FLUSH_BIT	= 13,
+	EXP_FLUSH	= (1 << EXP_FLUSH_BIT),
+
+	EXP_EVENT_BIT	= 14,
+	EXP_EVENT	= (1 << EXP_EVENT_BIT),
 };
-#define NUMBER_OF_CMD   9
+#define NUMBER_OF_CMD   15
+
+static const char cmdflags[NUMBER_OF_CMD]
+= {'L','I','U','D','G','F','E','V','h','L','I','D','G','F','E'};
+
+static const char cmd_need_param[NUMBER_OF_CMD]
+= {' ','x','x','x','x',' ',' ',' ',' ',' ','x','x','x',' ',' '};
 
 enum options {
 	CT_OPT_ORIG_SRC_BIT	= 0,
@@ -120,36 +145,34 @@ enum options {
 	CT_OPT_ZERO_BIT		= 7,
 	CT_OPT_ZERO		= (1 << CT_OPT_ZERO_BIT),
 
-	CT_OPT_DUMP_MASK_BIT	= 8,
-	CT_OPT_DUMP_MASK	= (1 << CT_OPT_DUMP_MASK_BIT),
-
-	CT_OPT_GROUP_MASK_BIT	= 9,
-	CT_OPT_GROUP_MASK	= (1 << CT_OPT_GROUP_MASK_BIT),
-
-	CT_OPT_EVENT_MASK_BIT	= 10,
+	CT_OPT_EVENT_MASK_BIT	= 8,
 	CT_OPT_EVENT_MASK	= (1 << CT_OPT_EVENT_MASK_BIT),
 
-	CT_OPT_TUPLE_SRC_BIT	= 11,
-	CT_OPT_TUPLE_SRC	= (1 << CT_OPT_TUPLE_SRC_BIT),
+	CT_OPT_EXP_SRC_BIT	= 9,
+	CT_OPT_EXP_SRC		= (1 << CT_OPT_EXP_SRC_BIT),
 
-	CT_OPT_TUPLE_DST_BIT	= 12,
-	CT_OPT_TUPLE_DST	= (1 << CT_OPT_TUPLE_DST_BIT),
+	CT_OPT_EXP_DST_BIT	= 10,
+	CT_OPT_EXP_DST		= (1 << CT_OPT_EXP_DST_BIT),
 
-	CT_OPT_MASK_SRC_BIT	= 13,
+	CT_OPT_MASK_SRC_BIT	= 11,
 	CT_OPT_MASK_SRC		= (1 << CT_OPT_MASK_SRC_BIT),
 
-	CT_OPT_MASK_DST_BIT	= 14,
+	CT_OPT_MASK_DST_BIT	= 12,
 	CT_OPT_MASK_DST		= (1 << CT_OPT_MASK_DST_BIT),
+
+	CT_OPT_NATRANGE_BIT	= 13,
+	CT_OPT_NATRANGE		= (1 << CT_OPT_NATRANGE_BIT),
 };
-#define NUMBER_OF_OPT   15
+#define NUMBER_OF_OPT   14
 
 static const char optflags[NUMBER_OF_OPT]
-= { 's', 'd', 'r', 'q', 'p', 't', 'u', 'z','m','g','e', '[',']','{','}'};
+= {'s','d','r','q','p','t','u','z','e','[',']','{','}','a'};
 
 static struct option original_opts[] = {
 	{"dump", 2, 0, 'L'},
 	{"create", 1, 0, 'I'},
 	{"delete", 1, 0, 'D'},
+	{"update", 1, 0, 'U'},
 	{"get", 1, 0, 'G'},
 	{"flush", 1, 0, 'F'},
 	{"event", 1, 0, 'E'},
@@ -164,13 +187,12 @@ static struct option original_opts[] = {
 	{"timeout", 1, 0, 't'},
 	{"status", 1, 0, 'u'},
 	{"zero", 0, 0, 'z'},
-	{"dump-mask", 1, 0, 'm'},
-	{"groups", 1, 0, 'g'},
 	{"event-mask", 1, 0, 'e'},
 	{"tuple-src", 1, 0, '['},
 	{"tuple-dst", 1, 0, ']'},
 	{"mask-src", 1, 0, '{'},
 	{"mask-dst", 1, 0, '}'},
+	{"nat-range", 1, 0, 'a'},
 	{0, 0, 0, 0}
 };
 
@@ -188,22 +210,29 @@ static unsigned int global_option_offset = 0;
  *     optional
  */
 
+/* FIXME: I'd need something different than this table to catch up some 
+ *        particular cases. Better later Pablo */
 static char commands_v_options[NUMBER_OF_CMD][NUMBER_OF_OPT] =
 /* Well, it's better than "Re: Linux vs FreeBSD" */
 {
-          /*   -s  -d  -r  -q  -p  -t  -u  -z  -m  -g  -e  ts  td  ms  md */
-/*LIST*/      {'x','x','x','x','x','x','x',' ','x','x','x','x','x','x','x'},
-/*CREATE*/    {'+','+','+','+','+','+','+','x','x','x','x','+','+','+','+'},
-/*DELETE*/    {' ',' ',' ',' ',' ','x','x','x','x','x','x',' ',' ',' ',' '},
-/*GET*/       {' ',' ',' ',' ','+','x','x','x','x','x','x',' ',' ',' ',' '},
-/*FLUSH*/     {'x','x','x','x','x','x','x','x','x','x','x','x','x','x','x'},
-/*EVENT*/     {'x','x','x','x','x','x','x','x','x',' ','x','x','x','x','x'},
-/*ACTION*/    {'x','x','x','x','x','x','x','x',' ','x',' ','x','x','x','x'},
-/*VERSION*/   {'x','x','x','x','x','x','x','x','x','x','x','x','x','x','x'},
-/*HELP*/      {'x','x','x','x',' ','x','x','x','x','x','x','x','x','x','x'},
+          /*   -s  -d  -r  -q  -p  -t  -u  -z  -e  -x  -y  -k  -l  -a */
+/*CT_LIST*/   {'x','x','x','x','x','x','x',' ','x','x','x','x','x','x'},
+/*CT_CREATE*/ {' ',' ',' ',' ','+','+','+','x','x','x','x','x','x',' '},
+/*CT_UPDATE*/ {' ',' ',' ',' ','+','+','+','x','x','x','x','x','x','x'},
+/*CT_DELETE*/ {' ',' ',' ',' ',' ','x','x','x','x','x','x','x','x','x'},
+/*CT_GET*/    {' ',' ',' ',' ','+','x','x','x','x','x','x','x','x','x'},
+/*CT_FLUSH*/  {'x','x','x','x','x','x','x','x','x','x','x','x','x','x'},
+/*CT_EVENT*/  {'x','x','x','x','x','x','x','x',' ','x','x','x','x','x'},
+/*VERSION*/   {'x','x','x','x','x','x','x','x','x','x','x','x','x','x'},
+/*HELP*/      {'x','x','x','x',' ','x','x','x','x','x','x','x','x','x'},
+/*EXP_LIST*/  {'x','x','x','x','x','x','x','x','x','x','x','x','x','x'},
+/*EXP_CREATE*/{'+','+',' ',' ','+','+',' ','x','x','+','+','+','+','x'},
+/*EXP_DELETE*/{'+','+',' ',' ','+','x','x','x','x','x','x','x','x','x'},
+/*EXP_GET*/   {'+','+',' ',' ','+','x','x','x','x','x','x','x','x','x'},
+/*EXP_FLUSH*/ {'x','x','x','x','x','x','x','x','x','x','x','x','x','x'},
+/*EXP_EVENT*/ {'x','x','x','x','x','x','x','x','x','x','x','x','x','x'},
 };
 
-/* FIXME: hardcoded!, this must be defined during compilation time */
 char *lib_dir = CONNTRACK_LIB_DIR;
 
 LIST_HEAD(proto_list);
@@ -256,6 +285,22 @@ exit_error(enum exittype status, char *msg, ...)
 	if (status == PARAMETER_PROBLEM)
 		exit_tryhelp(status);
 	exit(status);
+}
+
+static void
+generic_cmd_check(int command, int options)
+{
+	int i;
+	
+	for (i = 0; i < NUMBER_OF_CMD; i++) {
+		if (!(command & (1<<i)))
+			continue;
+
+		if (cmd_need_param[i] == 'x' && !options)
+			exit_error(PARAMETER_PROBLEM,
+				   "You need to supply parameters to `-%c'\n",
+				   cmdflags[i]);
+	}
 }
 
 static void
@@ -332,11 +377,14 @@ err2str(int err, enum action command)
 	} table [] =
 	  { { CT_LIST, -ENOTSUPP, "function not implemented" },
 	    { 0xFFFF, -EINVAL, "invalid parameters" },
+	    { CT_CREATE, -EEXIST, "Such conntrack exists, try -U to update" },
 	    { CT_CREATE|CT_GET|CT_DELETE, -ENOENT, 
 		    "such conntrack doesn't exist" },
 	    { CT_CREATE|CT_GET, -ENOMEM, "not enough memory" },
 	    { CT_GET, -EAFNOSUPPORT, "protocol not supported" },
 	    { CT_CREATE, -ETIME, "conntrack has expired" },
+	    { EXP_CREATE, -ENOENT, "master conntrack not found" },
+	    { EXP_CREATE, -EINVAL, "invalid parameters" }
 	  };
 
 	for (i = 0; i < sizeof(table)/sizeof(struct table_struct); i++) {
@@ -347,48 +395,29 @@ err2str(int err, enum action command)
 	return strerror(err);
 }
 
-static void dump_tuple(struct ip_conntrack_tuple *tp)
+static void dump_tuple(struct ctnl_tuple *tp)
 {
 	fprintf(stdout, "tuple %p: %u %u.%u.%u.%u:%hu -> %u.%u.%u.%u:%hu\n",
-		tp, tp->dst.protonum,
-		NIPQUAD(tp->src.ip), ntohs(tp->src.u.all),
-		NIPQUAD(tp->dst.ip), ntohs(tp->dst.u.all));
+		tp, tp->protonum,
+		NIPQUAD(tp->src.v4), ntohs(tp->l4src.all),
+		NIPQUAD(tp->dst.v4), ntohs(tp->l4dst.all));
 }
-
-void not_implemented_yet()
-{
-	exit_error(OTHER_PROBLEM, "Sorry, not implemented yet :(\n");
-}
-
 
 #define PARSE_STATUS 0
-#define PARSE_GROUP 1
-#define PARSE_EVENT 2
-#define PARSE_DUMP 3
-#define PARSE_MAX PARSE_DUMP+1
+#define PARSE_EVENT 1
+#define PARSE_MAX 2
 
 static struct parse_parameter {
-	char 	*parameter[10];
+	char 	*parameter[5];
 	size_t  size;
-	unsigned int value[10];
+	unsigned int value[5];
 } parse_array[PARSE_MAX] = {
-	{ {"EXPECTED", "ASSURED", "SEEN_REPLY", "CONFIRMED", "SNAT", "DNAT", 
-	   "SEQ_ADJUST", "UNSET"},
-	  8,
-	  { IPS_EXPECTED, IPS_ASSURED, IPS_SEEN_REPLY, IPS_CONFIRMED,
-	    IPS_SRC_NAT, IPS_DST_NAT, IPS_SEQ_ADJUST, 0} },
-	{ {"ALL", "TCP", "UDP", "ICMP"},
-	  4,
-	  {~0U, NFGRP_IPV4_CT_TCP, NFGRP_IPV4_CT_UDP, NFGRP_IPV4_CT_ICMP} },
-	{ {"ALL", "NEW", "RELATED", "DESTROY", "REFRESH", "STATUS", 
-	   "PROTOINFO", "HELPER", "HELPINFO", "NATINFO"},
-	  10,
-	  {~0U, IPCT_NEW, IPCT_RELATED, IPCT_DESTROY, IPCT_REFRESH, IPCT_STATUS,
-	   IPCT_PROTOINFO, IPCT_HELPER, IPCT_HELPINFO, IPCT_NATINFO} },
-	{ {"ALL", "TUPLE", "STATUS", "TIMEOUT", "PROTOINFO", "HELPINFO", 
-	   "COUNTERS", "MARK"}, 8,
-	  {~0U, DUMP_TUPLE, DUMP_STATUS, DUMP_TIMEOUT, DUMP_PROTOINFO,
-	   DUMP_HELPINFO, DUMP_COUNTERS, DUMP_MARK} }
+	{ {"ASSURED", "SEEN_REPLY", "UNSET", "SRC_NAT", "DST_NAT"}, 5,
+	  { IPS_ASSURED, IPS_SEEN_REPLY, 0, 
+	    IPS_SRC_NAT_DONE, IPS_DST_NAT_DONE} },
+	{ {"ALL", "NEW", "UPDATES", "DESTROY"}, 4,
+	  {~0U, NF_NETLINK_CONNTRACK_NEW, NF_NETLINK_CONNTRACK_UPDATE, 
+	   NF_NETLINK_CONNTRACK_DESTROY} },
 };
 
 static int
@@ -423,6 +452,14 @@ parse_parameter(const char *arg, unsigned int *status, int parse_type)
 	if (strlen(arg) == 0
 	    || !do_parse_parameter(arg, strlen(arg), status, parse_type))
 		exit_error(PARAMETER_PROBLEM, "Bad parameter `%s'", arg);
+}
+
+static void
+add_command(int *cmd, const int newcmd, const int othercmds)
+{
+	if (*cmd & (~othercmds))
+		exit_error(PARAMETER_PROBLEM, "Invalid commands combination\n");
+	*cmd |= newcmd;
 }
 
 unsigned int check_type(int argc, char *argv[])
@@ -515,15 +552,90 @@ int iptables_insmod(const char *modname, const char *modprobe)
 	return -1;
 }
 
+/* Shamelessly stolen from libipt_DNAT ;). Ranges expected in network order. */
+static void
+nat_parse(char *arg, int portok, struct ctnl_nat *range)
+{
+	char *colon, *dash, *error;
+	unsigned long ip;
+
+	memset(range, 0, sizeof(range));
+	colon = strchr(arg, ':');
+
+	if (colon) {
+		int port;
+
+		if (!portok)
+			exit_error(PARAMETER_PROBLEM,
+				   "Need TCP or UDP with port specification");
+
+		port = atoi(colon+1);
+		if (port == 0 || port > 65535)
+			exit_error(PARAMETER_PROBLEM,
+				   "Port `%s' not valid\n", colon+1);
+
+		error = strchr(colon+1, ':');
+		if (error)
+			exit_error(PARAMETER_PROBLEM,
+				   "Invalid port:port syntax - use dash\n");
+
+		dash = strchr(colon, '-');
+		if (!dash) {
+			range->l4min.tcp.port
+				= range->l4max.tcp.port
+				= htons(port);
+		} else {
+			int maxport;
+
+			maxport = atoi(dash + 1);
+			if (maxport == 0 || maxport > 65535)
+				exit_error(PARAMETER_PROBLEM,
+					   "Port `%s' not valid\n", dash+1);
+			if (maxport < port)
+				// People are stupid. 
+				exit_error(PARAMETER_PROBLEM,
+					   "Port range `%s' funky\n", colon+1);
+			range->l4min.tcp.port = htons(port);
+			range->l4max.tcp.port = htons(maxport);
+		}
+		// Starts with a colon? No IP info...
+		if (colon == arg)
+			return;
+		*colon = '\0';
+	}
+
+	dash = strchr(arg, '-');
+	if (colon && dash && dash > colon)
+		dash = NULL;
+
+	if (dash)
+		*dash = '\0';
+
+	ip = inet_addr(arg);
+	if (!ip)
+		exit_error(PARAMETER_PROBLEM, "Bad IP address `%s'\n",
+			   arg);
+	range->min_ip = ip;
+	if (dash) {
+		ip = inet_addr(dash+1);
+		if (!ip)
+			exit_error(PARAMETER_PROBLEM, "Bad IP address `%s'\n",
+				   dash+1);
+		range->max_ip = ip;
+	} else
+		range->max_ip = range->min_ip;
+}
+
 void usage(char *prog) {
 fprintf(stdout, "Tool to manipulate conntrack and expectations. Version %s\n", VERSION);
 fprintf(stdout, "Usage: %s [commands] [options]\n", prog);
 fprintf(stdout, "\n");
 fprintf(stdout, "Commands:\n");
 fprintf(stdout, "-L [table] [-z]   	List conntrack or expectation table\n");
-fprintf(stdout, "-G [table] parameters	Get conntrack or expectation\n");
+fprintf(stdout, "-G [table] parameters  Get conntrack or expectation\n");
 fprintf(stdout, "-D [table] parameters	Delete conntrack or expectation\n");
 fprintf(stdout, "-I [table] parameters	Create a conntrack or expectation\n");
+fprintf(stdout, "-U [table] parameters  Update a conntrack\n");
 fprintf(stdout, "-E [table] [options]	Show events\n");
 fprintf(stdout, "-F [table]	     	Flush table\n");
 fprintf(stdout, "-A [table] [options]	Set action\n");
@@ -535,108 +647,127 @@ fprintf(stdout, "--reply-src ip		Source addres from reply direction\n");
 fprintf(stdout, "--reply-dst ip		Destination address from reply direction\n");
 fprintf(stdout, "--tuple-src ip		Source address in expect tuple\n");
 fprintf(stdout, "--tuple-dst ip		Destination address in expect tuple\n");
-fprintf(stdout, "--mask-src ip		Source mask in expect\n");
-fprintf(stdout, "--mask-dst ip		Destination mask in expect\n");
+fprintf(stdout, "--mask-src ip		Source mask address for expectation\n");
+fprintf(stdout, "--mask-dst ip		Destination mask address for expectations\n");
 fprintf(stdout, "-p proto		Layer 4 Protocol\n");
 fprintf(stdout, "-t timeout		Set timeout\n");
 fprintf(stdout, "-u status		Set status\n");
 fprintf(stdout, "-m dumpmask		Set dump mask\n");
 fprintf(stdout, "-g groupmask		Set group mask\n");
 fprintf(stdout, "-e eventmask		Set event mask\n");
+fprintf(stdout, "-a min_ip[-max_ip]	NAT ip range\n");
 fprintf(stdout, "-z 			Zero Counters\n");
 }
 
 int main(int argc, char *argv[])
 {
-	int c;
+	char c;
 	unsigned int command = 0, options = 0;
-	struct ip_conntrack_tuple orig, reply, tuple, mask, *o = NULL, *r = NULL;
+	struct ctnl_tuple orig, reply, mask, *o = NULL, *r = NULL;
+	struct ctnl_tuple exptuple;
 	struct ctproto_handler *h = NULL;
-	union ip_conntrack_proto proto;
+	union ctnl_protoinfo proto;
+	struct ctnl_nat range;
 	unsigned long timeout = 0;
-	unsigned int status = 0, group_mask = 0;
+	unsigned int status = IPS_CONFIRMED;
 	unsigned long id = 0;
 	unsigned int type = 0, dump_mask = 0, extra_flags = 0, event_mask = 0;
+	int manip = -1;
 	int res = 0, retry = 2;
 
-	memset(&proto, 0, sizeof(union ip_conntrack_proto));
-	memset(&orig, 0, sizeof(struct ip_conntrack_tuple));
-	memset(&reply, 0, sizeof(struct ip_conntrack_tuple));
-	orig.dst.dir = IP_CT_DIR_ORIGINAL;
-	reply.dst.dir = IP_CT_DIR_REPLY;
+	memset(&proto, 0, sizeof(union ctnl_protoinfo));
+	memset(&orig, 0, sizeof(struct ctnl_tuple));
+	memset(&reply, 0, sizeof(struct ctnl_tuple));
+	memset(&mask, 0, sizeof(struct ctnl_tuple));
+	memset(&range, 0, sizeof(struct ctnl_nat));
 	
 	while ((c = getopt_long(argc, argv, 
-		"L::I::D::G::E::A::F::hVs:d:r:q:p:t:u:m:g:e:z[:]:{:}:", 
+		"L::I::U::D::G::E::A::F::hVs:d:r:q:p:t:u:e:a:z[:]:{:}:", 
 		opts, NULL)) != -1) {
 	switch(c) {
 		case 'L':
-			command |= CT_LIST;
 			type = check_type(argc, argv);
+			if (type == 0)
+				add_command(&command, CT_LIST, CT_NONE);
+			else if (type == 1)
+				add_command(&command, EXP_LIST, CT_NONE);
 			break;
 		case 'I':
-			command |= CT_CREATE;
 			type = check_type(argc, argv);
+			if (type == 0)
+				add_command(&command, CT_CREATE, CT_NONE);
+			else if (type == 1)
+				add_command(&command, EXP_CREATE, CT_NONE);
+			break;
+		case 'U':
+			type = check_type(argc, argv);
+			if (type == 0)
+				add_command(&command, CT_UPDATE, CT_NONE);
+			else
+				exit_error(PARAMETER_PROBLEM, "Can't update "
+					   "expectations");
 			break;
 		case 'D':
-			command |= CT_DELETE;
 			type = check_type(argc, argv);
+			if (type == 0)
+				add_command(&command, CT_DELETE, CT_NONE);
+			else if (type == 1)
+				add_command(&command, EXP_DELETE, CT_NONE);
 			break;
 		case 'G':
-			command |= CT_GET;
 			type = check_type(argc, argv);
+			if (type == 0)
+				add_command(&command, CT_GET, CT_NONE);
+			else if (type == 1)
+				add_command(&command, EXP_GET, CT_NONE);
 			break;
 		case 'F':
-			command |= CT_FLUSH;
 			type = check_type(argc, argv);
+			if (type == 0)
+				add_command(&command, CT_FLUSH, CT_NONE);
+			else if (type == 1)
+				add_command(&command, EXP_FLUSH, CT_NONE);
 			break;
 		case 'E':
-			command |= CT_EVENT;
 			type = check_type(argc, argv);
-			break;
-		case 'A':
-			command |= CT_ACTION;
-			type = check_type(argc, argv);
+			if (type == 0)
+				add_command(&command, CT_EVENT, CT_NONE);
+			else if (type == 1)
+				add_command(&command, EXP_EVENT, CT_NONE);
 			break;
 		case 'V':
-			command |= CT_VERSION;
+			add_command(&command, CT_VERSION, CT_NONE);
 			break;
 		case 'h':
-			command |= CT_HELP;
-			break;
-		case 'm':
-			if (!optarg)
-				continue;
-			
-			options |= CT_OPT_DUMP_MASK;
-			parse_parameter(optarg, &dump_mask, PARSE_DUMP);
+			add_command(&command, CT_HELP, CT_NONE);
 			break;
 		case 's':
 			options |= CT_OPT_ORIG_SRC;
 			if (optarg)
-				orig.src.ip = inet_addr(optarg);
+				orig.src.v4 = inet_addr(optarg);
 			break;
 		case 'd':
 			options |= CT_OPT_ORIG_DST;
 			if (optarg)
-				orig.dst.ip = inet_addr(optarg);
+				orig.dst.v4 = inet_addr(optarg);
 			break;
 		case 'r':
 			options |= CT_OPT_REPL_SRC;
 			if (optarg)
-				reply.src.ip = inet_addr(optarg);
+				reply.src.v4 = inet_addr(optarg);
 			break;
 		case 'q':
 			options |= CT_OPT_REPL_DST;
 			if (optarg)
-				reply.dst.ip = inet_addr(optarg);
+				reply.dst.v4 = inet_addr(optarg);
 			break;
 		case 'p':
 			options |= CT_OPT_PROTO;
 			h = findproto(optarg);
 			if (!h)
 				exit_error(PARAMETER_PROBLEM, "proto needed\n");
-			orig.dst.protonum = h->protonum;
-			reply.dst.protonum = h->protonum;
+			orig.protonum = h->protonum;
+			reply.protonum = h->protonum;
 			opts = merge_options(opts, h->opts, 
 					     &h->option_offset);
 			break;
@@ -646,20 +777,13 @@ int main(int argc, char *argv[])
 				timeout = atol(optarg);
 			break;
 		case 'u': {
-		 	/* FIXME: NAT stuff, later... */
 			if (!optarg)
 				continue;
 
 			options |= CT_OPT_STATUS;
 			parse_parameter(optarg, &status, PARSE_STATUS);
-			/* Just insert confirmed conntracks */
-			status |= IPS_CONFIRMED;
 			break;
 		}
-		case 'g':
-			options |= CT_OPT_GROUP_MASK;
-			parse_parameter(optarg, &group_mask, PARSE_GROUP);
-			break;
 		case 'e':
 			options |= CT_OPT_EVENT_MASK;
 			parse_parameter(optarg, &event_mask, PARSE_EVENT);
@@ -667,30 +791,35 @@ int main(int argc, char *argv[])
 		case 'z':
 			options |= CT_OPT_ZERO;
 			break;
-		case '[':
-			options |= CT_OPT_TUPLE_SRC;
-			if (optarg)
-				tuple.src.ip = inet_addr(optarg);
-			break;
-		case ']':
-			options |= CT_OPT_TUPLE_DST;
-			if (optarg)
-				tuple.dst.ip = inet_addr(optarg);
-			break;
-		case '{':
+		case 'k':
 			options |= CT_OPT_MASK_SRC;
 			if (optarg)
-				mask.src.ip = inet_addr(optarg);
+				mask.src.v4 = inet_addr(optarg);
 			break;
-		case '}':
+		case 'l':
 			options |= CT_OPT_MASK_DST;
 			if (optarg)
-				mask.dst.ip = inet_addr(optarg);
+				mask.dst.v4 = inet_addr(optarg);
+			break;
+		case 'x':
+			options |= CT_OPT_EXP_SRC;
+			if (optarg)
+				exptuple.src.v4 = inet_addr(optarg);
+			break;
+		case 'y':
+			options |= CT_OPT_EXP_DST;
+			if (optarg)
+				exptuple.dst.v4 = inet_addr(optarg);
+			break;
+		case 'a':
+			options |= CT_OPT_NATRANGE;
+			nat_parse(optarg, 1, &range);
 			break;
 		default:
-			if (h && h->parse && !h->parse(c - h->option_offset, 
-						       argv, &orig, &reply,
-						       &proto, &extra_flags))
+			if (h && h->parse_opts 
+			    &&!h->parse_opts(c - h->option_offset, argv, &orig, 
+				             &reply, &mask, &proto, 
+					     &extra_flags))
 				exit_error(PARAMETER_PROBLEM, "parse error\n");
 
 			/* Unknown argument... */
@@ -703,10 +832,12 @@ int main(int argc, char *argv[])
 		}
 	}
 
+	generic_cmd_check(command, options);
 	generic_opt_check(command, options);
 
 	if (!(command & CT_HELP)
-	    && h && h->final_check && !h->final_check(extra_flags)) {
+	    && h && h->final_check 
+	    && !h->final_check(extra_flags, &orig, &reply)) {
 		usage(argv[0]);
 		extension_help(h);
 		exit_error(PARAMETER_PROBLEM, "Missing protocol arguments!\n");
@@ -716,71 +847,115 @@ int main(int argc, char *argv[])
 		retry--;
 		switch(command) {
 		case CT_LIST:
-			if (type == 0) {
-				if (options & CT_OPT_ZERO)
-					res = dump_conntrack_table(1);
-				else
-					res = dump_conntrack_table(0);
-			} else 
-				res = dump_expect_list();
+			if (options & CT_OPT_ZERO)
+				res = dump_conntrack_table(1);
+			else
+				res = dump_conntrack_table(0);
+			break;
+
+		case EXP_LIST:
+			res = dump_expect_list();
 			break;
 			
 		case CT_CREATE:
-			if (type == 0)
+			if ((options & CT_OPT_ORIG) 
+			    && !(options & CT_OPT_REPL)) {
+				reply.src.v4 = orig.dst.v4;
+				reply.dst.v4 = orig.src.v4;
+			} else if (!(options & CT_OPT_ORIG)
+				   && (options & CT_OPT_REPL)) {
+				orig.src.v4 = reply.dst.v4;
+				orig.dst.v4 = reply.src.v4;
+			}
+			if (options & CT_OPT_NATRANGE)
 				res = create_conntrack(&orig, &reply, timeout, 
-						       &proto, status);
+						       &proto, status, &range);
 			else
-				res = create_expect(&tuple, &mask, &orig, 
-						    &reply, timeout);
+				res = create_conntrack(&orig, &reply, timeout,
+						       &proto, status, NULL);
+			break;
+
+		case EXP_CREATE:
+			if (options & CT_OPT_ORIG)
+				res = create_expectation(&orig, 
+							 CTA_TUPLE_ORIG,
+							 &exptuple,
+							 &mask,
+							 timeout);
+			else if (options & CT_OPT_REPL)
+				res = create_expectation(&reply,
+							 CTA_TUPLE_RPLY,
+							 &exptuple,
+							 &mask,
+							 timeout);
+			break;
+
+		case CT_UPDATE:
+			if ((options & CT_OPT_ORIG) 
+			    && !(options & CT_OPT_REPL)) {
+				reply.src.v4 = orig.dst.v4;
+				reply.dst.v4 = orig.src.v4;
+			} else if (!(options & CT_OPT_ORIG)
+				   && (options & CT_OPT_REPL)) {
+				orig.src.v4 = reply.dst.v4;
+				orig.dst.v4 = reply.src.v4;
+			}
+			res = update_conntrack(&orig, &reply, timeout, 
+					       &proto, status);
 			break;
 			
 		case CT_DELETE:
-			if (type == 0) {
-				if (options & CT_OPT_ORIG)
-					res =delete_conntrack(&orig, CTA_ORIG, 
-							      id);
-				else if (options & CT_OPT_REPL)
-					res = delete_conntrack(&reply, CTA_RPLY,
-							       id);
-			} else
-				not_implemented_yet();
+			if (options & CT_OPT_ORIG)
+				res = delete_conntrack(&orig, CTA_TUPLE_ORIG, 
+						       CTNL_DIR_ORIGINAL);
+			else if (options & CT_OPT_REPL)
+				res = delete_conntrack(&reply, CTA_TUPLE_RPLY,
+						       CTNL_DIR_REPLY);
 			break;
-			
+
+		case EXP_DELETE:
+			if (options & CT_OPT_ORIG)
+				res = delete_expectation(&orig, CTA_TUPLE_ORIG);
+			else if (options & CT_OPT_REPL)
+				res = delete_expectation(&reply, CTA_TUPLE_RPLY);
+			break;
+
 		case CT_GET:
-			if (type == 0) {
-				if (options & CT_OPT_ORIG)
-					res = get_conntrack(&orig, CTA_ORIG, 
-							    id);
-				else if (options & CT_OPT_REPL)
-					res = get_conntrack(&reply, CTA_RPLY,
-							    id);
-			} else
-				not_implemented_yet();
+			if (options & CT_OPT_ORIG)
+				res = get_conntrack(&orig, CTA_TUPLE_ORIG, id);
+			else if (options & CT_OPT_REPL)
+				res = get_conntrack(&reply, CTA_TUPLE_RPLY, id);
 			break;
-			
+
+		case EXP_GET:
+			if (options & CT_OPT_ORIG)
+				res = get_expect(&orig, CTA_TUPLE_ORIG);
+			else if (options & CT_OPT_REPL)
+				res = get_expect(&reply, CTA_TUPLE_RPLY);
+			break;
+
 		case CT_FLUSH:
-			if (type == 0)
-				res = flush_conntrack();
-			else
-				not_implemented_yet();
+			res = flush_conntrack();
+			break;
+
+		case EXP_FLUSH:
+			res = flush_expectation();
 			break;
 			
 		case CT_EVENT:
-			if (type == 0) {
-				if (options & CT_OPT_GROUP_MASK)
-					res = event_conntrack(group_mask);
-				else
-					res = event_conntrack(~0U);
-			} else
-				not_implemented_yet();
-			
-		case CT_ACTION:
-			if (type == 0)
-				if (options & CT_OPT_DUMP_MASK)
-					res = set_mask(dump_mask, 0);
-				else if (options & CT_OPT_EVENT_MASK)
-					res = set_mask(event_mask, 1);
+			if (options & CT_OPT_EVENT_MASK)
+				res = event_conntrack(event_mask);
+			else
+				res = event_conntrack(~0U);
 			break;
+
+		case EXP_EVENT:
+			if (options & CT_OPT_EVENT_MASK)
+				res = event_expectation(event_mask);
+			else
+				res = event_expectation(~0U);
+			break;
+			
 		case CT_VERSION:
 			fprintf(stdout, "%s v%s\n", PROGNAME, VERSION);
 			break;

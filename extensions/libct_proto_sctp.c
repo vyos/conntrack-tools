@@ -1,26 +1,26 @@
 /*
- * (C) 2005 by Harald Welte <lafoorge@netfilter.org>
+ * (C) 2005 by Harald Welte <laforge@netfilter.org>
  *
  *      This program is free software; you can redistribute it and/or modify
- *      it under the terms of the GNU General Public License Version 2 as
- *      published by the Free Software Foundation
+ *      it under the terms of the GNU General Public License as published by
+ *      the Free Software Foundation; either version 2 of the License, or
+ *      (at your option) any later version.
  *
  */
 #include <stdio.h>
 #include <getopt.h>
 #include <stdlib.h>
-#include <string.h>
 #include <netinet/in.h> /* For htons */
-#include <linux/netfilter_ipv4/ip_conntrack_tuple.h>
-#include <linux/netfilter_ipv4/ip_conntrack.h>
+#include <linux/netfilter_ipv4/ip_conntrack_netlink.h>
 #include "libct_proto.h"
+#include "libctnetlink.h"
 
 static struct option opts[] = {
 	{"orig-port-src", 1, 0, '1'},
 	{"orig-port-dst", 1, 0, '2'},
 	{"reply-port-src", 1, 0, '3'},
 	{"reply-port-dst", 1, 0, '4'},
-	{"state", 1, 0, '5'},
+	{"state", 1, 0, '7'},
 	{0, 0, 0, 0}
 };
 
@@ -52,43 +52,44 @@ static const char *states[] = {
 	"SHUTDOWN_ACK_SENT",
 };
 
-static void help()
+void help()
 {
 	fprintf(stdout, "--orig-port-src        original source port\n");
 	fprintf(stdout, "--orig-port-dst        original destination port\n");
 	fprintf(stdout, "--reply-port-src       reply source port\n");
 	fprintf(stdout, "--reply-port-dst       reply destination port\n");
-	fprintf(stdout, "--state                SCTP state, eg. ESTABLISHED\n");
+	fprintf(stdout, "--state                SCTP state, fe. ESTABLISHED\n");
 }
 
-static int parse(char c, char *argv[], 
-	   struct ip_conntrack_tuple *orig,
-	   struct ip_conntrack_tuple *reply,
-	   union ip_conntrack_proto *proto,
-	   unsigned int *flags)
+int parse_options(char c, char *argv[], 
+		  struct ctnl_tuple *orig,
+		  struct ctnl_tuple *reply,
+		  struct ctnl_tuple *mask,
+		  union ctnl_protoinfo *proto,
+		  unsigned int *flags)
 {
 	switch(c) {
 		case '1':
 			if (optarg) {
-				orig->src.u.sctp.port = htons(atoi(optarg));
+				orig->l4src.sctp.port = htons(atoi(optarg));
 				*flags |= ORIG_SPORT;
 			}
 			break;
 		case '2':
 			if (optarg) {
-				orig->dst.u.sctp.port = htons(atoi(optarg));
+				orig->l4dst.sctp.port = htons(atoi(optarg));
 				*flags |= ORIG_DPORT;
 			}
 			break;
 		case '3':
 			if (optarg) {
-				reply->src.u.sctp.port = htons(atoi(optarg));
+				reply->l4src.sctp.port = htons(atoi(optarg));
 				*flags |= REPL_SPORT;
 			}
 			break;
 		case '4':
 			if (optarg) {
-				reply->dst.u.sctp.port = htons(atoi(optarg));
+				reply->l4dst.sctp.port = htons(atoi(optarg));
 				*flags |= REPL_DPORT;
 			}
 			break;
@@ -97,7 +98,9 @@ static int parse(char c, char *argv[],
 				int i;
 				for (i=0; i<10; i++) {
 					if (strcmp(optarg, states[i]) == 0) {
-						proto->sctp.state = i;
+						/* FIXME: Add state to
+						 * ctnl_protoinfo
+						proto->sctp.state = i; */
 						break;
 					}
 				}
@@ -111,39 +114,68 @@ static int parse(char c, char *argv[],
 	return 1;
 }
 
-static int final_check(unsigned int flags)
+int final_check(unsigned int flags,
+		struct ctnl_tuple *orig,
+		struct ctnl_tuple *reply)
 {
-	if ((flags & ORIG_SPORT) && (flags & ORIG_DPORT))
+	if ((flags & (ORIG_SPORT|ORIG_DPORT)) 
+	    && !(flags & (REPL_SPORT|REPL_DPORT))) {
+		reply->l4src.sctp.port = orig->l4dst.sctp.port;
+		reply->l4dst.sctp.port = orig->l4src.sctp.port;
 		return 1;
-	else if ((flags & REPL_SPORT) && (flags & REPL_DPORT))
+	} else if (!(flags & (ORIG_SPORT|ORIG_DPORT))
+	            && (flags & (REPL_SPORT|REPL_DPORT))) {
+		orig->l4src.sctp.port = reply->l4dst.sctp.port;
+		orig->l4dst.sctp.port = reply->l4src.sctp.port;
+		return 1;
+	}
+	if ((flags & (ORIG_SPORT|ORIG_DPORT)) 
+	    && ((flags & (REPL_SPORT|REPL_DPORT))))
 		return 1;
 
 	return 0;
 }
 
-static void print_tuple(struct ip_conntrack_tuple *t)
+void parse_proto(struct nfattr *cda[], struct ctnl_tuple *tuple)
 {
-	fprintf(stdout, "sport=%d dport=%d ", ntohs(t->src.u.sctp.port), 
-				             ntohs(t->dst.u.sctp.port));
+	if (cda[CTA_PROTO_SCTP_SRC-1])
+		tuple->l4src.sctp.port =
+			*(u_int16_t *)NFA_DATA(cda[CTA_PROTO_SCTP_SRC-1]);
+	if (cda[CTA_PROTO_SCTP_DST-1])
+		tuple->l4dst.sctp.port =
+			*(u_int16_t *)NFA_DATA(cda[CTA_PROTO_SCTP_DST-1]);
 }
 
-static void print_proto(union ip_conntrack_proto *proto)
+void parse_protoinfo(struct nfattr *cda[], struct ctnl_conntrack *ct)
 {
-	if (proto->sctp.state > sizeof(states)/sizeof(char *))
-		fprintf(stdout, "[%u] ", proto->sctp.state);
-	else
-		fprintf(stdout, "[%s] ", states[proto->sctp.state]);
+/*	if (cda[CTA_PROTOINFO_SCTP_STATE-1])
+                ct->protoinfo.sctp.state =
+                        *(u_int8_t *)NFA_DATA(cda[CTA_PROTOINFO_SCTP_STATE-1]);
+*/
+}
+
+void print_protoinfo(union ctnl_protoinfo *protoinfo)
+{
+/*	fprintf(stdout, "%s ", states[protoinfo->sctp.state]); */
+}
+
+void print_proto(struct ctnl_tuple *tuple)
+{
+	fprintf(stdout, "sport=%u dport=%u ", htons(tuple->l4src.sctp.port),
+					      htons(tuple->l4dst.sctp.port));
 }
 
 static struct ctproto_handler sctp = {
-	.name 		= "sctp",
-	.protonum	= 132,
-	.parse		= parse,
-	.print_tuple	= print_tuple,
-	.print_proto	= print_proto,
-	.final_check	= final_check,
-	.help		= help,
-	.opts		= opts,
+	.name 			= "sctp",
+	.protonum		= 132,
+	.parse_opts		= parse_options,
+	.parse_protoinfo	= parse_protoinfo,
+	.parse_proto		= parse_proto,
+	.print_proto		= print_proto,
+	.print_protoinfo	= print_protoinfo,
+	.final_check		= final_check,
+	.help			= help,
+	.opts			= opts
 };
 
 void __attribute__ ((constructor)) init(void);

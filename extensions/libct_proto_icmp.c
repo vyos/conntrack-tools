@@ -11,8 +11,6 @@
 #include <getopt.h>
 #include <stdlib.h>
 #include <netinet/in.h> /* For htons */
-#include <linux/netfilter_ipv4/ip_conntrack_tuple.h>
-#include <linux/netfilter_ipv4/ip_conntrack.h>
 #include "libct_proto.h"
 
 static struct option opts[] = {
@@ -41,27 +39,28 @@ void help()
 }
 
 int parse(char c, char *argv[], 
-	   struct ip_conntrack_tuple *orig,
-	   struct ip_conntrack_tuple *reply,
-	   union ip_conntrack_proto *proto,
+	   struct ctnl_tuple *orig,
+	   struct ctnl_tuple *reply,
+	   struct ctnl_tuple *mask,
+	   union ctnl_protoinfo *proto,
 	   unsigned int *flags)
 {
 	switch(c) {
 		case '1':
 			if (optarg) {
-				orig->dst.u.icmp.type = atoi(optarg);
+				orig->l4dst.icmp.type = atoi(optarg);
 				*flags |= ICMP_TYPE;
 			}
 			break;
 		case '2':
 			if (optarg) {
-				orig->dst.u.icmp.code = atoi(optarg);
+				orig->l4dst.icmp.code = atoi(optarg);
 				*flags |= ICMP_CODE;
 			}
 			break;
 		case '3':
 			if (optarg) {
-				reply->src.u.icmp.id = atoi(optarg);
+				orig->l4src.icmp.id = atoi(optarg);
 				*flags |= ICMP_ID;
 			}
 			break;
@@ -69,7 +68,9 @@ int parse(char c, char *argv[],
 	return 1;
 }
 
-int final_check(unsigned int flags)
+int final_check(unsigned int flags,
+		struct ctnl_tuple *orig,
+		struct ctnl_tuple *reply)
 {
 	if (!(flags & ICMP_TYPE))
 		return 0;
@@ -79,18 +80,18 @@ int final_check(unsigned int flags)
 	return 1;
 }
 
-void print_tuple(struct ip_conntrack_tuple *t)
+void print_proto(struct ctnl_tuple *t)
 {
-	fprintf(stdout, "type=%d code=%d id=%d ", t->dst.u.icmp.type, 
-				             	 t->dst.u.icmp.code,
-						 t->src.u.icmp.id);
+	fprintf(stdout, "type=%d code=%d id=%d", t->l4dst.icmp.type, 
+				             	 t->l4dst.icmp.code,
+						 t->l4src.icmp.id);
 }
 
 static struct ctproto_handler icmp = {
 	.name 		= "icmp",
 	.protonum	= 1,
-	.parse		= parse,
-	.print_tuple	= print_tuple,
+	.parse_opts	= parse,
+	.print_proto	= print_proto,
 	.final_check	= final_check,
 	.help		= help,
 	.opts		= opts

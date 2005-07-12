@@ -1,3 +1,9 @@
+2005-07-12
+<pablo@eurodev.net>
+	o Use conntrack netlink attributes: Major change
+	o Kill action setting: Mask based dumping
+	o Fix ChangeLog
+
 2005-05-23
 <laforge@netfilter.org>
 	o Fixed syntax error (tab/space issue) in help message
@@ -9,11 +15,16 @@
 	o Add SCTP extension
 	o Add support for expect creation
 	o Bump version number to 0.63
-2005-04-25
+
+2005-05-17
 <pablo@eurodev.net>
-	o Added support for mask based event dumping
-	o Added support for mask based event notification
-	o On-demand autoload of ip_conntrack_netlink
+	o Added descriptive error messages.
+	o Fix wrong flags check in [tcp|udp] proto helpers.
+
+2005-05-16
+<pablo@eurodev.net>
+	o Implemented ICMP proto helper
+	o Added help() and final_check() functions for proto helpers.
 
 2005-05-01
 <pablo@eurodev.net>
@@ -33,12 +44,8 @@
 	o Autoconf stuff for conntrack + some pablo's modifications.
 	o Fixed packet counters formatting (use %llu instead of %lu)
 
-2005-05-16
+2005-04-25
 <pablo@eurodev.net>
-	o Implemented ICMP proto helper
-	o Added help() and final_check() functions for proto helpers.
-
-2005-05-17
-<pablo@eurodev.net>
-	o Added descriptive error messages.
-	o Fix wrong flags check in [tcp|udp] proto helpers.
+	o Added support for mask based event dumping
+	o Added support for mask based event notification
+	o On-demand autoload of ip_conntrack_netlink
