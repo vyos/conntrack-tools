@@ -1,5 +1,6 @@
 /*
  * (C) 2005 by Pablo Neira Ayuso <pablo@eurodev.net>
+ *	       Harald Welte <laforge@netfilter.org>
  *
  *      This program is free software; you can redistribute it and/or modify
  *      it under the terms of the GNU General Public License as published by
@@ -68,6 +69,21 @@ int parse(char c, char *argv[],
 	return 1;
 }
 
+void parse_proto(struct nfattr *cda[], struct ctnl_tuple *tuple)
+{
+	if (cda[CTA_PROTO_ICMP_TYPE-1])
+		tuple->l4dst.icmp.type =
+			*(u_int8_t *)NFA_DATA(cda[CTA_PROTO_ICMP_TYPE-1]);
+
+	if (cda[CTA_PROTO_ICMP_CODE-1])
+		tuple->l4dst.icmp.code =
+			*(u_int8_t *)NFA_DATA(cda[CTA_PROTO_ICMP_CODE-1]);
+
+	if (cda[CTA_PROTO_ICMP_ID-1])
+		tuple->l4src.icmp.id =
+			*(u_int8_t *)NFA_DATA(cda[CTA_PROTO_ICMP_ID-1]);
+}
+
 int final_check(unsigned int flags,
 		struct ctnl_tuple *orig,
 		struct ctnl_tuple *reply)
@@ -82,7 +98,7 @@ int final_check(unsigned int flags,
 
 void print_proto(struct ctnl_tuple *t)
 {
-	fprintf(stdout, "type=%d code=%d id=%d", t->l4dst.icmp.type, 
+	fprintf(stdout, "type=%d code=%d id=%d ", t->l4dst.icmp.type, 
 				             	 t->l4dst.icmp.code,
 						 t->l4src.icmp.id);
 }
@@ -91,6 +107,7 @@ static struct ctproto_handler icmp = {
 	.name 		= "icmp",
 	.protonum	= 1,
 	.parse_opts	= parse,
+	.parse_proto	= parse_proto,
 	.print_proto	= print_proto,
 	.final_check	= final_check,
 	.help		= help,

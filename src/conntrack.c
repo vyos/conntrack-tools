@@ -455,7 +455,7 @@ parse_parameter(const char *arg, unsigned int *status, int parse_type)
 }
 
 static void
-add_command(int *cmd, const int newcmd, const int othercmds)
+add_command(unsigned int *cmd, const int newcmd, const int othercmds)
 {
 	if (*cmd & (~othercmds))
 		exit_error(PARAMETER_PROBLEM, "Invalid commands combination\n");
@@ -884,7 +884,7 @@ int main(int argc, char *argv[])
 							 timeout);
 			else if (options & CT_OPT_REPL)
 				res = create_expectation(&reply,
-							 CTA_TUPLE_RPLY,
+							 CTA_TUPLE_REPLY,
 							 &exptuple,
 							 &mask,
 							 timeout);
@@ -909,7 +909,7 @@ int main(int argc, char *argv[])
 				res = delete_conntrack(&orig, CTA_TUPLE_ORIG, 
 						       CTNL_DIR_ORIGINAL);
 			else if (options & CT_OPT_REPL)
-				res = delete_conntrack(&reply, CTA_TUPLE_RPLY,
+				res = delete_conntrack(&reply, CTA_TUPLE_REPLY,
 						       CTNL_DIR_REPLY);
 			break;
 
@@ -917,21 +917,21 @@ int main(int argc, char *argv[])
 			if (options & CT_OPT_ORIG)
 				res = delete_expectation(&orig, CTA_TUPLE_ORIG);
 			else if (options & CT_OPT_REPL)
-				res = delete_expectation(&reply, CTA_TUPLE_RPLY);
+				res = delete_expectation(&reply, CTA_TUPLE_REPLY);
 			break;
 
 		case CT_GET:
 			if (options & CT_OPT_ORIG)
 				res = get_conntrack(&orig, CTA_TUPLE_ORIG, id);
 			else if (options & CT_OPT_REPL)
-				res = get_conntrack(&reply, CTA_TUPLE_RPLY, id);
+				res = get_conntrack(&reply, CTA_TUPLE_REPLY, id);
 			break;
 
 		case EXP_GET:
 			if (options & CT_OPT_ORIG)
 				res = get_expect(&orig, CTA_TUPLE_ORIG);
 			else if (options & CT_OPT_REPL)
-				res = get_expect(&reply, CTA_TUPLE_RPLY);
+				res = get_expect(&reply, CTA_TUPLE_REPLY);
 			break;
 
 		case CT_FLUSH:

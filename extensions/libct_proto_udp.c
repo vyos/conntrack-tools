@@ -127,12 +127,12 @@ int final_check(unsigned int flags,
 
 void parse_proto(struct nfattr *cda[], struct ctnl_tuple *tuple)
 {
-	if (cda[CTA_PROTO_UDP_SRC-1])
+	if (cda[CTA_PROTO_SRC_PORT-1])
 		tuple->l4src.udp.port =
-			*(u_int16_t *)NFA_DATA(cda[CTA_PROTO_UDP_SRC-1]);
-	if (cda[CTA_PROTO_UDP_DST-1])
+			*(u_int16_t *)NFA_DATA(cda[CTA_PROTO_SRC_PORT-1]);
+	if (cda[CTA_PROTO_DST_PORT-1])
 		tuple->l4dst.udp.port =
-			*(u_int16_t *)NFA_DATA(cda[CTA_PROTO_UDP_DST-1]);
+			*(u_int16_t *)NFA_DATA(cda[CTA_PROTO_DST_PORT-1]);
 }
 
 void print_proto(struct ctnl_tuple *tuple)

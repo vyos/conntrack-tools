@@ -13,11 +13,12 @@
 #include <stdlib.h>
 #include <signal.h>
 #include <errno.h>
+#include <string.h>
 /* From kernel.h */
 #define INT_MAX         ((int)(~0U>>1))
 #define INT_MIN         (-INT_MAX - 1)
 #include <linux/netfilter_ipv4/ip_conntrack.h>
-#include <linux/netfilter_ipv4/ip_conntrack_netlink.h>
+#include <linux/netfilter/nfnetlink_conntrack.h>
 #include "libctnetlink.h"
 #include "libnfnetlink.h"
 #include "linux_list.h"
@@ -48,7 +49,7 @@ static void parse_ip(struct nfattr *attr, struct ctnl_tuple *tuple)
 
 	memset(tb, 0, CTA_IP_MAX * sizeof(struct nfattr *));
 
-        nfnl_parse_attr(tb, CTA_IP_MAX, NFA_DATA(attr), NFA_PAYLOAD(attr));
+        nfnl_parse_nested(tb, CTA_IP_MAX, attr);
 	if (tb[CTA_IP_V4_SRC-1])
 		tuple->src.v4 = *(u_int32_t *)NFA_DATA(tb[CTA_IP_V4_SRC-1]);
 
@@ -64,7 +65,7 @@ static void parse_proto(struct nfattr *attr, struct ctnl_tuple *tuple)
 
 	memset(tb, 0, CTA_PROTO_MAX * sizeof(struct nfattr *));
 
-	nfnl_parse_attr(tb, CTA_IP_MAX, NFA_DATA(attr), NFA_PAYLOAD(attr));	
+	nfnl_parse_nested(tb, CTA_IP_MAX, attr);
 	if (tb[CTA_PROTO_NUM-1])
 		tuple->protonum = *(u_int8_t *)NFA_DATA(tb[CTA_PROTO_NUM-1]);
 	
@@ -79,7 +80,7 @@ static void parse_tuple(struct nfattr *attr, struct ctnl_tuple *tuple)
 
 	memset(tb, 0, CTA_TUPLE_MAX*sizeof(struct nfattr *));
 
-	nfnl_parse_attr(tb, CTA_TUPLE_MAX, NFA_DATA(attr), NFA_PAYLOAD(attr));
+	nfnl_parse_nested(tb, CTA_TUPLE_MAX, attr);
 	if (tb[CTA_TUPLE_IP-1])
 		parse_ip(tb[CTA_TUPLE_IP-1], tuple);
 	if (tb[CTA_TUPLE_PROTO-1])
@@ -93,7 +94,7 @@ static void parse_protoinfo(struct nfattr *attr, struct ctnl_conntrack *ct)
 
 	memset(tb, 0, CTA_PROTOINFO_MAX*sizeof(struct nfattr *));
 
-	nfnl_parse_attr(tb,CTA_PROTOINFO_MAX,NFA_DATA(attr), NFA_PAYLOAD(attr));
+	nfnl_parse_nested(tb,CTA_PROTOINFO_MAX, attr);
 
 	h = findproto(proto2str[ct->tuple[CTNL_DIR_ORIGINAL].protonum]);
         if (h && h->parse_protoinfo)
@@ -107,27 +108,23 @@ static void parse_counters(struct nfattr *attr, struct ctnl_conntrack *ct,
 
 	memset(tb, 0, CTA_COUNTERS_MAX*sizeof(struct nfattr *));
 
-	nfnl_parse_attr(tb, CTA_COUNTERS_MAX, NFA_DATA(attr),NFA_PAYLOAD(attr));
-	if (tb[CTA_COUNTERS_PACKETS_ORIG-1])
+	nfnl_parse_nested(tb, CTA_COUNTERS_MAX, attr);
+	if (tb[CTA_COUNTERS_PACKETS-1])
 		ct->counters[CTNL_DIR_ORIGINAL].packets
-		      = *(u_int64_t *)NFA_DATA(tb[CTA_COUNTERS_PACKETS_ORIG-1]);
-	if (tb[CTA_COUNTERS_BYTES_ORIG-1])
+		      = *(u_int64_t *)NFA_DATA(tb[CTA_COUNTERS_PACKETS-1]);
+	if (tb[CTA_COUNTERS_BYTES-1])
 		ct->counters[CTNL_DIR_ORIGINAL].bytes
-		      = *(u_int64_t *)NFA_DATA(tb[CTA_COUNTERS_BYTES_ORIG-1]);
-	if (tb[CTA_COUNTERS_PACKETS_RPLY-1])
-		ct->counters[CTNL_DIR_REPLY].packets
-		      = *(u_int64_t *)NFA_DATA(tb[CTA_COUNTERS_PACKETS_RPLY-1]);
-	if (tb[CTA_COUNTERS_BYTES_RPLY-1])
-		ct->counters[CTNL_DIR_REPLY].bytes
-		      = *(u_int64_t *)NFA_DATA(tb[CTA_COUNTERS_BYTES_RPLY-1]);
+		      = *(u_int64_t *)NFA_DATA(tb[CTA_COUNTERS_BYTES-1]);
 }
 
+/* Some people seem to like counting in decimal... */
 #define STATUS		1
 #define PROTOINFO 	2
 #define TIMEOUT		4
 #define MARK		8
 #define COUNTERS	16
 #define USE		32
+#define ID		64
 
 static int handler(struct sockaddr_nl *sock, struct nlmsghdr *nlh, void *arg)
 {
@@ -153,7 +150,7 @@ static int handler(struct sockaddr_nl *sock, struct nlmsghdr *nlh, void *arg)
 		case CTA_TUPLE_ORIG:
 			parse_tuple(attr, &ct.tuple[CTNL_DIR_ORIGINAL]);
 			break;
-		case CTA_TUPLE_RPLY:
+		case CTA_TUPLE_REPLY:
 			parse_tuple(attr, &ct.tuple[CTNL_DIR_REPLY]);
 			break;
 		case CTA_STATUS:
@@ -172,13 +169,18 @@ static int handler(struct sockaddr_nl *sock, struct nlmsghdr *nlh, void *arg)
 			ct.mark = *(unsigned long *)NFA_DATA(attr);
 			flags |= MARK;
 			break;
-		case CTA_COUNTERS:
-			parse_counters(attr, &ct, CTA_COUNTERS-1);
+		case CTA_COUNTERS_ORIG:
+		case CTA_COUNTERS_REPLY:
+			parse_counters(attr, &ct, attr->nfa_type-1);
 			flags |= COUNTERS;
 			break;
 		case CTA_USE:
 			ct.use = *(unsigned int *)NFA_DATA(attr);
 			flags |= USE;
+			break;
+		case CTA_ID:
+			ct.id = *(u_int32_t *)NFA_DATA(attr);
+			flags |= ID;
 			break;
 		}
 		attr = NFA_NEXT(attr, attrlen);
@@ -227,6 +229,8 @@ static int handler(struct sockaddr_nl *sock, struct nlmsghdr *nlh, void *arg)
 		fprintf(stdout, "mark=%lu ", ct.mark);
 	if (flags & USE)
 		fprintf(stdout, "use=%u ", ct.use);
+	if (flags & ID)
+		fprintf(stdout, "id=%u ", ct.id);
 
 	fprintf(stdout, "\n");
 
@@ -257,19 +261,22 @@ static int event_handler(struct sockaddr_nl *sock, struct nlmsghdr *nlh,
 }
 
 void parse_expect(struct nfattr *attr, struct ctnl_tuple *tuple, 
-		  struct ctnl_tuple *mask, unsigned long *timeout)
+		  struct ctnl_tuple *mask, unsigned long *timeout,
+		  u_int32_t *id)
 {
 	struct nfattr *tb[CTA_EXPECT_MAX];
 
 	memset(tb, 0, CTA_EXPECT_MAX*sizeof(struct nfattr *));
 
-	nfnl_parse_attr(tb, CTA_EXPECT_MAX, NFA_DATA(attr), NFA_PAYLOAD(attr));
+	nfnl_parse_nested(tb, CTA_EXPECT_MAX, attr);
 	if (tb[CTA_EXPECT_TUPLE-1])
 		parse_tuple(tb[CTA_EXPECT_TUPLE-1], tuple);
 	if (tb[CTA_EXPECT_MASK-1])
 		parse_tuple(tb[CTA_EXPECT_MASK-1], mask);
 	if (tb[CTA_EXPECT_TIMEOUT-1])
 		*timeout = *(unsigned long *)NFA_DATA(tb[CTA_EXPECT_TIMEOUT-1]);
+	if (tb[CTA_EXPECT_ID-1])
+		*id = *(u_int32_t *)NFA_DATA(tb[CTA_EXPECT_ID-1]);
 }
 
 static int expect_handler(struct sockaddr_nl *sock, struct nlmsghdr *nlh, void *arg)
@@ -282,6 +289,8 @@ static int expect_handler(struct sockaddr_nl *sock, struct nlmsghdr *nlh, void *
 	int attrlen = nlh->nlmsg_len - NLMSG_ALIGN(min_len);
 	struct ctnl_tuple tuple, mask;
 	unsigned long timeout = 0;
+	u_int32_t id = 0;
+	unsigned int flags;
 
 	memset(&tuple, 0, sizeof(struct ctnl_tuple));
 	memset(&mask, 0, sizeof(struct ctnl_tuple));
@@ -294,7 +303,8 @@ static int expect_handler(struct sockaddr_nl *sock, struct nlmsghdr *nlh, void *
 	while (NFA_OK(attr, attrlen)) {
 		switch(attr->nfa_type) {
 			case CTA_EXPECT:
-				parse_expect(attr, &tuple, &mask, &timeout);
+				parse_expect(attr, &tuple, &mask, &timeout,
+					     &id);
 				break;
 		}
 		attr = NFA_NEXT(attr, attrlen);
@@ -305,9 +315,13 @@ static int expect_handler(struct sockaddr_nl *sock, struct nlmsghdr *nlh, void *
 		NIPQUAD(tuple.src.v4),
 		NIPQUAD(tuple.dst.v4));
 
-	fprintf(stdout, "src=%u.%u.%u.%u dst=%u.%u.%u.%u\n",
+	fprintf(stdout, "src=%u.%u.%u.%u dst=%u.%u.%u.%u ",
 		NIPQUAD(mask.src.v4),
 		NIPQUAD(mask.dst.v4));
+
+	fprintf(stdout, "id=0x%x ", id);
+	
+	fputc('\n', stdout);
 
 	return 0;
 }

@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <getopt.h>
 #include <stdlib.h>
+#include <string.h>
 #include <netinet/in.h> /* For htons */
 #include <linux/netfilter_ipv4/ip_conntrack_netlink.h>
 #include "libct_proto.h"
@@ -160,12 +161,12 @@ int final_check(unsigned int flags,
 
 void parse_proto(struct nfattr *cda[], struct ctnl_tuple *tuple)
 {
-	if (cda[CTA_PROTO_TCP_SRC-1])
+	if (cda[CTA_PROTO_SRC_PORT-1])
 		tuple->l4src.tcp.port =
-			*(u_int16_t *)NFA_DATA(cda[CTA_PROTO_TCP_SRC-1]);
-	if (cda[CTA_PROTO_TCP_DST-1])
+			*(u_int16_t *)NFA_DATA(cda[CTA_PROTO_SRC_PORT-1]);
+	if (cda[CTA_PROTO_DST_PORT-1])
 		tuple->l4dst.tcp.port =
-			*(u_int16_t *)NFA_DATA(cda[CTA_PROTO_TCP_DST-1]);
+			*(u_int16_t *)NFA_DATA(cda[CTA_PROTO_DST_PORT-1]);
 }
 
 void parse_protoinfo(struct nfattr *cda[], struct ctnl_conntrack *ct)
