@@ -19,8 +19,8 @@
 #define INT_MIN         (-INT_MAX - 1)
 #include <linux/netfilter_ipv4/ip_conntrack.h>
 #include <linux/netfilter/nfnetlink_conntrack.h>
-#include "libctnetlink.h"
-#include "libnfnetlink.h"
+#include <libnfnetlink/libnfnetlink.h>
+#include <libnfnetlink_conntrack/libnfnetlink_conntrack.h>
 #include "linux_list.h"
 #include "libct_proto.h"
 

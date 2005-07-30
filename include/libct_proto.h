@@ -5,7 +5,7 @@
 
 #include "linux_list.h"
 #include <getopt.h>
-#include "libctnetlink.h"
+#include <libnfnetlink_conntrack/libnfnetlink_conntrack.h>
 
 struct cta_proto;
 
