@@ -11,7 +11,7 @@
 #include <getopt.h>
 #include <stdlib.h>
 #include <netinet/in.h> /* For htons */
-#include <linux/netfilter_ipv4/ip_conntrack_netlink.h>
+#include <linux/netfilter/nfnetlink_conntrack.h>
 #include "libct_proto.h"
 #include "libctnetlink.h"
 
@@ -95,7 +95,7 @@ int parse_options(char c, char *argv[],
 			break;
 		case '6':
 			if (optarg) {
-				mask->l4src.udp.port = htons(atoi(optarg));
+				mask->l4dst.udp.port = htons(atoi(optarg));
 				*flags |= MASK_DPORT;
 			}
 			break;

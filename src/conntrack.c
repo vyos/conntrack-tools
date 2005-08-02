@@ -679,6 +679,7 @@ int main(int argc, char *argv[])
 	memset(&orig, 0, sizeof(struct ctnl_tuple));
 	memset(&reply, 0, sizeof(struct ctnl_tuple));
 	memset(&mask, 0, sizeof(struct ctnl_tuple));
+	memset(&exptuple, 0, sizeof(struct ctnl_tuple));
 	memset(&range, 0, sizeof(struct ctnl_nat));
 	
 	while ((c = getopt_long(argc, argv, 
@@ -768,6 +769,8 @@ int main(int argc, char *argv[])
 				exit_error(PARAMETER_PROBLEM, "proto needed\n");
 			orig.protonum = h->protonum;
 			reply.protonum = h->protonum;
+			exptuple.protonum = h->protonum;
+			mask.protonum = h->protonum;
 			opts = merge_options(opts, h->opts, 
 					     &h->option_offset);
 			break;
@@ -791,22 +794,22 @@ int main(int argc, char *argv[])
 		case 'z':
 			options |= CT_OPT_ZERO;
 			break;
-		case 'k':
+		case '{':
 			options |= CT_OPT_MASK_SRC;
 			if (optarg)
 				mask.src.v4 = inet_addr(optarg);
 			break;
-		case 'l':
+		case '}':
 			options |= CT_OPT_MASK_DST;
 			if (optarg)
 				mask.dst.v4 = inet_addr(optarg);
 			break;
-		case 'x':
+		case '[':
 			options |= CT_OPT_EXP_SRC;
 			if (optarg)
 				exptuple.src.v4 = inet_addr(optarg);
 			break;
-		case 'y':
+		case ']':
 			options |= CT_OPT_EXP_DST;
 			if (optarg)
 				exptuple.dst.v4 = inet_addr(optarg);

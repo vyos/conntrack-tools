@@ -12,7 +12,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <netinet/in.h> /* For htons */
-#include <linux/netfilter_ipv4/ip_conntrack_netlink.h>
+#include <linux/netfilter/nfnetlink_conntrack.h>
 #include "libct_proto.h"
 #include "libctnetlink.h"
 
@@ -114,7 +114,7 @@ int parse_options(char c, char *argv[],
 			break;
 		case '6':
 			if (optarg) {
-				mask->l4src.tcp.port = htons(atoi(optarg));
+				mask->l4dst.tcp.port = htons(atoi(optarg));
 				*flags |= MASK_DPORT;
 			}
 			break;
