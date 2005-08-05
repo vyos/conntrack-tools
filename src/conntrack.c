@@ -42,8 +42,7 @@
 #include <fcntl.h>
 #include <string.h>
 #include <linux/netfilter_ipv4/ip_conntrack.h>
-#include "libctnetlink.h"
-#include "libnfnetlink.h"
+#include <libnfnetlink_conntrack/libnfnetlink_conntrack.h>
 #include "linux_list.h"
 #include "libct_proto.h"
 
