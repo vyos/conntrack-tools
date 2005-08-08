@@ -880,11 +880,13 @@ int main(int argc, char *argv[])
 		case EXP_CREATE:
 			if (options & CT_OPT_ORIG)
 				res = create_expectation(&orig, 
+							 CTA_TUPLE_ORIG,
 							 &exptuple,
 							 &mask,
 							 timeout);
 			else if (options & CT_OPT_REPL)
 				res = create_expectation(&reply,
+							 CTA_TUPLE_REPLY,
 							 &exptuple,
 							 &mask,
 							 timeout);
@@ -915,16 +917,16 @@ int main(int argc, char *argv[])
 
 		case EXP_DELETE:
 			if (options & CT_OPT_ORIG)
-				res = delete_expectation(&orig);
+				res = delete_expectation(&orig, CTA_TUPLE_ORIG);
 			else if (options & CT_OPT_REPL)
-				res = delete_expectation(&reply);
+				res = delete_expectation(&reply, CTA_TUPLE_REPLY);
 			break;
 
 		case CT_GET:
 			if (options & CT_OPT_ORIG)
-				res = get_conntrack(&orig, id);
+				res = get_conntrack(&orig, CTA_TUPLE_ORIG, id);
 			else if (options & CT_OPT_REPL)
-				res = get_conntrack(&reply, id);
+				res = get_conntrack(&reply, CTA_TUPLE_REPLY, id);
 			break;
 
 		case EXP_GET:

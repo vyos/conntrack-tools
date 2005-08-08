@@ -22,7 +22,7 @@ dnl AC_CHECK_LIB([c], [main])
 
 AC_CHECK_LIB([dl], [dlopen])
 AC_CHECK_LIB([nfnetlink], [nfnl_listen])
-AC_CHECK_LIB([nfnetlink_conntrack], [ctnl_register_handler] ,,,[-lnfnetlink])
+AC_CHECK_LIB([ctnetlink], [ctnl_register_handler] ,,,[-lnfnetlink])
 
 # Checks for header files.
 dnl AC_HEADER_STDC
