@@ -47,7 +47,7 @@
 #include "libct_proto.h"
 
 #define PROGNAME "conntrack"
-#define VERSION "0.63"
+#define VERSION "0.80"
 
 #if 0
 #define DEBUGP printf
@@ -880,13 +880,11 @@ int main(int argc, char *argv[])
 		case EXP_CREATE:
 			if (options & CT_OPT_ORIG)
 				res = create_expectation(&orig, 
-							 CTA_TUPLE_ORIG,
 							 &exptuple,
 							 &mask,
 							 timeout);
 			else if (options & CT_OPT_REPL)
 				res = create_expectation(&reply,
-							 CTA_TUPLE_REPLY,
 							 &exptuple,
 							 &mask,
 							 timeout);
@@ -917,16 +915,16 @@ int main(int argc, char *argv[])
 
 		case EXP_DELETE:
 			if (options & CT_OPT_ORIG)
-				res = delete_expectation(&orig, CTA_TUPLE_ORIG);
+				res = delete_expectation(&orig);
 			else if (options & CT_OPT_REPL)
-				res = delete_expectation(&reply, CTA_TUPLE_REPLY);
+				res = delete_expectation(&reply);
 			break;
 
 		case CT_GET:
 			if (options & CT_OPT_ORIG)
-				res = get_conntrack(&orig, CTA_TUPLE_ORIG, id);
+				res = get_conntrack(&orig, id);
 			else if (options & CT_OPT_REPL)
-				res = get_conntrack(&reply, CTA_TUPLE_REPLY, id);
+				res = get_conntrack(&reply, id);
 			break;
 
 		case EXP_GET:

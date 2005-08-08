@@ -6,14 +6,15 @@
 /* Define to 1 if you have the <inttypes.h> header file. */
 #undef HAVE_INTTYPES_H
 
-/* Define to 1 if you have the `ctnetlink' library (-lctnetlink). */
-#undef HAVE_LIBCTNETLINK
-
 /* Define to 1 if you have the `dl' library (-ldl). */
 #undef HAVE_LIBDL
 
 /* Define to 1 if you have the `nfnetlink' library (-lnfnetlink). */
 #undef HAVE_LIBNFNETLINK
+
+/* Define to 1 if you have the `nfnetlink_conntrack' library
+   (-lnfnetlink_conntrack). */
+#undef HAVE_LIBNFNETLINK_CONNTRACK
 
 /* Define to 1 if you have the <memory.h> header file. */
 #undef HAVE_MEMORY_H

@@ -162,7 +162,7 @@ static int handler(struct sockaddr_nl *sock, struct nlmsghdr *nlh, void *arg)
 			parse_tuple(attr, &ct.tuple[CTNL_DIR_REPLY]);
 			break;
 		case CTA_STATUS:
-			ct.status = ntohl(*(unsigned int *)NFA_DATA(attr));
+			ct.status = *(unsigned int *)NFA_DATA(attr);
 			flags |= STATUS;
 			break;
 		case CTA_PROTOINFO:
@@ -268,25 +268,6 @@ static int event_handler(struct sockaddr_nl *sock, struct nlmsghdr *nlh,
 	return handler(sock, nlh, arg);
 }
 
-void parse_expect(struct nfattr *attr, struct ctnl_tuple *tuple, 
-		  struct ctnl_tuple *mask, unsigned long *timeout,
-		  u_int32_t *id)
-{
-	struct nfattr *tb[CTA_EXPECT_MAX];
-
-	memset(tb, 0, CTA_EXPECT_MAX*sizeof(struct nfattr *));
-
-	nfnl_parse_nested(tb, CTA_EXPECT_MAX, attr);
-	if (tb[CTA_EXPECT_TUPLE-1])
-		parse_tuple(tb[CTA_EXPECT_TUPLE-1], tuple);
-	if (tb[CTA_EXPECT_MASK-1])
-		parse_tuple(tb[CTA_EXPECT_MASK-1], mask);
-	if (tb[CTA_EXPECT_TIMEOUT-1])
-		*timeout = htonl(*(unsigned long *)NFA_DATA(tb[CTA_EXPECT_TIMEOUT-1]));
-	if (tb[CTA_EXPECT_ID-1])
-		*id = htonl(*(u_int32_t *)NFA_DATA(tb[CTA_EXPECT_ID-1]));
-}
-
 static int expect_handler(struct sockaddr_nl *sock, struct nlmsghdr *nlh, void *arg)
 {
 	struct nfgenmsg *nfmsg;
@@ -310,9 +291,19 @@ static int expect_handler(struct sockaddr_nl *sock, struct nlmsghdr *nlh, void *
 
 	while (NFA_OK(attr, attrlen)) {
 		switch(attr->nfa_type) {
-			case CTA_EXPECT:
-				parse_expect(attr, &tuple, &mask, &timeout,
-					     &id);
+
+			case CTA_EXPECT_TUPLE:
+				parse_tuple(attr, &tuple);
+				break;
+			case CTA_EXPECT_MASK:
+				parse_tuple(attr, &mask);
+				break;
+			case CTA_EXPECT_TIMEOUT:
+				timeout = htonl(*(unsigned long *)
+						NFA_DATA(attr));
+				break;
+			case CTA_EXPECT_ID:
+				id = htonl(*(u_int32_t *)NFA_DATA(attr));	
 				break;
 		}
 		attr = NFA_NEXT(attr, attrlen);
@@ -348,12 +339,12 @@ int create_conntrack(struct ctnl_tuple *orig,
 	ct.tuple[CTNL_DIR_ORIGINAL] = *orig;
 	ct.tuple[CTNL_DIR_REPLY] = *reply;
 	ct.timeout = htonl(timeout);
-	ct.status = htonl(status);
+	ct.status = status;
 	ct.protoinfo = *proto;
 	if (range)
 		ct.nat = *range;
 	
-	if ((ret = ctnl_open(&cth, 0)) < 0)
+	if ((ret = ctnl_open(&cth, NFNL_SUBSYS_CTNETLINK, 0)) < 0)
 		return ret;
 
 	ret = ctnl_new_conntrack(&cth, &ct);
@@ -376,10 +367,10 @@ int update_conntrack(struct ctnl_tuple *orig,
 	ct.tuple[CTNL_DIR_ORIGINAL] = *orig;
 	ct.tuple[CTNL_DIR_REPLY] = *reply;
 	ct.timeout = htonl(timeout);
-	ct.status = htonl(status);
+	ct.status = status;
 	ct.protoinfo = *proto;
 	
-	if ((ret = ctnl_open(&cth, 0)) < 0)
+	if ((ret = ctnl_open(&cth, NFNL_SUBSYS_CTNETLINK, 0)) < 0)
 		return ret;
 
 	ret = ctnl_upd_conntrack(&cth, &ct);
@@ -393,7 +384,7 @@ int delete_conntrack(struct ctnl_tuple *tuple, int dir)
 {
 	int ret;
 
-	if ((ret = ctnl_open(&cth, 0)) < 0)
+	if ((ret = ctnl_open(&cth, NFNL_SUBSYS_CTNETLINK, 0)) < 0)
 		return ret;
 
 	ret = ctnl_del_conntrack(&cth, tuple, dir);
@@ -411,7 +402,7 @@ int get_conntrack(struct ctnl_tuple *tuple, int dir)
 	};
 	int ret;
 
-	if ((ret = ctnl_open(&cth, 0)) < 0)
+	if ((ret = ctnl_open(&cth, NFNL_SUBSYS_CTNETLINK, 0)) < 0)
 		return ret;
 
 	ctnl_register_handler(&cth, &h);
@@ -430,7 +421,7 @@ int dump_conntrack_table(int zero)
 		.handler = handler
 	};
 	
-	if ((ret = ctnl_open(&cth, 0)) < 0) 
+	if ((ret = ctnl_open(&cth, NFNL_SUBSYS_CTNETLINK, 0)) < 0) 
 		return ret;
 
 	ctnl_register_handler(&cth, &h);
@@ -463,7 +454,7 @@ int event_conntrack(unsigned int event_mask)
 	};
 	int ret;
 
-	if ((ret = ctnl_open(&cth, event_mask)) < 0)
+	if ((ret = ctnl_open(&cth, NFNL_SUBSYS_CTNETLINK, event_mask)) < 0)
 		return ret;
 
 	signal(SIGINT, event_sighandler);
@@ -527,7 +518,7 @@ int dump_expect_list()
 	};
 	int ret;
 
-	if ((ret = ctnl_open(&cth, 0)) < 0)
+	if ((ret = ctnl_open(&cth, NFNL_SUBSYS_CTNETLINK_EXP, 0)) < 0)
 		return ret;
 
 	ctnl_register_handler(&cth, &h);
@@ -542,7 +533,7 @@ int flush_conntrack()
 {
 	int ret;
 	
-	if ((ret = ctnl_open(&cth, 0)) < 0)
+	if ((ret = ctnl_open(&cth, NFNL_SUBSYS_CTNETLINK, 0)) < 0)
 		return ret;
 
 	ret = ctnl_flush_conntrack(&cth);
@@ -551,8 +542,7 @@ int flush_conntrack()
 	return ret;
 }
 
-int get_expect(struct ctnl_tuple *tuple,
-	       enum ctattr_type t)
+int get_expect(struct ctnl_tuple *tuple)
 {
 	struct ctnl_msg_handler h = {
 		.type = IPCTNL_MSG_EXP_NEW,
@@ -560,43 +550,42 @@ int get_expect(struct ctnl_tuple *tuple,
 	};
 	int ret;
 
-	if ((ret = ctnl_open(&cth, 0)) < 0)
+	if ((ret = ctnl_open(&cth, NFNL_SUBSYS_CTNETLINK_EXP, 0)) < 0)
 		return 0;
 
 	ctnl_register_handler(&cth, &h);
 
-	ret = ctnl_get_expect(&cth, tuple, t);
+	ret = ctnl_get_expect(&cth, tuple);
 	ctnl_close(&cth);
 
 	return ret;
 }
 
 int create_expectation(struct ctnl_tuple *tuple,
-		       enum ctattr_type t,
 		       struct ctnl_tuple *exptuple,
 		       struct ctnl_tuple *mask,
 		       unsigned long timeout)
 {
 	int ret;
 	
-	if ((ret = ctnl_open(&cth, 0)) < 0)
+	if ((ret = ctnl_open(&cth, NFNL_SUBSYS_CTNETLINK_EXP, 0)) < 0)
 		return ret;
 
 
-	ret = ctnl_new_expect(&cth, tuple, t, exptuple, mask, timeout);
+	ret = ctnl_new_expect(&cth, tuple, exptuple, mask, timeout);
 	ctnl_close(&cth);
 
 	return ret;
 }
 
-int delete_expectation(struct ctnl_tuple *tuple, enum ctattr_type t)
+int delete_expectation(struct ctnl_tuple *tuple)
 {
 	int ret;
 	
-	if ((ret = ctnl_open(&cth, 0)) < 0)
+	if ((ret = ctnl_open(&cth, NFNL_SUBSYS_CTNETLINK_EXP, 0)) < 0)
 		return ret;
 
-	ret = ctnl_del_expect(&cth, tuple, t);
+	ret = ctnl_del_expect(&cth, tuple);
 	ctnl_close(&cth);
 
 	return ret;
@@ -614,7 +603,7 @@ int event_expectation(unsigned int event_mask)
 	};
 	int ret;
 	
-	if ((ret = ctnl_open(&cth, event_mask)) < 0)
+	if ((ret = ctnl_open(&cth, NFNL_SUBSYS_CTNETLINK_EXP, event_mask)) < 0)
 		return ret;
 
 	ctnl_register_handler(&cth, &hnew);
@@ -629,7 +618,7 @@ int flush_expectation()
 {
 	int ret;
 	
-	if ((ret = ctnl_open(&cth, 0)) < 0)
+	if ((ret = ctnl_open(&cth, NFNL_SUBSYS_CTNETLINK_EXP, 0)) < 0)
 		return ret;
 
 	ret = ctnl_flush_expect(&cth);
