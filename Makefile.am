@@ -5,7 +5,7 @@ AUTOMAKE_OPTIONS = foreign 1.4
 INCLUDES  = $(all_includes) -I$(top_srcdir)/include -I${KERNELDIR}
 SUBDIRS   = src extensions
 DIST_SUBDIRS = include src extensions
-LINKOPTS  = -ldl -lnfnetlink -lctnetlink
+LINKOPTS  = -ldl -lnfnetlink -lnfnetlink_conntrack
 AM_CFLAGS = -g
 
 $(OBJECTS): libtool
