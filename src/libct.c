@@ -109,6 +109,30 @@ static void parse_protoinfo(struct nfattr *attr, struct ctnl_conntrack *ct)
 		h->parse_protoinfo(tb, ct);
 }
 
+/* Pablo: What is the equivalence of be64_to_cpu in userspace?
+ * 
+ * Harald: Good question.  I don't think there's a standard way [yet?], 
+ * so I'd suggest manually implementing it by "#if little endian" bitshift
+ * operations in C (at least for now).
+ *
+ * All the payload of any nfattr will always be in network byte order.
+ * This would allow easy transport over a real network in the future 
+ * (e.g. jamal's netlink2).
+ *
+ * Pablo: I've called it __be64_to_cpu instead of be64_to_cpu, since maybe 
+ * there will one in the userspace headers someday. We don't want to
+ * pollute POSIX space naming,
+ */
+
+#include <byteswap.h>
+#if __BYTE_ORDER == __BIG_ENDIAN
+#  define __be64_to_cpu(x)	(x)
+# else
+# if __BYTE_ORDER == __LITTLE_ENDIAN
+#  define __be64_to_cpu(x)	__bswap_64(x)
+# endif
+#endif
+
 static void parse_counters(struct nfattr *attr, struct ctnl_conntrack *ct,
 			   enum ctattr_type parent)
 {
@@ -119,10 +143,12 @@ static void parse_counters(struct nfattr *attr, struct ctnl_conntrack *ct,
 	nfnl_parse_nested(tb, CTA_COUNTERS_MAX, attr);
 	if (tb[CTA_COUNTERS_PACKETS-1])
 		ct->counters[CTNL_DIR_ORIGINAL].packets
-			= *(u_int64_t *)NFA_DATA(tb[CTA_COUNTERS_PACKETS-1]);
+			= __be64_to_cpu(*(u_int64_t *)
+					NFA_DATA(tb[CTA_COUNTERS_PACKETS-1]));
 	if (tb[CTA_COUNTERS_BYTES-1])
 		ct->counters[CTNL_DIR_ORIGINAL].bytes
-			= *(u_int64_t *)NFA_DATA(tb[CTA_COUNTERS_BYTES-1]);
+			= __be64_to_cpu(*(u_int64_t *)
+					NFA_DATA(tb[CTA_COUNTERS_BYTES-1]));
 }
 
 /* Some people seem to like counting in decimal... */
