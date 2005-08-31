@@ -1,6 +1,7 @@
 2005-08-31
 <pablo@netfilter.org>
 	o Fix packet and bytes counters (use __be64_to_cpu)
+	o Fix ip_conntrack_netlink load-on-demand
 
 2005-07-12
 <pablo@eurodev.net>

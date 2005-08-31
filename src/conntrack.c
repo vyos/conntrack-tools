@@ -969,7 +969,7 @@ int main(int argc, char *argv[])
 			break;
 		}
 		/* Maybe ip_conntrack_netlink isn't insmod'ed */
-		if (res == -1 && retry)
+		if (res < 0 && retry)
 			/* Give it a try just once */
 			iptables_insmod("ip_conntrack_netlink", NULL);
 		else
