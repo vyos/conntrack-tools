@@ -74,10 +74,10 @@ AC_ARG_WITH(kernel,
                               [ Show location of kernel source. Default is to use uname -r and look in /lib/modules/KERNEL/build/include. ]),
 	       NF_KERNEL_SOURCE($with_kernel),NF_KERNEL_SOURCE())
 
-if test ! -z "$libdir"; then
-   MODULE_DIR="\\\"$libdir/\\\""
-   CFLAGS="$CFLAGS -DCONNTRACK_LIB_DIR=$MODULE_DIR"
-fi
+#if test ! -z "$libdir"; then
+#   MODULE_DIR="\\\"$libdir/\\\""
+#   CFLAGS="$CFLAGS -DCONNTRACK_LIB_DIR=$MODULE_DIR"
+#fi
 
 dnl--------------------------------
 
