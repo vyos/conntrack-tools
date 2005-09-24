@@ -7,6 +7,8 @@
 #include <getopt.h>
 #include <libnfnetlink_conntrack/libnfnetlink_conntrack.h>
 
+#define LIBCT_VERSION	"0.1.0"
+
 struct cta_proto;
 
 struct ctproto_handler {
@@ -14,6 +16,7 @@ struct ctproto_handler {
 
 	char 			*name;
 	u_int16_t 		protonum;
+	char			*version;
 
 	enum ctattr_protoinfo	protoinfo_attr;
 	

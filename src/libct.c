@@ -17,9 +17,6 @@
 /* From kernel.h */
 #define INT_MAX         ((int)(~0U>>1))
 #define INT_MIN         (-INT_MAX - 1)
-#include <linux/netfilter_ipv4/ip_conntrack.h>
-#include <linux/netfilter/nfnetlink_conntrack.h>
-#include <libnfnetlink/libnfnetlink.h>
 #include <libnfnetlink_conntrack/libnfnetlink_conntrack.h>
 #include "linux_list.h"
 #include "libct_proto.h"
@@ -187,7 +184,7 @@ static int handler(struct sockaddr_nl *sock, struct nlmsghdr *nlh, void *arg)
 			parse_tuple(attr, &ct.tuple[CTNL_DIR_REPLY]);
 			break;
 		case CTA_STATUS:
-			ct.status = *(unsigned int *)NFA_DATA(attr);
+			ct.status = ntohl(*(u_int32_t *)NFA_DATA(attr));
 			flags |= STATUS;
 			break;
 		case CTA_PROTOINFO:
@@ -195,11 +192,11 @@ static int handler(struct sockaddr_nl *sock, struct nlmsghdr *nlh, void *arg)
 			flags |= PROTOINFO;
 			break;
 		case CTA_TIMEOUT:
-			ct.timeout = ntohl(*(unsigned long *)NFA_DATA(attr));
+			ct.timeout = ntohl(*(u_int32_t *)NFA_DATA(attr));
 			flags |= TIMEOUT;
 			break;
 		case CTA_MARK:
-			ct.mark = ntohl(*(unsigned long *)NFA_DATA(attr));
+			ct.mark = ntohl(*(u_int32_t *)NFA_DATA(attr));
 			flags |= MARK;
 			break;
 		case CTA_COUNTERS_ORIG:
@@ -208,7 +205,7 @@ static int handler(struct sockaddr_nl *sock, struct nlmsghdr *nlh, void *arg)
 			flags |= COUNTERS;
 			break;
 		case CTA_USE:
-			ct.use = ntohl(*(unsigned int *)NFA_DATA(attr));
+			ct.use = ntohl(*(u_int32_t *)NFA_DATA(attr));
 			flags |= USE;
 			break;
 		case CTA_ID:
@@ -256,7 +253,8 @@ static int handler(struct sockaddr_nl *sock, struct nlmsghdr *nlh, void *arg)
 			ct.counters[CTNL_DIR_REPLY].packets,
 			ct.counters[CTNL_DIR_REPLY].bytes);
 	
-	print_status(ct.status);
+	if (flags & STATUS)
+		print_status(ct.status);
 
 	if (flags & MARK)
 		fprintf(stdout, "mark=%lu ", ct.mark);
@@ -272,15 +270,15 @@ static int handler(struct sockaddr_nl *sock, struct nlmsghdr *nlh, void *arg)
 
 static char *typemsg2str(type, flags)
 {
-	char *ret = "UNKNOWN";
+	char *ret = "[UNKNOWN]";
 
 	if (type == IPCTNL_MSG_CT_NEW) {
 		if (flags & NLM_F_CREATE)
-			ret = "NEW";
+			ret = "[NEW]";
 		else
-			ret = "UPDATE";
+			ret = "[UPDATE]";
 	} else if (type == IPCTNL_MSG_CT_DELETE)
-		ret = "DESTROY";
+		ret = "[DESTROY]";
 
 	return ret;
 }
@@ -289,7 +287,7 @@ static int event_handler(struct sockaddr_nl *sock, struct nlmsghdr *nlh,
 			 void *arg)
 {
 	int type = NFNL_MSG_TYPE(nlh->nlmsg_type);
-	fprintf(stdout, "[%s] ", typemsg2str(type, nlh->nlmsg_flags));
+	fprintf(stdout, "%9s ", typemsg2str(type, nlh->nlmsg_flags));
 	return handler(sock, nlh, arg);
 }
 
@@ -465,6 +463,7 @@ static void event_sighandler(int s)
 {
 	fprintf(stdout, "Now closing conntrack event dumping...\n");
 	ctnl_close(&cth);
+	exit(0);
 }
 
 int event_conntrack(unsigned int event_mask)
@@ -527,6 +526,11 @@ struct ctproto_handler *findproto(char *name)
 
 void register_proto(struct ctproto_handler *h)
 {
+	if (strcmp(h->version, LIBCT_VERSION) != 0) {
+		fprintf(stderr, "plugin `%s': version %s (I'm %s)\n",
+			h->name, h->version, LIBCT_VERSION);
+		exit(1);
+	}
 	list_add(&h->head, &proto_list);
 }
 

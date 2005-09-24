@@ -43,13 +43,12 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <string.h>
-#include <linux/netfilter_ipv4/ip_conntrack.h>
 #include <libnfnetlink_conntrack/libnfnetlink_conntrack.h>
 #include "linux_list.h"
 #include "libct_proto.h"
 
 #define PROGNAME "conntrack"
-#define VERSION "0.80"
+#define VERSION "0.81"
 
 #if 0
 #define DEBUGP printf
@@ -651,8 +650,6 @@ fprintf(stdout, "--mask-dst ip		Destination mask address for expectations\n");
 fprintf(stdout, "-p proto		Layer 4 Protocol\n");
 fprintf(stdout, "-t timeout		Set timeout\n");
 fprintf(stdout, "-u status		Set status\n");
-fprintf(stdout, "-m dumpmask		Set dump mask\n");
-fprintf(stdout, "-g groupmask		Set group mask\n");
 fprintf(stdout, "-e eventmask		Set event mask\n");
 fprintf(stdout, "-a min_ip[-max_ip]	NAT ip range\n");
 fprintf(stdout, "-z 			Zero Counters\n");
@@ -670,7 +667,7 @@ int main(int argc, char *argv[])
 	unsigned long timeout = 0;
 	unsigned int status = IPS_CONFIRMED;
 	unsigned long id = 0;
-	unsigned int type = 0, dump_mask = 0, extra_flags = 0, event_mask = 0;
+	unsigned int type = 0, extra_flags = 0, event_mask = 0;
 	int manip = -1;
 	int res = 0, retry = 2;
 

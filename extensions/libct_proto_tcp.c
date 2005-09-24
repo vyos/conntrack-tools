@@ -13,8 +13,9 @@
 #include <string.h>
 #include <netinet/in.h> /* For htons */
 #include <linux/netfilter/nfnetlink_conntrack.h>
-#include "libct_proto.h"
 #include <libnfnetlink_conntrack/libnfnetlink_conntrack.h>
+
+#include "libct_proto.h"
 
 static struct option opts[] = {
 	{"orig-port-src", 1, 0, '1'},
@@ -197,7 +198,8 @@ static struct ctproto_handler tcp = {
 	.print_protoinfo	= print_protoinfo,
 	.final_check		= final_check,
 	.help			= help,
-	.opts			= opts
+	.opts			= opts,
+	.version		= LIBCT_VERSION,
 };
 
 void __attribute__ ((constructor)) init(void);

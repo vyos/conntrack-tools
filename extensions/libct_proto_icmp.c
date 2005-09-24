@@ -111,7 +111,8 @@ static struct ctproto_handler icmp = {
 	.print_proto	= print_proto,
 	.final_check	= final_check,
 	.help		= help,
-	.opts		= opts
+	.opts		= opts,
+	.version	= LIBCT_VERSION,
 };
 
 void __attribute__ ((constructor)) init(void);

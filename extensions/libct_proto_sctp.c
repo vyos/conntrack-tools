@@ -176,7 +176,8 @@ static struct ctproto_handler sctp = {
 	.print_protoinfo	= print_protoinfo,
 	.final_check		= final_check,
 	.help			= help,
-	.opts			= opts
+	.opts			= opts,
+	.version		= LIBCT_VERSION,
 };
 
 void __attribute__ ((constructor)) init(void);

@@ -1,3 +1,12 @@
+2005-09-24
+<laforge@netfilter.org>
+	o Get rid of C++ style comments
+	o Remove remaining bits of "-A --action", group-mask and dump-mask
+	o Clean up #include's
+	o Fix double-free when exiting via signal handler (Ctrl+C)
+	o Add "version" member to plugins
+	o Fix some Endianness issues when printing CTA_STATUS
+
 2005-08-31
 <pablo@netfilter.org>
 	o Fix packet and bytes counters (use __be64_to_cpu)

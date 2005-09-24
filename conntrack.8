@@ -16,8 +16,6 @@ conntrack \- administration tool for netfilter connection tracking
 .BR "conntrack -E [table] parameters"
 .br
 .BR "conntrack -F [table]"
-.br
-.BR "conntrack -A [table] [options]"
 .SH DESCRIPTION
 .B conntrack
 is used to search, list, inspect and maintain the netfilter connection tracking
@@ -70,9 +68,6 @@ Display a real-time event log.
 .TP
 .BI "-F, --flush "
 Flush the whole given table
-.TP
-.BI "-A, --action "
-Set an action.
 .SS PARAMETERS
 .TP
 .BI "-z, --zero "
@@ -85,15 +80,7 @@ event code.  Using this parameter, you can reduce the event messages generated
 by the kernel to those types to those that you are actually interested in.
 .
 Please note that this is a system-wide setting, so make sure to not disable some events that other ctnetlink-using processes might need!
-This option can only be used in conjunction with "-A, --action".
-.TP
-.BI "-m, --dump-mask " "[ALL|TUPLE|STATUS|TIMEOUT|PROTOINFO|HELPINFO|COUNTERS|MARK][,...]"
-Set the bitmask of data fields that are to be sent with each message generated
-by the in-kernel ctnetlink code.  Using this parameter, you can reduce the
-amount of information sent by the kernel to those bits and pieces that you are
-actually interested in.
-Please note that this is a system-wide setting, so make sure to not disable some data fields that other ctnetlink-using processes might need!
-This option can only be used in conjunction with "-A, --action".
+This option can only be used in conjunction with "-E, --event".
 .TP
 .BI "-g, --group-mask " "[ALL|TCP|UDP|ICMP][,...]"
 Set the group bitmask to those netlink groups (resembling layer 4 protocols)
