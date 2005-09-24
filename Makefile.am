@@ -2,6 +2,10 @@
 # have all needed files, that a GNU package needs
 AUTOMAKE_OPTIONS = foreign dist-bzip2 1.6
 
+man_MANS = conntrack.8
+
+EXTRA_DIST = $(man_MANS)
+
 INCLUDES  = $(all_includes) -I$(top_srcdir)/include -I${KERNELDIR}
 SUBDIRS   = src extensions
 DIST_SUBDIRS = include src extensions
