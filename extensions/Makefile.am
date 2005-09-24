@@ -1,8 +1,4 @@
-AUTOMAKE_OPTIONS = no-dependencies foreign
-
-EXTRA_DIST = $(man_MANS) acinclude.m4
-
-man_MANS =
+# AUTOMAKE_OPTIONS = no-dependencies foreign
 
 INCLUDES=-I../include -I${KERNELDIR}
 CFLAGS=-fPIC -Wall
