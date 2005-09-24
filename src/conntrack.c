@@ -27,6 +27,8 @@
  * 	Add support for conntrack accounting and conntrack mark
  * 2005-06-23 Harald Welte <laforge@netfilter.org>:
  * 	Add support for expect creation
+ * 2005-09-24 Harald Welte <laforge@netfilter.org>:
+ * 	Remove remaints of "-A"
  *
  */
 #include <stdio.h>
@@ -175,7 +177,6 @@ static struct option original_opts[] = {
 	{"get", 1, 0, 'G'},
 	{"flush", 1, 0, 'F'},
 	{"event", 1, 0, 'E'},
-	{"action", 1, 0, 'A'},
 	{"version", 0, 0, 'V'},
 	{"help", 0, 0, 'h'},
 	{"orig-src", 1, 0, 's'},
@@ -637,7 +638,6 @@ fprintf(stdout, "-I [table] parameters	Create a conntrack or expectation\n");
 fprintf(stdout, "-U [table] parameters  Update a conntrack\n");
 fprintf(stdout, "-E [table] [options]	Show events\n");
 fprintf(stdout, "-F [table]	     	Flush table\n");
-fprintf(stdout, "-A [table] [options]	Set action\n");
 fprintf(stdout, "\n");
 fprintf(stdout, "Options:\n");
 fprintf(stdout, "--orig-src ip	     	Source address from original direction\n");
@@ -682,7 +682,7 @@ int main(int argc, char *argv[])
 	memset(&range, 0, sizeof(struct ctnl_nat));
 	
 	while ((c = getopt_long(argc, argv, 
-		"L::I::U::D::G::E::A::F::hVs:d:r:q:p:t:u:e:a:z[:]:{:}:", 
+		"L::I::U::D::G::E::F::hVs:d:r:q:p:t:u:e:a:z[:]:{:}:", 
 		opts, NULL)) != -1) {
 	switch(c) {
 		case 'L':
