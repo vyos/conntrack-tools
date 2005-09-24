@@ -592,13 +592,13 @@ nat_parse(char *arg, int portok, struct ctnl_nat *range)
 				exit_error(PARAMETER_PROBLEM,
 					   "Port `%s' not valid\n", dash+1);
 			if (maxport < port)
-				// People are stupid. 
+				/* People are stupid.  */
 				exit_error(PARAMETER_PROBLEM,
 					   "Port range `%s' funky\n", colon+1);
 			range->l4min.tcp.port = htons(port);
 			range->l4max.tcp.port = htons(maxport);
 		}
-		// Starts with a colon? No IP info...
+		/* Starts with a colon? No IP info... */
 		if (colon == arg)
 			return;
 		*colon = '\0';

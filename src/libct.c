@@ -174,7 +174,6 @@ static int handler(struct sockaddr_nl *sock, struct nlmsghdr *nlh, void *arg)
 	memset(&ct, 0, sizeof(struct ctnl_conntrack));
 
 	nfmsg = NLMSG_DATA(nlh);
-//	min_len = sizeof(struct nfgenmsg);
 
 	if (nlh->nlmsg_len < min_len)
 		return -EINVAL;
