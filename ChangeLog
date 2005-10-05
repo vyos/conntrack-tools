@@ -1,3 +1,9 @@
+2005-10-05
+<pablo@netfilter.org>
+	o Fix up counters
+	o Fix up compilation (IPS_* stuff missing), still need a proper fix
+	o Bumped version number to 0.82
+
 2005-09-24
 <laforge@netfilter.org>
 	o Get rid of C++ style comments

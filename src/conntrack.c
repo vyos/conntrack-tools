@@ -48,7 +48,7 @@
 #include "libct_proto.h"
 
 #define PROGNAME "conntrack"
-#define VERSION "0.81"
+#define VERSION "0.82"
 
 #if 0
 #define DEBUGP printf

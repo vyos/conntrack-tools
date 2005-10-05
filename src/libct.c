@@ -134,16 +134,18 @@ static void parse_counters(struct nfattr *attr, struct ctnl_conntrack *ct,
 			   enum ctattr_type parent)
 {
 	struct nfattr *tb[CTA_COUNTERS_MAX];
+	int dir = (parent == CTA_COUNTERS_ORIG ? CTNL_DIR_REPLY 
+					       : CTNL_DIR_ORIGINAL);
 
 	memset(tb, 0, CTA_COUNTERS_MAX*sizeof(struct nfattr *));
 
 	nfnl_parse_nested(tb, CTA_COUNTERS_MAX, attr);
 	if (tb[CTA_COUNTERS_PACKETS-1])
-		ct->counters[CTNL_DIR_ORIGINAL].packets
+		ct->counters[dir].packets
 			= __be64_to_cpu(*(u_int64_t *)
 					NFA_DATA(tb[CTA_COUNTERS_PACKETS-1]));
 	if (tb[CTA_COUNTERS_BYTES-1])
-		ct->counters[CTNL_DIR_ORIGINAL].bytes
+		ct->counters[dir].bytes
 			= __be64_to_cpu(*(u_int64_t *)
 					NFA_DATA(tb[CTA_COUNTERS_BYTES-1]));
 }

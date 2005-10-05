@@ -9,6 +9,13 @@
 
 #define LIBCT_VERSION	"0.1.0"
 
+/* FIXME: These should be independent from kernel space */
+#define IPS_ASSURED (1 << 2)
+#define IPS_SEEN_REPLY (1 << 1)
+#define IPS_SRC_NAT_DONE (1 << 7)
+#define IPS_DST_NAT_DONE (1 << 8)
+#define IPS_CONFIRMED (1 << 3)
+
 struct cta_proto;
 
 struct ctproto_handler {
