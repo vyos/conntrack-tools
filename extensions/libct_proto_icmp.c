@@ -12,12 +12,13 @@
 #include <getopt.h>
 #include <stdlib.h>
 #include <netinet/in.h> /* For htons */
+#include <netinet/ip_icmp.h>
 #include "libct_proto.h"
 
 static struct option opts[] = {
-	{"--icmp-type", 1, 0, '1'},
-	{"--icmp-code", 1, 0, '2'},
-	{"--icmp-id", 1, 0, '3'},
+	{"icmp-type", 1, 0, '1'},
+	{"icmp-code", 1, 0, '2'},
+	{"icmp-id", 1, 0, '3'},
 	{0, 0, 0, 0}
 };
 
@@ -39,6 +40,17 @@ void help()
 	fprintf(stdout, "--icmp-id              icmp id\n");
 }
 
+/* Add 1; spaces filled with 0. */
+static u_int8_t invmap[]
+	= { [ICMP_ECHO] = ICMP_ECHOREPLY + 1,
+	    [ICMP_ECHOREPLY] = ICMP_ECHO + 1,
+	    [ICMP_TIMESTAMP] = ICMP_TIMESTAMPREPLY + 1,
+	    [ICMP_TIMESTAMPREPLY] = ICMP_TIMESTAMP + 1,
+	    [ICMP_INFO_REQUEST] = ICMP_INFO_REPLY + 1,
+	    [ICMP_INFO_REPLY] = ICMP_INFO_REQUEST + 1,
+	    [ICMP_ADDRESS] = ICMP_ADDRESSREPLY + 1,
+	    [ICMP_ADDRESSREPLY] = ICMP_ADDRESS + 1};
+
 int parse(char c, char *argv[], 
 	   struct ctnl_tuple *orig,
 	   struct ctnl_tuple *reply,
@@ -50,18 +62,22 @@ int parse(char c, char *argv[],
 		case '1':
 			if (optarg) {
 				orig->l4dst.icmp.type = atoi(optarg);
+				reply->l4dst.icmp.type =
+					invmap[orig->l4dst.icmp.type] - 1;
 				*flags |= ICMP_TYPE;
 			}
 			break;
 		case '2':
 			if (optarg) {
 				orig->l4dst.icmp.code = atoi(optarg);
+				reply->l4dst.icmp.code = 0;
 				*flags |= ICMP_CODE;
 			}
 			break;
 		case '3':
 			if (optarg) {
 				orig->l4src.icmp.id = atoi(optarg);
+				reply->l4dst.icmp.id = 0;
 				*flags |= ICMP_ID;
 			}
 			break;
@@ -81,7 +97,7 @@ void parse_proto(struct nfattr *cda[], struct ctnl_tuple *tuple)
 
 	if (cda[CTA_PROTO_ICMP_ID-1])
 		tuple->l4src.icmp.id =
-			*(u_int8_t *)NFA_DATA(cda[CTA_PROTO_ICMP_ID-1]);
+			*(u_int16_t *)NFA_DATA(cda[CTA_PROTO_ICMP_ID-1]);
 }
 
 int final_check(unsigned int flags,
@@ -98,9 +114,11 @@ int final_check(unsigned int flags,
 
 void print_proto(struct ctnl_tuple *t)
 {
-	fprintf(stdout, "type=%d code=%d id=%d ", t->l4dst.icmp.type, 
-				             	 t->l4dst.icmp.code,
-						 t->l4src.icmp.id);
+	fprintf(stdout, "type=%d code=%d ", t->l4dst.icmp.type,
+					    t->l4dst.icmp.code);
+	/* ID only makes sense with ECHO */
+	if (t->l4dst.icmp.type == 8)
+		fprintf(stdout, "id=%d ", t->l4src.icmp.id);
 }
 
 static struct ctproto_handler icmp = {

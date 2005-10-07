@@ -70,7 +70,7 @@ static void parse_proto(struct nfattr *attr, struct ctnl_tuple *tuple)
 
 	memset(tb, 0, CTA_PROTO_MAX * sizeof(struct nfattr *));
 
-	nfnl_parse_nested(tb, CTA_IP_MAX, attr);
+	nfnl_parse_nested(tb, CTA_PROTO_MAX, attr);
 	if (tb[CTA_PROTO_NUM-1])
 		tuple->protonum = *(u_int8_t *)NFA_DATA(tb[CTA_PROTO_NUM-1]);
 	

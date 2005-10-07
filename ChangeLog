@@ -1,3 +1,10 @@
+2005-10-07
+<chentschel@iplan.com.ar>
+	o Fixed ICMP options
+<pablo@netfilter.org>
+	o Multiple fixes for the ICMP protocol handler
+	o Fix ICMP output: wrong output. type and code were set to zero.
+
 2005-10-05
 <pablo@netfilter.org>
 	o Fix up counters
