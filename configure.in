@@ -2,7 +2,7 @@ AC_INIT
 
 AC_CANONICAL_SYSTEM
 
-AM_INIT_AUTOMAKE(conntrack, 0.81)
+AM_INIT_AUTOMAKE(conntrack, 0.63)
 AM_CONFIG_HEADER(config.h)
 
 AC_PROG_CC
@@ -22,7 +22,7 @@ dnl AC_CHECK_LIB([c], [main])
 
 AC_CHECK_LIB([dl], [dlopen])
 AC_CHECK_LIB([nfnetlink], [nfnl_listen])
-AC_CHECK_LIB([nfnetlink_conntrack], [ctnl_register_handler] ,,,[-lnfnetlink])
+AC_CHECK_LIB([netfilter_conntrack], [nfct_dump_conntrack_table] ,,,[-lnetfilter_conntrack])
 
 # Checks for header files.
 dnl AC_HEADER_STDC

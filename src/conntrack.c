@@ -1,5 +1,5 @@
 /*
- * (C) 2005 by Pablo Neira Ayuso <pablo@eurodev.net>
+ * (C) 2005 by Pablo Neira Ayuso <pablo@netfilter.org>
  *
  *      This program is free software; you can redistribute it and/or modify
  *      it under the terms of the GNU General Public License as published by
@@ -42,19 +42,14 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <dlfcn.h>
 #include <string.h>
-#include <libnfnetlink_conntrack/libnfnetlink_conntrack.h>
 #include "linux_list.h"
 #include "libct_proto.h"
+#include <libnetfilter_conntrack/libnetfilter_conntrack.h>
 
 #define PROGNAME "conntrack"
-#define VERSION "0.82"
-
-#if 0
-#define DEBUGP printf
-#else
-#define DEBUGP
-#endif
+#define VERSION "0.86"
 
 #ifndef PROC_SYS_MODPROBE
 #define PROC_SYS_MODPROBE "/proc/sys/kernel/modprobe"
@@ -197,6 +192,7 @@ static struct option original_opts[] = {
 
 #define OPTION_OFFSET 256
 
+struct nfct_handle *cth;
 static struct option *opts = original_opts;
 static unsigned int global_option_offset = 0;
 
@@ -236,12 +232,53 @@ char *lib_dir = CONNTRACK_LIB_DIR;
 
 LIST_HEAD(proto_list);
 
-char *proto2str[IPPROTO_MAX] = {
-	[IPPROTO_TCP] = "tcp",
-        [IPPROTO_UDP] = "udp",
-        [IPPROTO_ICMP] = "icmp",
-        [IPPROTO_SCTP] = "sctp"
-};
+void register_proto(struct ctproto_handler *h)
+{
+	if (strcmp(h->version, LIBCT_VERSION) != 0) {
+		fprintf(stderr, "plugin `%s': version %s (I'm %s)\n",
+			h->name, h->version, LIBCT_VERSION);
+		exit(1);
+	}
+	list_add(&h->head, &proto_list);
+}
+
+void unregister_proto(struct ctproto_handler *h)
+{
+	list_del(&h->head);
+}
+
+static struct nfct_proto *findproto(char *name)
+{
+	struct list_head *i;
+	struct nfct_proto *cur = NULL, *handler = NULL;
+
+	if (!name) 
+		return handler;
+
+	lib_dir = getenv("CONNTRACK_LIB_DIR");
+	if (!lib_dir)
+		lib_dir = CONNTRACK_LIB_DIR;
+
+	list_for_each(i, &proto_list) {
+		cur = (struct nfct_proto *) i;
+		if (strcmp(cur->name, name) == 0) {
+			handler = cur;
+			break;
+		}
+	}
+
+	if (!handler) {
+		char path[sizeof("libct_proto_.so")
+			 + strlen(name) + strlen(lib_dir)];
+                sprintf(path, "%s/libct_proto_%s.so", lib_dir, name);
+		if (dlopen(path, RTLD_NOW))
+			handler = findproto(name);
+		else
+			fprintf(stderr, "%s\n", dlerror());
+	}
+
+	return handler;
+}
 
 enum exittype {
         OTHER_PROBLEM = 1,
@@ -383,7 +420,9 @@ err2str(int err, enum action command)
 	    { CT_GET, -EAFNOSUPPORT, "protocol not supported" },
 	    { CT_CREATE, -ETIME, "conntrack has expired" },
 	    { EXP_CREATE, -ENOENT, "master conntrack not found" },
-	    { EXP_CREATE, -EINVAL, "invalid parameters" }
+	    { EXP_CREATE, -EINVAL, "invalid parameters" },
+	    { ~0UL, -EPERM, "sorry, you must be root or get "
+		    	    "CAP_NET_ADMIN capability to do this"}
 	  };
 
 	for (i = 0; i < sizeof(table)/sizeof(struct table_struct); i++) {
@@ -394,7 +433,7 @@ err2str(int err, enum action command)
 	return strerror(err);
 }
 
-static void dump_tuple(struct ctnl_tuple *tp)
+static void dump_tuple(struct nfct_tuple *tp)
 {
 	fprintf(stdout, "tuple %p: %u %u.%u.%u.%u:%hu -> %u.%u.%u.%u:%hu\n",
 		tp, tp->protonum,
@@ -553,7 +592,7 @@ int iptables_insmod(const char *modname, const char *modprobe)
 
 /* Shamelessly stolen from libipt_DNAT ;). Ranges expected in network order. */
 static void
-nat_parse(char *arg, int portok, struct ctnl_nat *range)
+nat_parse(char *arg, int portok, struct nfct_nat *range)
 {
 	char *colon, *dash, *error;
 	unsigned long ip;
@@ -625,6 +664,13 @@ nat_parse(char *arg, int portok, struct ctnl_nat *range)
 		range->max_ip = range->min_ip;
 }
 
+static void event_sighandler(int s)
+{
+	fprintf(stdout, "Now closing conntrack event dumping...\n");
+	nfct_close(cth);
+	exit(0);
+}
+
 void usage(char *prog) {
 fprintf(stdout, "Tool to manipulate conntrack and expectations. Version %s\n", VERSION);
 fprintf(stdout, "Usage: %s [commands] [options]\n", prog);
@@ -659,11 +705,11 @@ int main(int argc, char *argv[])
 {
 	char c;
 	unsigned int command = 0, options = 0;
-	struct ctnl_tuple orig, reply, mask, *o = NULL, *r = NULL;
-	struct ctnl_tuple exptuple;
+	struct nfct_tuple orig, reply, mask, *o = NULL, *r = NULL;
+	struct nfct_tuple exptuple;
 	struct ctproto_handler *h = NULL;
-	union ctnl_protoinfo proto;
-	struct ctnl_nat range;
+	union nfct_protoinfo proto;
+	struct nfct_nat range;
 	unsigned long timeout = 0;
 	unsigned int status = IPS_CONFIRMED;
 	unsigned long id = 0;
@@ -671,13 +717,13 @@ int main(int argc, char *argv[])
 	int manip = -1;
 	int res = 0, retry = 2;
 
-	memset(&proto, 0, sizeof(union ctnl_protoinfo));
-	memset(&orig, 0, sizeof(struct ctnl_tuple));
-	memset(&reply, 0, sizeof(struct ctnl_tuple));
-	memset(&mask, 0, sizeof(struct ctnl_tuple));
-	memset(&exptuple, 0, sizeof(struct ctnl_tuple));
-	memset(&range, 0, sizeof(struct ctnl_nat));
-	
+	memset(&proto, 0, sizeof(union nfct_protoinfo));
+	memset(&orig, 0, sizeof(struct nfct_tuple));
+	memset(&reply, 0, sizeof(struct nfct_tuple));
+	memset(&mask, 0, sizeof(struct nfct_tuple));
+	memset(&exptuple, 0, sizeof(struct nfct_tuple));
+	memset(&range, 0, sizeof(struct nfct_nat));
+
 	while ((c = getopt_long(argc, argv, 
 		"L::I::U::D::G::E::F::hVs:d:r:q:p:t:u:e:a:z[:]:{:}:", 
 		opts, NULL)) != -1) {
@@ -846,14 +892,24 @@ int main(int argc, char *argv[])
 		retry--;
 		switch(command) {
 		case CT_LIST:
+			cth = nfct_open(CONNTRACK, 0);
+			if (!cth)
+				exit_error(OTHER_PROBLEM, "Not enough memory");
+			nfct_set_callback(cth, nfct_default_conntrack_display);
 			if (options & CT_OPT_ZERO)
-				res = dump_conntrack_table(1);
+				res = nfct_dump_conntrack_table_zero(cth);
 			else
-				res = dump_conntrack_table(0);
+				res = nfct_dump_conntrack_table(cth);
 			break;
+			nfct_close(cth);
 
 		case EXP_LIST:
-			res = dump_expect_list();
+			cth = nfct_open(EXPECT, 0);
+			if (!cth)
+				exit_error(OTHER_PROBLEM, "Not enough memory");
+			nfct_set_callback(cth, nfct_default_expect_display);
+			res = nfct_dump_expect_list(cth);
+			nfct_close(cth);
 			break;
 			
 		case CT_CREATE:
@@ -866,25 +922,43 @@ int main(int argc, char *argv[])
 				orig.src.v4 = reply.dst.v4;
 				orig.dst.v4 = reply.src.v4;
 			}
+			cth = nfct_open(CONNTRACK, 0);
+			if (!cth)
+				exit_error(OTHER_PROBLEM, "Not enough memory");
 			if (options & CT_OPT_NATRANGE)
-				res = create_conntrack(&orig, &reply, timeout, 
-						       &proto, status, &range);
+				res = nfct_create_conntrack_nat(cth,
+								    &orig, 
+								    &reply, 
+								    timeout, 
+								    &proto, 
+								    status, 
+								    &range);
 			else
-				res = create_conntrack(&orig, &reply, timeout,
-						       &proto, status, NULL);
+				res = nfct_create_conntrack(cth, &orig,
+								    &reply,
+								    timeout,
+								    &proto,
+								    status);
+			nfct_close(cth);
 			break;
 
 		case EXP_CREATE:
+			cth = nfct_open(EXPECT, 0);
+			if (!cth)
+				exit_error(OTHER_PROBLEM, "Not enough memory");
 			if (options & CT_OPT_ORIG)
-				res = create_expectation(&orig, 
-							 &exptuple,
-							 &mask,
-							 timeout);
+				res = nfct_create_expectation(cth,
+								      &orig,
+								      &exptuple,
+								      &mask,
+								      timeout);
 			else if (options & CT_OPT_REPL)
-				res = create_expectation(&reply,
-							 &exptuple,
-							 &mask,
-							 timeout);
+				res = nfct_create_expectation(cth,
+								      &reply,
+								      &exptuple,
+								      &mask,
+								      timeout);
+			nfct_close(cth);
 			break;
 
 		case CT_UPDATE:
@@ -897,60 +971,117 @@ int main(int argc, char *argv[])
 				orig.src.v4 = reply.dst.v4;
 				orig.dst.v4 = reply.src.v4;
 			}
-			res = update_conntrack(&orig, &reply, timeout, 
-					       &proto, status);
+			cth = nfct_open(CONNTRACK, 0);
+			if (!cth)
+				exit_error(OTHER_PROBLEM, "Not enough memory");
+			res = nfct_update_conntrack(cth, &orig, &reply, 
+							    timeout, &proto, 
+							    status);
+			nfct_close(cth);
 			break;
 			
 		case CT_DELETE:
+			cth = nfct_open(CONNTRACK, 0);
+			if (!cth)
+				exit_error(OTHER_PROBLEM, "Not enough memory");
 			if (options & CT_OPT_ORIG)
-				res = delete_conntrack(&orig, CTA_TUPLE_ORIG, 
-						       CTNL_DIR_ORIGINAL);
+				res = nfct_delete_conntrack(cth,&orig, 
+							    NFCT_DIR_ORIGINAL);
 			else if (options & CT_OPT_REPL)
-				res = delete_conntrack(&reply, CTA_TUPLE_REPLY,
-						       CTNL_DIR_REPLY);
+				res = nfct_delete_conntrack(cth,&reply, 
+							    NFCT_DIR_REPLY);
+			nfct_close(cth);
 			break;
 
 		case EXP_DELETE:
+			cth = nfct_open(EXPECT, 0);
+			if (!cth)
+				exit_error(OTHER_PROBLEM, "Not enough memory");
 			if (options & CT_OPT_ORIG)
-				res = delete_expectation(&orig);
+				res = nfct_delete_expectation(cth,&orig);
 			else if (options & CT_OPT_REPL)
-				res = delete_expectation(&reply);
+				res = nfct_delete_expectation(cth,&reply);
+			nfct_close(cth);
 			break;
 
 		case CT_GET:
+			cth = nfct_open(CONNTRACK, 0);
+			if (!cth)
+				exit_error(OTHER_PROBLEM, "Not enough memory");
 			if (options & CT_OPT_ORIG)
-				res = get_conntrack(&orig, id);
+				res = nfct_get_conntrack(cth,&orig, id);
 			else if (options & CT_OPT_REPL)
-				res = get_conntrack(&reply, id);
+				res = nfct_get_conntrack(cth,&reply, id);
+			nfct_close(cth);
 			break;
 
 		case EXP_GET:
+			cth = nfct_open(EXPECT, 0);
+			if (!cth)
+				exit_error(OTHER_PROBLEM, "Not enough memory");
 			if (options & CT_OPT_ORIG)
-				res = get_expect(&orig, CTA_TUPLE_ORIG);
+				res = nfct_get_expectation(cth,&orig);
 			else if (options & CT_OPT_REPL)
-				res = get_expect(&reply, CTA_TUPLE_REPLY);
+				res = nfct_get_expectation(cth,&reply);
+			nfct_close(cth);
 			break;
 
 		case CT_FLUSH:
-			res = flush_conntrack();
+			cth = nfct_open(CONNTRACK, 0);
+			if (!cth)
+				exit_error(OTHER_PROBLEM, "Not enough memory");
+			res = nfct_flush_conntrack_table(cth);
+			nfct_close(cth);
 			break;
 
 		case EXP_FLUSH:
-			res = flush_expectation();
+			cth = nfct_open(EXPECT, 0);
+			if (!cth)
+				exit_error(OTHER_PROBLEM, "Not enough memory");
+			res = nfct_flush_expectation_table(cth);
+			nfct_close(cth);
 			break;
 			
 		case CT_EVENT:
-			if (options & CT_OPT_EVENT_MASK)
-				res = event_conntrack(event_mask);
-			else
-				res = event_conntrack(~0U);
+			if (options & CT_OPT_EVENT_MASK) {
+				cth = nfct_open(CONNTRACK, event_mask);
+				if (!cth)
+					exit_error(OTHER_PROBLEM, 
+						   "Not enough memory");
+				signal(SIGINT, event_sighandler);
+				nfct_set_callback(cth, nfct_default_conntrack_display);
+				res = nfct_event_conntrack(cth);
+			} else {
+				cth = nfct_open(CONNTRACK, ~0U);
+				if (!cth)
+					exit_error(OTHER_PROBLEM, 
+						   "Not enough memory");
+				signal(SIGINT, event_sighandler);
+				nfct_set_callback(cth, nfct_default_conntrack_display);
+				res = nfct_event_conntrack(cth);
+			}
+			nfct_close(cth);
 			break;
 
 		case EXP_EVENT:
-			if (options & CT_OPT_EVENT_MASK)
-				res = event_expectation(event_mask);
-			else
-				res = event_expectation(~0U);
+			if (options & CT_OPT_EVENT_MASK) {
+				cth = nfct_open(EXPECT, event_mask);
+				if (!cth)
+					exit_error(OTHER_PROBLEM, 
+						   "Not enough memory");
+				signal(SIGINT, event_sighandler);
+				nfct_set_callback(cth, nfct_default_expect_display);
+				res = nfct_event_expectation(cth);
+			} else {
+				cth = nfct_open(EXPECT, ~0U);
+				if (!cth)
+					exit_error(OTHER_PROBLEM, 
+						   "Not enough memory");
+				signal(SIGINT, event_sighandler);
+				nfct_set_callback(cth, nfct_default_expect_display);
+				res = nfct_event_expectation(cth);
+			}
+			nfct_close(cth);
 			break;
 			
 		case CT_VERSION:

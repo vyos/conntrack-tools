@@ -13,6 +13,7 @@
 #include <stdlib.h>
 #include <netinet/in.h> /* For htons */
 #include <netinet/ip_icmp.h>
+#include <libnetfilter_conntrack/libnetfilter_conntrack.h>
 #include "libct_proto.h"
 
 static struct option opts[] = {
@@ -52,10 +53,10 @@ static u_int8_t invmap[]
 	    [ICMP_ADDRESSREPLY] = ICMP_ADDRESS + 1};
 
 int parse(char c, char *argv[], 
-	   struct ctnl_tuple *orig,
-	   struct ctnl_tuple *reply,
-	   struct ctnl_tuple *mask,
-	   union ctnl_protoinfo *proto,
+	   struct nfct_tuple *orig,
+	   struct nfct_tuple *reply,
+	   struct nfct_tuple *mask,
+	   union nfct_protoinfo *proto,
 	   unsigned int *flags)
 {
 	switch(c) {
@@ -85,24 +86,9 @@ int parse(char c, char *argv[],
 	return 1;
 }
 
-void parse_proto(struct nfattr *cda[], struct ctnl_tuple *tuple)
-{
-	if (cda[CTA_PROTO_ICMP_TYPE-1])
-		tuple->l4dst.icmp.type =
-			*(u_int8_t *)NFA_DATA(cda[CTA_PROTO_ICMP_TYPE-1]);
-
-	if (cda[CTA_PROTO_ICMP_CODE-1])
-		tuple->l4dst.icmp.code =
-			*(u_int8_t *)NFA_DATA(cda[CTA_PROTO_ICMP_CODE-1]);
-
-	if (cda[CTA_PROTO_ICMP_ID-1])
-		tuple->l4src.icmp.id =
-			*(u_int16_t *)NFA_DATA(cda[CTA_PROTO_ICMP_ID-1]);
-}
-
 int final_check(unsigned int flags,
-		struct ctnl_tuple *orig,
-		struct ctnl_tuple *reply)
+		struct nfct_tuple *orig,
+		struct nfct_tuple *reply)
 {
 	if (!(flags & ICMP_TYPE))
 		return 0;
@@ -112,21 +98,10 @@ int final_check(unsigned int flags,
 	return 1;
 }
 
-void print_proto(struct ctnl_tuple *t)
-{
-	fprintf(stdout, "type=%d code=%d ", t->l4dst.icmp.type,
-					    t->l4dst.icmp.code);
-	/* ID only makes sense with ECHO */
-	if (t->l4dst.icmp.type == 8)
-		fprintf(stdout, "id=%d ", t->l4src.icmp.id);
-}
-
 static struct ctproto_handler icmp = {
 	.name 		= "icmp",
-	.protonum	= 1,
+	.protonum	= IPPROTO_ICMP,
 	.parse_opts	= parse,
-	.parse_proto	= parse_proto,
-	.print_proto	= print_proto,
 	.final_check	= final_check,
 	.help		= help,
 	.opts		= opts,

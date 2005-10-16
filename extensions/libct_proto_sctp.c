@@ -12,9 +12,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <netinet/in.h> /* For htons */
-#include <linux/netfilter/nfnetlink_conntrack.h>
 #include "libct_proto.h"
-#include <libnfnetlink_conntrack/libnfnetlink_conntrack.h>
+#include <libnetfilter_conntrack/libnetfilter_conntrack.h>
 
 static struct option opts[] = {
 	{"orig-port-src", 1, 0, '1'},
@@ -63,10 +62,10 @@ void help()
 }
 
 int parse_options(char c, char *argv[], 
-		  struct ctnl_tuple *orig,
-		  struct ctnl_tuple *reply,
-		  struct ctnl_tuple *mask,
-		  union ctnl_protoinfo *proto,
+		  struct nfct_tuple *orig,
+		  struct nfct_tuple *reply,
+		  struct nfct_tuple *mask,
+		  union nfct_protoinfo *proto,
 		  unsigned int *flags)
 {
 	switch(c) {
@@ -100,7 +99,7 @@ int parse_options(char c, char *argv[],
 				for (i=0; i<10; i++) {
 					if (strcmp(optarg, states[i]) == 0) {
 						/* FIXME: Add state to
-						 * ctnl_protoinfo
+						 * nfct_protoinfo
 						proto->sctp.state = i; */
 						break;
 					}
@@ -116,8 +115,8 @@ int parse_options(char c, char *argv[],
 }
 
 int final_check(unsigned int flags,
-		struct ctnl_tuple *orig,
-		struct ctnl_tuple *reply)
+		struct nfct_tuple *orig,
+		struct nfct_tuple *reply)
 {
 	if ((flags & (ORIG_SPORT|ORIG_DPORT)) 
 	    && !(flags & (REPL_SPORT|REPL_DPORT))) {
@@ -137,7 +136,7 @@ int final_check(unsigned int flags,
 	return 0;
 }
 
-void parse_proto(struct nfattr *cda[], struct ctnl_tuple *tuple)
+void parse_proto(struct nfattr *cda[], struct nfct_tuple *tuple)
 {
 	if (cda[CTA_PROTO_SRC_PORT-1])
 		tuple->l4src.sctp.port =
@@ -147,7 +146,7 @@ void parse_proto(struct nfattr *cda[], struct ctnl_tuple *tuple)
 			*(u_int16_t *)NFA_DATA(cda[CTA_PROTO_DST_PORT-1]);
 }
 
-void parse_protoinfo(struct nfattr *cda[], struct ctnl_conntrack *ct)
+void parse_protoinfo(struct nfattr *cda[], struct nfct_conntrack *ct)
 {
 /*	if (cda[CTA_PROTOINFO_SCTP_STATE-1])
                 ct->protoinfo.sctp.state =
@@ -155,12 +154,12 @@ void parse_protoinfo(struct nfattr *cda[], struct ctnl_conntrack *ct)
 */
 }
 
-void print_protoinfo(union ctnl_protoinfo *protoinfo)
+void print_protoinfo(union nfct_protoinfo *protoinfo)
 {
 /*	fprintf(stdout, "%s ", states[protoinfo->sctp.state]); */
 }
 
-void print_proto(struct ctnl_tuple *tuple)
+void print_proto(struct nfct_tuple *tuple)
 {
 	fprintf(stdout, "sport=%u dport=%u ", htons(tuple->l4src.sctp.port),
 					      htons(tuple->l4dst.sctp.port));
@@ -168,12 +167,8 @@ void print_proto(struct ctnl_tuple *tuple)
 
 static struct ctproto_handler sctp = {
 	.name 			= "sctp",
-	.protonum		= 132,
+	.protonum		= IPPROTO_SCTP,
 	.parse_opts		= parse_options,
-	.parse_protoinfo	= parse_protoinfo,
-	.parse_proto		= parse_proto,
-	.print_proto		= print_proto,
-	.print_protoinfo	= print_protoinfo,
 	.final_check		= final_check,
 	.help			= help,
 	.opts			= opts,

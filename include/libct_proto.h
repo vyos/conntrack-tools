@@ -1,11 +1,9 @@
 #ifndef _LIBCT_PROTO_H
 #define _LIBCT_PROTO_H
 
-/* FIXME: Rename this file pablo... */
-
 #include "linux_list.h"
 #include <getopt.h>
-#include <libnfnetlink_conntrack/libnfnetlink_conntrack.h>
+#include <libnetfilter_conntrack/libnetfilter_conntrack.h>
 
 #define LIBCT_VERSION	"0.1.0"
 
@@ -15,8 +13,6 @@
 #define IPS_SRC_NAT_DONE (1 << 7)
 #define IPS_DST_NAT_DONE (1 << 8)
 #define IPS_CONFIRMED (1 << 3)
-
-struct cta_proto;
 
 struct ctproto_handler {
 	struct list_head 	head;
@@ -28,20 +24,15 @@ struct ctproto_handler {
 	enum ctattr_protoinfo	protoinfo_attr;
 	
 	int (*parse_opts)(char c, char *argv[], 
-		     struct ctnl_tuple *orig,
-		     struct ctnl_tuple *reply,
-		     struct ctnl_tuple *mask,
-		     union ctnl_protoinfo *proto,
+		     struct nfct_tuple *orig,
+		     struct nfct_tuple *reply,
+		     struct nfct_tuple *mask,
+		     union nfct_protoinfo *proto,
 		     unsigned int *flags);
-	void (*parse_proto)(struct nfattr *cda[], struct ctnl_tuple *tuple);
-	void (*parse_protoinfo)(struct nfattr *cda[], 
-				struct ctnl_conntrack *ct);
-	void (*print_proto)(struct ctnl_tuple *t);
-	void (*print_protoinfo)(union ctnl_protoinfo *protoinfo);
 
 	int (*final_check)(unsigned int flags,
-			   struct ctnl_tuple *orig,
-			   struct ctnl_tuple *reply);
+			   struct nfct_tuple *orig,
+			   struct nfct_tuple *reply);
 
 	void (*help)();
 
@@ -52,8 +43,6 @@ struct ctproto_handler {
 
 extern void register_proto(struct ctproto_handler *h);
 extern void unregister_proto(struct ctproto_handler *h);
-
-extern struct ctproto_handler *findproto(char *name);
 
 #define NIPQUAD(addr) \
 	((unsigned char *)&addr)[0], \

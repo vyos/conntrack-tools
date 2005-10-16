@@ -11,9 +11,8 @@
 #include <getopt.h>
 #include <stdlib.h>
 #include <netinet/in.h> /* For htons */
-#include <linux/netfilter/nfnetlink_conntrack.h>
 #include "libct_proto.h"
-#include <libnfnetlink_conntrack/libnfnetlink_conntrack.h>
+#include <libnetfilter_conntrack/libnetfilter_conntrack.h>
 
 static struct option opts[] = {
 	{"orig-port-src", 1, 0, '1'},
@@ -56,10 +55,10 @@ void help()
 }
 
 int parse_options(char c, char *argv[], 
-		  struct ctnl_tuple *orig,
-		  struct ctnl_tuple *reply,
-		  struct ctnl_tuple *mask,
-		  union ctnl_protoinfo *proto,
+		  struct nfct_tuple *orig,
+		  struct nfct_tuple *reply,
+		  struct nfct_tuple *mask,
+		  union nfct_protoinfo *proto,
 		  unsigned int *flags)
 {
 	switch(c) {
@@ -104,8 +103,8 @@ int parse_options(char c, char *argv[],
 }
 
 int final_check(unsigned int flags,
-		struct ctnl_tuple *orig,
-		struct ctnl_tuple *reply)
+		struct nfct_tuple *orig,
+		struct nfct_tuple *reply)
 {
 	if ((flags & (ORIG_SPORT|ORIG_DPORT)) 
 	    && !(flags & (REPL_SPORT|REPL_DPORT))) {
@@ -125,28 +124,10 @@ int final_check(unsigned int flags,
 	return 0;
 }
 
-void parse_proto(struct nfattr *cda[], struct ctnl_tuple *tuple)
-{
-	if (cda[CTA_PROTO_SRC_PORT-1])
-		tuple->l4src.udp.port =
-			*(u_int16_t *)NFA_DATA(cda[CTA_PROTO_SRC_PORT-1]);
-	if (cda[CTA_PROTO_DST_PORT-1])
-		tuple->l4dst.udp.port =
-			*(u_int16_t *)NFA_DATA(cda[CTA_PROTO_DST_PORT-1]);
-}
-
-void print_proto(struct ctnl_tuple *tuple)
-{
-	fprintf(stdout, "sport=%u dport=%u ", htons(tuple->l4src.udp.port),
-					      htons(tuple->l4dst.udp.port));
-}
-
 static struct ctproto_handler udp = {
 	.name 			= "udp",
-	.protonum		= 17,
+	.protonum		= IPPROTO_UDP,
 	.parse_opts		= parse_options,
-	.parse_proto		= parse_proto,
-	.print_proto		= print_proto,
 	.final_check		= final_check,
 	.help			= help,
 	.opts			= opts,
