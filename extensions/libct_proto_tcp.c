@@ -14,7 +14,7 @@
 #include <netinet/in.h> /* For htons */
 #include <libnetfilter_conntrack/libnetfilter_conntrack.h>
 
-#include "libct_proto.h"
+#include "conntrack.h"
 
 static struct option opts[] = {
 	{"orig-port-src", 1, 0, '1'},

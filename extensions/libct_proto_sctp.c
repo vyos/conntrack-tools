@@ -12,7 +12,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <netinet/in.h> /* For htons */
-#include "libct_proto.h"
+#include "conntrack.h"
 #include <libnetfilter_conntrack/libnetfilter_conntrack.h>
 
 static struct option opts[] = {
@@ -134,35 +134,6 @@ int final_check(unsigned int flags,
 		return 1;
 
 	return 0;
-}
-
-void parse_proto(struct nfattr *cda[], struct nfct_tuple *tuple)
-{
-	if (cda[CTA_PROTO_SRC_PORT-1])
-		tuple->l4src.sctp.port =
-			*(u_int16_t *)NFA_DATA(cda[CTA_PROTO_SRC_PORT-1]);
-	if (cda[CTA_PROTO_DST_PORT-1])
-		tuple->l4dst.sctp.port =
-			*(u_int16_t *)NFA_DATA(cda[CTA_PROTO_DST_PORT-1]);
-}
-
-void parse_protoinfo(struct nfattr *cda[], struct nfct_conntrack *ct)
-{
-/*	if (cda[CTA_PROTOINFO_SCTP_STATE-1])
-                ct->protoinfo.sctp.state =
-                        *(u_int8_t *)NFA_DATA(cda[CTA_PROTOINFO_SCTP_STATE-1]);
-*/
-}
-
-void print_protoinfo(union nfct_protoinfo *protoinfo)
-{
-/*	fprintf(stdout, "%s ", states[protoinfo->sctp.state]); */
-}
-
-void print_proto(struct nfct_tuple *tuple)
-{
-	fprintf(stdout, "sport=%u dport=%u ", htons(tuple->l4src.sctp.port),
-					      htons(tuple->l4dst.sctp.port));
 }
 
 static struct ctproto_handler sctp = {

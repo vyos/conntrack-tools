@@ -45,7 +45,7 @@
 #include <dlfcn.h>
 #include <string.h>
 #include "linux_list.h"
-#include "libct_proto.h"
+#include "conntrack.h"
 #include <libnetfilter_conntrack/libnetfilter_conntrack.h>
 
 #define PROGNAME "conntrack"

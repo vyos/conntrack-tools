@@ -11,7 +11,7 @@
 #include <getopt.h>
 #include <stdlib.h>
 #include <netinet/in.h> /* For htons */
-#include "libct_proto.h"
+#include "conntrack.h"
 #include <libnetfilter_conntrack/libnetfilter_conntrack.h>
 
 static struct option opts[] = {
