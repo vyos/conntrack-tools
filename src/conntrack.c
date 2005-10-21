@@ -710,6 +710,8 @@ int main(int argc, char *argv[])
 	struct ctproto_handler *h = NULL;
 	union nfct_protoinfo proto;
 	struct nfct_nat range;
+	struct nfct_conntrack *ct;
+	struct nfct_expect *exp;
 	unsigned long timeout = 0;
 	unsigned int status = IPS_CONFIRMED;
 	unsigned long id = 0;
@@ -897,7 +899,7 @@ int main(int argc, char *argv[])
 				exit_error(OTHER_PROBLEM, "Not enough memory");
 			nfct_set_callback(cth, nfct_default_conntrack_display);
 			if (options & CT_OPT_ZERO)
-				res = nfct_dump_conntrack_table_zero(cth);
+				res = nfct_dump_conntrack_table_reset_counters(cth);
 			else
 				res = nfct_dump_conntrack_table(cth);
 			break;
@@ -922,42 +924,44 @@ int main(int argc, char *argv[])
 				orig.src.v4 = reply.dst.v4;
 				orig.dst.v4 = reply.src.v4;
 			}
-			cth = nfct_open(CONNTRACK, 0);
-			if (!cth)
-				exit_error(OTHER_PROBLEM, "Not enough memory");
 			if (options & CT_OPT_NATRANGE)
-				res = nfct_create_conntrack_nat(cth,
-								    &orig, 
-								    &reply, 
-								    timeout, 
-								    &proto, 
-								    status, 
-								    &range);
+				ct = nfct_conntrack_alloc(&orig, &reply, 
+						          timeout, &proto, 
+							  status, &range);
 			else
-				res = nfct_create_conntrack(cth, &orig,
-								    &reply,
-								    timeout,
-								    &proto,
-								    status);
+				ct = nfct_conntrack_alloc(&orig, &reply,
+							  timeout, &proto,
+							  status, NULL);
+			if (!ct)
+				exit_error(OTHER_PROBLEM, "Not Enough memory");
+			
+			cth = nfct_open(CONNTRACK, 0);
+			if (!cth) {
+				nfct_conntrack_free(ct);
+				exit_error(OTHER_PROBLEM, "Not enough memory");
+			}
+			res = nfct_create_conntrack(cth, ct);
 			nfct_close(cth);
+			nfct_conntrack_free(ct);
 			break;
 
 		case EXP_CREATE:
-			cth = nfct_open(EXPECT, 0);
-			if (!cth)
-				exit_error(OTHER_PROBLEM, "Not enough memory");
 			if (options & CT_OPT_ORIG)
-				res = nfct_create_expectation(cth,
-								      &orig,
-								      &exptuple,
-								      &mask,
-								      timeout);
+				exp = nfct_expect_alloc(&orig, &exptuple,
+							&mask, timeout);
 			else if (options & CT_OPT_REPL)
-				res = nfct_create_expectation(cth,
-								      &reply,
-								      &exptuple,
-								      &mask,
-								      timeout);
+				exp = nfct_expect_alloc(&reply, &exptuple,
+							&mask, timeout);
+			if (!exp)
+				exit_error(OTHER_PROBLEM, "Not enough memory");
+
+			cth = nfct_open(EXPECT, 0);
+			if (!cth) {
+				nfct_expect_free(exp);
+				exit_error(OTHER_PROBLEM, "Not enough memory");
+			}
+			res = nfct_create_expectation(cth, exp);
+			nfct_expect_free(exp);
 			nfct_close(cth);
 			break;
 
@@ -971,12 +975,18 @@ int main(int argc, char *argv[])
 				orig.src.v4 = reply.dst.v4;
 				orig.dst.v4 = reply.src.v4;
 			}
-			cth = nfct_open(CONNTRACK, 0);
-			if (!cth)
+			ct = nfct_conntrack_alloc(&orig, &reply, timeout,
+						  &proto, status, NULL);
+			if (!ct)
 				exit_error(OTHER_PROBLEM, "Not enough memory");
-			res = nfct_update_conntrack(cth, &orig, &reply, 
-							    timeout, &proto, 
-							    status);
+			
+			cth = nfct_open(CONNTRACK, 0);
+			if (!cth) {
+				nfct_conntrack_free(ct);
+				exit_error(OTHER_PROBLEM, "Not enough memory");
+			}
+			res = nfct_update_conntrack(cth, ct);
+			nfct_conntrack_free(ct);
 			nfct_close(cth);
 			break;
 			
@@ -985,10 +995,10 @@ int main(int argc, char *argv[])
 			if (!cth)
 				exit_error(OTHER_PROBLEM, "Not enough memory");
 			if (options & CT_OPT_ORIG)
-				res = nfct_delete_conntrack(cth,&orig, 
+				res = nfct_delete_conntrack(cth, &orig, 
 							    NFCT_DIR_ORIGINAL);
 			else if (options & CT_OPT_REPL)
-				res = nfct_delete_conntrack(cth,&reply, 
+				res = nfct_delete_conntrack(cth, &reply, 
 							    NFCT_DIR_REPLY);
 			nfct_close(cth);
 			break;
@@ -998,9 +1008,9 @@ int main(int argc, char *argv[])
 			if (!cth)
 				exit_error(OTHER_PROBLEM, "Not enough memory");
 			if (options & CT_OPT_ORIG)
-				res = nfct_delete_expectation(cth,&orig);
+				res = nfct_delete_expectation(cth, &orig);
 			else if (options & CT_OPT_REPL)
-				res = nfct_delete_expectation(cth,&reply);
+				res = nfct_delete_expectation(cth, &reply);
 			nfct_close(cth);
 			break;
 
@@ -1008,10 +1018,13 @@ int main(int argc, char *argv[])
 			cth = nfct_open(CONNTRACK, 0);
 			if (!cth)
 				exit_error(OTHER_PROBLEM, "Not enough memory");
+			nfct_set_callback(cth, nfct_default_conntrack_display);
 			if (options & CT_OPT_ORIG)
-				res = nfct_get_conntrack(cth,&orig, id);
+				res = nfct_get_conntrack(cth, &orig,
+							 NFCT_DIR_ORIGINAL);
 			else if (options & CT_OPT_REPL)
-				res = nfct_get_conntrack(cth,&reply, id);
+				res = nfct_get_conntrack(cth, &reply,
+							 NFCT_DIR_REPLY);
 			nfct_close(cth);
 			break;
 
@@ -1019,10 +1032,11 @@ int main(int argc, char *argv[])
 			cth = nfct_open(EXPECT, 0);
 			if (!cth)
 				exit_error(OTHER_PROBLEM, "Not enough memory");
+			nfct_set_callback(cth, nfct_default_expect_display);
 			if (options & CT_OPT_ORIG)
-				res = nfct_get_expectation(cth,&orig);
+				res = nfct_get_expectation(cth, &orig);
 			else if (options & CT_OPT_REPL)
-				res = nfct_get_expectation(cth,&reply);
+				res = nfct_get_expectation(cth, &reply);
 			nfct_close(cth);
 			break;
 
