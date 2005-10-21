@@ -49,7 +49,7 @@
 #include <libnetfilter_conntrack/libnetfilter_conntrack.h>
 
 #define PROGNAME "conntrack"
-#define VERSION "0.86"
+#define VERSION "0.90"
 
 #ifndef PROC_SYS_MODPROBE
 #define PROC_SYS_MODPROBE "/proc/sys/kernel/modprobe"
@@ -157,11 +157,19 @@ enum options {
 
 	CT_OPT_NATRANGE_BIT	= 13,
 	CT_OPT_NATRANGE		= (1 << CT_OPT_NATRANGE_BIT),
+
+	CT_OPT_MARK_BIT		= 14,
+	CT_OPT_MARK		= (1 << CT_OPT_MARK_BIT),
+
+	CT_OPT_ID_BIT		= 15,
+	CT_OPT_ID		= (1 << CT_OPT_ID_BIT),
+
+	CT_OPT_MAX		= CT_OPT_ID
 };
-#define NUMBER_OF_OPT   14
+#define NUMBER_OF_OPT   CT_OPT_MAX
 
 static const char optflags[NUMBER_OF_OPT]
-= {'s','d','r','q','p','t','u','z','e','[',']','{','}','a'};
+= {'s','d','r','q','p','t','u','z','e','[',']','{','}','a','i','m'};
 
 static struct option original_opts[] = {
 	{"dump", 2, 0, 'L'},
@@ -187,6 +195,8 @@ static struct option original_opts[] = {
 	{"mask-src", 1, 0, '{'},
 	{"mask-dst", 1, 0, '}'},
 	{"nat-range", 1, 0, 'a'},
+	{"mark", 1, 0, 'm'},
+	{"id", 1, 0, 'i'},
 	{0, 0, 0, 0}
 };
 
@@ -210,22 +220,22 @@ static unsigned int global_option_offset = 0;
 static char commands_v_options[NUMBER_OF_CMD][NUMBER_OF_OPT] =
 /* Well, it's better than "Re: Linux vs FreeBSD" */
 {
-          /*   -s  -d  -r  -q  -p  -t  -u  -z  -e  -x  -y  -k  -l  -a */
-/*CT_LIST*/   {'x','x','x','x','x','x','x',' ','x','x','x','x','x','x'},
-/*CT_CREATE*/ {' ',' ',' ',' ','+','+','+','x','x','x','x','x','x',' '},
-/*CT_UPDATE*/ {' ',' ',' ',' ','+','+','+','x','x','x','x','x','x','x'},
-/*CT_DELETE*/ {' ',' ',' ',' ',' ','x','x','x','x','x','x','x','x','x'},
-/*CT_GET*/    {' ',' ',' ',' ','+','x','x','x','x','x','x','x','x','x'},
-/*CT_FLUSH*/  {'x','x','x','x','x','x','x','x','x','x','x','x','x','x'},
-/*CT_EVENT*/  {'x','x','x','x','x','x','x','x',' ','x','x','x','x','x'},
-/*VERSION*/   {'x','x','x','x','x','x','x','x','x','x','x','x','x','x'},
-/*HELP*/      {'x','x','x','x',' ','x','x','x','x','x','x','x','x','x'},
-/*EXP_LIST*/  {'x','x','x','x','x','x','x','x','x','x','x','x','x','x'},
-/*EXP_CREATE*/{'+','+',' ',' ','+','+',' ','x','x','+','+','+','+','x'},
-/*EXP_DELETE*/{'+','+',' ',' ','+','x','x','x','x','x','x','x','x','x'},
-/*EXP_GET*/   {'+','+',' ',' ','+','x','x','x','x','x','x','x','x','x'},
-/*EXP_FLUSH*/ {'x','x','x','x','x','x','x','x','x','x','x','x','x','x'},
-/*EXP_EVENT*/ {'x','x','x','x','x','x','x','x','x','x','x','x','x','x'},
+          /*   -s  -d  -r  -q  -p  -t  -u  -z  -e  -x  -y  -k  -l  -a  -m  -i*/
+/*CT_LIST*/   {'x','x','x','x','x','x','x',' ','x','x','x','x','x','x','x','x'},
+/*CT_CREATE*/ {' ',' ',' ',' ','+','+','+','x','x','x','x','x','x',' ',' ','x'},
+/*CT_UPDATE*/ {' ',' ',' ',' ','+','+','+','x','x','x','x','x','x','x',' ',' '},
+/*CT_DELETE*/ {' ',' ',' ',' ',' ','x','x','x','x','x','x','x','x','x','x',' '},
+/*CT_GET*/    {' ',' ',' ',' ','+','x','x','x','x','x','x','x','x','x','x',' '},
+/*CT_FLUSH*/  {'x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x'},
+/*CT_EVENT*/  {'x','x','x','x','x','x','x','x',' ','x','x','x','x','x','x','x'},
+/*VERSION*/   {'x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x'},
+/*HELP*/      {'x','x','x','x',' ','x','x','x','x','x','x','x','x','x','x','x'},
+/*EXP_LIST*/  {'x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x'},
+/*EXP_CREATE*/{'+','+',' ',' ','+','+',' ','x','x','+','+','+','+','x','x','x'},
+/*EXP_DELETE*/{'+','+',' ',' ','+','x','x','x','x','x','x','x','x','x','x','x'},
+/*EXP_GET*/   {'+','+',' ',' ','+','x','x','x','x','x','x','x','x','x','x','x'},
+/*EXP_FLUSH*/ {'x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x'},
+/*EXP_EVENT*/ {'x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x'},
 };
 
 char *lib_dir = CONNTRACK_LIB_DIR;
@@ -714,7 +724,8 @@ int main(int argc, char *argv[])
 	struct nfct_expect *exp;
 	unsigned long timeout = 0;
 	unsigned int status = IPS_CONFIRMED;
-	unsigned long id = 0;
+	unsigned int mark = 0;
+	unsigned int id = NFCT_ANY_ID;
 	unsigned int type = 0, extra_flags = 0, event_mask = 0;
 	int manip = -1;
 	int res = 0, retry = 2;
@@ -727,7 +738,7 @@ int main(int argc, char *argv[])
 	memset(&range, 0, sizeof(struct nfct_nat));
 
 	while ((c = getopt_long(argc, argv, 
-		"L::I::U::D::G::E::F::hVs:d:r:q:p:t:u:e:a:z[:]:{:}:", 
+		"L::I::U::D::G::E::F::hVs:d:r:q:p:t:u:e:a:z[:]:{:}:m:i:", 
 		opts, NULL)) != -1) {
 	switch(c) {
 		case 'L':
@@ -862,6 +873,12 @@ int main(int argc, char *argv[])
 			options |= CT_OPT_NATRANGE;
 			nat_parse(optarg, 1, &range);
 			break;
+		case 'm':
+			mark = atol(optarg);
+			break;
+		case 'i':
+			id = atol(optarg);
+			break;
 		default:
 			if (h && h->parse_opts 
 			    &&!h->parse_opts(c - h->option_offset, argv, &orig, 
@@ -927,11 +944,13 @@ int main(int argc, char *argv[])
 			if (options & CT_OPT_NATRANGE)
 				ct = nfct_conntrack_alloc(&orig, &reply, 
 						          timeout, &proto, 
-							  status, &range);
+							  status, mark, id,
+							  &range);
 			else
 				ct = nfct_conntrack_alloc(&orig, &reply,
 							  timeout, &proto,
-							  status, NULL);
+							  status, mark, id,
+							  NULL);
 			if (!ct)
 				exit_error(OTHER_PROBLEM, "Not Enough memory");
 			
@@ -948,10 +967,10 @@ int main(int argc, char *argv[])
 		case EXP_CREATE:
 			if (options & CT_OPT_ORIG)
 				exp = nfct_expect_alloc(&orig, &exptuple,
-							&mask, timeout);
+							&mask, timeout, id);
 			else if (options & CT_OPT_REPL)
 				exp = nfct_expect_alloc(&reply, &exptuple,
-							&mask, timeout);
+							&mask, timeout, id);
 			if (!exp)
 				exit_error(OTHER_PROBLEM, "Not enough memory");
 
@@ -976,7 +995,8 @@ int main(int argc, char *argv[])
 				orig.dst.v4 = reply.src.v4;
 			}
 			ct = nfct_conntrack_alloc(&orig, &reply, timeout,
-						  &proto, status, NULL);
+						  &proto, status, mark, id,
+						  NULL);
 			if (!ct)
 				exit_error(OTHER_PROBLEM, "Not enough memory");
 			
@@ -996,10 +1016,12 @@ int main(int argc, char *argv[])
 				exit_error(OTHER_PROBLEM, "Not enough memory");
 			if (options & CT_OPT_ORIG)
 				res = nfct_delete_conntrack(cth, &orig, 
-							    NFCT_DIR_ORIGINAL);
+							    NFCT_DIR_ORIGINAL,
+							    id);
 			else if (options & CT_OPT_REPL)
 				res = nfct_delete_conntrack(cth, &reply, 
-							    NFCT_DIR_REPLY);
+							    NFCT_DIR_REPLY,
+							    id);
 			nfct_close(cth);
 			break;
 
@@ -1008,9 +1030,9 @@ int main(int argc, char *argv[])
 			if (!cth)
 				exit_error(OTHER_PROBLEM, "Not enough memory");
 			if (options & CT_OPT_ORIG)
-				res = nfct_delete_expectation(cth, &orig);
+				res = nfct_delete_expectation(cth, &orig, id);
 			else if (options & CT_OPT_REPL)
-				res = nfct_delete_expectation(cth, &reply);
+				res = nfct_delete_expectation(cth, &reply, id);
 			nfct_close(cth);
 			break;
 
@@ -1021,10 +1043,10 @@ int main(int argc, char *argv[])
 			nfct_set_callback(cth, nfct_default_conntrack_display);
 			if (options & CT_OPT_ORIG)
 				res = nfct_get_conntrack(cth, &orig,
-							 NFCT_DIR_ORIGINAL);
+							 NFCT_DIR_ORIGINAL, id);
 			else if (options & CT_OPT_REPL)
 				res = nfct_get_conntrack(cth, &reply,
-							 NFCT_DIR_REPLY);
+							 NFCT_DIR_REPLY, id);
 			nfct_close(cth);
 			break;
 
@@ -1034,9 +1056,9 @@ int main(int argc, char *argv[])
 				exit_error(OTHER_PROBLEM, "Not enough memory");
 			nfct_set_callback(cth, nfct_default_expect_display);
 			if (options & CT_OPT_ORIG)
-				res = nfct_get_expectation(cth, &orig);
+				res = nfct_get_expectation(cth, &orig, id);
 			else if (options & CT_OPT_REPL)
-				res = nfct_get_expectation(cth, &reply);
+				res = nfct_get_expectation(cth, &reply, id);
 			nfct_close(cth);
 			break;
 
