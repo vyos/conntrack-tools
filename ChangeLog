@@ -1,3 +1,7 @@
+2005-10-24
+<pablo@eurodev.net>
+	o use NFCT_ANY_GROUP flag in nfct_open()
+
 2005-10-21
 <pablo@eurodev.net>
 	o Bumped version to 0.90

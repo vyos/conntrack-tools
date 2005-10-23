@@ -911,7 +911,7 @@ int main(int argc, char *argv[])
 		retry--;
 		switch(command) {
 		case CT_LIST:
-			cth = nfct_open(CONNTRACK, 0);
+			cth = nfct_open(CONNTRACK, NFCT_ANY_GROUP);
 			if (!cth)
 				exit_error(OTHER_PROBLEM, "Not enough memory");
 			nfct_set_callback(cth, nfct_default_conntrack_display);
@@ -923,7 +923,7 @@ int main(int argc, char *argv[])
 			nfct_close(cth);
 
 		case EXP_LIST:
-			cth = nfct_open(EXPECT, 0);
+			cth = nfct_open(EXPECT, NFCT_ANY_GROUP);
 			if (!cth)
 				exit_error(OTHER_PROBLEM, "Not enough memory");
 			nfct_set_callback(cth, nfct_default_expect_display);
@@ -954,7 +954,7 @@ int main(int argc, char *argv[])
 			if (!ct)
 				exit_error(OTHER_PROBLEM, "Not Enough memory");
 			
-			cth = nfct_open(CONNTRACK, 0);
+			cth = nfct_open(CONNTRACK, NFCT_ANY_GROUP);
 			if (!cth) {
 				nfct_conntrack_free(ct);
 				exit_error(OTHER_PROBLEM, "Not enough memory");
@@ -974,7 +974,7 @@ int main(int argc, char *argv[])
 			if (!exp)
 				exit_error(OTHER_PROBLEM, "Not enough memory");
 
-			cth = nfct_open(EXPECT, 0);
+			cth = nfct_open(EXPECT, NFCT_ANY_GROUP);
 			if (!cth) {
 				nfct_expect_free(exp);
 				exit_error(OTHER_PROBLEM, "Not enough memory");
@@ -1000,7 +1000,7 @@ int main(int argc, char *argv[])
 			if (!ct)
 				exit_error(OTHER_PROBLEM, "Not enough memory");
 			
-			cth = nfct_open(CONNTRACK, 0);
+			cth = nfct_open(CONNTRACK, NFCT_ANY_GROUP);
 			if (!cth) {
 				nfct_conntrack_free(ct);
 				exit_error(OTHER_PROBLEM, "Not enough memory");
@@ -1011,7 +1011,7 @@ int main(int argc, char *argv[])
 			break;
 			
 		case CT_DELETE:
-			cth = nfct_open(CONNTRACK, 0);
+			cth = nfct_open(CONNTRACK, NFCT_ANY_GROUP);
 			if (!cth)
 				exit_error(OTHER_PROBLEM, "Not enough memory");
 			if (options & CT_OPT_ORIG)
@@ -1026,7 +1026,7 @@ int main(int argc, char *argv[])
 			break;
 
 		case EXP_DELETE:
-			cth = nfct_open(EXPECT, 0);
+			cth = nfct_open(EXPECT, NFCT_ANY_GROUP);
 			if (!cth)
 				exit_error(OTHER_PROBLEM, "Not enough memory");
 			if (options & CT_OPT_ORIG)
@@ -1037,7 +1037,7 @@ int main(int argc, char *argv[])
 			break;
 
 		case CT_GET:
-			cth = nfct_open(CONNTRACK, 0);
+			cth = nfct_open(CONNTRACK, NFCT_ANY_GROUP);
 			if (!cth)
 				exit_error(OTHER_PROBLEM, "Not enough memory");
 			nfct_set_callback(cth, nfct_default_conntrack_display);
@@ -1051,7 +1051,7 @@ int main(int argc, char *argv[])
 			break;
 
 		case EXP_GET:
-			cth = nfct_open(EXPECT, 0);
+			cth = nfct_open(EXPECT, NFCT_ANY_GROUP);
 			if (!cth)
 				exit_error(OTHER_PROBLEM, "Not enough memory");
 			nfct_set_callback(cth, nfct_default_expect_display);
@@ -1063,7 +1063,7 @@ int main(int argc, char *argv[])
 			break;
 
 		case CT_FLUSH:
-			cth = nfct_open(CONNTRACK, 0);
+			cth = nfct_open(CONNTRACK, NFCT_ANY_GROUP);
 			if (!cth)
 				exit_error(OTHER_PROBLEM, "Not enough memory");
 			res = nfct_flush_conntrack_table(cth);
@@ -1071,7 +1071,7 @@ int main(int argc, char *argv[])
 			break;
 
 		case EXP_FLUSH:
-			cth = nfct_open(EXPECT, 0);
+			cth = nfct_open(EXPECT, NFCT_ANY_GROUP);
 			if (!cth)
 				exit_error(OTHER_PROBLEM, "Not enough memory");
 			res = nfct_flush_expectation_table(cth);
@@ -1088,7 +1088,7 @@ int main(int argc, char *argv[])
 				nfct_set_callback(cth, nfct_default_conntrack_display);
 				res = nfct_event_conntrack(cth);
 			} else {
-				cth = nfct_open(CONNTRACK, ~0U);
+				cth = nfct_open(CONNTRACK, NFCT_ANY_GROUP);
 				if (!cth)
 					exit_error(OTHER_PROBLEM, 
 						   "Not enough memory");
@@ -1109,7 +1109,7 @@ int main(int argc, char *argv[])
 				nfct_set_callback(cth, nfct_default_expect_display);
 				res = nfct_event_expectation(cth);
 			} else {
-				cth = nfct_open(EXPECT, ~0U);
+				cth = nfct_open(EXPECT, NFCT_ANY_GROUP);
 				if (!cth)
 					exit_error(OTHER_PROBLEM, 
 						   "Not enough memory");
