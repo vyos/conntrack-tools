@@ -1,3 +1,7 @@
+2005-10-25
+<eleblond@inl.fr>
+	o Add missing autogen.sh file
+
 2005-10-24
 <pablo@eurodev.net>
 	o use NFCT_ANY_GROUP flag in nfct_open()
