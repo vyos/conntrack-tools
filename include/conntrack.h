@@ -1,11 +1,12 @@
-#ifndef _LIBCT_PROTO_H
-#define _LIBCT_PROTO_H
+#ifndef _CONNTRACK_H
+#define _CONNTRACK_H
 
 #include "linux_list.h"
 #include <getopt.h>
 #include <libnetfilter_conntrack/libnetfilter_conntrack.h>
 
-#define LIBCT_VERSION	"0.1.0"
+#define PROGNAME "conntrack"
+#define VERSION "0.92"
 
 /* FIXME: These should be independent from kernel space */
 #define IPS_ASSURED (1 << 2)

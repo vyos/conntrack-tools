@@ -48,9 +48,6 @@
 #include "conntrack.h"
 #include <libnetfilter_conntrack/libnetfilter_conntrack.h>
 
-#define PROGNAME "conntrack"
-#define VERSION "0.90"
-
 #ifndef PROC_SYS_MODPROBE
 #define PROC_SYS_MODPROBE "/proc/sys/kernel/modprobe"
 #endif
@@ -238,15 +235,15 @@ static char commands_v_options[NUMBER_OF_CMD][NUMBER_OF_OPT] =
 /*EXP_EVENT*/ {'x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x'},
 };
 
-char *lib_dir = CONNTRACK_LIB_DIR;
+static char *lib_dir = CONNTRACK_LIB_DIR;
 
-LIST_HEAD(proto_list);
+static LIST_HEAD(proto_list);
 
 void register_proto(struct ctproto_handler *h)
 {
-	if (strcmp(h->version, LIBCT_VERSION) != 0) {
+	if (strcmp(h->version, VERSION) != 0) {
 		fprintf(stderr, "plugin `%s': version %s (I'm %s)\n",
-			h->name, h->version, LIBCT_VERSION);
+			h->name, h->version, VERSION);
 		exit(1);
 	}
 	list_add(&h->head, &proto_list);
@@ -441,14 +438,6 @@ err2str(int err, enum action command)
 	}
 
 	return strerror(err);
-}
-
-static void dump_tuple(struct nfct_tuple *tp)
-{
-	fprintf(stdout, "tuple %p: %u %u.%u.%u.%u:%hu -> %u.%u.%u.%u:%hu\n",
-		tp, tp->protonum,
-		NIPQUAD(tp->src.v4), ntohs(tp->l4src.all),
-		NIPQUAD(tp->dst.v4), ntohs(tp->l4dst.all));
 }
 
 #define PARSE_STATUS 0

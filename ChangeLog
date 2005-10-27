@@ -1,3 +1,10 @@
+2005-10-27
+<pablo@eurodev.net>
+	o Use conntrack VERSION instead of the old LIBCT_VERSION
+	o proto_list and lib_dir are now static
+	o kill dead code: function dump_tuple
+	o Bumped version to 0.92
+
 2005-10-25
 <eleblond@inl.fr>
 	o Add missing autogen.sh file
