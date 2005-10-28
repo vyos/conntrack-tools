@@ -1,3 +1,13 @@
+2005-10-28
+<pablo@eurodev.net>
+	o New option -i for dumping: conntrack -L [-i]
+	o Fixed warning in findproto due to a stupid wrong type definition
+	o sed 's/nfct_set_callback/nfct_register_callback/g'
+	o killed the 'retry' logic, *sigh* it is broken in some cases
+	o killed broken and unneeded protocol handler destructors (fini)
+	o killed unregister_proto
+	o Bumped version to 0.93
+
 2005-10-27
 <pablo@eurodev.net>
 	o Use conntrack VERSION instead of the old LIBCT_VERSION

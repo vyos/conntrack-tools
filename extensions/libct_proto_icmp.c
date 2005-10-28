@@ -109,14 +109,8 @@ static struct ctproto_handler icmp = {
 };
 
 void __attribute__ ((constructor)) init(void);
-void __attribute__ ((destructor)) fini(void);
 
 void init(void)
 {
 	register_proto(&icmp);
-}
-
-void fini(void)
-{
-	unregister_proto(&icmp);
 }

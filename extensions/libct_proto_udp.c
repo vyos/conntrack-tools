@@ -135,14 +135,8 @@ static struct ctproto_handler udp = {
 };
 
 void __attribute__ ((constructor)) init(void);
-void __attribute__ ((destructor)) fini(void);
 
 void init(void)
 {
 	register_proto(&udp);
-}
-
-void fini(void)
-{
-	unregister_proto(&udp);
 }

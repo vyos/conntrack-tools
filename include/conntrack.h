@@ -6,7 +6,7 @@
 #include <libnetfilter_conntrack/libnetfilter_conntrack.h>
 
 #define PROGNAME "conntrack"
-#define VERSION "0.92"
+#define VERSION "0.93"
 
 /* FIXME: These should be independent from kernel space */
 #define IPS_ASSURED (1 << 2)
@@ -43,7 +43,6 @@ struct ctproto_handler {
 };
 
 extern void register_proto(struct ctproto_handler *h);
-extern void unregister_proto(struct ctproto_handler *h);
 
 #define NIPQUAD(addr) \
 	((unsigned char *)&addr)[0], \

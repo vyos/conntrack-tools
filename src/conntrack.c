@@ -193,7 +193,7 @@ static struct option original_opts[] = {
 	{"mask-dst", 1, 0, '}'},
 	{"nat-range", 1, 0, 'a'},
 	{"mark", 1, 0, 'm'},
-	{"id", 1, 0, 'i'},
+	{"id", 2, 0, 'i'},
 	{0, 0, 0, 0}
 };
 
@@ -218,7 +218,7 @@ static char commands_v_options[NUMBER_OF_CMD][NUMBER_OF_OPT] =
 /* Well, it's better than "Re: Linux vs FreeBSD" */
 {
           /*   -s  -d  -r  -q  -p  -t  -u  -z  -e  -x  -y  -k  -l  -a  -m  -i*/
-/*CT_LIST*/   {'x','x','x','x','x','x','x',' ','x','x','x','x','x','x','x','x'},
+/*CT_LIST*/   {'x','x','x','x','x','x','x',' ','x','x','x','x','x','x','x',' '},
 /*CT_CREATE*/ {' ',' ',' ',' ','+','+','+','x','x','x','x','x','x',' ',' ','x'},
 /*CT_UPDATE*/ {' ',' ',' ',' ','+','+','+','x','x','x','x','x','x','x',' ',' '},
 /*CT_DELETE*/ {' ',' ',' ',' ',' ','x','x','x','x','x','x','x','x','x','x',' '},
@@ -249,15 +249,10 @@ void register_proto(struct ctproto_handler *h)
 	list_add(&h->head, &proto_list);
 }
 
-void unregister_proto(struct ctproto_handler *h)
-{
-	list_del(&h->head);
-}
-
-static struct nfct_proto *findproto(char *name)
+static struct ctproto_handler *findproto(char *name)
 {
 	struct list_head *i;
-	struct nfct_proto *cur = NULL, *handler = NULL;
+	struct ctproto_handler *cur = NULL, *handler = NULL;
 
 	if (!name) 
 		return handler;
@@ -267,7 +262,7 @@ static struct nfct_proto *findproto(char *name)
 		lib_dir = CONNTRACK_LIB_DIR;
 
 	list_for_each(i, &proto_list) {
-		cur = (struct nfct_proto *) i;
+		cur = (struct ctproto_handler *) i;
 		if (strcmp(cur->name, name) == 0) {
 			handler = cur;
 			break;
@@ -717,7 +712,7 @@ int main(int argc, char *argv[])
 	unsigned int id = NFCT_ANY_ID;
 	unsigned int type = 0, extra_flags = 0, event_mask = 0;
 	int manip = -1;
-	int res = 0, retry = 2;
+	int res = 0;
 
 	memset(&proto, 0, sizeof(union nfct_protoinfo));
 	memset(&orig, 0, sizeof(struct nfct_tuple));
@@ -727,7 +722,7 @@ int main(int argc, char *argv[])
 	memset(&range, 0, sizeof(struct nfct_nat));
 
 	while ((c = getopt_long(argc, argv, 
-		"L::I::U::D::G::E::F::hVs:d:r:q:p:t:u:e:a:z[:]:{:}:m:i:", 
+		"L::I::U::D::G::E::F::hVs:d:r:q:p:t:u:e:a:z[:]:{:}:m:i::", 
 		opts, NULL)) != -1) {
 	switch(c) {
 		case 'L':
@@ -866,7 +861,9 @@ int main(int argc, char *argv[])
 			mark = atol(optarg);
 			break;
 		case 'i':
-			id = atol(optarg);
+			options |= CT_OPT_ID;
+			if (optarg)
+				id = atol(optarg);
 			break;
 		default:
 			if (h && h->parse_opts 
@@ -896,14 +893,17 @@ int main(int argc, char *argv[])
 		exit_error(PARAMETER_PROBLEM, "Missing protocol arguments!\n");
 	}
 
-	while (retry > 0) {
-		retry--;
 		switch(command) {
 		case CT_LIST:
 			cth = nfct_open(CONNTRACK, NFCT_ANY_GROUP);
 			if (!cth)
 				exit_error(OTHER_PROBLEM, "Not enough memory");
-			nfct_set_callback(cth, nfct_default_conntrack_display);
+
+			if (options & CT_OPT_ID)
+				nfct_register_callback(cth, nfct_default_conntrack_display_id);
+			else
+				nfct_register_callback(cth, nfct_default_conntrack_display);
+			
 			if (options & CT_OPT_ZERO)
 				res = nfct_dump_conntrack_table_reset_counters(cth);
 			else
@@ -915,7 +915,7 @@ int main(int argc, char *argv[])
 			cth = nfct_open(EXPECT, NFCT_ANY_GROUP);
 			if (!cth)
 				exit_error(OTHER_PROBLEM, "Not enough memory");
-			nfct_set_callback(cth, nfct_default_expect_display);
+			nfct_register_callback(cth, nfct_default_expect_display);
 			res = nfct_dump_expect_list(cth);
 			nfct_close(cth);
 			break;
@@ -1029,7 +1029,7 @@ int main(int argc, char *argv[])
 			cth = nfct_open(CONNTRACK, NFCT_ANY_GROUP);
 			if (!cth)
 				exit_error(OTHER_PROBLEM, "Not enough memory");
-			nfct_set_callback(cth, nfct_default_conntrack_display);
+			nfct_register_callback(cth, nfct_default_conntrack_display);
 			if (options & CT_OPT_ORIG)
 				res = nfct_get_conntrack(cth, &orig,
 							 NFCT_DIR_ORIGINAL, id);
@@ -1043,7 +1043,7 @@ int main(int argc, char *argv[])
 			cth = nfct_open(EXPECT, NFCT_ANY_GROUP);
 			if (!cth)
 				exit_error(OTHER_PROBLEM, "Not enough memory");
-			nfct_set_callback(cth, nfct_default_expect_display);
+			nfct_register_callback(cth, nfct_default_expect_display);
 			if (options & CT_OPT_ORIG)
 				res = nfct_get_expectation(cth, &orig, id);
 			else if (options & CT_OPT_REPL)
@@ -1074,7 +1074,7 @@ int main(int argc, char *argv[])
 					exit_error(OTHER_PROBLEM, 
 						   "Not enough memory");
 				signal(SIGINT, event_sighandler);
-				nfct_set_callback(cth, nfct_default_conntrack_display);
+				nfct_register_callback(cth, nfct_default_conntrack_display);
 				res = nfct_event_conntrack(cth);
 			} else {
 				cth = nfct_open(CONNTRACK, NFCT_ANY_GROUP);
@@ -1082,7 +1082,7 @@ int main(int argc, char *argv[])
 					exit_error(OTHER_PROBLEM, 
 						   "Not enough memory");
 				signal(SIGINT, event_sighandler);
-				nfct_set_callback(cth, nfct_default_conntrack_display);
+				nfct_register_callback(cth, nfct_default_conntrack_display);
 				res = nfct_event_conntrack(cth);
 			}
 			nfct_close(cth);
@@ -1095,7 +1095,7 @@ int main(int argc, char *argv[])
 					exit_error(OTHER_PROBLEM, 
 						   "Not enough memory");
 				signal(SIGINT, event_sighandler);
-				nfct_set_callback(cth, nfct_default_expect_display);
+				nfct_register_callback(cth, nfct_default_expect_display);
 				res = nfct_event_expectation(cth);
 			} else {
 				cth = nfct_open(EXPECT, NFCT_ANY_GROUP);
@@ -1103,7 +1103,7 @@ int main(int argc, char *argv[])
 					exit_error(OTHER_PROBLEM, 
 						   "Not enough memory");
 				signal(SIGINT, event_sighandler);
-				nfct_set_callback(cth, nfct_default_expect_display);
+				nfct_register_callback(cth, nfct_default_expect_display);
 				res = nfct_event_expectation(cth);
 			}
 			nfct_close(cth);
@@ -1121,13 +1121,6 @@ int main(int argc, char *argv[])
 			usage(argv[0]);
 			break;
 		}
-		/* Maybe ip_conntrack_netlink isn't insmod'ed */
-		if (res < 0 && retry)
-			/* Give it a try just once */
-			iptables_insmod("ip_conntrack_netlink", NULL);
-		else
-			retry--;
-	}
 
 	if (opts != original_opts) {
 		free(opts);
