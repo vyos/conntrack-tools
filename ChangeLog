@@ -6,6 +6,7 @@
 	o killed the 'retry' logic, *sigh* it is broken in some cases
 	o killed broken and unneeded protocol handler destructors (fini)
 	o killed unregister_proto
+	o Fixed code indentation in the command selector
 	o Bumped version to 0.93
 
 2005-10-27

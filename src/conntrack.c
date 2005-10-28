@@ -893,234 +893,232 @@ int main(int argc, char *argv[])
 		exit_error(PARAMETER_PROBLEM, "Missing protocol arguments!\n");
 	}
 
-		switch(command) {
-		case CT_LIST:
-			cth = nfct_open(CONNTRACK, NFCT_ANY_GROUP);
-			if (!cth)
-				exit_error(OTHER_PROBLEM, "Not enough memory");
+	switch(command) {
 
-			if (options & CT_OPT_ID)
-				nfct_register_callback(cth, nfct_default_conntrack_display_id);
-			else
-				nfct_register_callback(cth, nfct_default_conntrack_display);
+	case CT_LIST:
+		cth = nfct_open(CONNTRACK, NFCT_ANY_GROUP);
+		if (!cth)
+			exit_error(OTHER_PROBLEM, "Not enough memory");
+
+		if (options & CT_OPT_ID)
+			nfct_register_callback(cth, 
+					nfct_default_conntrack_display_id);
+		else
+			nfct_register_callback(cth,
+					nfct_default_conntrack_display);
 			
-			if (options & CT_OPT_ZERO)
-				res = nfct_dump_conntrack_table_reset_counters(cth);
-			else
-				res = nfct_dump_conntrack_table(cth);
-			break;
-			nfct_close(cth);
+		if (options & CT_OPT_ZERO)
+			res = nfct_dump_conntrack_table_reset_counters(cth);
+		else
+			res = nfct_dump_conntrack_table(cth);
+		nfct_close(cth);
+		break;
 
-		case EXP_LIST:
-			cth = nfct_open(EXPECT, NFCT_ANY_GROUP);
-			if (!cth)
-				exit_error(OTHER_PROBLEM, "Not enough memory");
-			nfct_register_callback(cth, nfct_default_expect_display);
-			res = nfct_dump_expect_list(cth);
-			nfct_close(cth);
-			break;
+	case EXP_LIST:
+		cth = nfct_open(EXPECT, NFCT_ANY_GROUP);
+		if (!cth)
+			exit_error(OTHER_PROBLEM, "Not enough memory");
+		nfct_register_callback(cth, nfct_default_expect_display);
+		res = nfct_dump_expect_list(cth);
+		nfct_close(cth);
+		break;
 			
-		case CT_CREATE:
-			if ((options & CT_OPT_ORIG) 
-			    && !(options & CT_OPT_REPL)) {
-				reply.src.v4 = orig.dst.v4;
-				reply.dst.v4 = orig.src.v4;
-			} else if (!(options & CT_OPT_ORIG)
-				   && (options & CT_OPT_REPL)) {
-				orig.src.v4 = reply.dst.v4;
-				orig.dst.v4 = reply.src.v4;
-			}
-			if (options & CT_OPT_NATRANGE)
-				ct = nfct_conntrack_alloc(&orig, &reply, 
-						          timeout, &proto, 
-							  status, mark, id,
-							  &range);
-			else
-				ct = nfct_conntrack_alloc(&orig, &reply,
-							  timeout, &proto,
-							  status, mark, id,
-							  NULL);
-			if (!ct)
-				exit_error(OTHER_PROBLEM, "Not Enough memory");
-			
-			cth = nfct_open(CONNTRACK, NFCT_ANY_GROUP);
-			if (!cth) {
-				nfct_conntrack_free(ct);
-				exit_error(OTHER_PROBLEM, "Not enough memory");
-			}
-			res = nfct_create_conntrack(cth, ct);
-			nfct_close(cth);
-			nfct_conntrack_free(ct);
-			break;
-
-		case EXP_CREATE:
-			if (options & CT_OPT_ORIG)
-				exp = nfct_expect_alloc(&orig, &exptuple,
-							&mask, timeout, id);
-			else if (options & CT_OPT_REPL)
-				exp = nfct_expect_alloc(&reply, &exptuple,
-							&mask, timeout, id);
-			if (!exp)
-				exit_error(OTHER_PROBLEM, "Not enough memory");
-
-			cth = nfct_open(EXPECT, NFCT_ANY_GROUP);
-			if (!cth) {
-				nfct_expect_free(exp);
-				exit_error(OTHER_PROBLEM, "Not enough memory");
-			}
-			res = nfct_create_expectation(cth, exp);
-			nfct_expect_free(exp);
-			nfct_close(cth);
-			break;
-
-		case CT_UPDATE:
-			if ((options & CT_OPT_ORIG) 
-			    && !(options & CT_OPT_REPL)) {
-				reply.src.v4 = orig.dst.v4;
-				reply.dst.v4 = orig.src.v4;
-			} else if (!(options & CT_OPT_ORIG)
-				   && (options & CT_OPT_REPL)) {
-				orig.src.v4 = reply.dst.v4;
-				orig.dst.v4 = reply.src.v4;
-			}
-			ct = nfct_conntrack_alloc(&orig, &reply, timeout,
+	case CT_CREATE:
+		if ((options & CT_OPT_ORIG) 
+		    && !(options & CT_OPT_REPL)) {
+			reply.src.v4 = orig.dst.v4;
+			reply.dst.v4 = orig.src.v4;
+		} else if (!(options & CT_OPT_ORIG)
+			   && (options & CT_OPT_REPL)) {
+			orig.src.v4 = reply.dst.v4;
+			orig.dst.v4 = reply.src.v4;
+		}
+		if (options & CT_OPT_NATRANGE)
+			ct = nfct_conntrack_alloc(&orig, &reply, timeout, 
+						  &proto, status, mark, id,
+						  &range);
+		else
+			ct = nfct_conntrack_alloc(&orig, &reply, timeout, 
 						  &proto, status, mark, id,
 						  NULL);
-			if (!ct)
-				exit_error(OTHER_PROBLEM, "Not enough memory");
-			
-			cth = nfct_open(CONNTRACK, NFCT_ANY_GROUP);
-			if (!cth) {
-				nfct_conntrack_free(ct);
-				exit_error(OTHER_PROBLEM, "Not enough memory");
-			}
-			res = nfct_update_conntrack(cth, ct);
+		if (!ct)
+			exit_error(OTHER_PROBLEM, "Not Enough memory");
+		
+		cth = nfct_open(CONNTRACK, NFCT_ANY_GROUP);
+		if (!cth) {
 			nfct_conntrack_free(ct);
-			nfct_close(cth);
-			break;
-			
-		case CT_DELETE:
-			cth = nfct_open(CONNTRACK, NFCT_ANY_GROUP);
-			if (!cth)
-				exit_error(OTHER_PROBLEM, "Not enough memory");
-			if (options & CT_OPT_ORIG)
-				res = nfct_delete_conntrack(cth, &orig, 
-							    NFCT_DIR_ORIGINAL,
-							    id);
-			else if (options & CT_OPT_REPL)
-				res = nfct_delete_conntrack(cth, &reply, 
-							    NFCT_DIR_REPLY,
-							    id);
-			nfct_close(cth);
-			break;
-
-		case EXP_DELETE:
-			cth = nfct_open(EXPECT, NFCT_ANY_GROUP);
-			if (!cth)
-				exit_error(OTHER_PROBLEM, "Not enough memory");
-			if (options & CT_OPT_ORIG)
-				res = nfct_delete_expectation(cth, &orig, id);
-			else if (options & CT_OPT_REPL)
-				res = nfct_delete_expectation(cth, &reply, id);
-			nfct_close(cth);
-			break;
-
-		case CT_GET:
-			cth = nfct_open(CONNTRACK, NFCT_ANY_GROUP);
-			if (!cth)
-				exit_error(OTHER_PROBLEM, "Not enough memory");
-			nfct_register_callback(cth, nfct_default_conntrack_display);
-			if (options & CT_OPT_ORIG)
-				res = nfct_get_conntrack(cth, &orig,
-							 NFCT_DIR_ORIGINAL, id);
-			else if (options & CT_OPT_REPL)
-				res = nfct_get_conntrack(cth, &reply,
-							 NFCT_DIR_REPLY, id);
-			nfct_close(cth);
-			break;
-
-		case EXP_GET:
-			cth = nfct_open(EXPECT, NFCT_ANY_GROUP);
-			if (!cth)
-				exit_error(OTHER_PROBLEM, "Not enough memory");
-			nfct_register_callback(cth, nfct_default_expect_display);
-			if (options & CT_OPT_ORIG)
-				res = nfct_get_expectation(cth, &orig, id);
-			else if (options & CT_OPT_REPL)
-				res = nfct_get_expectation(cth, &reply, id);
-			nfct_close(cth);
-			break;
-
-		case CT_FLUSH:
-			cth = nfct_open(CONNTRACK, NFCT_ANY_GROUP);
-			if (!cth)
-				exit_error(OTHER_PROBLEM, "Not enough memory");
-			res = nfct_flush_conntrack_table(cth);
-			nfct_close(cth);
-			break;
-
-		case EXP_FLUSH:
-			cth = nfct_open(EXPECT, NFCT_ANY_GROUP);
-			if (!cth)
-				exit_error(OTHER_PROBLEM, "Not enough memory");
-			res = nfct_flush_expectation_table(cth);
-			nfct_close(cth);
-			break;
-			
-		case CT_EVENT:
-			if (options & CT_OPT_EVENT_MASK) {
-				cth = nfct_open(CONNTRACK, event_mask);
-				if (!cth)
-					exit_error(OTHER_PROBLEM, 
-						   "Not enough memory");
-				signal(SIGINT, event_sighandler);
-				nfct_register_callback(cth, nfct_default_conntrack_display);
-				res = nfct_event_conntrack(cth);
-			} else {
-				cth = nfct_open(CONNTRACK, NFCT_ANY_GROUP);
-				if (!cth)
-					exit_error(OTHER_PROBLEM, 
-						   "Not enough memory");
-				signal(SIGINT, event_sighandler);
-				nfct_register_callback(cth, nfct_default_conntrack_display);
-				res = nfct_event_conntrack(cth);
-			}
-			nfct_close(cth);
-			break;
-
-		case EXP_EVENT:
-			if (options & CT_OPT_EVENT_MASK) {
-				cth = nfct_open(EXPECT, event_mask);
-				if (!cth)
-					exit_error(OTHER_PROBLEM, 
-						   "Not enough memory");
-				signal(SIGINT, event_sighandler);
-				nfct_register_callback(cth, nfct_default_expect_display);
-				res = nfct_event_expectation(cth);
-			} else {
-				cth = nfct_open(EXPECT, NFCT_ANY_GROUP);
-				if (!cth)
-					exit_error(OTHER_PROBLEM, 
-						   "Not enough memory");
-				signal(SIGINT, event_sighandler);
-				nfct_register_callback(cth, nfct_default_expect_display);
-				res = nfct_event_expectation(cth);
-			}
-			nfct_close(cth);
-			break;
-			
-		case CT_VERSION:
-			fprintf(stdout, "%s v%s\n", PROGNAME, VERSION);
-			break;
-		case CT_HELP:
-			usage(argv[0]);
-			if (options & CT_OPT_PROTO)
-				extension_help(h);
-			break;
-		default:
-			usage(argv[0]);
-			break;
+			exit_error(OTHER_PROBLEM, "Not enough memory");
 		}
+		res = nfct_create_conntrack(cth, ct);
+		nfct_close(cth);
+		nfct_conntrack_free(ct);
+		break;
+
+	case EXP_CREATE:
+		if (options & CT_OPT_ORIG)
+			exp = nfct_expect_alloc(&orig, &exptuple,
+						&mask, timeout, id);
+		else if (options & CT_OPT_REPL)
+			exp = nfct_expect_alloc(&reply, &exptuple,
+						&mask, timeout, id);
+		if (!exp)
+			exit_error(OTHER_PROBLEM, "Not enough memory");
+
+		cth = nfct_open(EXPECT, NFCT_ANY_GROUP);
+		if (!cth) {
+			nfct_expect_free(exp);
+			exit_error(OTHER_PROBLEM, "Not enough memory");
+		}
+		res = nfct_create_expectation(cth, exp);
+		nfct_expect_free(exp);
+		nfct_close(cth);
+		break;
+
+	case CT_UPDATE:
+		if ((options & CT_OPT_ORIG) 
+		    && !(options & CT_OPT_REPL)) {
+			reply.src.v4 = orig.dst.v4;
+			reply.dst.v4 = orig.src.v4;
+		} else if (!(options & CT_OPT_ORIG)
+			   && (options & CT_OPT_REPL)) {
+			orig.src.v4 = reply.dst.v4;
+			orig.dst.v4 = reply.src.v4;
+		}
+		ct = nfct_conntrack_alloc(&orig, &reply, timeout,
+					  &proto, status, mark, id,
+					  NULL);
+		if (!ct)
+			exit_error(OTHER_PROBLEM, "Not enough memory");
+		
+		cth = nfct_open(CONNTRACK, NFCT_ANY_GROUP);
+		if (!cth) {
+			nfct_conntrack_free(ct);
+			exit_error(OTHER_PROBLEM, "Not enough memory");
+		}
+		res = nfct_update_conntrack(cth, ct);
+		nfct_conntrack_free(ct);
+		nfct_close(cth);
+		break;
+		
+	case CT_DELETE:
+		cth = nfct_open(CONNTRACK, NFCT_ANY_GROUP);
+		if (!cth)
+			exit_error(OTHER_PROBLEM, "Not enough memory");
+		if (options & CT_OPT_ORIG)
+			res = nfct_delete_conntrack(cth, &orig, 
+						    NFCT_DIR_ORIGINAL,
+						    id);
+		else if (options & CT_OPT_REPL)
+			res = nfct_delete_conntrack(cth, &reply, 
+						    NFCT_DIR_REPLY,
+						    id);
+		nfct_close(cth);
+		break;
+
+	case EXP_DELETE:
+		cth = nfct_open(EXPECT, NFCT_ANY_GROUP);
+		if (!cth)
+			exit_error(OTHER_PROBLEM, "Not enough memory");
+		if (options & CT_OPT_ORIG)
+			res = nfct_delete_expectation(cth, &orig, id);
+		else if (options & CT_OPT_REPL)
+			res = nfct_delete_expectation(cth, &reply, id);
+		nfct_close(cth);
+		break;
+
+	case CT_GET:
+		cth = nfct_open(CONNTRACK, NFCT_ANY_GROUP);
+		if (!cth)
+			exit_error(OTHER_PROBLEM, "Not enough memory");
+		nfct_register_callback(cth, nfct_default_conntrack_display);
+		if (options & CT_OPT_ORIG)
+			res = nfct_get_conntrack(cth, &orig,
+						 NFCT_DIR_ORIGINAL, id);
+		else if (options & CT_OPT_REPL)
+			res = nfct_get_conntrack(cth, &reply,
+						 NFCT_DIR_REPLY, id);
+		nfct_close(cth);
+		break;
+
+	case EXP_GET:
+		cth = nfct_open(EXPECT, NFCT_ANY_GROUP);
+		if (!cth)
+			exit_error(OTHER_PROBLEM, "Not enough memory");
+		nfct_register_callback(cth, nfct_default_expect_display);
+		if (options & CT_OPT_ORIG)
+			res = nfct_get_expectation(cth, &orig, id);
+		else if (options & CT_OPT_REPL)
+			res = nfct_get_expectation(cth, &reply, id);
+		nfct_close(cth);
+		break;
+
+	case CT_FLUSH:
+		cth = nfct_open(CONNTRACK, NFCT_ANY_GROUP);
+		if (!cth)
+			exit_error(OTHER_PROBLEM, "Not enough memory");
+		res = nfct_flush_conntrack_table(cth);
+		nfct_close(cth);
+		break;
+
+	case EXP_FLUSH:
+		cth = nfct_open(EXPECT, NFCT_ANY_GROUP);
+		if (!cth)
+			exit_error(OTHER_PROBLEM, "Not enough memory");
+		res = nfct_flush_expectation_table(cth);
+		nfct_close(cth);
+		break;
+		
+	case CT_EVENT:
+		if (options & CT_OPT_EVENT_MASK) {
+			cth = nfct_open(CONNTRACK, event_mask);
+			if (!cth)
+				exit_error(OTHER_PROBLEM, "Not enough memory");
+			signal(SIGINT, event_sighandler);
+			nfct_register_callback(cth, 
+					nfct_default_conntrack_display);
+			res = nfct_event_conntrack(cth);
+		} else {
+			cth = nfct_open(CONNTRACK, NFCT_ANY_GROUP);
+			if (!cth)
+				exit_error(OTHER_PROBLEM, "Not enough memory");
+			signal(SIGINT, event_sighandler);
+			nfct_register_callback(cth, nfct_default_conntrack_display);
+			res = nfct_event_conntrack(cth);
+		}
+		nfct_close(cth);
+		break;
+
+	case EXP_EVENT:
+		if (options & CT_OPT_EVENT_MASK) {
+			cth = nfct_open(EXPECT, event_mask);
+			if (!cth)
+				exit_error(OTHER_PROBLEM, "Not enough memory");
+			signal(SIGINT, event_sighandler);
+			nfct_register_callback(cth, nfct_default_expect_display);
+			res = nfct_event_expectation(cth);
+		} else {
+			cth = nfct_open(EXPECT, NFCT_ANY_GROUP);
+			if (!cth)
+				exit_error(OTHER_PROBLEM, "Not enough memory");
+			signal(SIGINT, event_sighandler);
+			nfct_register_callback(cth, nfct_default_expect_display);
+			res = nfct_event_expectation(cth);
+		}
+		nfct_close(cth);
+		break;
+			
+	case CT_VERSION:
+		fprintf(stdout, "%s v%s\n", PROGNAME, VERSION);
+		break;
+	case CT_HELP:
+		usage(argv[0]);
+		if (options & CT_OPT_PROTO)
+			extension_help(h);
+		break;
+	default:
+		usage(argv[0]);
+		break;
+	}
 
 	if (opts != original_opts) {
 		free(opts);
