@@ -1,3 +1,15 @@
+2005-10-30
+<pablo@eurodev.net>
+	Special thanks to Deti Fiegl from the Leibniz Supercomputing Centre in
+	Munich, Germany for providing the "fast" hardware to reproduce
+	spurious bugs ;)
+
+	o Replace misleading message "Not enough memory" by "Can't open handler"
+	o New option -i for expectation dumping: conntrack -L expect [-i]
+	o sed 's/VERSION/CONNTRACK_VERSION/g'
+	o Fix nfct_open flags, now uses NFCT_ALL_GROUPS when needed
+	o Bumped version to 0.94
+
 2005-10-28
 <pablo@eurodev.net>
 	o New option -i for dumping: conntrack -L [-i]

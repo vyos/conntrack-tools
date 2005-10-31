@@ -105,7 +105,7 @@ static struct ctproto_handler icmp = {
 	.final_check	= final_check,
 	.help		= help,
 	.opts		= opts,
-	.version	= VERSION,
+	.version	= CONNTRACK_VERSION,
 };
 
 void __attribute__ ((constructor)) init(void);

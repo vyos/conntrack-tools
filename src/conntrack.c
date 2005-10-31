@@ -227,7 +227,7 @@ static char commands_v_options[NUMBER_OF_CMD][NUMBER_OF_OPT] =
 /*CT_EVENT*/  {'x','x','x','x','x','x','x','x',' ','x','x','x','x','x','x','x'},
 /*VERSION*/   {'x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x'},
 /*HELP*/      {'x','x','x','x',' ','x','x','x','x','x','x','x','x','x','x','x'},
-/*EXP_LIST*/  {'x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x'},
+/*EXP_LIST*/  {'x','x','x','x','x','x','x','x','x','x','x','x','x','x','x',' '},
 /*EXP_CREATE*/{'+','+',' ',' ','+','+',' ','x','x','+','+','+','+','x','x','x'},
 /*EXP_DELETE*/{'+','+',' ',' ','+','x','x','x','x','x','x','x','x','x','x','x'},
 /*EXP_GET*/   {'+','+',' ',' ','+','x','x','x','x','x','x','x','x','x','x','x'},
@@ -241,9 +241,9 @@ static LIST_HEAD(proto_list);
 
 void register_proto(struct ctproto_handler *h)
 {
-	if (strcmp(h->version, VERSION) != 0) {
+	if (strcmp(h->version, CONNTRACK_VERSION) != 0) {
 		fprintf(stderr, "plugin `%s': version %s (I'm %s)\n",
-			h->name, h->version, VERSION);
+			h->name, h->version, CONNTRACK_VERSION);
 		exit(1);
 	}
 	list_add(&h->head, &proto_list);
@@ -316,7 +316,7 @@ exit_error(enum exittype status, char *msg, ...)
 		global_option_offset = 0;
 	}
 	va_start(args, msg);
-	fprintf(stderr,"%s v%s: ", PROGNAME, VERSION);
+	fprintf(stderr,"%s v%s: ", PROGNAME, CONNTRACK_VERSION);
 	vfprintf(stderr, msg, args);
 	va_end(args);
 	fprintf(stderr, "\n");
@@ -666,7 +666,7 @@ static void event_sighandler(int s)
 }
 
 void usage(char *prog) {
-fprintf(stdout, "Tool to manipulate conntrack and expectations. Version %s\n", VERSION);
+fprintf(stdout, "Tool to manipulate conntrack and expectations. Version %s\n", CONNTRACK_VERSION);
 fprintf(stdout, "Usage: %s [commands] [options]\n", prog);
 fprintf(stdout, "\n");
 fprintf(stdout, "Commands:\n");
@@ -896,9 +896,9 @@ int main(int argc, char *argv[])
 	switch(command) {
 
 	case CT_LIST:
-		cth = nfct_open(CONNTRACK, NFCT_ANY_GROUP);
+		cth = nfct_open(CONNTRACK, 0);
 		if (!cth)
-			exit_error(OTHER_PROBLEM, "Not enough memory");
+			exit_error(OTHER_PROBLEM, "Can't open handler");
 
 		if (options & CT_OPT_ID)
 			nfct_register_callback(cth, 
@@ -915,10 +915,15 @@ int main(int argc, char *argv[])
 		break;
 
 	case EXP_LIST:
-		cth = nfct_open(EXPECT, NFCT_ANY_GROUP);
+		cth = nfct_open(EXPECT, 0);
 		if (!cth)
-			exit_error(OTHER_PROBLEM, "Not enough memory");
-		nfct_register_callback(cth, nfct_default_expect_display);
+			exit_error(OTHER_PROBLEM, "Can't open handler");
+		if (options & CT_OPT_ID)
+			nfct_register_callback(cth, 
+					nfct_default_expect_display_id);
+		else
+			nfct_register_callback(cth,
+					nfct_default_expect_display);
 		res = nfct_dump_expect_list(cth);
 		nfct_close(cth);
 		break;
@@ -944,10 +949,10 @@ int main(int argc, char *argv[])
 		if (!ct)
 			exit_error(OTHER_PROBLEM, "Not Enough memory");
 		
-		cth = nfct_open(CONNTRACK, NFCT_ANY_GROUP);
+		cth = nfct_open(CONNTRACK, 0);
 		if (!cth) {
 			nfct_conntrack_free(ct);
-			exit_error(OTHER_PROBLEM, "Not enough memory");
+			exit_error(OTHER_PROBLEM, "Can't open handler");
 		}
 		res = nfct_create_conntrack(cth, ct);
 		nfct_close(cth);
@@ -964,10 +969,10 @@ int main(int argc, char *argv[])
 		if (!exp)
 			exit_error(OTHER_PROBLEM, "Not enough memory");
 
-		cth = nfct_open(EXPECT, NFCT_ANY_GROUP);
+		cth = nfct_open(EXPECT, 0);
 		if (!cth) {
 			nfct_expect_free(exp);
-			exit_error(OTHER_PROBLEM, "Not enough memory");
+			exit_error(OTHER_PROBLEM, "Can't open handler");
 		}
 		res = nfct_create_expectation(cth, exp);
 		nfct_expect_free(exp);
@@ -990,10 +995,10 @@ int main(int argc, char *argv[])
 		if (!ct)
 			exit_error(OTHER_PROBLEM, "Not enough memory");
 		
-		cth = nfct_open(CONNTRACK, NFCT_ANY_GROUP);
+		cth = nfct_open(CONNTRACK, 0);
 		if (!cth) {
 			nfct_conntrack_free(ct);
-			exit_error(OTHER_PROBLEM, "Not enough memory");
+			exit_error(OTHER_PROBLEM, "Can't open handler");
 		}
 		res = nfct_update_conntrack(cth, ct);
 		nfct_conntrack_free(ct);
@@ -1001,9 +1006,9 @@ int main(int argc, char *argv[])
 		break;
 		
 	case CT_DELETE:
-		cth = nfct_open(CONNTRACK, NFCT_ANY_GROUP);
+		cth = nfct_open(CONNTRACK, 0);
 		if (!cth)
-			exit_error(OTHER_PROBLEM, "Not enough memory");
+			exit_error(OTHER_PROBLEM, "Can't open handler");
 		if (options & CT_OPT_ORIG)
 			res = nfct_delete_conntrack(cth, &orig, 
 						    NFCT_DIR_ORIGINAL,
@@ -1016,9 +1021,9 @@ int main(int argc, char *argv[])
 		break;
 
 	case EXP_DELETE:
-		cth = nfct_open(EXPECT, NFCT_ANY_GROUP);
+		cth = nfct_open(EXPECT, 0);
 		if (!cth)
-			exit_error(OTHER_PROBLEM, "Not enough memory");
+			exit_error(OTHER_PROBLEM, "Can't open handler");
 		if (options & CT_OPT_ORIG)
 			res = nfct_delete_expectation(cth, &orig, id);
 		else if (options & CT_OPT_REPL)
@@ -1027,9 +1032,9 @@ int main(int argc, char *argv[])
 		break;
 
 	case CT_GET:
-		cth = nfct_open(CONNTRACK, NFCT_ANY_GROUP);
+		cth = nfct_open(CONNTRACK, 0);
 		if (!cth)
-			exit_error(OTHER_PROBLEM, "Not enough memory");
+			exit_error(OTHER_PROBLEM, "Can't open handler");
 		nfct_register_callback(cth, nfct_default_conntrack_display);
 		if (options & CT_OPT_ORIG)
 			res = nfct_get_conntrack(cth, &orig,
@@ -1041,9 +1046,9 @@ int main(int argc, char *argv[])
 		break;
 
 	case EXP_GET:
-		cth = nfct_open(EXPECT, NFCT_ANY_GROUP);
+		cth = nfct_open(EXPECT, 0);
 		if (!cth)
-			exit_error(OTHER_PROBLEM, "Not enough memory");
+			exit_error(OTHER_PROBLEM, "Can't open handler");
 		nfct_register_callback(cth, nfct_default_expect_display);
 		if (options & CT_OPT_ORIG)
 			res = nfct_get_expectation(cth, &orig, id);
@@ -1053,17 +1058,17 @@ int main(int argc, char *argv[])
 		break;
 
 	case CT_FLUSH:
-		cth = nfct_open(CONNTRACK, NFCT_ANY_GROUP);
+		cth = nfct_open(CONNTRACK, 0);
 		if (!cth)
-			exit_error(OTHER_PROBLEM, "Not enough memory");
+			exit_error(OTHER_PROBLEM, "Can't open handler");
 		res = nfct_flush_conntrack_table(cth);
 		nfct_close(cth);
 		break;
 
 	case EXP_FLUSH:
-		cth = nfct_open(EXPECT, NFCT_ANY_GROUP);
+		cth = nfct_open(EXPECT, 0);
 		if (!cth)
-			exit_error(OTHER_PROBLEM, "Not enough memory");
+			exit_error(OTHER_PROBLEM, "Can't open handler");
 		res = nfct_flush_expectation_table(cth);
 		nfct_close(cth);
 		break;
@@ -1072,15 +1077,15 @@ int main(int argc, char *argv[])
 		if (options & CT_OPT_EVENT_MASK) {
 			cth = nfct_open(CONNTRACK, event_mask);
 			if (!cth)
-				exit_error(OTHER_PROBLEM, "Not enough memory");
+				exit_error(OTHER_PROBLEM, "Can't open handler");
 			signal(SIGINT, event_sighandler);
 			nfct_register_callback(cth, 
 					nfct_default_conntrack_display);
 			res = nfct_event_conntrack(cth);
 		} else {
-			cth = nfct_open(CONNTRACK, NFCT_ANY_GROUP);
+			cth = nfct_open(CONNTRACK, NFCT_ALL_GROUPS);
 			if (!cth)
-				exit_error(OTHER_PROBLEM, "Not enough memory");
+				exit_error(OTHER_PROBLEM, "Can't open handler");
 			signal(SIGINT, event_sighandler);
 			nfct_register_callback(cth, nfct_default_conntrack_display);
 			res = nfct_event_conntrack(cth);
@@ -1092,14 +1097,14 @@ int main(int argc, char *argv[])
 		if (options & CT_OPT_EVENT_MASK) {
 			cth = nfct_open(EXPECT, event_mask);
 			if (!cth)
-				exit_error(OTHER_PROBLEM, "Not enough memory");
+				exit_error(OTHER_PROBLEM, "Can't open handler");
 			signal(SIGINT, event_sighandler);
 			nfct_register_callback(cth, nfct_default_expect_display);
 			res = nfct_event_expectation(cth);
 		} else {
-			cth = nfct_open(EXPECT, NFCT_ANY_GROUP);
+			cth = nfct_open(EXPECT, NFCT_ALL_GROUPS);
 			if (!cth)
-				exit_error(OTHER_PROBLEM, "Not enough memory");
+				exit_error(OTHER_PROBLEM, "Can't open handler");
 			signal(SIGINT, event_sighandler);
 			nfct_register_callback(cth, nfct_default_expect_display);
 			res = nfct_event_expectation(cth);
@@ -1108,7 +1113,7 @@ int main(int argc, char *argv[])
 		break;
 			
 	case CT_VERSION:
-		fprintf(stdout, "%s v%s\n", PROGNAME, VERSION);
+		fprintf(stdout, "%s v%s\n", PROGNAME, CONNTRACK_VERSION);
 		break;
 	case CT_HELP:
 		usage(argv[0]);

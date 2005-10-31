@@ -6,7 +6,7 @@
 #include <libnetfilter_conntrack/libnetfilter_conntrack.h>
 
 #define PROGNAME "conntrack"
-#define VERSION "0.93"
+#define CONNTRACK_VERSION "0.94"
 
 /* FIXME: These should be independent from kernel space */
 #define IPS_ASSURED (1 << 2)

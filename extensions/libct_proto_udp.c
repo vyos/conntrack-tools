@@ -131,7 +131,7 @@ static struct ctproto_handler udp = {
 	.final_check		= final_check,
 	.help			= help,
 	.opts			= opts,
-	.version		= VERSION,
+	.version		= CONNTRACK_VERSION,
 };
 
 void __attribute__ ((constructor)) init(void);
