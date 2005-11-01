@@ -860,11 +860,19 @@ int main(int argc, char *argv[])
 		case 'm':
 			mark = atol(optarg);
 			break;
-		case 'i':
+		case 'i': {
+			char *s = NULL;
 			options |= CT_OPT_ID;
 			if (optarg)
-				id = atol(optarg);
+				break;
+			else if (optind < argc && argv[optind][0] != '-'
+					&& argv[optind][0] != '!')
+				s = argv[optind++];
+
+			if (s)
+				id = atol(s);
 			break;
+		}
 		default:
 			if (h && h->parse_opts 
 			    &&!h->parse_opts(c - h->option_offset, argv, &orig, 
