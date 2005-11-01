@@ -109,6 +109,9 @@ Specify the timeout.
 .BI "-u, --status " "[EXPECTED|ASSURED|SEEN_REPLY|CONFIRMED|SNAT|DNAT|SEQ_ADJUST|UNSET][,...]"
 Specify the conntrack status.
 .TP
+.BI "-i, --id " "ID"
+Specify the conntrack ID.
+.TP
 .BI "--tuple-src " IP_ADDRESS
 Specify the tuple source address of an expectation.
 .TP
@@ -132,7 +135,7 @@ Bugs? What's this ;-)
 See
 .BR "http://netfilter.org/" .
 .SH AUTHORS
-Jay Schulist, Patrick McHardy and Harald Welte wrote the kernel-level "ctnetlink" interface that is used by the conntrack tool.
+Jay Schulist, Patrick McHardy, Harald Welte and Pablo Neira wrote the kernel-level "ctnetlink" interface that is used by the conntrack tool.
 .PP
 Pablo Neira wrote the conntrack tool, Harald Welte added support for conntrack based accounting counters.
 .PP
