@@ -1,3 +1,13 @@
+2005-11-01
+<pablo@eurodev.net>
+	o Fix error message describing illegal option -E -i
+	o -D -i ID requires tuple information: Display an error message
+	o Use NFCT_ALL_CT_GROUPS flag instead of NFCT_ALL_GROUPS
+	o Event mask doesn't make sense for expectations, kill dead code
+	o Bumped version to 0.95
+<olenf@ans.pl>
+	o Fix wrong formating in conntrack -h
+
 2005-10-30
 <pablo@eurodev.net>
 	Special thanks to Deti Fiegl from the Leibniz Supercomputing Centre in

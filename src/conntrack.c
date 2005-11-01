@@ -166,7 +166,7 @@ enum options {
 #define NUMBER_OF_OPT   CT_OPT_MAX
 
 static const char optflags[NUMBER_OF_OPT]
-= {'s','d','r','q','p','t','u','z','e','[',']','{','}','a','i','m'};
+= {'s','d','r','q','p','t','u','z','e','[',']','{','}','a','m','i'};
 
 static struct option original_opts[] = {
 	{"dump", 2, 0, 'L'},
@@ -670,13 +670,13 @@ fprintf(stdout, "Tool to manipulate conntrack and expectations. Version %s\n", C
 fprintf(stdout, "Usage: %s [commands] [options]\n", prog);
 fprintf(stdout, "\n");
 fprintf(stdout, "Commands:\n");
-fprintf(stdout, "-L [table] [-z]   	List conntrack or expectation table\n");
-fprintf(stdout, "-G [table] parameters  Get conntrack or expectation\n");
-fprintf(stdout, "-D [table] parameters	Delete conntrack or expectation\n");
-fprintf(stdout, "-I [table] parameters	Create a conntrack or expectation\n");
-fprintf(stdout, "-U [table] parameters  Update a conntrack\n");
-fprintf(stdout, "-E [table] [options]	Show events\n");
-fprintf(stdout, "-F [table]	     	Flush table\n");
+fprintf(stdout, "-L [table] [-z]\t\tList conntrack or expectation table\n");
+fprintf(stdout, "-G [table] parameters\tGet conntrack or expectation\n");
+fprintf(stdout, "-D [table] parameters\tDelete conntrack or expectation\n");
+fprintf(stdout, "-I [table] parameters\tCreate a conntrack or expectation\n");
+fprintf(stdout, "-U [table] parameters\tUpdate a conntrack\n");
+fprintf(stdout, "-E [table] [options]\tShow events\n");
+fprintf(stdout, "-F [table]\t\tFlush table\n");
 fprintf(stdout, "\n");
 fprintf(stdout, "Options:\n");
 fprintf(stdout, "--orig-src ip	     	Source address from original direction\n");
@@ -1006,6 +1006,9 @@ int main(int argc, char *argv[])
 		break;
 		
 	case CT_DELETE:
+		if (!(options & CT_OPT_ORIG) && !(options & CT_OPT_REPL))
+			exit_error(PARAMETER_PROBLEM, "Can't kill conntracks "
+						      "just by its ID");
 		cth = nfct_open(CONNTRACK, 0);
 		if (!cth)
 			exit_error(OTHER_PROBLEM, "Can't open handler");
@@ -1083,7 +1086,7 @@ int main(int argc, char *argv[])
 					nfct_default_conntrack_display);
 			res = nfct_event_conntrack(cth);
 		} else {
-			cth = nfct_open(CONNTRACK, NFCT_ALL_GROUPS);
+			cth = nfct_open(CONNTRACK, NFCT_ALL_CT_GROUPS);
 			if (!cth)
 				exit_error(OTHER_PROBLEM, "Can't open handler");
 			signal(SIGINT, event_sighandler);
@@ -1094,21 +1097,12 @@ int main(int argc, char *argv[])
 		break;
 
 	case EXP_EVENT:
-		if (options & CT_OPT_EVENT_MASK) {
-			cth = nfct_open(EXPECT, event_mask);
-			if (!cth)
-				exit_error(OTHER_PROBLEM, "Can't open handler");
-			signal(SIGINT, event_sighandler);
-			nfct_register_callback(cth, nfct_default_expect_display);
-			res = nfct_event_expectation(cth);
-		} else {
-			cth = nfct_open(EXPECT, NFCT_ALL_GROUPS);
-			if (!cth)
-				exit_error(OTHER_PROBLEM, "Can't open handler");
-			signal(SIGINT, event_sighandler);
-			nfct_register_callback(cth, nfct_default_expect_display);
-			res = nfct_event_expectation(cth);
-		}
+		cth = nfct_open(EXPECT, NF_NETLINK_CONNTRACK_EXP_NEW);
+		if (!cth)
+			exit_error(OTHER_PROBLEM, "Can't open handler");
+		signal(SIGINT, event_sighandler);
+		nfct_register_callback(cth, nfct_default_expect_display);
+		res = nfct_event_expectation(cth);
 		nfct_close(cth);
 		break;
 			
