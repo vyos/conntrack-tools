@@ -87,6 +87,7 @@ int parse(char c, char *argv[],
 }
 
 int final_check(unsigned int flags,
+		unsigned int command,
 		struct nfct_tuple *orig,
 		struct nfct_tuple *reply)
 {

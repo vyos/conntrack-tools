@@ -5,6 +5,13 @@
 	CAP_NET_ADMIN
 <pablo@eurodev.net>
 	o check if --state missing when -p is passed
+	o command type is passed to final_check: checkings based on the
+	command can be done now.
+	o kill duplicated definition of IPS_* bits: Already present in 
+	libnetfilter_conntrack.
+	o Move action and command enum to conntrack.h
+	o kill NIPQUAD macro
+	o make conntrack handler cth static.
 	o Bumped version to 0.96
 
 2005-11-01

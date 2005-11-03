@@ -139,6 +139,7 @@ int parse_options(char c, char *argv[],
 }
 
 int final_check(unsigned int flags,
+		unsigned int command,
 		struct nfct_tuple *orig,
 		struct nfct_tuple *reply)
 {
@@ -159,10 +160,11 @@ int final_check(unsigned int flags,
 	    && ((flags & (REPL_SPORT|REPL_DPORT))))
 		ret = 1;
 
-	if (ret && (flags & STATE))
-		return 1;
+	/* --state is missing and we are trying to create a conntrack */
+	if (ret && (command & CT_CREATE) && (!(flags & STATE)))
+		ret = 0;
 
-	return 0;
+	return ret;
 }
 
 static struct ctproto_handler tcp = {

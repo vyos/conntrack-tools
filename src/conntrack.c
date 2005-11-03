@@ -52,118 +52,11 @@
 #define PROC_SYS_MODPROBE "/proc/sys/kernel/modprobe"
 #endif
 
-enum action {
-	CT_NONE		= 0,
-	
-	CT_LIST_BIT 	= 0,
-	CT_LIST 	= (1 << CT_LIST_BIT),
-	
-	CT_CREATE_BIT	= 1,
-	CT_CREATE	= (1 << CT_CREATE_BIT),
-
-	CT_UPDATE_BIT	= 2,
-	CT_UPDATE	= (1 << CT_UPDATE_BIT),
-	
-	CT_DELETE_BIT	= 3,
-	CT_DELETE	= (1 << CT_DELETE_BIT),
-	
-	CT_GET_BIT	= 4,
-	CT_GET		= (1 << CT_GET_BIT),
-
-	CT_FLUSH_BIT	= 5,
-	CT_FLUSH	= (1 << CT_FLUSH_BIT),
-
-	CT_EVENT_BIT	= 6,
-	CT_EVENT	= (1 << CT_EVENT_BIT),
-
-	CT_VERSION_BIT	= 7,
-	CT_VERSION	= (1 << CT_VERSION_BIT),
-
-	CT_HELP_BIT	= 8,
-	CT_HELP		= (1 << CT_HELP_BIT),
-
-	EXP_LIST_BIT 	= 9,
-	EXP_LIST 	= (1 << EXP_LIST_BIT),
-	
-	EXP_CREATE_BIT	= 10,
-	EXP_CREATE	= (1 << EXP_CREATE_BIT),
-	
-	EXP_DELETE_BIT	= 11,
-	EXP_DELETE	= (1 << EXP_DELETE_BIT),
-	
-	EXP_GET_BIT	= 12,
-	EXP_GET		= (1 << EXP_GET_BIT),
-
-	EXP_FLUSH_BIT	= 13,
-	EXP_FLUSH	= (1 << EXP_FLUSH_BIT),
-
-	EXP_EVENT_BIT	= 14,
-	EXP_EVENT	= (1 << EXP_EVENT_BIT),
-};
-#define NUMBER_OF_CMD   15
-
 static const char cmdflags[NUMBER_OF_CMD]
 = {'L','I','U','D','G','F','E','V','h','L','I','D','G','F','E'};
 
 static const char cmd_need_param[NUMBER_OF_CMD]
 = {' ','x','x','x','x',' ',' ',' ',' ',' ','x','x','x',' ',' '};
-
-enum options {
-	CT_OPT_ORIG_SRC_BIT	= 0,
-	CT_OPT_ORIG_SRC 	= (1 << CT_OPT_ORIG_SRC_BIT),
-	
-	CT_OPT_ORIG_DST_BIT	= 1,
-	CT_OPT_ORIG_DST		= (1 << CT_OPT_ORIG_DST_BIT),
-
-	CT_OPT_ORIG		= (CT_OPT_ORIG_SRC | CT_OPT_ORIG_DST),
-	
-	CT_OPT_REPL_SRC_BIT	= 2,
-	CT_OPT_REPL_SRC		= (1 << CT_OPT_REPL_SRC_BIT),
-	
-	CT_OPT_REPL_DST_BIT	= 3,
-	CT_OPT_REPL_DST		= (1 << CT_OPT_REPL_DST_BIT),
-
-	CT_OPT_REPL		= (CT_OPT_REPL_SRC | CT_OPT_REPL_DST),
-
-	CT_OPT_PROTO_BIT	= 4,
-	CT_OPT_PROTO		= (1 << CT_OPT_PROTO_BIT),
-
-	CT_OPT_TIMEOUT_BIT	= 5,
-	CT_OPT_TIMEOUT		= (1 << CT_OPT_TIMEOUT_BIT),
-
-	CT_OPT_STATUS_BIT	= 6,
-	CT_OPT_STATUS		= (1 << CT_OPT_STATUS_BIT),
-
-	CT_OPT_ZERO_BIT		= 7,
-	CT_OPT_ZERO		= (1 << CT_OPT_ZERO_BIT),
-
-	CT_OPT_EVENT_MASK_BIT	= 8,
-	CT_OPT_EVENT_MASK	= (1 << CT_OPT_EVENT_MASK_BIT),
-
-	CT_OPT_EXP_SRC_BIT	= 9,
-	CT_OPT_EXP_SRC		= (1 << CT_OPT_EXP_SRC_BIT),
-
-	CT_OPT_EXP_DST_BIT	= 10,
-	CT_OPT_EXP_DST		= (1 << CT_OPT_EXP_DST_BIT),
-
-	CT_OPT_MASK_SRC_BIT	= 11,
-	CT_OPT_MASK_SRC		= (1 << CT_OPT_MASK_SRC_BIT),
-
-	CT_OPT_MASK_DST_BIT	= 12,
-	CT_OPT_MASK_DST		= (1 << CT_OPT_MASK_DST_BIT),
-
-	CT_OPT_NATRANGE_BIT	= 13,
-	CT_OPT_NATRANGE		= (1 << CT_OPT_NATRANGE_BIT),
-
-	CT_OPT_MARK_BIT		= 14,
-	CT_OPT_MARK		= (1 << CT_OPT_MARK_BIT),
-
-	CT_OPT_ID_BIT		= 15,
-	CT_OPT_ID		= (1 << CT_OPT_ID_BIT),
-
-	CT_OPT_MAX		= CT_OPT_ID
-};
-#define NUMBER_OF_OPT   CT_OPT_MAX
 
 static const char optflags[NUMBER_OF_OPT]
 = {'s','d','r','q','p','t','u','z','e','[',']','{','}','a','m','i'};
@@ -199,7 +92,7 @@ static struct option original_opts[] = {
 
 #define OPTION_OFFSET 256
 
-struct nfct_handle *cth;
+static struct nfct_handle *cth;
 static struct option *opts = original_opts;
 static unsigned int global_option_offset = 0;
 
@@ -895,7 +788,7 @@ int main(int argc, char *argv[])
 
 	if (!(command & CT_HELP)
 	    && h && h->final_check 
-	    && !h->final_check(extra_flags, &orig, &reply)) {
+	    && !h->final_check(extra_flags, command, &orig, &reply)) {
 		usage(argv[0]);
 		extension_help(h);
 		exit_error(PARAMETER_PROBLEM, "Missing protocol arguments!\n");
