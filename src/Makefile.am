@@ -1,4 +1,4 @@
-bin_PROGRAMS = conntrack
+sbin_PROGRAMS = conntrack
 conntrack_SOURCES = conntrack.c
 
 INCLUDES= $(all_includes) -I$(top_srcdir)/include -I${KERNELDIR}
