@@ -131,6 +131,7 @@ int parse_options(char c, char *argv[],
 					printf("doh?\n");
 					return 0;
 				}
+				*flags |= STATE;
 			}
 			break;
 	}
@@ -141,19 +142,24 @@ int final_check(unsigned int flags,
 		struct nfct_tuple *orig,
 		struct nfct_tuple *reply)
 {
+	int ret = 0;
+	
 	if ((flags & (ORIG_SPORT|ORIG_DPORT)) 
 	    && !(flags & (REPL_SPORT|REPL_DPORT))) {
 		reply->l4src.tcp.port = orig->l4dst.tcp.port;
 		reply->l4dst.tcp.port = orig->l4src.tcp.port;
-		return 1;
+		ret = 1;
 	} else if (!(flags & (ORIG_SPORT|ORIG_DPORT))
 	            && (flags & (REPL_SPORT|REPL_DPORT))) {
 		orig->l4src.tcp.port = reply->l4dst.tcp.port;
 		orig->l4dst.tcp.port = reply->l4src.tcp.port;
-		return 1;
+		ret = 1;
 	}
 	if ((flags & (ORIG_SPORT|ORIG_DPORT)) 
 	    && ((flags & (REPL_SPORT|REPL_DPORT))))
+		ret = 1;
+
+	if (ret && (flags & STATE))
 		return 1;
 
 	return 0;

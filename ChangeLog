@@ -3,6 +3,9 @@
 	o moves conntrack tool from bin to sbin directory since this
 	application is an administration utility and it requires uid==0 or
 	CAP_NET_ADMIN
+<pablo@eurodev.net>
+	o check if --state missing when -p is passed
+	o Bumped version to 0.96
 
 2005-11-01
 <pablo@eurodev.net>
