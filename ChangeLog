@@ -1,4 +1,9 @@
 2005-11-03
+<laforge@netfilter.org>
+	o Use extra 'data' argument of nfct_register_callback() function that
+	  I've introduced in libetfilter_conntrack.
+
+2005-11-03
 <olenf@ans.pl>
 	o moves conntrack tool from bin to sbin directory since this
 	application is an administration utility and it requires uid==0 or
