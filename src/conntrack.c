@@ -803,10 +803,12 @@ int main(int argc, char *argv[])
 
 		if (options & CT_OPT_ID)
 			nfct_register_callback(cth, 
-					nfct_default_conntrack_display_id);
+					nfct_default_conntrack_display_id,
+					NULL);
 		else
 			nfct_register_callback(cth,
-					nfct_default_conntrack_display);
+					nfct_default_conntrack_display,
+					NULL);
 			
 		if (options & CT_OPT_ZERO)
 			res = nfct_dump_conntrack_table_reset_counters(cth);
@@ -821,10 +823,12 @@ int main(int argc, char *argv[])
 			exit_error(OTHER_PROBLEM, "Can't open handler");
 		if (options & CT_OPT_ID)
 			nfct_register_callback(cth, 
-					nfct_default_expect_display_id);
+					nfct_default_expect_display_id,
+					NULL);
 		else
 			nfct_register_callback(cth,
-					nfct_default_expect_display);
+					nfct_default_expect_display,
+					NULL);
 		res = nfct_dump_expect_list(cth);
 		nfct_close(cth);
 		break;
@@ -939,7 +943,8 @@ int main(int argc, char *argv[])
 		cth = nfct_open(CONNTRACK, 0);
 		if (!cth)
 			exit_error(OTHER_PROBLEM, "Can't open handler");
-		nfct_register_callback(cth, nfct_default_conntrack_display);
+		nfct_register_callback(cth, nfct_default_conntrack_display,
+					NULL);
 		if (options & CT_OPT_ORIG)
 			res = nfct_get_conntrack(cth, &orig,
 						 NFCT_DIR_ORIGINAL, id);
@@ -953,7 +958,8 @@ int main(int argc, char *argv[])
 		cth = nfct_open(EXPECT, 0);
 		if (!cth)
 			exit_error(OTHER_PROBLEM, "Can't open handler");
-		nfct_register_callback(cth, nfct_default_expect_display);
+		nfct_register_callback(cth, nfct_default_expect_display,
+					NULL);
 		if (options & CT_OPT_ORIG)
 			res = nfct_get_expectation(cth, &orig, id);
 		else if (options & CT_OPT_REPL)
@@ -984,14 +990,16 @@ int main(int argc, char *argv[])
 				exit_error(OTHER_PROBLEM, "Can't open handler");
 			signal(SIGINT, event_sighandler);
 			nfct_register_callback(cth, 
-					nfct_default_conntrack_display);
+					nfct_default_conntrack_display, NULL);
 			res = nfct_event_conntrack(cth);
 		} else {
 			cth = nfct_open(CONNTRACK, NFCT_ALL_CT_GROUPS);
 			if (!cth)
 				exit_error(OTHER_PROBLEM, "Can't open handler");
 			signal(SIGINT, event_sighandler);
-			nfct_register_callback(cth, nfct_default_conntrack_display);
+			nfct_register_callback(cth,
+					       nfct_default_conntrack_display,
+					       NULL);
 			res = nfct_event_conntrack(cth);
 		}
 		nfct_close(cth);
@@ -1002,7 +1010,8 @@ int main(int argc, char *argv[])
 		if (!cth)
 			exit_error(OTHER_PROBLEM, "Can't open handler");
 		signal(SIGINT, event_sighandler);
-		nfct_register_callback(cth, nfct_default_expect_display);
+		nfct_register_callback(cth, nfct_default_expect_display,
+					NULL);
 		res = nfct_event_expectation(cth);
 		nfct_close(cth);
 		break;
