@@ -9,7 +9,7 @@ EXTRA_DIST = $(man_MANS)
 INCLUDES  = $(all_includes) -I$(top_srcdir)/include -I${KERNELDIR}
 SUBDIRS   = src extensions
 DIST_SUBDIRS = include src extensions
-LINKOPTS  = -ldl -lnfnetlink -lnetfilter_conntrack
+LINKOPTS  = -ldl -lnetfilter_conntrack
 AM_CFLAGS = -g
 
 $(OBJECTS): libtool
