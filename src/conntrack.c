@@ -113,7 +113,7 @@ static char commands_v_options[NUMBER_OF_CMD][NUMBER_OF_OPT] =
           /*   -s  -d  -r  -q  -p  -t  -u  -z  -e  -x  -y  -k  -l  -a  -m  -i*/
 /*CT_LIST*/   {'x','x','x','x','x','x','x',' ','x','x','x','x','x','x','x',' '},
 /*CT_CREATE*/ {' ',' ',' ',' ','+','+','+','x','x','x','x','x','x',' ',' ','x'},
-/*CT_UPDATE*/ {' ',' ',' ',' ','+','+','+','x','x','x','x','x','x','x',' ',' '},
+/*CT_UPDATE*/ {' ',' ',' ',' ','+',' ',' ','x','x','x','x','x','x','x',' ',' '},
 /*CT_DELETE*/ {' ',' ',' ',' ',' ','x','x','x','x','x','x','x','x','x','x',' '},
 /*CT_GET*/    {' ',' ',' ',' ','+','x','x','x','x','x','x','x','x','x','x',' '},
 /*CT_FLUSH*/  {'x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x'},
@@ -134,9 +134,9 @@ static LIST_HEAD(proto_list);
 
 void register_proto(struct ctproto_handler *h)
 {
-	if (strcmp(h->version, CONNTRACK_VERSION) != 0) {
+	if (strcmp(h->version, VERSION) != 0) {
 		fprintf(stderr, "plugin `%s': version %s (I'm %s)\n",
-			h->name, h->version, CONNTRACK_VERSION);
+			h->name, h->version, VERSION);
 		exit(1);
 	}
 	list_add(&h->head, &proto_list);
@@ -209,7 +209,7 @@ exit_error(enum exittype status, char *msg, ...)
 		global_option_offset = 0;
 	}
 	va_start(args, msg);
-	fprintf(stderr,"%s v%s: ", PROGNAME, CONNTRACK_VERSION);
+	fprintf(stderr,"%s v%s: ", PROGNAME, VERSION);
 	vfprintf(stderr, msg, args);
 	va_end(args);
 	fprintf(stderr, "\n");
@@ -558,34 +558,56 @@ static void event_sighandler(int s)
 	exit(0);
 }
 
+static const char usage_commands[] =
+	"Commands:\n"
+	"  -L [table] [options]\t\tList conntrack or expectation table\n"
+	"  -G [table] parameters\t\tGet conntrack or expectation\n"
+	"  -D [table] parameters\t\tDelete conntrack or expectation\n"
+	"  -I [table] parameters\t\tCreate a conntrack or expectation\n"
+	"  -U [table] parameters\t\tUpdate a conntrack\n"
+	"  -E [table] [options]\t\tShow events\n"
+	"  -F [table]\t\t\tFlush table\n";
+
+static const char usage_tables[] =
+	"Tables: conntrack, expect\n";
+
+static const char usage_conntrack_parameters[] =
+	"Conntrack parameters and options:\n"
+	"  -a, --nat-range min_ip[-max_ip]\tNAT ip range\n"
+	"  -m, --mark mark\t\t\tSet mark\n"
+	"  -e, --event-mask eventmask\t\tEvent mask, eg. NEW,DESTROY\n"
+	"  -z, --zero \t\t\t\tZero counters while listing\n"
+	;
+
+static const char usage_expectation_parameters[] =
+	"Expectation parameters and options:\n"
+	"  --tuple-src ip\tSource address in expect tuple\n"
+	"  --tuple-dst ip\tDestination address in expect tuple\n"
+	"  --mask-src ip\t\tSource mask address\n"
+	"  --mask-dst ip\t\tDestination mask address\n";
+
+static const char usage_parameters[] =
+	"Common parameters and options:\n"
+	"  -s, --orig-src ip\t\tSource address from original direction\n"
+	"  -d, --orig-dst ip\t\tDestination address from original direction\n"
+	"  -r, --reply-src ip\t\tSource addres from reply direction\n"
+	"  -q, --reply-dst ip\t\tDestination address from reply direction\n"
+	"  -p, --protonum proto\t\tLayer 4 Protocol, eg. 'tcp'\n"
+	"  -t, --timeout timeout\t\tSet timeout\n"
+	"  -u, --status status\t\tSet status, eg. ASSURED\n"
+	"  -i, --id [id]\t\t\tShow or set conntrack ID\n"
+	;
+  
+
 void usage(char *prog) {
-fprintf(stdout, "Tool to manipulate conntrack and expectations. Version %s\n", CONNTRACK_VERSION);
-fprintf(stdout, "Usage: %s [commands] [options]\n", prog);
-fprintf(stdout, "\n");
-fprintf(stdout, "Commands:\n");
-fprintf(stdout, "-L [table] [-z]\t\tList conntrack or expectation table\n");
-fprintf(stdout, "-G [table] parameters\tGet conntrack or expectation\n");
-fprintf(stdout, "-D [table] parameters\tDelete conntrack or expectation\n");
-fprintf(stdout, "-I [table] parameters\tCreate a conntrack or expectation\n");
-fprintf(stdout, "-U [table] parameters\tUpdate a conntrack\n");
-fprintf(stdout, "-E [table] [options]\tShow events\n");
-fprintf(stdout, "-F [table]\t\tFlush table\n");
-fprintf(stdout, "\n");
-fprintf(stdout, "Options:\n");
-fprintf(stdout, "--orig-src ip	     	Source address from original direction\n");
-fprintf(stdout, "--orig-dst ip	     	Destination address from original direction\n");
-fprintf(stdout, "--reply-src ip		Source addres from reply direction\n");
-fprintf(stdout, "--reply-dst ip		Destination address from reply direction\n");
-fprintf(stdout, "--tuple-src ip		Source address in expect tuple\n");
-fprintf(stdout, "--tuple-dst ip		Destination address in expect tuple\n");
-fprintf(stdout, "--mask-src ip		Source mask address for expectation\n");
-fprintf(stdout, "--mask-dst ip		Destination mask address for expectations\n");
-fprintf(stdout, "-p proto		Layer 4 Protocol\n");
-fprintf(stdout, "-t timeout		Set timeout\n");
-fprintf(stdout, "-u status		Set status\n");
-fprintf(stdout, "-e eventmask		Set event mask\n");
-fprintf(stdout, "-a min_ip[-max_ip]	NAT ip range\n");
-fprintf(stdout, "-z 			Zero Counters\n");
+	fprintf(stdout, "Tool to manipulate conntrack and expectations. Version %s\n", VERSION);
+	fprintf(stdout, "Usage: %s [commands] [options]\n", prog);
+
+	fprintf(stdout, "\n%s", usage_commands);
+	fprintf(stdout, "\n%s", usage_tables);
+	fprintf(stdout, "\n%s", usage_conntrack_parameters);
+	fprintf(stdout, "\n%s", usage_expectation_parameters);
+	fprintf(stdout, "\n%s", usage_parameters);
 }
 
 int main(int argc, char *argv[])
@@ -1017,7 +1039,7 @@ int main(int argc, char *argv[])
 		break;
 			
 	case CT_VERSION:
-		fprintf(stdout, "%s v%s\n", PROGNAME, CONNTRACK_VERSION);
+		fprintf(stdout, "%s v%s\n", PROGNAME, VERSION);
 		break;
 	case CT_HELP:
 		usage(argv[0]);

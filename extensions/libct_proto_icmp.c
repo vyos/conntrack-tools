@@ -77,7 +77,7 @@ int parse(char c, char *argv[],
 			break;
 		case '3':
 			if (optarg) {
-				orig->l4src.icmp.id = atoi(optarg);
+				orig->l4src.icmp.id = htons(atoi(optarg));
 				reply->l4dst.icmp.id = 0;
 				*flags |= ICMP_ID;
 			}
@@ -106,7 +106,7 @@ static struct ctproto_handler icmp = {
 	.final_check	= final_check,
 	.help		= help,
 	.opts		= opts,
-	.version	= CONNTRACK_VERSION,
+	.version	= VERSION,
 };
 
 void __attribute__ ((constructor)) init(void);

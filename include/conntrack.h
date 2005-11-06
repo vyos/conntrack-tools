@@ -6,7 +6,6 @@
 #include <libnetfilter_conntrack/libnetfilter_conntrack.h>
 
 #define PROGNAME "conntrack"
-#define CONNTRACK_VERSION "0.96"
 
 enum action {
 	CT_NONE		= 0,
