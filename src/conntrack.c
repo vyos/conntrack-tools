@@ -38,9 +38,12 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <errno.h>
+#include <unistd.h>
 #include <netinet/in.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
 #include <fcntl.h>
 #include <dlfcn.h>
 #include <string.h>
@@ -477,6 +480,18 @@ int iptables_insmod(const char *modname, const char *modprobe)
 	return -1;
 }
 
+in_addr_t parse_inetaddr(const char *cp)
+{
+	struct in_addr addr;
+
+	if (inet_aton(cp, &addr)) {
+		return addr.s_addr;
+	}
+
+	exit_error(PARAMETER_PROBLEM, "Invalid IP address `%s'.", cp);
+
+}
+
 /* Shamelessly stolen from libipt_DNAT ;). Ranges expected in network order. */
 static void
 nat_parse(char *arg, int portok, struct nfct_nat *range)
@@ -536,16 +551,10 @@ nat_parse(char *arg, int portok, struct nfct_nat *range)
 	if (dash)
 		*dash = '\0';
 
-	ip = inet_addr(arg);
-	if (!ip)
-		exit_error(PARAMETER_PROBLEM, "Bad IP address `%s'\n",
-			   arg);
+	ip = parse_inetaddr(arg);
 	range->min_ip = ip;
 	if (dash) {
-		ip = inet_addr(dash+1);
-		if (!ip)
-			exit_error(PARAMETER_PROBLEM, "Bad IP address `%s'\n",
-				   dash+1);
+		ip = parse_inetaddr(dash+1);
 		range->max_ip = ip;
 	} else
 		range->max_ip = range->min_ip;
@@ -614,7 +623,7 @@ int main(int argc, char *argv[])
 {
 	char c;
 	unsigned int command = 0, options = 0;
-	struct nfct_tuple orig, reply, mask, *o = NULL, *r = NULL;
+	struct nfct_tuple orig, reply, mask;
 	struct nfct_tuple exptuple;
 	struct ctproto_handler *h = NULL;
 	union nfct_protoinfo proto;
@@ -626,7 +635,6 @@ int main(int argc, char *argv[])
 	unsigned int mark = 0;
 	unsigned int id = NFCT_ANY_ID;
 	unsigned int type = 0, extra_flags = 0, event_mask = 0;
-	int manip = -1;
 	int res = 0;
 
 	memset(&proto, 0, sizeof(union nfct_protoinfo));
@@ -699,22 +707,22 @@ int main(int argc, char *argv[])
 		case 's':
 			options |= CT_OPT_ORIG_SRC;
 			if (optarg)
-				orig.src.v4 = inet_addr(optarg);
+				orig.src.v4 = parse_inetaddr(optarg);
 			break;
 		case 'd':
 			options |= CT_OPT_ORIG_DST;
 			if (optarg)
-				orig.dst.v4 = inet_addr(optarg);
+				orig.dst.v4 = parse_inetaddr(optarg);
 			break;
 		case 'r':
 			options |= CT_OPT_REPL_SRC;
 			if (optarg)
-				reply.src.v4 = inet_addr(optarg);
+				reply.src.v4 = parse_inetaddr(optarg);
 			break;
 		case 'q':
 			options |= CT_OPT_REPL_DST;
 			if (optarg)
-				reply.dst.v4 = inet_addr(optarg);
+				reply.dst.v4 = parse_inetaddr(optarg);
 			break;
 		case 'p':
 			options |= CT_OPT_PROTO;
@@ -751,22 +759,22 @@ int main(int argc, char *argv[])
 		case '{':
 			options |= CT_OPT_MASK_SRC;
 			if (optarg)
-				mask.src.v4 = inet_addr(optarg);
+				mask.src.v4 = parse_inetaddr(optarg);
 			break;
 		case '}':
 			options |= CT_OPT_MASK_DST;
 			if (optarg)
-				mask.dst.v4 = inet_addr(optarg);
+				mask.dst.v4 = parse_inetaddr(optarg);
 			break;
 		case '[':
 			options |= CT_OPT_EXP_SRC;
 			if (optarg)
-				exptuple.src.v4 = inet_addr(optarg);
+				exptuple.src.v4 = parse_inetaddr(optarg);
 			break;
 		case ']':
 			options |= CT_OPT_EXP_DST;
 			if (optarg)
-				exptuple.dst.v4 = inet_addr(optarg);
+				exptuple.dst.v4 = parse_inetaddr(optarg);
 			break;
 		case 'a':
 			options |= CT_OPT_NATRANGE;
@@ -1057,6 +1065,10 @@ int main(int argc, char *argv[])
 		global_option_offset = 0;
 	}
 
-	if (res < 0)
+	if (res < 0) {
 		fprintf(stderr, "Operation failed: %s\n", err2str(res, command));
+		exit(OTHER_PROBLEM);
+	}
+
+	return 0;
 }
