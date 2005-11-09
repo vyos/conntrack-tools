@@ -631,7 +631,7 @@ int main(int argc, char *argv[])
 	struct nfct_conntrack *ct;
 	struct nfct_expect *exp;
 	unsigned long timeout = 0;
-	unsigned int status = IPS_CONFIRMED;
+	unsigned int status = 0;
 	unsigned int mark = 0;
 	unsigned int id = NFCT_ANY_ID;
 	unsigned int type = 0, extra_flags = 0, event_mask = 0;
