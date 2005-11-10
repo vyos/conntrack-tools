@@ -166,9 +166,9 @@ static struct ctproto_handler *findproto(char *name)
 	}
 
 	if (!handler) {
-		char path[sizeof("libct_proto_.so")
+		char path[sizeof("ct_proto_.so")
 			 + strlen(name) + strlen(lib_dir)];
-                sprintf(path, "%s/libct_proto_%s.so", lib_dir, name);
+                sprintf(path, "%s/ct_proto_%s.so", lib_dir, name);
 		if (dlopen(path, RTLD_NOW))
 			handler = findproto(name);
 		else

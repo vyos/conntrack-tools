@@ -1,2 +1,2 @@
 
-include_HEADERS = libct_proto.h  linux_list.h
+pkginclude_HEADERS = conntrack.h linux_list.h

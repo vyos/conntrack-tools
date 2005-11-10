@@ -75,7 +75,7 @@ AC_ARG_WITH(kernel,
 	       NF_KERNEL_SOURCE($with_kernel),NF_KERNEL_SOURCE())
 
 if test ! -z "$libdir"; then
-   MODULE_DIR="\\\"$libdir/\\\""
+   MODULE_DIR="\\\"$libdir/conntrack/\\\""
    CFLAGS="$CFLAGS -DCONNTRACK_LIB_DIR=$MODULE_DIR"
 fi
 
