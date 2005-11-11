@@ -1,3 +1,11 @@
+2005-11-11
+<laforge@netfilter.org>
+	o don't check for kernel header path in configure, since we don't use
+	  kernel headers
+	o don't check for libnfnetlink, we don't use it directly
+	o move plugins into pkglibdir
+	o remove 'lib' prefix of plugins, they're not really libraries
+	o remove version information from plugin filenames
 2005-11-09
 <pablo@netfilter.org>
 	o set status to zero, libnetfilter_conntrack now activate
