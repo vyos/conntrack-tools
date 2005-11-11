@@ -21,7 +21,6 @@ dnl AC_CHECK_LIB([c], [main])
 # FIXME: Replace `main' with a function in `-ldl':
 
 AC_CHECK_LIB([dl], [dlopen])
-AC_CHECK_LIB([nfnetlink], [nfnl_listen])
 AC_CHECK_LIB([netfilter_conntrack], [nfct_dump_conntrack_table] ,,,[-lnetfilter_conntrack])
 
 # Checks for header files.
