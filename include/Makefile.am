@@ -1,2 +1,2 @@
 
-pkginclude_HEADERS = conntrack.h linux_list.h
+noinst_HEADERS = conntrack.h linux_list.h
