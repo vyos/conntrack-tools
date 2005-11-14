@@ -1,6 +1,6 @@
 include $(top_srcdir)/Make_global.am
 
-CFLAGS=-fPIC -Wall
+AM_CFLAGS=-fPIC -Wall
 LIBS=
 
 pkglib_LTLIBRARIES = ct_proto_tcp.la ct_proto_udp.la		\
