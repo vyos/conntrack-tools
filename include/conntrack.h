@@ -7,6 +7,11 @@
 
 #define PROGNAME "conntrack"
 
+#include <netinet/in.h>
+#ifndef IPPROTO_SCTP
+#define IPPROTO_SCTP 132
+#endif
+
 enum action {
 	CT_NONE		= 0,
 	
