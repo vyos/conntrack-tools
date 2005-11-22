@@ -115,9 +115,9 @@ enum options {
 	CT_OPT_ID_BIT		= 15,
 	CT_OPT_ID		= (1 << CT_OPT_ID_BIT),
 
-	CT_OPT_MAX		= CT_OPT_ID
+	CT_OPT_MAX_BIT		= CT_OPT_ID_BIT
 };
-#define NUMBER_OF_OPT   CT_OPT_MAX
+#define NUMBER_OF_OPT   CT_OPT_MAX_BIT+1
 
 struct ctproto_handler {
 	struct list_head 	head;

@@ -1,3 +1,7 @@
+2005-11-22
+<marcus@ingate.com>
+	o Fix oversized number of options
+
 2005-11-11
 <laforge@netfilter.org>
 	o don't check for kernel header path in configure, since we don't use
