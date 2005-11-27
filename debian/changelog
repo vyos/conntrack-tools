@@ -1,5 +1,5 @@
-conntrack (0.99-1) unstable; urgency=low
+conntrack (0.99-0+pre1) unstable; urgency=low
 
   * initial debian release
 
- --
+ -- Max Kellermann <max@duempel.org>  Sun, 27 Nov 2005 18:17:30 +0100
