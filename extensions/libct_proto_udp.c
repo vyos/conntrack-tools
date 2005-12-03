@@ -13,6 +13,7 @@
 #include <netinet/in.h> /* For htons */
 #include "conntrack.h"
 #include <libnetfilter_conntrack/libnetfilter_conntrack.h>
+#include <libnetfilter_conntrack/libnetfilter_conntrack_udp.h>
 
 static struct option opts[] = {
 	{"orig-port-src", 1, 0, '1'},
@@ -24,27 +25,7 @@ static struct option opts[] = {
 	{0, 0, 0, 0}
 };
 
-enum udp_param_flags {
-	ORIG_SPORT_BIT = 0,
-	ORIG_SPORT = (1 << ORIG_SPORT_BIT),
-
-	ORIG_DPORT_BIT = 1,
-	ORIG_DPORT = (1 << ORIG_DPORT_BIT),
-
-	REPL_SPORT_BIT = 2,
-	REPL_SPORT = (1 << REPL_SPORT_BIT),
-
-	REPL_DPORT_BIT = 3,
-	REPL_DPORT = (1 << REPL_DPORT_BIT),
-
-	MASK_SPORT_BIT = 4,
-	MASK_SPORT = (1 << MASK_SPORT_BIT),
-
-	MASK_DPORT_BIT = 5,
-	MASK_DPORT = (1 << MASK_DPORT_BIT),
-};
-
-void help()
+static void help()
 {
 	fprintf(stdout, "--orig-port-src        original source port\n");
 	fprintf(stdout, "--orig-port-dst        original destination port\n");
@@ -54,72 +35,72 @@ void help()
 	fprintf(stdout, "--mask-port-dst	mask destination port\n");
 }
 
-int parse_options(char c, char *argv[], 
-		  struct nfct_tuple *orig,
-		  struct nfct_tuple *reply,
-		  struct nfct_tuple *mask,
-		  union nfct_protoinfo *proto,
-		  unsigned int *flags)
+static int parse_options(char c, char *argv[], 
+			 struct nfct_tuple *orig,
+			 struct nfct_tuple *reply,
+			 struct nfct_tuple *mask,
+			 union nfct_protoinfo *proto,
+			 unsigned int *flags)
 {
 	switch(c) {
 		case '1':
 			if (optarg) {
 				orig->l4src.udp.port = htons(atoi(optarg));
-				*flags |= ORIG_SPORT;
+				*flags |= UDP_ORIG_SPORT;
 			}
 			break;
 		case '2':
 			if (optarg) {
 				orig->l4dst.udp.port = htons(atoi(optarg));
-				*flags |= ORIG_DPORT;
+				*flags |= UDP_ORIG_DPORT;
 			}
 			break;
 		case '3':
 			if (optarg) {
 				reply->l4src.udp.port = htons(atoi(optarg));
-				*flags |= REPL_SPORT;
+				*flags |= UDP_REPL_SPORT;
 			}
 			break;
 		case '4':
 			if (optarg) {
 				reply->l4dst.udp.port = htons(atoi(optarg));
-				*flags |= REPL_DPORT;
+				*flags |= UDP_REPL_DPORT;
 			}
 			break;
 		case '5':
 			if (optarg) {
 				mask->l4src.udp.port = htons(atoi(optarg));
-				*flags |= MASK_SPORT;
+				*flags |= UDP_MASK_SPORT;
 			}
 			break;
 		case '6':
 			if (optarg) {
 				mask->l4dst.udp.port = htons(atoi(optarg));
-				*flags |= MASK_DPORT;
+				*flags |= UDP_MASK_DPORT;
 			}
 			break;
 	}
 	return 1;
 }
 
-int final_check(unsigned int flags,
-		unsigned int command,
-		struct nfct_tuple *orig,
-		struct nfct_tuple *reply)
+static int final_check(unsigned int flags,
+		       unsigned int command,
+		       struct nfct_tuple *orig,
+		       struct nfct_tuple *reply)
 {
-	if ((flags & (ORIG_SPORT|ORIG_DPORT)) 
-	    && !(flags & (REPL_SPORT|REPL_DPORT))) {
+	if ((flags & (UDP_ORIG_SPORT|UDP_ORIG_DPORT)) 
+	    && !(flags & (UDP_REPL_SPORT|UDP_REPL_DPORT))) {
 		reply->l4src.udp.port = orig->l4dst.udp.port;
 		reply->l4dst.udp.port = orig->l4src.udp.port;
 		return 1;
-	} else if (!(flags & (ORIG_SPORT|ORIG_DPORT))
-	            && (flags & (REPL_SPORT|REPL_DPORT))) {
+	} else if (!(flags & (UDP_ORIG_SPORT|UDP_ORIG_DPORT))
+	            && (flags & (UDP_REPL_SPORT|UDP_REPL_DPORT))) {
 		orig->l4src.udp.port = reply->l4dst.udp.port;
 		orig->l4dst.udp.port = reply->l4src.udp.port;
 		return 1;
 	}
-	if ((flags & (ORIG_SPORT|ORIG_DPORT)) 
-	    && ((flags & (REPL_SPORT|REPL_DPORT))))
+	if ((flags & (UDP_ORIG_SPORT|UDP_ORIG_DPORT)) 
+	    && ((flags & (UDP_REPL_SPORT|UDP_REPL_DPORT))))
 		return 1;
 
 	return 0;
@@ -135,9 +116,9 @@ static struct ctproto_handler udp = {
 	.version		= VERSION,
 };
 
-void __attribute__ ((constructor)) init(void);
+static void __attribute__ ((constructor)) init(void);
 
-void init(void)
+static void init(void)
 {
 	register_proto(&udp);
 }

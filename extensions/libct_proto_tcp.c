@@ -13,6 +13,7 @@
 #include <string.h>
 #include <netinet/in.h> /* For htons */
 #include <libnetfilter_conntrack/libnetfilter_conntrack.h>
+#include <libnetfilter_conntrack/libnetfilter_conntrack_tcp.h>
 
 #include "conntrack.h"
 
@@ -25,29 +26,6 @@ static struct option opts[] = {
 	{"mask-port-dst", 1, 0, '6'},
 	{"state", 1, 0, '7'},
 	{0, 0, 0, 0}
-};
-
-enum tcp_param_flags {
-	ORIG_SPORT_BIT = 0,
-	ORIG_SPORT = (1 << ORIG_SPORT_BIT),
-
-	ORIG_DPORT_BIT = 1,
-	ORIG_DPORT = (1 << ORIG_DPORT_BIT),
-
-	REPL_SPORT_BIT = 2,
-	REPL_SPORT = (1 << REPL_SPORT_BIT),
-
-	REPL_DPORT_BIT = 3,
-	REPL_DPORT = (1 << REPL_DPORT_BIT),
-
-	MASK_SPORT_BIT = 4,
-	MASK_SPORT = (1 << MASK_SPORT_BIT),
-
-	MASK_DPORT_BIT = 5,
-	MASK_DPORT = (1 << MASK_DPORT_BIT),
-
-	STATE_BIT = 6,
-	STATE = (1 << STATE_BIT)
 };
 
 static const char *states[] = {
@@ -63,7 +41,7 @@ static const char *states[] = {
 	"LISTEN"
 };
 
-void help()
+static void help()
 {
 	fprintf(stdout, "--orig-port-src        original source port\n");
 	fprintf(stdout, "--orig-port-dst        original destination port\n");
@@ -74,48 +52,48 @@ void help()
 	fprintf(stdout, "--state                TCP state, fe. ESTABLISHED\n");
 }
 
-int parse_options(char c, char *argv[], 
-		  struct nfct_tuple *orig,
-		  struct nfct_tuple *reply,
-		  struct nfct_tuple *mask,
-		  union nfct_protoinfo *proto,
-		  unsigned int *flags)
+static int parse_options(char c, char *argv[], 
+			 struct nfct_tuple *orig,
+			 struct nfct_tuple *reply,
+			 struct nfct_tuple *mask,
+			 union nfct_protoinfo *proto,
+			 unsigned int *flags)
 {
 	switch(c) {
 		case '1':
 			if (optarg) {
 				orig->l4src.tcp.port = htons(atoi(optarg));
-				*flags |= ORIG_SPORT;
+				*flags |= TCP_ORIG_SPORT;
 			}
 			break;
 		case '2':
 			if (optarg) {
 				orig->l4dst.tcp.port = htons(atoi(optarg));
-				*flags |= ORIG_DPORT;
+				*flags |= TCP_ORIG_DPORT;
 			}
 			break;
 		case '3':
 			if (optarg) {
 				reply->l4src.tcp.port = htons(atoi(optarg));
-				*flags |= REPL_SPORT;
+				*flags |= TCP_REPL_SPORT;
 			}
 			break;
 		case '4':
 			if (optarg) {
 				reply->l4dst.tcp.port = htons(atoi(optarg));
-				*flags |= REPL_DPORT;
+				*flags |= TCP_REPL_DPORT;
 			}
 			break;
 		case '5':
 			if (optarg) {
 				mask->l4src.tcp.port = htons(atoi(optarg));
-				*flags |= MASK_SPORT;
+				*flags |= TCP_MASK_SPORT;
 			}
 			break;
 		case '6':
 			if (optarg) {
 				mask->l4dst.tcp.port = htons(atoi(optarg));
-				*flags |= MASK_DPORT;
+				*flags |= TCP_MASK_DPORT;
 			}
 			break;
 		case '7':
@@ -131,37 +109,37 @@ int parse_options(char c, char *argv[],
 					printf("doh?\n");
 					return 0;
 				}
-				*flags |= STATE;
+				*flags |= TCP_STATE;
 			}
 			break;
 	}
 	return 1;
 }
 
-int final_check(unsigned int flags,
-		unsigned int command,
-		struct nfct_tuple *orig,
-		struct nfct_tuple *reply)
+static int final_check(unsigned int flags,
+		       unsigned int command,
+		       struct nfct_tuple *orig,
+		       struct nfct_tuple *reply)
 {
 	int ret = 0;
 	
-	if ((flags & (ORIG_SPORT|ORIG_DPORT)) 
-	    && !(flags & (REPL_SPORT|REPL_DPORT))) {
+	if ((flags & (TCP_ORIG_SPORT|TCP_ORIG_DPORT)) 
+	    && !(flags & (TCP_REPL_SPORT|TCP_REPL_DPORT))) {
 		reply->l4src.tcp.port = orig->l4dst.tcp.port;
 		reply->l4dst.tcp.port = orig->l4src.tcp.port;
 		ret = 1;
-	} else if (!(flags & (ORIG_SPORT|ORIG_DPORT))
-	            && (flags & (REPL_SPORT|REPL_DPORT))) {
+	} else if (!(flags & (TCP_ORIG_SPORT|TCP_ORIG_DPORT))
+	            && (flags & (TCP_REPL_SPORT|TCP_REPL_DPORT))) {
 		orig->l4src.tcp.port = reply->l4dst.tcp.port;
 		orig->l4dst.tcp.port = reply->l4src.tcp.port;
 		ret = 1;
 	}
-	if ((flags & (ORIG_SPORT|ORIG_DPORT)) 
-	    && ((flags & (REPL_SPORT|REPL_DPORT))))
+	if ((flags & (TCP_ORIG_SPORT|TCP_ORIG_DPORT)) 
+	    && ((flags & (TCP_REPL_SPORT|TCP_REPL_DPORT))))
 		ret = 1;
 
 	/* --state is missing and we are trying to create a conntrack */
-	if (ret && (command & CT_CREATE) && (!(flags & STATE)))
+	if (ret && (command & CT_CREATE) && (!(flags & TCP_STATE)))
 		ret = 0;
 
 	return ret;
@@ -177,9 +155,9 @@ static struct ctproto_handler tcp = {
 	.version		= VERSION,
 };
 
-void __attribute__ ((constructor)) init(void);
+static void __attribute__ ((constructor)) init(void);
 
-void init(void)
+static void init(void)
 {
 	register_proto(&tcp);
 }

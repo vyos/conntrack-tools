@@ -120,7 +120,7 @@ static char commands_v_options[NUMBER_OF_CMD][NUMBER_OF_OPT] =
 /*CT_DELETE*/ {' ',' ',' ',' ',' ','x','x','x','x','x','x','x','x','x','x',' '},
 /*CT_GET*/    {' ',' ',' ',' ','+','x','x','x','x','x','x','x','x','x','x',' '},
 /*CT_FLUSH*/  {'x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x'},
-/*CT_EVENT*/  {'x','x','x','x','x','x','x','x',' ','x','x','x','x','x','x','x'},
+/*CT_EVENT*/  {'x','x','x','x',' ','x','x','x',' ','x','x','x','x','x','x','x'},
 /*VERSION*/   {'x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x'},
 /*HELP*/      {'x','x','x','x',' ','x','x','x','x','x','x','x','x','x','x','x'},
 /*EXP_LIST*/  {'x','x','x','x','x','x','x','x','x','x','x','x','x','x','x',' '},
@@ -1014,24 +1014,33 @@ int main(int argc, char *argv[])
 		break;
 		
 	case CT_EVENT:
-		if (options & CT_OPT_EVENT_MASK) {
+		ct = nfct_conntrack_alloc(&orig, &reply, timeout,
+					  &proto, status, mark, id, NULL);
+		if (!ct)
+			exit_error(OTHER_PROBLEM, "Not enough memory");
+
+		if (options & CT_OPT_EVENT_MASK)
 			cth = nfct_open(CONNTRACK, event_mask);
-			if (!cth)
-				exit_error(OTHER_PROBLEM, "Can't open handler");
-			signal(SIGINT, event_sighandler);
-			nfct_register_callback(cth, 
-					nfct_default_conntrack_display, NULL);
-			res = nfct_event_conntrack(cth);
-		} else {
+		else
 			cth = nfct_open(CONNTRACK, NFCT_ALL_CT_GROUPS);
-			if (!cth)
-				exit_error(OTHER_PROBLEM, "Can't open handler");
-			signal(SIGINT, event_sighandler);
+
+		if (!cth)
+			exit_error(OTHER_PROBLEM, "Can't open handler");
+		signal(SIGINT, event_sighandler);
+
+		if (options & CT_OPT_PROTO) {
+			struct nfct_conntrack_compare cmp = {
+				.ct = ct,
+				.flag = 0,
+				.protoflag = extra_flags
+			};
 			nfct_register_callback(cth,
-					       nfct_default_conntrack_display,
-					       NULL);
-			res = nfct_event_conntrack(cth);
+				nfct_default_conntrack_display, (void *)&cmp);
+		} else {
+			nfct_register_callback(cth, 
+				nfct_default_conntrack_display, NULL);
 		}
+		res = nfct_event_conntrack(cth);
 		nfct_close(cth);
 		break;
 

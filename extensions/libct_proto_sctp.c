@@ -14,6 +14,7 @@
 #include <netinet/in.h> /* For htons */
 #include "conntrack.h"
 #include <libnetfilter_conntrack/libnetfilter_conntrack.h>
+#include <libnetfilter_conntrack/libnetfilter_conntrack_sctp.h>
 
 static struct option opts[] = {
 	{"orig-port-src", 1, 0, '1'},
@@ -22,23 +23,6 @@ static struct option opts[] = {
 	{"reply-port-dst", 1, 0, '4'},
 	{"state", 1, 0, '7'},
 	{0, 0, 0, 0}
-};
-
-enum sctp_param_flags {
-	ORIG_SPORT_BIT = 0,
-	ORIG_SPORT = (1 << ORIG_SPORT_BIT),
-
-	ORIG_DPORT_BIT = 1,
-	ORIG_DPORT = (1 << ORIG_DPORT_BIT),
-
-	REPL_SPORT_BIT = 2,
-	REPL_SPORT = (1 << REPL_SPORT_BIT),
-
-	REPL_DPORT_BIT = 3,
-	REPL_DPORT = (1 << REPL_DPORT_BIT),
-
-	STATE_BIT = 4,
-	STATE = (1 << STATE_BIT)
 };
 
 static const char *states[] = {
@@ -52,7 +36,7 @@ static const char *states[] = {
 	"SHUTDOWN_ACK_SENT",
 };
 
-void help()
+static void help()
 {
 	fprintf(stdout, "--orig-port-src        original source port\n");
 	fprintf(stdout, "--orig-port-dst        original destination port\n");
@@ -61,12 +45,12 @@ void help()
 	fprintf(stdout, "--state                SCTP state, fe. ESTABLISHED\n");
 }
 
-int parse_options(char c, char *argv[], 
-		  struct nfct_tuple *orig,
-		  struct nfct_tuple *reply,
-		  struct nfct_tuple *mask,
-		  union nfct_protoinfo *proto,
-		  unsigned int *flags)
+static int parse_options(char c, char *argv[], 
+			 struct nfct_tuple *orig,
+			 struct nfct_tuple *reply,
+			 struct nfct_tuple *mask,
+			 union nfct_protoinfo *proto,
+			 unsigned int *flags)
 {
 	switch(c) {
 		case '1':
@@ -115,10 +99,10 @@ int parse_options(char c, char *argv[],
 	return 1;
 }
 
-int final_check(unsigned int flags,
-		unsigned int command,
-		struct nfct_tuple *orig,
-		struct nfct_tuple *reply)
+static int final_check(unsigned int flags,
+		       unsigned int command,
+		       struct nfct_tuple *orig,
+		       struct nfct_tuple *reply)
 {
 	int ret = 0;
 	
@@ -154,9 +138,9 @@ static struct ctproto_handler sctp = {
 	.version		= VERSION,
 };
 
-void __attribute__ ((constructor)) init(void);
+static void __attribute__ ((constructor)) init(void);
 
-void init(void)
+static void init(void)
 {
 	register_proto(&sctp);
 }

@@ -14,7 +14,7 @@
 #include <netinet/in.h> /* For htons */
 #include <netinet/ip_icmp.h>
 #include <libnetfilter_conntrack/libnetfilter_conntrack.h>
-#include "conntrack.h"
+#include <libnetfilter_conntrack/libnetfilter_conntrack_icmp.h>
 
 static struct option opts[] = {
 	{"icmp-type", 1, 0, '1'},
@@ -23,18 +23,7 @@ static struct option opts[] = {
 	{0, 0, 0, 0}
 };
 
-enum icmp_param_flags {
-	ICMP_TYPE_BIT = 0,
-	ICMP_TYPE = (1 << ICMP_TYPE_BIT),
-
-	ICMP_CODE_BIT = 1,
-	ICMP_CODE = (1 << ICMP_CODE_BIT),
-
-	ICMP_ID_BIT = 2,
-	ICMP_ID = (1 << ICMP_ID_BIT)
-};
-
-void help()
+static void help()
 {
 	fprintf(stdout, "--icmp-type            icmp type\n");
 	fprintf(stdout, "--icmp-code            icmp code\n");
@@ -52,12 +41,12 @@ static u_int8_t invmap[]
 	    [ICMP_ADDRESS] = ICMP_ADDRESSREPLY + 1,
 	    [ICMP_ADDRESSREPLY] = ICMP_ADDRESS + 1};
 
-int parse(char c, char *argv[], 
-	   struct nfct_tuple *orig,
-	   struct nfct_tuple *reply,
-	   struct nfct_tuple *mask,
-	   union nfct_protoinfo *proto,
-	   unsigned int *flags)
+static int parse(char c, char *argv[], 
+		 struct nfct_tuple *orig,
+		 struct nfct_tuple *reply,
+		 struct nfct_tuple *mask,
+		 union nfct_protoinfo *proto,
+		 unsigned int *flags)
 {
 	switch(c) {
 		case '1':
@@ -86,10 +75,10 @@ int parse(char c, char *argv[],
 	return 1;
 }
 
-int final_check(unsigned int flags,
-		unsigned int command,
-		struct nfct_tuple *orig,
-		struct nfct_tuple *reply)
+static int final_check(unsigned int flags,
+		       unsigned int command,
+		       struct nfct_tuple *orig,
+		       struct nfct_tuple *reply)
 {
 	if (!(flags & ICMP_TYPE))
 		return 0;
@@ -109,9 +98,9 @@ static struct ctproto_handler icmp = {
 	.version	= VERSION,
 };
 
-void __attribute__ ((constructor)) init(void);
+static void __attribute__ ((constructor)) init(void);
 
-void init(void)
+static void init(void)
 {
 	register_proto(&icmp);
 }

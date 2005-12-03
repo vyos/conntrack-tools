@@ -1,3 +1,13 @@
+2005-13-03
+<pablo@netfilter.org>
+	o Add support to filter events. ie: -p tcp --orig-port-dst 80 in
+	conjuction with -E to get all the requests to HTTP servers
+	o Update manpage
+	o Missing static function declaration in the protocol handlers
+	o Use protocol flags defined in libnetfilter_conntrack
+	o Kill leftover #include "conntrack.h" in the ICMP helper
+	o Bumped version to 0.991
+
 2005-11-22
 <marcus@ingate.com>
 	o Fix oversized number of options
@@ -10,6 +20,7 @@
 	o move plugins into pkglibdir
 	o remove 'lib' prefix of plugins, they're not really libraries
 	o remove version information from plugin filenames
+	o Bumped version to 0.99
 2005-11-09
 <pablo@netfilter.org>
 	o set status to zero, libnetfilter_conntrack now activate
