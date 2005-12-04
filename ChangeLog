@@ -5,7 +5,6 @@
 	o Update manpage
 	o Missing static function declaration in the protocol handlers
 	o Use protocol flags defined in libnetfilter_conntrack
-	o Kill leftover #include "conntrack.h" in the ICMP helper
 	o Bumped version to 0.991
 
 2005-11-22

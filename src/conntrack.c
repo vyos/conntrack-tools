@@ -1035,10 +1035,11 @@ int main(int argc, char *argv[])
 				.protoflag = extra_flags
 			};
 			nfct_register_callback(cth,
-				nfct_default_conntrack_display, (void *)&cmp);
+				nfct_default_conntrack_event_display, 
+				(void *)&cmp);
 		} else {
 			nfct_register_callback(cth, 
-				nfct_default_conntrack_display, NULL);
+				nfct_default_conntrack_event_display, NULL);
 		}
 		res = nfct_event_conntrack(cth);
 		nfct_close(cth);

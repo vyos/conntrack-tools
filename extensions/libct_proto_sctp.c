@@ -56,25 +56,25 @@ static int parse_options(char c, char *argv[],
 		case '1':
 			if (optarg) {
 				orig->l4src.sctp.port = htons(atoi(optarg));
-				*flags |= ORIG_SPORT;
+				*flags |= SCTP_ORIG_SPORT;
 			}
 			break;
 		case '2':
 			if (optarg) {
 				orig->l4dst.sctp.port = htons(atoi(optarg));
-				*flags |= ORIG_DPORT;
+				*flags |= SCTP_ORIG_DPORT;
 			}
 			break;
 		case '3':
 			if (optarg) {
 				reply->l4src.sctp.port = htons(atoi(optarg));
-				*flags |= REPL_SPORT;
+				*flags |= SCTP_REPL_SPORT;
 			}
 			break;
 		case '4':
 			if (optarg) {
 				reply->l4dst.sctp.port = htons(atoi(optarg));
-				*flags |= REPL_DPORT;
+				*flags |= SCTP_REPL_DPORT;
 			}
 			break;
 		case '5':
@@ -92,7 +92,7 @@ static int parse_options(char c, char *argv[],
 					printf("doh?\n");
 					return 0;
 				}
-				*flags |= STATE;
+				*flags |= SCTP_STATE;
 			}
 			break;
 	}
@@ -106,23 +106,23 @@ static int final_check(unsigned int flags,
 {
 	int ret = 0;
 	
-	if ((flags & (ORIG_SPORT|ORIG_DPORT)) 
-	    && !(flags & (REPL_SPORT|REPL_DPORT))) {
+	if ((flags & (SCTP_ORIG_SPORT|SCTP_ORIG_DPORT)) 
+	    && !(flags & (SCTP_REPL_SPORT|SCTP_REPL_DPORT))) {
 		reply->l4src.sctp.port = orig->l4dst.sctp.port;
 		reply->l4dst.sctp.port = orig->l4src.sctp.port;
 		ret = 1;
-	} else if (!(flags & (ORIG_SPORT|ORIG_DPORT))
-	            && (flags & (REPL_SPORT|REPL_DPORT))) {
+	} else if (!(flags & (SCTP_ORIG_SPORT|SCTP_ORIG_DPORT))
+	            && (flags & (SCTP_REPL_SPORT|SCTP_REPL_DPORT))) {
 		orig->l4src.sctp.port = reply->l4dst.sctp.port;
 		orig->l4dst.sctp.port = reply->l4src.sctp.port;
 		ret = 1;
 	}
-	if ((flags & (ORIG_SPORT|ORIG_DPORT)) 
-	    && ((flags & (REPL_SPORT|REPL_DPORT))))
+	if ((flags & (SCTP_ORIG_SPORT|SCTP_ORIG_DPORT)) 
+	    && ((flags & (SCTP_REPL_SPORT|SCTP_REPL_DPORT))))
 		ret = 1;
 
 	/* --state is missing and we are trying to create a conntrack */
-	if (ret && (command & CT_CREATE) && (!(flags & STATE)))
+	if (ret && (command & CT_CREATE) && (!(flags & SCTP_STATE)))
 		ret = 0;
 
 	return ret;
