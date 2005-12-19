@@ -1,6 +1,7 @@
 2005-12-19
 <pablo@netfilter.org>
 	o We only support ipv4 at the moment: set l3protonum to AF_INET
+	o Minor changes to prepare upcoming ipv6 support
 
 2005-12-03
 <pablo@netfilter.org>

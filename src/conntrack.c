@@ -849,9 +849,9 @@ int main(int argc, char *argv[])
 					NULL);
 			
 		if (options & CT_OPT_ZERO)
-			res = nfct_dump_conntrack_table_reset_counters(cth);
+			res = nfct_dump_conntrack_table_reset_counters(cth, AF_INET);
 		else
-			res = nfct_dump_conntrack_table(cth);
+			res = nfct_dump_conntrack_table(cth, AF_INET);
 		nfct_close(cth);
 		break;
 
@@ -867,7 +867,7 @@ int main(int argc, char *argv[])
 			nfct_register_callback(cth,
 					nfct_default_expect_display,
 					NULL);
-		res = nfct_dump_expect_list(cth);
+		res = nfct_dump_expect_list(cth, AF_INET);
 		nfct_close(cth);
 		break;
 			
@@ -1009,7 +1009,7 @@ int main(int argc, char *argv[])
 		cth = nfct_open(CONNTRACK, 0);
 		if (!cth)
 			exit_error(OTHER_PROBLEM, "Can't open handler");
-		res = nfct_flush_conntrack_table(cth);
+		res = nfct_flush_conntrack_table(cth, AF_INET);
 		nfct_close(cth);
 		break;
 
@@ -1017,7 +1017,7 @@ int main(int argc, char *argv[])
 		cth = nfct_open(EXPECT, 0);
 		if (!cth)
 			exit_error(OTHER_PROBLEM, "Can't open handler");
-		res = nfct_flush_expectation_table(cth);
+		res = nfct_flush_expectation_table(cth, AF_INET);
 		nfct_close(cth);
 		break;
 		
