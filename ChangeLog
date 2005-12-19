@@ -1,4 +1,8 @@
-2005-13-03
+2005-12-19
+<pablo@netfilter.org>
+	o We only support ipv4 at the moment: set l3protonum to AF_INET
+
+2005-12-03
 <pablo@netfilter.org>
 	o Add support to filter events. ie: -p tcp --orig-port-dst 80 in
 	conjuction with -E to get all the requests to HTTP servers

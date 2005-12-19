@@ -644,6 +644,14 @@ int main(int argc, char *argv[])
 	memset(&exptuple, 0, sizeof(struct nfct_tuple));
 	memset(&range, 0, sizeof(struct nfct_nat));
 
+	/*
+	 * FIXME: only IPv4 support available at the moment
+	 */
+	orig.l3protonum = AF_INET;
+	reply.l3protonum = AF_INET;
+	mask.l3protonum = AF_INET;
+	exptuple.l3protonum = AF_INET;
+
 	while ((c = getopt_long(argc, argv, 
 		"L::I::U::D::G::E::F::hVs:d:r:q:p:t:u:e:a:z[:]:{:}:m:i::", 
 		opts, NULL)) != -1) {
