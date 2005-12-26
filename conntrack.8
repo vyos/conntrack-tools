@@ -97,6 +97,10 @@ Match only entries whose destination address in the reply direction equals the o
 .BI "-p, --proto " "PROTO "
 Specify layer four (TCP, UDP, ...) protocol.
 .TP
+.BI "-f, --family " "PROTO"
+Specify layer three (ipv4, ipv6) protocol
+This option is only required in conjunction with "-L, --dump". If this option is not passed, the default layer 3 protocol will be IPv4.
+.TP
 .BI "-t, --timeout " "TIMEOUT"
 Specify the timeout.
 .TP

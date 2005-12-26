@@ -43,26 +43,26 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/socket.h>
+#ifdef HAVE_ARPA_INET_H
 #include <arpa/inet.h>
+#endif
 #include <fcntl.h>
 #include <dlfcn.h>
 #include <string.h>
 #include "linux_list.h"
 #include "conntrack.h"
 #include <libnetfilter_conntrack/libnetfilter_conntrack.h>
-
-#ifndef PROC_SYS_MODPROBE
-#define PROC_SYS_MODPROBE "/proc/sys/kernel/modprobe"
-#endif
+#include <libnetfilter_conntrack/libnetfilter_conntrack_ipv4.h>
+#include <libnetfilter_conntrack/libnetfilter_conntrack_ipv6.h>
 
 static const char cmdflags[NUMBER_OF_CMD]
 = {'L','I','U','D','G','F','E','V','h','L','I','D','G','F','E'};
 
 static const char cmd_need_param[NUMBER_OF_CMD]
-= {' ','x','x','x','x',' ',' ',' ',' ',' ','x','x','x',' ',' '};
+= { 2,  0,  0,  0,  0,  2,  2,  2,  2,  2,  0,  0,  0,  2,  2 };
 
 static const char optflags[NUMBER_OF_OPT]
-= {'s','d','r','q','p','t','u','z','e','[',']','{','}','a','m','i'};
+= {'s','d','r','q','p','t','u','z','e','[',']','{','}','a','m','i','f'};
 
 static struct option original_opts[] = {
 	{"dump", 2, 0, 'L'},
@@ -90,6 +90,7 @@ static struct option original_opts[] = {
 	{"nat-range", 1, 0, 'a'},
 	{"mark", 1, 0, 'm'},
 	{"id", 2, 0, 'i'},
+	{"family", 1, 0, 'f'},
 	{0, 0, 0, 0}
 };
 
@@ -103,32 +104,30 @@ static unsigned int global_option_offset = 0;
  * given commands make an option legal, that option is legal (applies to
  * CMD_LIST and CMD_ZERO only).
  * Key:
- *  +  compulsory
- *  x  illegal
- *     optional
+ *  0  illegal
+ *  1  compulsory
+ *  2  optional
  */
 
-/* FIXME: I'd need something different than this table to catch up some 
- *        particular cases. Better later Pablo */
 static char commands_v_options[NUMBER_OF_CMD][NUMBER_OF_OPT] =
 /* Well, it's better than "Re: Linux vs FreeBSD" */
 {
-          /*   -s  -d  -r  -q  -p  -t  -u  -z  -e  -x  -y  -k  -l  -a  -m  -i*/
-/*CT_LIST*/   {'x','x','x','x','x','x','x',' ','x','x','x','x','x','x','x',' '},
-/*CT_CREATE*/ {' ',' ',' ',' ','+','+','+','x','x','x','x','x','x',' ',' ','x'},
-/*CT_UPDATE*/ {' ',' ',' ',' ','+',' ',' ','x','x','x','x','x','x','x',' ',' '},
-/*CT_DELETE*/ {' ',' ',' ',' ',' ','x','x','x','x','x','x','x','x','x','x',' '},
-/*CT_GET*/    {' ',' ',' ',' ','+','x','x','x','x','x','x','x','x','x','x',' '},
-/*CT_FLUSH*/  {'x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x'},
-/*CT_EVENT*/  {'x','x','x','x',' ','x','x','x',' ','x','x','x','x','x','x','x'},
-/*VERSION*/   {'x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x'},
-/*HELP*/      {'x','x','x','x',' ','x','x','x','x','x','x','x','x','x','x','x'},
-/*EXP_LIST*/  {'x','x','x','x','x','x','x','x','x','x','x','x','x','x','x',' '},
-/*EXP_CREATE*/{'+','+',' ',' ','+','+',' ','x','x','+','+','+','+','x','x','x'},
-/*EXP_DELETE*/{'+','+',' ',' ','+','x','x','x','x','x','x','x','x','x','x','x'},
-/*EXP_GET*/   {'+','+',' ',' ','+','x','x','x','x','x','x','x','x','x','x','x'},
-/*EXP_FLUSH*/ {'x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x'},
-/*EXP_EVENT*/ {'x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x'},
+          /*   s d r q p t u z e x y k l a m i f*/
+/*CT_LIST*/   {0,0,0,0,0,0,0,2,0,0,0,0,0,0,0,2,2},
+/*CT_CREATE*/ {2,2,2,2,1,1,1,0,0,0,0,0,0,2,2,0,0},
+/*CT_UPDATE*/ {2,2,2,2,1,2,2,0,0,0,0,0,0,0,2,2,0},
+/*CT_DELETE*/ {2,2,2,2,2,0,0,0,0,0,0,0,0,0,0,2,0},
+/*CT_GET*/    {2,2,2,2,1,0,0,0,0,0,0,0,0,0,0,2,0},
+/*CT_FLUSH*/  {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+/*CT_EVENT*/  {2,2,2,2,2,0,0,0,2,0,0,0,0,0,2,0,0},
+/*VERSION*/   {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+/*HELP*/      {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+/*EXP_LIST*/  {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,2},
+/*EXP_CREATE*/{1,1,2,2,1,1,2,0,0,1,1,1,1,0,0,0,0},
+/*EXP_DELETE*/{1,1,2,2,1,0,0,0,0,0,0,0,0,0,0,0,0},
+/*EXP_GET*/   {1,1,2,2,1,0,0,0,0,0,0,0,0,0,0,0,0},
+/*EXP_FLUSH*/ {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+/*EXP_EVENT*/ {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
 };
 
 static char *lib_dir = CONNTRACK_LIB_DIR;
@@ -230,7 +229,7 @@ generic_cmd_check(int command, int options)
 		if (!(command & (1<<i)))
 			continue;
 
-		if (cmd_need_param[i] == 'x' && !options)
+		if (cmd_need_param[i] == 0 && !options)
 			exit_error(PARAMETER_PROBLEM,
 				   "You need to supply parameters to `-%c'\n",
 				   cmdflags[i]);
@@ -254,13 +253,13 @@ generic_opt_check(int command, int options)
 				continue;
 
 			if (!(options & (1<<i))) {
-				if (commands_v_options[j][i] == '+') 
+				if (commands_v_options[j][i] == 1) 
 					exit_error(PARAMETER_PROBLEM, 
 						   "You need to supply the "
 						   "`-%c' option for this "
 						   "command\n", optflags[i]);
 			} else {
-				if (commands_v_options[j][i] != 'x')
+				if (commands_v_options[j][i] != 0)
 					legal = 1;
 				else if (legal == 0)
 					legal = -1;
@@ -416,80 +415,43 @@ unsigned int check_type(int argc, char *argv[])
 	return 0;
 }
 
-static char *get_modprobe(void)
+static void set_family(int *family, int new)
 {
-	int procfile;
-	char *ret;
-
-#define PROCFILE_BUFSIZ	1024
-	procfile = open(PROC_SYS_MODPROBE, O_RDONLY);
-	if (procfile < 0)
-		return NULL;
-
-	ret = (char *) malloc(PROCFILE_BUFSIZ);
-	if (ret) {
-		memset(ret, 0, PROCFILE_BUFSIZ);
-		switch (read(procfile, ret, PROCFILE_BUFSIZ)) {
-		case -1: goto fail;
-		case PROCFILE_BUFSIZ: goto fail; /* Partial read.  Weird */
-		}
-		if (ret[strlen(ret)-1]=='\n') 
-			ret[strlen(ret)-1]=0;
-		close(procfile);
-		return ret;
-	}
- fail:
-	free(ret);
-	close(procfile);
-	return NULL;
+	if (*family == AF_UNSPEC)
+		*family = new;
+	else if (*family != new)
+		exit_error(PARAMETER_PROBLEM, "mismatched address family\n");
 }
 
-int iptables_insmod(const char *modname, const char *modprobe)
-{
-	char *buf = NULL;
-	char *argv[3];
-	int status;
-
-	/* If they don't explicitly set it, read out of kernel */
-	if (!modprobe) {
-		buf = get_modprobe();
-		if (!buf)
-			return -1;
-		modprobe = buf;
-	}
-
-	switch (fork()) {
-	case 0:
-		argv[0] = (char *)modprobe;
-		argv[1] = (char *)modname;
-		argv[2] = NULL;
-		execv(argv[0], argv);
-
-		/* not usually reached */
-		exit(1);
-	case -1:
-		return -1;
-
-	default: /* parent */
-		wait(&status);
-	}
-
-	free(buf);
-	if (WIFEXITED(status) && WEXITSTATUS(status) == 0)
-		return 0;
-	return -1;
-}
-
-in_addr_t parse_inetaddr(const char *cp)
-{
+struct addr_parse {
 	struct in_addr addr;
+	struct in6_addr addr6;
+	unsigned int family;
+};
 
-	if (inet_aton(cp, &addr)) {
-		return addr.s_addr;
-	}
+int __parse_inetaddr(const char *cp, struct addr_parse *parse)
+{
+	if (inet_aton(cp, &parse->addr))
+		return AF_INET;
+#ifdef HAVE_INET_PTON_IPV6
+	else if (inet_pton(AF_INET6, cp, &parse->addr6) > 0)
+		return AF_INET6;
+#endif
 
 	exit_error(PARAMETER_PROBLEM, "Invalid IP address `%s'.", cp);
+}
 
+int parse_inetaddr(const char *cp, union nfct_address *address)
+{
+	struct addr_parse parse;
+	int ret;
+	
+	if ((ret = __parse_inetaddr(cp, &parse)) == AF_INET)
+		address->v4 = parse.addr.s_addr;
+	else if (ret == AF_INET6)
+		memcpy(address->v6, &parse.addr6, sizeof(parse.addr6));
+
+	return ret;
 }
 
 /* Shamelessly stolen from libipt_DNAT ;). Ranges expected in network order. */
@@ -497,7 +459,7 @@ static void
 nat_parse(char *arg, int portok, struct nfct_nat *range)
 {
 	char *colon, *dash, *error;
-	unsigned long ip;
+	struct addr_parse parse;
 
 	memset(range, 0, sizeof(range));
 	colon = strchr(arg, ':');
@@ -551,13 +513,16 @@ nat_parse(char *arg, int portok, struct nfct_nat *range)
 	if (dash)
 		*dash = '\0';
 
-	ip = parse_inetaddr(arg);
-	range->min_ip = ip;
+	if (__parse_inetaddr(arg, &parse) != AF_INET)
+		return;
+
+	range->min_ip = parse.addr.s_addr;
 	if (dash) {
-		ip = parse_inetaddr(dash+1);
-		range->max_ip = ip;
+		if (__parse_inetaddr(dash+1, &parse) != AF_INET)
+			return;
+		range->max_ip = parse.addr.s_addr;
 	} else
-		range->max_ip = range->min_ip;
+		range->max_ip = parse.addr.s_addr;
 }
 
 static void event_sighandler(int s)
@@ -602,6 +567,7 @@ static const char usage_parameters[] =
 	"  -r, --reply-src ip\t\tSource addres from reply direction\n"
 	"  -q, --reply-dst ip\t\tDestination address from reply direction\n"
 	"  -p, --protonum proto\t\tLayer 4 Protocol, eg. 'tcp'\n"
+	"  -f, --family proto\t\tLayer 3 Protocol, eg. 'ipv6'\n"
 	"  -t, --timeout timeout\t\tSet timeout\n"
 	"  -u, --status status\t\tSet status, eg. ASSURED\n"
 	"  -i, --id [id]\t\t\tShow or set conntrack ID\n"
@@ -619,41 +585,29 @@ void usage(char *prog) {
 	fprintf(stdout, "\n%s", usage_parameters);
 }
 
+static struct nfct_tuple orig, reply, mask;
+static struct nfct_tuple exptuple;
+static struct ctproto_handler *h;
+static union nfct_protoinfo proto;
+static struct nfct_nat range;
+static struct nfct_conntrack *ct;
+static struct nfct_expect *exp;
+static unsigned long timeout;
+static unsigned int status;
+static unsigned int mark;
+static unsigned int id = NFCT_ANY_ID;
+
 int main(int argc, char *argv[])
 {
 	char c;
 	unsigned int command = 0, options = 0;
-	struct nfct_tuple orig, reply, mask;
-	struct nfct_tuple exptuple;
-	struct ctproto_handler *h = NULL;
-	union nfct_protoinfo proto;
-	struct nfct_nat range;
-	struct nfct_conntrack *ct;
-	struct nfct_expect *exp;
-	unsigned long timeout = 0;
-	unsigned int status = 0;
-	unsigned int mark = 0;
-	unsigned int id = NFCT_ANY_ID;
-	unsigned int type = 0, extra_flags = 0, event_mask = 0;
+	unsigned int type = 0, event_mask = 0;
+	unsigned int l3flags = 0, l4flags = 0;
 	int res = 0;
-
-	memset(&proto, 0, sizeof(union nfct_protoinfo));
-	memset(&orig, 0, sizeof(struct nfct_tuple));
-	memset(&reply, 0, sizeof(struct nfct_tuple));
-	memset(&mask, 0, sizeof(struct nfct_tuple));
-	memset(&exptuple, 0, sizeof(struct nfct_tuple));
-	memset(&range, 0, sizeof(struct nfct_nat));
-
-	/*
-	 * FIXME: only IPv4 support available at the moment
-	 */
-	orig.l3protonum = AF_INET;
-	reply.l3protonum = AF_INET;
-	mask.l3protonum = AF_INET;
-	exptuple.l3protonum = AF_INET;
+	int family = AF_UNSPEC;
 
 	while ((c = getopt_long(argc, argv, 
-		"L::I::U::D::G::E::F::hVs:d:r:q:p:t:u:e:a:z[:]:{:}:m:i::", 
+		"L::I::U::D::G::E::F::hVs:d:r:q:p:t:u:e:a:z[:]:{:}:m:i::f:", 
 		opts, NULL)) != -1) {
 	switch(c) {
 		case 'L':
@@ -714,23 +668,51 @@ int main(int argc, char *argv[])
 			break;
 		case 's':
 			options |= CT_OPT_ORIG_SRC;
-			if (optarg)
-				orig.src.v4 = parse_inetaddr(optarg);
+			if (optarg) {
+				orig.l3protonum =
+					parse_inetaddr(optarg, &orig.src);
+				set_family(&family, orig.l3protonum);
+				if (orig.l3protonum == AF_INET)
+					l3flags |= IPV4_ORIG_SRC;
+				else if (orig.l3protonum == AF_INET6)
+					l3flags |= IPV6_ORIG_SRC;
+			}
 			break;
 		case 'd':
 			options |= CT_OPT_ORIG_DST;
-			if (optarg)
-				orig.dst.v4 = parse_inetaddr(optarg);
+			if (optarg) {
+				orig.l3protonum = 
+					parse_inetaddr(optarg, &orig.dst);
+				set_family(&family, orig.l3protonum);
+				if (orig.l3protonum == AF_INET)
+					l3flags |= IPV4_ORIG_DST;
+				else if (orig.l3protonum == AF_INET6)
+					l3flags |= IPV6_ORIG_DST;
+			}
 			break;
 		case 'r':
 			options |= CT_OPT_REPL_SRC;
-			if (optarg)
-				reply.src.v4 = parse_inetaddr(optarg);
+			if (optarg) {
+				reply.l3protonum = 
+					parse_inetaddr(optarg, &reply.src);
+				set_family(&family, reply.l3protonum);
+				if (orig.l3protonum == AF_INET)
+					l3flags |= IPV4_REPL_SRC;
+				else if (orig.l3protonum == AF_INET6)
+					l3flags |= IPV6_REPL_SRC;
+			}
 			break;
 		case 'q':
 			options |= CT_OPT_REPL_DST;
-			if (optarg)
-				reply.dst.v4 = parse_inetaddr(optarg);
+			if (optarg) {
+				reply.l3protonum = 
+					parse_inetaddr(optarg, &reply.dst);
+				set_family(&family, reply.l3protonum);
+				if (orig.l3protonum == AF_INET)
+					l3flags |= IPV4_REPL_DST;
+				else if (orig.l3protonum == AF_INET6)
+					l3flags |= IPV6_REPL_DST;
+			}
 			break;
 		case 'p':
 			options |= CT_OPT_PROTO;
@@ -766,26 +748,39 @@ int main(int argc, char *argv[])
 			break;
 		case '{':
 			options |= CT_OPT_MASK_SRC;
-			if (optarg)
-				mask.src.v4 = parse_inetaddr(optarg);
+			if (optarg) {
+				mask.l3protonum = 
+					parse_inetaddr(optarg, &mask.src);
+				set_family(&family, mask.l3protonum);
+			}
 			break;
 		case '}':
 			options |= CT_OPT_MASK_DST;
-			if (optarg)
-				mask.dst.v4 = parse_inetaddr(optarg);
+			if (optarg) {
+				mask.l3protonum = 
+					parse_inetaddr(optarg, &mask.dst);
+				set_family(&family, mask.l3protonum);
+			}
 			break;
 		case '[':
 			options |= CT_OPT_EXP_SRC;
-			if (optarg)
-				exptuple.src.v4 = parse_inetaddr(optarg);
+			if (optarg) {
+				exptuple.l3protonum = 
+					parse_inetaddr(optarg, &exptuple.src);
+				set_family(&family, exptuple.l3protonum);
+			}
 			break;
 		case ']':
 			options |= CT_OPT_EXP_DST;
-			if (optarg)
-				exptuple.dst.v4 = parse_inetaddr(optarg);
+			if (optarg) {
+				exptuple.l3protonum = 
+					parse_inetaddr(optarg, &exptuple.dst);
+				set_family(&family, exptuple.l3protonum);
+			}
 			break;
 		case 'a':
 			options |= CT_OPT_NATRANGE;
+			set_family(&family, AF_INET);
 			nat_parse(optarg, 1, &range);
 			break;
 		case 'm':
@@ -804,11 +799,21 @@ int main(int argc, char *argv[])
 				id = atol(s);
 			break;
 		}
+		case 'f':
+			options |= CT_OPT_FAMILY;
+			if (strncmp(optarg, "ipv4", strlen("ipv4")) == 0)
+				set_family(&family, AF_INET);
+			else if (strncmp(optarg, "ipv6", strlen("ipv6")) == 0)
+				set_family(&family, AF_INET6);
+			else
+				exit_error(PARAMETER_PROBLEM, "Unknown "
+					   "protocol family\n");
+			break;
 		default:
 			if (h && h->parse_opts 
 			    &&!h->parse_opts(c - h->option_offset, argv, &orig, 
 				             &reply, &mask, &proto, 
-					     &extra_flags))
+					     &l4flags))
 				exit_error(PARAMETER_PROBLEM, "parse error\n");
 
 			/* Unknown argument... */
@@ -821,12 +826,16 @@ int main(int argc, char *argv[])
 		}
 	}
 
+	/* default family */
+	if (family == AF_UNSPEC)
+		family = AF_INET;
+
 	generic_cmd_check(command, options);
 	generic_opt_check(command, options);
 
 	if (!(command & CT_HELP)
 	    && h && h->final_check 
-	    && !h->final_check(extra_flags, command, &orig, &reply)) {
+	    && !h->final_check(l4flags, command, &orig, &reply)) {
 		usage(argv[0]);
 		extension_help(h);
 		exit_error(PARAMETER_PROBLEM, "Missing protocol arguments!\n");
@@ -849,9 +858,10 @@ int main(int argc, char *argv[])
 					NULL);
 			
 		if (options & CT_OPT_ZERO)
-			res = nfct_dump_conntrack_table_reset_counters(cth, AF_INET);
+			res = 
+			nfct_dump_conntrack_table_reset_counters(cth, family);
 		else
-			res = nfct_dump_conntrack_table(cth, AF_INET);
+			res = nfct_dump_conntrack_table(cth, family);
 		nfct_close(cth);
 		break;
 
@@ -867,19 +877,21 @@ int main(int argc, char *argv[])
 			nfct_register_callback(cth,
 					nfct_default_expect_display,
 					NULL);
-		res = nfct_dump_expect_list(cth, AF_INET);
+		res = nfct_dump_expect_list(cth, family);
 		nfct_close(cth);
 		break;
 			
 	case CT_CREATE:
 		if ((options & CT_OPT_ORIG) 
 		    && !(options & CT_OPT_REPL)) {
-			reply.src.v4 = orig.dst.v4;
-			reply.dst.v4 = orig.src.v4;
+			reply.l3protonum = orig.l3protonum;
+			memcpy(&reply.src, &orig.dst, sizeof(reply.src));
+			memcpy(&reply.dst, &orig.src, sizeof(reply.dst));
 		} else if (!(options & CT_OPT_ORIG)
 			   && (options & CT_OPT_REPL)) {
-			orig.src.v4 = reply.dst.v4;
-			orig.dst.v4 = reply.src.v4;
+			orig.l3protonum = reply.l3protonum;
+			memcpy(&orig.src, &reply.dst, sizeof(orig.src));
+			memcpy(&orig.dst, &reply.src, sizeof(orig.dst));
 		}
 		if (options & CT_OPT_NATRANGE)
 			ct = nfct_conntrack_alloc(&orig, &reply, timeout, 
@@ -925,12 +937,14 @@ int main(int argc, char *argv[])
 	case CT_UPDATE:
 		if ((options & CT_OPT_ORIG) 
 		    && !(options & CT_OPT_REPL)) {
-			reply.src.v4 = orig.dst.v4;
-			reply.dst.v4 = orig.src.v4;
+			reply.l3protonum = orig.l3protonum;
+			memcpy(&reply.src, &orig.dst, sizeof(reply.src));
+			memcpy(&reply.dst, &orig.src, sizeof(reply.dst));
 		} else if (!(options & CT_OPT_ORIG)
 			   && (options & CT_OPT_REPL)) {
-			orig.src.v4 = reply.dst.v4;
-			orig.dst.v4 = reply.src.v4;
+			orig.l3protonum = reply.l3protonum;
+			memcpy(&orig.src, &reply.dst, sizeof(orig.src));
+			memcpy(&orig.dst, &reply.src, sizeof(orig.dst));
 		}
 		ct = nfct_conntrack_alloc(&orig, &reply, timeout,
 					  &proto, status, mark, id,
@@ -1036,11 +1050,12 @@ int main(int argc, char *argv[])
 			exit_error(OTHER_PROBLEM, "Can't open handler");
 		signal(SIGINT, event_sighandler);
 
-		if (options & CT_OPT_PROTO) {
+		if (options & (CT_OPT_PROTO | CT_OPT_ORIG | CT_OPT_REPL)) {
 			struct nfct_conntrack_compare cmp = {
 				.ct = ct,
-				.flag = 0,
-				.protoflag = extra_flags
+				.flags = 0,
+				.l3flags = l3flags,
+				.l4flags = l4flags
 			};
 			nfct_register_callback(cth,
 				nfct_default_conntrack_event_display, 

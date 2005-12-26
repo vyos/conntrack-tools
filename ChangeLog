@@ -1,3 +1,15 @@
+2005-12-26
+<pablo@netfilter.org>
+	o add IPv6 support: main change
+	o removed dead code: iptables_insmod and get_modprobe
+	o compact the commands vs. options table
+	o move working vars from the stack to the BSS section
+	o update manpage
+	o Bumped version to 1.0beta1
+<yasuyuki.kozakai@toshiba.co.jp>
+	o check address family mismatch
+	o fix incomplete copying IPv6 addresses
+
 2005-12-19
 <pablo@netfilter.org>
 	o We only support ipv4 at the moment: set l3protonum to AF_INET
