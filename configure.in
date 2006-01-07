@@ -2,7 +2,7 @@ AC_INIT
 
 AC_CANONICAL_SYSTEM
 
-AM_INIT_AUTOMAKE(conntrack, 1.0beta1)
+AM_INIT_AUTOMAKE(conntrack, 1.00beta1)
 #AM_CONFIG_HEADER(config.h)
 
 AC_PROG_CC
