@@ -113,7 +113,7 @@ static char commands_v_options[NUMBER_OF_CMD][NUMBER_OF_OPT] =
 /* Well, it's better than "Re: Linux vs FreeBSD" */
 {
           /*   s d r q p t u z e x y k l a m i f*/
-/*CT_LIST*/   {0,0,0,0,0,0,0,2,0,0,0,0,0,0,0,2,2},
+/*CT_LIST*/   {2,2,2,2,2,0,0,2,0,0,0,0,0,0,2,2,2},
 /*CT_CREATE*/ {2,2,2,2,1,1,1,0,0,0,0,0,0,2,2,0,0},
 /*CT_UPDATE*/ {2,2,2,2,1,2,2,0,0,0,0,0,0,0,2,2,0},
 /*CT_DELETE*/ {2,2,2,2,2,0,0,0,0,0,0,0,0,0,0,2,0},
@@ -585,6 +585,8 @@ void usage(char *prog) {
 	fprintf(stdout, "\n%s", usage_parameters);
 }
 
+#define CT_COMPARISON (CT_OPT_PROTO | CT_OPT_ORIG | CT_OPT_REPL | CT_OPT_MARK)
+
 static struct nfct_tuple orig, reply, mask;
 static struct nfct_tuple exptuple;
 static struct ctproto_handler *h;
@@ -596,15 +598,17 @@ static unsigned long timeout;
 static unsigned int status;
 static unsigned int mark;
 static unsigned int id = NFCT_ANY_ID;
+static struct nfct_conntrack_compare cmp;
 
 int main(int argc, char *argv[])
 {
 	char c;
 	unsigned int command = 0, options = 0;
 	unsigned int type = 0, event_mask = 0;
-	unsigned int l3flags = 0, l4flags = 0;
+	unsigned int l3flags = 0, l4flags = 0, metaflags = 0;
 	int res = 0;
 	int family = AF_UNSPEC;
+	struct nfct_conntrack_compare *pcmp;
 
 	while ((c = getopt_long(argc, argv, 
 		"L::I::U::D::G::E::F::hVs:d:r:q:p:t:u:e:a:z[:]:{:}:m:i::f:", 
@@ -784,7 +788,9 @@ int main(int argc, char *argv[])
 			nat_parse(optarg, 1, &range);
 			break;
 		case 'm':
+			options |= CT_OPT_MARK;
 			mark = atol(optarg);
+			metaflags |= NFCT_MARK;
 			break;
 		case 'i': {
 			char *s = NULL;
@@ -848,14 +854,33 @@ int main(int argc, char *argv[])
 		if (!cth)
 			exit_error(OTHER_PROBLEM, "Can't open handler");
 
+		if (options & CT_COMPARISON) {
+
+			if (options & CT_OPT_ZERO)
+				exit_error(PARAMETER_PROBLEM, "Can't use -z "
+					   "with filtering parameters");
+
+			ct = nfct_conntrack_alloc(&orig, &reply, timeout,
+						  &proto, status, mark, id,
+						  NULL);
+			if (!ct)
+				exit_error(OTHER_PROBLEM, "Not enough memory");
+			
+			cmp.ct = ct;
+			cmp.flags = metaflags;
+			cmp.l3flags = l3flags;
+			cmp.l4flags = l4flags;
+			pcmp = &cmp;
+		}
+
 		if (options & CT_OPT_ID)
 			nfct_register_callback(cth, 
 					nfct_default_conntrack_display_id,
-					NULL);
+					(void *) pcmp);
 		else
 			nfct_register_callback(cth,
 					nfct_default_conntrack_display,
-					NULL);
+					(void *) pcmp);
 			
 		if (options & CT_OPT_ZERO)
 			res = 
@@ -1036,11 +1061,6 @@ int main(int argc, char *argv[])
 		break;
 		
 	case CT_EVENT:
-		ct = nfct_conntrack_alloc(&orig, &reply, timeout,
-					  &proto, status, mark, id, NULL);
-		if (!ct)
-			exit_error(OTHER_PROBLEM, "Not enough memory");
-
 		if (options & CT_OPT_EVENT_MASK)
 			cth = nfct_open(CONNTRACK, event_mask);
 		else
@@ -1050,20 +1070,23 @@ int main(int argc, char *argv[])
 			exit_error(OTHER_PROBLEM, "Can't open handler");
 		signal(SIGINT, event_sighandler);
 
-		if (options & (CT_OPT_PROTO | CT_OPT_ORIG | CT_OPT_REPL)) {
-			struct nfct_conntrack_compare cmp = {
-				.ct = ct,
-				.flags = 0,
-				.l3flags = l3flags,
-				.l4flags = l4flags
-			};
-			nfct_register_callback(cth,
-				nfct_default_conntrack_event_display, 
-				(void *)&cmp);
-		} else {
-			nfct_register_callback(cth, 
-				nfct_default_conntrack_event_display, NULL);
+		if (options & CT_COMPARISON) {
+			ct = nfct_conntrack_alloc(&orig, &reply, timeout,
+						  &proto, status, mark, id, 
+						  NULL);
+			if (!ct)
+				exit_error(OTHER_PROBLEM, "Not enough memory");
+
+			cmp.ct = ct;
+			cmp.flags = metaflags;
+			cmp.l3flags = l3flags;
+			cmp.l4flags = l4flags;
+			pcmp = &cmp;
 		}
+
+		nfct_register_callback(cth,
+				       nfct_default_conntrack_event_display, 
+				       (void *) pcmp);
 		res = nfct_event_conntrack(cth);
 		nfct_close(cth);
 		break;

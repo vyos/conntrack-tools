@@ -1,6 +1,11 @@
 2006-01-15
 <pablo@netfilter.org>
 	o Added missing parameters to set the ports of an expectation tuple
+	o Add support to filter dumped entries. 
+	  ie: conntrack -L -p tcp --orig-port-dst 993
+	  display all the connections to IMAPS servers
+	      conntrack -L -m 2
+	  display all the connection marked with 2
 	o Bumped version to 1.00beta2
 
 2005-12-26
