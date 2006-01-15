@@ -1,3 +1,8 @@
+2006-01-15
+<pablo@netfilter.org>
+	o Added missing parameters to set the ports of an expectation tuple
+	o Bumped version to 1.00beta2
+
 2005-12-26
 <pablo@netfilter.org>
 	o add IPv6 support: main change

@@ -1,5 +1,6 @@
 /*
  * (C) 2005 by Harald Welte <laforge@netfilter.org>
+ *     2006 by Pablo Neira Ayuso <pablo@netfilter.org>
  *
  *      This program is free software; you can redistribute it and/or modify
  *      it under the terms of the GNU General Public License as published by
@@ -21,7 +22,9 @@ static struct option opts[] = {
 	{"orig-port-dst", 1, 0, '2'},
 	{"reply-port-src", 1, 0, '3'},
 	{"reply-port-dst", 1, 0, '4'},
-	{"state", 1, 0, '7'},
+	{"state", 1, 0, '5'},
+	{"tuple-port-src", 1, 0, '6'},
+	{"tuple-port-dst", 1, 0, '7'},
 	{0, 0, 0, 0}
 };
 
@@ -43,11 +46,14 @@ static void help()
 	fprintf(stdout, "--reply-port-src       reply source port\n");
 	fprintf(stdout, "--reply-port-dst       reply destination port\n");
 	fprintf(stdout, "--state                SCTP state, fe. ESTABLISHED\n");
+	fprintf(stdout, "--tuple-port-src	expectation tuple src port\n");
+	fprintf(stdout, "--tuple-port-src	expectation tuple dst port\n");
 }
 
 static int parse_options(char c, char *argv[], 
 			 struct nfct_tuple *orig,
 			 struct nfct_tuple *reply,
+			 struct nfct_tuple *exptuple,
 			 struct nfct_tuple *mask,
 			 union nfct_protoinfo *proto,
 			 unsigned int *flags)
@@ -95,6 +101,18 @@ static int parse_options(char c, char *argv[],
 				*flags |= SCTP_STATE;
 			}
 			break;
+		case '6':
+			if (optarg) {
+				exptuple->l4src.sctp.port = htons(atoi(optarg));
+				*flags |= SCTP_EXPTUPLE_SPORT;
+			}
+			break;
+		case '7':
+			if (optarg) {
+				exptuple->l4dst.sctp.port = htons(atoi(optarg));
+				*flags |= SCTP_EXPTUPLE_DPORT;
+			}
+
 	}
 	return 1;
 }

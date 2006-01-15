@@ -812,7 +812,7 @@ int main(int argc, char *argv[])
 		default:
 			if (h && h->parse_opts 
 			    &&!h->parse_opts(c - h->option_offset, argv, &orig, 
-				             &reply, &mask, &proto, 
+				             &reply, &exptuple, &mask, &proto, 
 					     &l4flags))
 				exit_error(PARAMETER_PROBLEM, "parse error\n");
 

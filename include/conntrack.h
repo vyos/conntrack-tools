@@ -134,6 +134,7 @@ struct ctproto_handler {
 	int (*parse_opts)(char c, char *argv[], 
 		     struct nfct_tuple *orig,
 		     struct nfct_tuple *reply,
+		     struct nfct_tuple *exptuple,
 		     struct nfct_tuple *mask,
 		     union nfct_protoinfo *proto,
 		     unsigned int *flags);

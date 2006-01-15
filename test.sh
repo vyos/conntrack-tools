@@ -78,7 +78,8 @@ case $1 in
 		--tuple-src 4.4.4.4 --tuple-dst 5.5.5.5 \
 		--mask-src 255.255.255.0 --mask-dst 255.255.255.255 \
 		-p tcp --orig-port-src $SPORT --orig-port-dst $DPORT \
-		-t 200 --mask-port-src 10 --mask-port-dst 300
+		-t 200 --tuple-port-src 10 --tuple-port-dst 300 \
+		--mask-port-src 10 --mask-port-dst 300
 		;;
 	get-expect)
 		$CONNTRACK -G expect --orig-src 4.4.4.4 --orig-dst 5.5.5.5 \

@@ -25,6 +25,8 @@ static struct option opts[] = {
 	{"mask-port-src", 1, 0, '5'},
 	{"mask-port-dst", 1, 0, '6'},
 	{"state", 1, 0, '7'},
+	{"tuple-port-src", 1, 0, '8'},
+	{"tuple-port-dst", 1, 0, '9'},
 	{0, 0, 0, 0}
 };
 
@@ -49,12 +51,15 @@ static void help()
 	fprintf(stdout, "--reply-port-dst       reply destination port\n");
 	fprintf(stdout, "--mask-port-src	mask source port\n");
 	fprintf(stdout, "--mask-port-dst	mask destination port\n");
+	fprintf(stdout, "--tuple-port-src	expectation tuple src port\n");
+	fprintf(stdout, "--tuple-port-src	expectation tuple dst port\n");
 	fprintf(stdout, "--state                TCP state, fe. ESTABLISHED\n");
 }
 
 static int parse_options(char c, char *argv[], 
 			 struct nfct_tuple *orig,
 			 struct nfct_tuple *reply,
+			 struct nfct_tuple *exptuple,
 			 struct nfct_tuple *mask,
 			 union nfct_protoinfo *proto,
 			 unsigned int *flags)
@@ -110,6 +115,18 @@ static int parse_options(char c, char *argv[],
 					return 0;
 				}
 				*flags |= TCP_STATE;
+			}
+			break;
+		case '8':
+			if (optarg) {
+				exptuple->l4src.tcp.port = htons(atoi(optarg));
+				*flags |= TCP_EXPTUPLE_SPORT;
+			}
+			break;
+		case '9':
+			if (optarg) {
+				exptuple->l4dst.tcp.port = htons(atoi(optarg));
+				*flags |= TCP_EXPTUPLE_DPORT;
 			}
 			break;
 	}
