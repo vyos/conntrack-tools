@@ -45,6 +45,7 @@ static u_int8_t invmap[]
 static int parse(char c, char *argv[], 
 		 struct nfct_tuple *orig,
 		 struct nfct_tuple *reply,
+		 struct nfct_tuple *exptuple,
 		 struct nfct_tuple *mask,
 		 union nfct_protoinfo *proto,
 		 unsigned int *flags)

@@ -1,3 +1,7 @@
+2006-03-20
+<hidden@sch.bme.hu>
+	o fix ICMP protocol extension parse callback
+
 2006-01-15
 <pablo@netfilter.org>
 	o Added missing parameters to set the ports of an expectation tuple
