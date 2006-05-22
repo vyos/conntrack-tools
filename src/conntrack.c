@@ -602,7 +602,7 @@ static struct nfct_conntrack_compare cmp;
 
 int main(int argc, char *argv[])
 {
-	char c;
+	int c;
 	unsigned int command = 0, options = 0;
 	unsigned int type = 0, event_mask = 0;
 	unsigned int l3flags = 0, l4flags = 0, metaflags = 0;
