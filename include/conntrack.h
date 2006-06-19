@@ -1,6 +1,10 @@
 #ifndef _CONNTRACK_H
 #define _CONNTRACK_H
 
+#ifdef HAVE_CONFIG_H
+#include "../config.h"
+#endif
+
 #include "linux_list.h"
 #include <getopt.h>
 #include <libnetfilter_conntrack/libnetfilter_conntrack.h>
