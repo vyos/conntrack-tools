@@ -335,13 +335,13 @@ err2str(int err, enum action command)
 #define PARSE_MAX 2
 
 static struct parse_parameter {
-	char 	*parameter[5];
+	char 	*parameter[6];
 	size_t  size;
-	unsigned int value[5];
+	unsigned int value[6];
 } parse_array[PARSE_MAX] = {
-	{ {"ASSURED", "SEEN_REPLY", "UNSET", "SRC_NAT", "DST_NAT"}, 5,
+	{ {"ASSURED", "SEEN_REPLY", "UNSET", "SRC_NAT", "DST_NAT","FIXED_TIMEOUT"}, 6,
 	  { IPS_ASSURED, IPS_SEEN_REPLY, 0, 
-	    IPS_SRC_NAT_DONE, IPS_DST_NAT_DONE} },
+	    IPS_SRC_NAT_DONE, IPS_DST_NAT_DONE, IPS_FIXED_TIMEOUT} },
 	{ {"ALL", "NEW", "UPDATES", "DESTROY"}, 4,
 	  {~0U, NF_NETLINK_CONNTRACK_NEW, NF_NETLINK_CONNTRACK_UPDATE, 
 	   NF_NETLINK_CONNTRACK_DESTROY} },
