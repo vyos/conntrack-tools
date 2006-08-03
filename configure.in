@@ -3,7 +3,6 @@ AC_INIT
 AC_CANONICAL_SYSTEM
 
 AM_INIT_AUTOMAKE(conntrack, 1.00beta2)
-#AM_CONFIG_HEADER(config.h)
 
 AC_PROG_CC
 AM_PROG_LIBTOOL
@@ -15,14 +14,14 @@ case $target in
 *) AC_MSG_ERROR([Linux only, dude!]);;
 esac
 
-# Checks for libraries.
-# FIXME: Replace `main' with a function in `-lc':
-dnl AC_CHECK_LIB([c], [main])
-# FIXME: Replace `main' with a function in `-ldl':
+dnl Dependencies
+LIBNFCONNTRACK_REQUIRED=0.0.31
+ 
+AC_CHECK_LIB(dl, dlopen)
 
-AC_CHECK_LIB([dl], [dlopen])
-AC_CHECK_LIB([netfilter_conntrack], [nfct_dump_conntrack_table] ,,,[-lnetfilter_conntrack])
-
+PKG_CHECK_MODULES(LIBNFCONNTRACK, libnetfilter_conntrack >= $LIBNFCONNTRACK_REQUIRED,,
+	AC_MSG_ERROR(Cannot find libnetfilter_conntrack >= $LIBNFCONNTRACK_REQUIRED))
+ 
 AC_CHECK_HEADERS(arpa/inet.h)
 dnl check for inet_pton
 AC_CHECK_FUNCS(inet_pton)
@@ -56,19 +55,6 @@ int main()
   ], AC_MSG_RESULT(no), AC_MSG_RESULT(no))
 fi
 
-# Checks for header files.
-dnl AC_HEADER_STDC
-dnl AC_CHECK_HEADERS([netinet/in.h stdlib.h])
-
-# Checks for typedefs, structures, and compiler characteristics.
-dnl AC_C_CONST
-dnl AC_C_INLINE
-
-# Checks for library functions.
-dnl AC_FUNC_MALLOC
-dnl AC_FUNC_VPRINTF
-dnl AC_CHECK_FUNCS([memset])
-
 dnl--------------------------------
 
 if test ! -z "$libdir"; then
@@ -78,10 +64,9 @@ fi
 
 dnl--------------------------------
 
-dnl AC_CONFIG_FILES([Makefile
-dnl                  debug/Makefile
-dnl                  debug/src/Makefile
-dnl                  extensions/Makefile
-dnl                  src/Makefile])
+CFLAGS="$CFLAGS $LIBNFCONNTRACK_CFLAGS"
+CONNTRACK_LIBS="$LIBNFCONNTRACK_LIBS"
+
+AC_SUBST(CONNTRACK_LIBS)
 
 AC_OUTPUT(Makefile src/Makefile extensions/Makefile include/Makefile)
