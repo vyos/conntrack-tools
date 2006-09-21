@@ -9,12 +9,16 @@ Package: conntrack
 Architecture: any
 Depends: ${shlibs:Depends}, libconntrack-extensions (= ${Source-Version})
 Description: Program to modify the conntrack tables
- The userspace connection tracking table administration program.
+ conntrack is a userspace command line program targeted at system
+ administrators. It enables them to view and manage the in-kernel
+ connection tracking state table.
 
 Package: libconntrack-extensions
 Architecture: any
 Depends: ${shlibs:Depends}
 Description: Protocol extensions for the conntrack program
- The userspace connection tracking table administration program.
+ conntrack is a userspace command line program targeted at system
+ administrators. It enables them to view and manage the in-kernel
+ connection tracking state table.
  .
  This package provides the protocol extensions.
