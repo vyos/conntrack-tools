@@ -1,7 +1,8 @@
 Source: conntrack
 Section: net
 Priority: optional
-Maintainer: Max Kellermann <max@duempel.org>
+Maintainer: netfilter maintainers <netfilter-maintainers@ned.snow-crash.org>
+Uploaders: Max Kellermann <max@duempel.org>, Alexander Wirt <formorer@debian.org>
 Build-Depends: debhelper (>= 5), libnfnetlink-dev (>= 0.0.16), libnetfilter-conntrack-dev (>= 0.0.31)
 Standards-Version: 3.7.2
 
