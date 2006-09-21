@@ -2,4 +2,4 @@ conntrack (1.00~beta2-1) unstable; urgency=low
 
   * initial debian release (Closes: #388615)
 
- --
+ -- Max Kellermann <max@duempel.org>  Thu, 21 Sep 2006 18:04:51 +0200
