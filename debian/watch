@@ -1,0 +1,4 @@
+version=3
+
+opts="uversionmangle=s/beta/~beta/" \
+ftp://ftp.netfilter.org/pub/conntrack/conntrack-(\S+)\.tar\.bz2
