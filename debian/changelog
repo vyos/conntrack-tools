@@ -1,5 +1,5 @@
 conntrack (1.00~beta2-1) unstable; urgency=low
 
-  * initial debian release
+  * initial debian release (Closes: #388615)
 
  --
