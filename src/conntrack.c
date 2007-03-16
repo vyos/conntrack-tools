@@ -48,6 +48,7 @@
 #endif
 #include <fcntl.h>
 #include <dlfcn.h>
+#include <signal.h>
 #include <string.h>
 #include "linux_list.h"
 #include "conntrack.h"
