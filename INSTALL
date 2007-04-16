@@ -1,26 +1,22 @@
-Copyright (C) 2006-2007 Pablo Neira Ayuso <pablo netfilter org>
+Copyright (C) 2005-2007 Pablo Neira Ayuso <pablo netfilter org>
 
-1.Basic Installation
-====================
+0.Introduction
+==============
 
- To compile and install 'conntrackd' just follow the classical steps:
+ The conntrack-tools package contains two programs:
 
-	$ ./configure
-	$ make
-	# make install
-	# mkdir /etc/conntrackd/
+  - conntrack:	the command line interface to interact with the connection 
+		tracking system.
 
-2.1. Synchronization Mode
-=========================
+  - conntrackd: the connection tracking userspace daemon that can be used to
+  		deploy highly available GNU/Linux firewalls and collect 
+		statistics of the firewall use.
 
- Conntrackd can replicate the status of the connections that are currently
- being processed by your stateful firewall based on Linux. This section
- describes how to setup the daemon in synchronization mode:
+1. Requirements
+===============
 
-2.1.1. Requirements
-
- You have to install the following software in order to get conntrackd working,
- make sure that you have installed them correctly before going forward:
+ You have to install the following software in order to get the conntrack-tools
+ working, make sure that you have installed them correctly before going forward:
 
  o linux kernel version >= 2.6.18 (http://www.kernel.org) with support for:
      - connection tracking system (quite obvious ;)
@@ -28,26 +24,45 @@ Copyright (C) 2006-2007 Pablo Neira Ayuso <pablo netfilter org>
      - ctnetlink (ip_conntrack_netlink)
      - connection tracking event notification API
 
- o libnfnetlink: the netfilter netlink library
+ o libnfnetlink: the netfilter netlink library available at:
 
-     Since conntrackd version 0.9.2 you can used the official release availble at
-     http://www.netfilter.org/projects/libnfnetlink/files/
+     <http://www.netfilter.org/projects/libnfnetlink/files/>
 
-     Up to conntrackd version 0.9.1 use the unofficial release available at the
-     download section
+ o libnetfilter_conntrack: the netfilter conntrack library available at:
 
- o libnetfilter_conntrack: the netfilter conntrack library
+     <http://www.netfilter.org/projects/libnetfilter_conntrack/files/>
 
-     Since  conntrackd version 0.9.2 you can used the official release availble at
-     http://www.netfilter.org/projects/libnetfilter_conntrack/files/
+2.Basic Installation
+====================
 
-     Up to conntrackd version 0.9.1 use the unnoficial release available at the
-     download section
+ To compile and install conntrack-tools just follow the classical steps:
+
+	$ ./configure
+	$ make
+	# make install
+
+ Up to this point, the command line interface `conntrack' is ready for use.
+ However, the userspace daemon so-called `conntrackd' requires some magic 
+ speells to get it working.
+
+3.Setting up conntrackd
+=======================
+
+ conntrackd currently have two working modes: statistics and synchronization
+ modes, both details here below.
+
+3.1. Synchronization Mode
+=========================
+
+ Conntrackd can replicate the status of the connections that are currently
+ being processed by your stateful firewall based on Linux. This section
+ describes how to setup the daemon in synchronization mode:
+
 
  o Keepalived version 1.x (http://www.keepalived.org)
      check if your distribution comes with a recent version
 
-2.1.2. Configuration
+3.1.2. Configuration
 
  1) Setting up keepalived
 
@@ -142,7 +157,7 @@ Copyright (C) 2006-2007 Pablo Neira Ayuso <pablo netfilter org>
 
     # echo 1 > /proc/sys/net/ipv4/netfilter/ip_conntrack_tcp_be_liberal
 
-2.2. Statistics mode
+3.2. Statistics mode
 ====================
 
  Conntrackd can also run as statistics daemon, if you are not interested in
@@ -150,41 +165,19 @@ Copyright (C) 2006-2007 Pablo Neira Ayuso <pablo netfilter org>
  synchronization mode working. This section details how to setup the daemon
  in statistics mode:
 
-2.2.1. Requirements
+3.2.1. Requirements
 
- You have to install the following software in order to get conntrackd working,
- make sure that you have them installed correctly before going forward:
+ No extra requirements to set up the statistics mode apart from those detailed
+ in section 1.
 
- o linux kernel version >= 2.6.18 (http://www.kernel.org) with support for:
-      - connection tracking system
-      - nfnetlink
-      - ctnetlink (ip_conntrack_netlink)
-      - connection tracking event notification API
-
- o libnfnetlink: the netfilter netlink library
-
-     Since conntrackd version 0.9.2 you can used the official release availble at
-     http://www.netfilter.org/projects/libnfnetlink/files/
-
-     Up to conntrackd version 0.9.1 use the unofficial release available at the
-     download section
-
- o libnetfilter_conntrack: the netfilter conntrack library
-
-     Since  conntrackd version 0.9.2 you can used the official release availble at
-     http://www.netfilter.org/projects/libnetfilter_conntrack/files/
-
-     Up to conntrackd version 0.9.1 use the unnoficial release available at the
-     download section
-
-2.2.2. Configuration
+3.2.2. Configuration
 
  Setting up conntrackd in statistics mode is rather easy. Just copy the
  configuration file
 
     # cp examples/stats/conntrackd.conf /etc/conntrackd.conf
 
-2.2.3. Running conntrackd in statistics mode
+3.2.3. Running conntrackd in statistics mode
 
  To run conntrackd in statistics mode:
 
