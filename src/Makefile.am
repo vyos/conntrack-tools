@@ -4,7 +4,11 @@ YACC=@YACC@ -d
 
 CLEANFILES = read_config_yy.c read_config_lex.c
 
-sbin_PROGRAMS = conntrackd
+sbin_PROGRAMS = conntrack conntrackd
+
+conntrack_SOURCES = conntrack.c
+conntrack_LDFLAGS = -rdynamic
+
 conntrackd_SOURCES = alarm.c main.c run.c hash.c buffer.c \
 		    local.c log.c mcast.c netlink.c proxy.c lock.c \
 		    ignore_pool.c \

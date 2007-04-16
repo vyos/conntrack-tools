@@ -8,8 +8,8 @@ AUTOMAKE_OPTIONS = foreign dist-bzip2 1.6
 # EXTRA_DIST = $(man_MANS) Make_global.am debian
 EXTRA_DIST = Make_global.am CHANGELOG TODO
 
-SUBDIRS   = src
-DIST_SUBDIRS = include src examples
+SUBDIRS   = src extensions
+DIST_SUBDIRS = include src extensions examples
 LINKOPTS  = -lnfnetlink -lnetfilter_conntrack -lpthread
 AM_CFLAGS = -g
 
