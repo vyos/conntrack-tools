@@ -1,1 +1,0 @@
-INCLUDES=$(all_includes) -I$(top_srcdir)/include
