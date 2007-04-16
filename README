@@ -1,0 +1,17 @@
+This package contains two subdirectories:
+
+cli (command line interface)
+============================
+This subdirectory contains the command line tool `conntrack' that provides an 
+userspace interface to the connection tracking system. This tool let system
+administrators perform different actions against the connection tracking
+table. For more information see the manpage conntrack(8).
+
+daemon
+======
+This subdirectory contains the userspace connection tracking daemon so-called
+'conntrackd`. This daemon maintains a copy of the connection tracking table
+in userspace. It is highly configurable and easily extensible. Currently it
+covers the specific aspects of stateful GNU/Linux firewalls to enable high
+availability solutions and can be used as statistics collector of the firewall
+use.

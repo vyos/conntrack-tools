@@ -1,0 +1,18 @@
+There are several tasks that are pending to be done, I have classified them
+by dificulty levels:
+
+Relatively easy
+===============
+
+- test ipv6 support
+- improve shell scripts
+- test NACK based protocol
+- manpage for conntrackd
+
+Requires some work
+==================
+
+- study better keepalived transitions
+- implement support for TCP window tracking (patches are on the table)
+	- at the moment you have to disable it:
+	echo 1 > /proc/sys/net/ipv4/netfilter/ip_conntrack_tcp_be_liberal
