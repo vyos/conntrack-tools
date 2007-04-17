@@ -1104,7 +1104,7 @@ int main(int argc, char *argv[])
 		break;
 			
 	case CT_VERSION:
-		fprintf(stdout, "%s v%s\n", PROGNAME, VERSION);
+		printf("%s v%s (conntrack-tools)\n", PROGNAME, VERSION);
 		break;
 	case CT_HELP:
 		usage(argv[0]);
