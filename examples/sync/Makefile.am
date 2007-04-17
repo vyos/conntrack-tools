@@ -1,1 +1,0 @@
-SUBDIRS = persistent nack

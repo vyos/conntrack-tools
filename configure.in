@@ -1,4 +1,4 @@
-AC_INIT(conntrackd, 0.9.3, pablo@netfilter.org)
+AC_INIT(conntrack-tools, 0.9.3, pablo@netfilter.org)
 
 AC_CANONICAL_SYSTEM
 
@@ -103,4 +103,4 @@ dnl                  debug/src/Makefile
 dnl                  extensions/Makefile
 dnl                  src/Makefile])
 
-AC_OUTPUT(Makefile src/Makefile include/Makefile extensions/Makefile examples/Makefile examples/stats/Makefile examples/sync/Makefile examples/sync/persistent/Makefile examples/sync/nack/Makefile examples/sync/persistent/node1/Makefile examples/sync/persistent/node2/Makefile examples/sync/nack/node1/Makefile examples/sync/nack/node2/Makefile)
+AC_OUTPUT(Makefile src/Makefile include/Makefile extensions/Makefile)
