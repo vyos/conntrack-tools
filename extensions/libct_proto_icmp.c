@@ -1,6 +1,6 @@
 /*
- * (C) 2005 by Pablo Neira Ayuso <pablo@eurodev.net>
- *	       Harald Welte <laforge@netfilter.org>
+ * (C) 2005-2007 by Pablo Neira Ayuso <pablo@netfilter.org>
+ *     2005 by Harald Welte <laforge@netfilter.org>
  *
  *      This program is free software; you can redistribute it and/or modify
  *      it under the terms of the GNU General Public License as published by
@@ -43,35 +43,42 @@ static u_int8_t invmap[]
 	    [ICMP_ADDRESSREPLY] = ICMP_ADDRESS + 1};
 
 static int parse(char c, char *argv[], 
-		 struct nfct_tuple *orig,
-		 struct nfct_tuple *reply,
-		 struct nfct_tuple *exptuple,
-		 struct nfct_tuple *mask,
-		 union nfct_protoinfo *proto,
+		 struct nf_conntrack *ct,
+		 struct nf_conntrack *exptuple,
+		 struct nf_conntrack *mask,
 		 unsigned int *flags)
 {
 	switch(c) {
 		case '1':
-			if (optarg) {
-				orig->l4dst.icmp.type = atoi(optarg);
-				reply->l4dst.icmp.type =
-					invmap[orig->l4dst.icmp.type] - 1;
-				*flags |= ICMP_TYPE;
-			}
+			if (!optarg)
+				break;
+
+			nfct_set_attr_u8(ct, 
+					 ATTR_ICMP_TYPE,
+					 atoi(optarg));
+			/* FIXME: 
+			reply->l4dst.icmp.type =
+				invmap[orig->l4dst.icmp.type] - 1;
+			*/
+			*flags |= ICMP_TYPE;
 			break;
 		case '2':
-			if (optarg) {
-				orig->l4dst.icmp.code = atoi(optarg);
-				reply->l4dst.icmp.code = 0;
-				*flags |= ICMP_CODE;
-			}
+			if (!optarg)
+				break;
+
+			nfct_set_attr_u8(ct, 
+					 ATTR_ICMP_CODE,
+					 atoi(optarg));
+			*flags |= ICMP_CODE;
 			break;
 		case '3':
-			if (optarg) {
-				orig->l4src.icmp.id = htons(atoi(optarg));
-				reply->l4dst.icmp.id = 0;
-				*flags |= ICMP_ID;
-			}
+			if (!optarg)
+				break;
+
+			nfct_set_attr_u16(ct,
+					  ATTR_ICMP_ID,
+					  htons(atoi(optarg)));
+			*flags |= ICMP_ID;
 			break;
 	}
 	return 1;
@@ -79,8 +86,7 @@ static int parse(char c, char *argv[],
 
 static int final_check(unsigned int flags,
 		       unsigned int command,
-		       struct nfct_tuple *orig,
-		       struct nfct_tuple *reply)
+		       struct nf_conntrack *ct)
 {
 	if (!(flags & ICMP_TYPE))
 		return 0;

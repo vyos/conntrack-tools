@@ -1,10 +1,6 @@
 #ifndef _CONNTRACK_H
 #define _CONNTRACK_H
 
-#ifdef HAVE_CONFIG_H
-#include "../config.h"
-#endif
-
 #include "linux_list.h"
 #include <getopt.h>
 #include <libnetfilter_conntrack/libnetfilter_conntrack.h>
@@ -122,9 +118,18 @@ enum options {
 	CT_OPT_FAMILY_BIT	= 16,
 	CT_OPT_FAMILY		= (1 << CT_OPT_FAMILY_BIT),
 
-	CT_OPT_MAX_BIT		= CT_OPT_FAMILY_BIT
+	CT_OPT_SRC_NAT_BIT	= 17,
+	CT_OPT_SRC_NAT		= (1 << CT_OPT_SRC_NAT_BIT),
+
+	CT_OPT_DST_NAT_BIT	= 18,
+	CT_OPT_DST_NAT		= (1 << CT_OPT_DST_NAT_BIT),
+
+	CT_OPT_XML_BIT		= 19,
+	CT_OPT_XML		= (1 << CT_OPT_XML_BIT),
+
+	CT_OPT_MAX		= CT_OPT_XML_BIT
 };
-#define NUMBER_OF_OPT   CT_OPT_MAX_BIT+1
+#define NUMBER_OF_OPT	CT_OPT_MAX+1
 
 struct ctproto_handler {
 	struct list_head 	head;
@@ -136,17 +141,14 @@ struct ctproto_handler {
 	enum ctattr_protoinfo	protoinfo_attr;
 	
 	int (*parse_opts)(char c, char *argv[], 
-		     struct nfct_tuple *orig,
-		     struct nfct_tuple *reply,
-		     struct nfct_tuple *exptuple,
-		     struct nfct_tuple *mask,
-		     union nfct_protoinfo *proto,
+		     struct nf_conntrack *ct,
+		     struct nf_conntrack *exptuple,
+		     struct nf_conntrack *mask,
 		     unsigned int *flags);
 
 	int (*final_check)(unsigned int flags,
 			   unsigned int command,
-			   struct nfct_tuple *orig,
-			   struct nfct_tuple *reply);
+			   struct nf_conntrack *ct);
 
 	void (*help)();
 

@@ -32,7 +32,7 @@ case $1 in
 		echo "creating a new conntrack (NAT)"
 		$CONNTRACK -I --orig-src $SRC --orig-dst $DST \
 		-p tcp --orig-port-src $SPORT  --orig-port-dst $DPORT \
-		--state LISTEN -u SEEN_REPLY,SRC_NAT -t 50 -a 8.8.8.8
+		--state LISTEN -u SEEN_REPLY -t 50 --dst-nat 8.8.8.8
 		;;
 	get)
 		echo "getting a conntrack"
@@ -78,18 +78,17 @@ case $1 in
 		--tuple-src 4.4.4.4 --tuple-dst 5.5.5.5 \
 		--mask-src 255.255.255.0 --mask-dst 255.255.255.255 \
 		-p tcp --orig-port-src $SPORT --orig-port-dst $DPORT \
-		-t 200 --tuple-port-src 10 --tuple-port-dst 300 \
+		-t 200 --tuple-port-src 10240 --tuple-port-dst 10241\
 		--mask-port-src 10 --mask-port-dst 300
 		;;
 	get-expect)
 		$CONNTRACK -G expect --orig-src 4.4.4.4 --orig-dst 5.5.5.5 \
-		--p tcp --orig-port-src 0 --orig-port-dst 0 \
-		--mask-port-src 10 --mask-port-dst 11
+		--p tcp --orig-port-src 10240 --orig-port-dst 10241
 		;;
 	delete-expect)
 		$CONNTRACK -D expect --orig-src 4.4.4.4 \
-		--orig-dst 5.5.5.5 -p tcp --orig-port-src 0 \
-		--orig-port-dst 0 --mask-port-src 10 --mask-port-dst 11
+		--orig-dst 5.5.5.5 -p tcp --orig-port-src 10240 \
+		--orig-port-dst 10241
 		;;
 	*)
 		echo "Usage: $0 [dump"

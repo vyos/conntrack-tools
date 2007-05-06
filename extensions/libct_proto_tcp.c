@@ -1,5 +1,5 @@
 /*
- * (C) 2005 by Pablo Neira Ayuso <pablo@eurodev.net>
+ * (C) 2005-2007 by Pablo Neira Ayuso <pablo@netfilter.org>
  *
  *      This program is free software; you can redistribute it and/or modify
  *      it under the terms of the GNU General Public License as published by
@@ -56,78 +56,112 @@ static void help()
 	fprintf(stdout, "--state                TCP state, fe. ESTABLISHED\n");
 }
 
-static int parse_options(char c, char *argv[], 
-			 struct nfct_tuple *orig,
-			 struct nfct_tuple *reply,
-			 struct nfct_tuple *exptuple,
-			 struct nfct_tuple *mask,
-			 union nfct_protoinfo *proto,
+static int parse_options(char c, char *argv[],
+			 struct nf_conntrack *ct,
+			 struct nf_conntrack *exptuple,
+			 struct nf_conntrack *mask,
 			 unsigned int *flags)
 {
+	int i;
+
 	switch(c) {
 		case '1':
-			if (optarg) {
-				orig->l4src.tcp.port = htons(atoi(optarg));
-				*flags |= TCP_ORIG_SPORT;
-			}
+			if (!optarg)
+				break;
+
+			nfct_set_attr_u16(ct, 
+					  ATTR_ORIG_PORT_SRC, 
+					  htons(atoi(optarg)));
+
+			*flags |= TCP_ORIG_SPORT;
 			break;
 		case '2':
-			if (optarg) {
-				orig->l4dst.tcp.port = htons(atoi(optarg));
-				*flags |= TCP_ORIG_DPORT;
-			}
+			if (!optarg)
+				break;
+
+			nfct_set_attr_u16(ct, 
+					  ATTR_ORIG_PORT_DST, 
+					  htons(atoi(optarg)));
+
+			*flags |= TCP_ORIG_DPORT;
 			break;
 		case '3':
-			if (optarg) {
-				reply->l4src.tcp.port = htons(atoi(optarg));
-				*flags |= TCP_REPL_SPORT;
-			}
+			if (!optarg)
+				break;
+
+			nfct_set_attr_u16(ct, 
+					  ATTR_REPL_PORT_SRC, 
+					  htons(atoi(optarg)));
+
+			*flags |= TCP_REPL_SPORT;
 			break;
 		case '4':
-			if (optarg) {
-				reply->l4dst.tcp.port = htons(atoi(optarg));
-				*flags |= TCP_REPL_DPORT;
-			}
+			if (!optarg)
+				break;
+
+			nfct_set_attr_u16(ct, 
+					  ATTR_REPL_PORT_DST, 
+					  htons(atoi(optarg)));
+
+			*flags |= TCP_REPL_DPORT;
 			break;
 		case '5':
-			if (optarg) {
-				mask->l4src.tcp.port = htons(atoi(optarg));
-				*flags |= TCP_MASK_SPORT;
-			}
+			if (!optarg)
+				break;
+
+			nfct_set_attr_u16(mask, 
+					  ATTR_ORIG_PORT_SRC, 
+					  htons(atoi(optarg)));
+
+			*flags |= TCP_MASK_SPORT;
 			break;
 		case '6':
-			if (optarg) {
-				mask->l4dst.tcp.port = htons(atoi(optarg));
-				*flags |= TCP_MASK_DPORT;
-			}
+			if (!optarg)
+				break;
+
+			nfct_set_attr_u16(mask, 
+					  ATTR_ORIG_PORT_DST, 
+					  htons(atoi(optarg)));
+
+			*flags |= TCP_MASK_DPORT;
 			break;
 		case '7':
-			if (optarg) {
-				int i;
-				for (i=0; i<10; i++) {
-					if (strcmp(optarg, states[i]) == 0) {
-						proto->tcp.state = i;
-						break;
-					}
+			if (!optarg)
+				break;
+
+			for (i=0; i<10; i++) {
+				if (strcmp(optarg, states[i]) == 0) {
+					nfct_set_attr_u8(ct,
+							 ATTR_TCP_STATE,
+							 i);
+					break;
 				}
-				if (i == 10) {
-					printf("doh?\n");
-					return 0;
-				}
-				*flags |= TCP_STATE;
 			}
+			if (i == 10) {
+				printf("doh?\n");
+				return 0;
+			}
+			*flags |= TCP_STATE;
 			break;
 		case '8':
-			if (optarg) {
-				exptuple->l4src.tcp.port = htons(atoi(optarg));
-				*flags |= TCP_EXPTUPLE_SPORT;
-			}
+			if (!optarg)
+				break;
+
+			nfct_set_attr_u16(exptuple, 
+					  ATTR_ORIG_PORT_SRC, 
+					  htons(atoi(optarg)));
+
+			*flags |= TCP_EXPTUPLE_SPORT;
 			break;
 		case '9':
-			if (optarg) {
-				exptuple->l4dst.tcp.port = htons(atoi(optarg));
-				*flags |= TCP_EXPTUPLE_DPORT;
-			}
+			if (!optarg)
+				break;
+
+			nfct_set_attr_u16(exptuple, 
+					  ATTR_ORIG_PORT_DST, 
+					  htons(atoi(optarg)));
+
+			*flags |= TCP_EXPTUPLE_DPORT;
 			break;
 	}
 	return 1;
@@ -135,20 +169,27 @@ static int parse_options(char c, char *argv[],
 
 static int final_check(unsigned int flags,
 		       unsigned int command,
-		       struct nfct_tuple *orig,
-		       struct nfct_tuple *reply)
+		       struct nf_conntrack *ct)
 {
 	int ret = 0;
-	
+
 	if ((flags & (TCP_ORIG_SPORT|TCP_ORIG_DPORT)) 
 	    && !(flags & (TCP_REPL_SPORT|TCP_REPL_DPORT))) {
-		reply->l4src.tcp.port = orig->l4dst.tcp.port;
-		reply->l4dst.tcp.port = orig->l4src.tcp.port;
+	    	nfct_set_attr_u16(ct,
+				  ATTR_REPL_PORT_SRC, 
+				  nfct_get_attr_u16(ct, ATTR_ORIG_PORT_DST));
+		nfct_set_attr_u16(ct,
+				  ATTR_REPL_PORT_DST,
+				  nfct_get_attr_u16(ct, ATTR_ORIG_PORT_SRC));
 		ret = 1;
 	} else if (!(flags & (TCP_ORIG_SPORT|TCP_ORIG_DPORT))
 	            && (flags & (TCP_REPL_SPORT|TCP_REPL_DPORT))) {
-		orig->l4src.tcp.port = reply->l4dst.tcp.port;
-		orig->l4dst.tcp.port = reply->l4src.tcp.port;
+	    	nfct_set_attr_u16(ct,
+				  ATTR_ORIG_PORT_SRC, 
+				  nfct_get_attr_u16(ct, ATTR_REPL_PORT_DST));
+		nfct_set_attr_u16(ct,
+				  ATTR_ORIG_PORT_DST,
+				  nfct_get_attr_u16(ct, ATTR_REPL_PORT_SRC));
 		ret = 1;
 	}
 	if ((flags & (TCP_ORIG_SPORT|TCP_ORIG_DPORT)) 
