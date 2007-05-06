@@ -319,18 +319,18 @@ err2str(int err, enum action command)
 		int err;
 		const char *message;
 	} table [] =
-	  { { CT_LIST, -ENOTSUPP, "function not implemented" },
-	    { 0xFFFF, -EINVAL, "invalid parameters" },
-	    { CT_CREATE, -EEXIST, "Such conntrack exists, try -U to update" },
-	    { CT_CREATE|CT_GET|CT_DELETE, -ENOENT, 
+	  { { CT_LIST, ENOTSUPP, "function not implemented" },
+	    { 0xFFFF, EINVAL, "invalid parameters" },
+	    { CT_CREATE, EEXIST, "Such conntrack exists, try -U to update" },
+	    { CT_CREATE|CT_GET|CT_DELETE, ENOENT, 
 		    "such conntrack doesn't exist" },
-	    { CT_CREATE|CT_GET, -ENOMEM, "not enough memory" },
-	    { CT_GET, -EAFNOSUPPORT, "protocol not supported" },
-	    { CT_CREATE, -ETIME, "conntrack has expired" },
-	    { EXP_CREATE, -ENOENT, "master conntrack not found" },
-	    { EXP_CREATE, -EINVAL, "invalid parameters" },
-	    { ~0UL, -EPERM, "sorry, you must be root or get "
-		    	    "CAP_NET_ADMIN capability to do this"}
+	    { CT_CREATE|CT_GET, ENOMEM, "not enough memory" },
+	    { CT_GET, EAFNOSUPPORT, "protocol not supported" },
+	    { CT_CREATE, ETIME, "conntrack has expired" },
+	    { EXP_CREATE, ENOENT, "master conntrack not found" },
+	    { EXP_CREATE, EINVAL, "invalid parameters" },
+	    { ~0UL, EPERM, "sorry, you must be root or get "
+		    	   "CAP_NET_ADMIN capability to do this"}
 	  };
 
 	for (i = 0; i < sizeof(table)/sizeof(struct table_struct); i++) {
@@ -338,7 +338,7 @@ err2str(int err, enum action command)
 			return table[i].message;
 	}
 
-	return strerror(-err);
+	return strerror(err);
 }
 
 #define PARSE_STATUS 0
@@ -1238,7 +1238,7 @@ int main(int argc, char *argv[])
 	}
 
 	if (res < 0) {
-		fprintf(stderr, "Operation failed: %s\n", err2str(-errno, command));
+		fprintf(stderr, "Operation failed: %s\n", err2str(errno, command));
 		exit(OTHER_PROBLEM);
 	}
 
