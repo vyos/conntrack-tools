@@ -32,13 +32,14 @@ o add support to dump internal/external cache in XML format '-x'
 
 = conntrack =
 o port conntrack to the new libnetfilter_conntrack API
-o introduce '--xml' option for '-L', '-G' and '-E'
+o introduce '--output xml,extended,timestamp' option for '-L', '-G' and '-E'
 o deprecated '--id'
 o replace '-a' by '--src-nat' and '--dst-nat'
 o use positive logic in error handling
 o remove sctp support until is fully supported in the kernel side
 o update conntrack manpage
 o update test.sh file in examples/cli/
+o several fixes for the output of usage messages
 
 version 0.9.2 (2006/01/17)
 --------------------------

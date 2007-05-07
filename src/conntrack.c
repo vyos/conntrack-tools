@@ -96,7 +96,7 @@ static struct option original_opts[] = {
 	{"family", 1, 0, 'f'},
 	{"src-nat", 1, 0, 'n'},
 	{"dst-nat", 1, 0, 'g'},
-	{"xml", 0, 0, 'x'},
+	{"output", 0, 0, 'o'},
 	{0, 0, 0, 0}
 };
 
@@ -118,7 +118,7 @@ static unsigned int global_option_offset = 0;
 static char commands_v_options[NUMBER_OF_CMD][NUMBER_OF_OPT] =
 /* Well, it's better than "Re: Linux vs FreeBSD" */
 {
-          /*   s d r q p t u z e x y k l a m i f n g x */
+          /*   s d r q p t u z e [ ] { } a m i f n g o */
 /*CT_LIST*/   {2,2,2,2,2,0,0,2,0,0,0,0,0,0,2,2,2,0,0,2},
 /*CT_CREATE*/ {2,2,2,2,1,1,1,0,0,0,0,0,0,2,2,0,0,2,2,0},
 /*CT_UPDATE*/ {2,2,2,2,1,2,2,0,0,0,0,0,0,0,2,2,0,0,0,0},
@@ -343,7 +343,8 @@ err2str(int err, enum action command)
 
 #define PARSE_STATUS 0
 #define PARSE_EVENT 1
-#define PARSE_MAX 2
+#define PARSE_OUTPUT 2
+#define PARSE_MAX 3
 
 static struct parse_parameter {
 	char 	*parameter[6];
@@ -355,6 +356,9 @@ static struct parse_parameter {
 	{ {"ALL", "NEW", "UPDATES", "DESTROY"}, 4,
 	  {~0U, NF_NETLINK_CONNTRACK_NEW, NF_NETLINK_CONNTRACK_UPDATE, 
 	   NF_NETLINK_CONNTRACK_DESTROY} },
+	{ {"xml", "extended", "timestamp" }, 3, 
+	  { _O_XML, _O_EXT, _O_TMS },
+	},
 };
 
 static int
@@ -542,12 +546,12 @@ static const char usage_tables[] =
 
 static const char usage_conntrack_parameters[] =
 	"Conntrack parameters and options:\n"
-	"  -n, --src-nat ip\tsource NAT ip\n"
-	"  -g, --dst-nat ip\tdestination NAT ip\n"
+	"  -n, --src-nat ip\t\t\tsource NAT ip\n"
+	"  -g, --dst-nat ip\t\t\tdestination NAT ip\n"
 	"  -m, --mark mark\t\t\tSet mark\n"
 	"  -e, --event-mask eventmask\t\tEvent mask, eg. NEW,DESTROY\n"
 	"  -z, --zero \t\t\t\tZero counters while listing\n"
-	"  -x, --xml \t\t\t\tDisplay output in XML format\n";
+	"  -o, --output type[,...]\t\tOutput format, eg. xml\n";
 	;
 
 static const char usage_expectation_parameters[] =
@@ -571,7 +575,8 @@ static const char usage_parameters[] =
   
 
 void usage(char *prog) {
-	fprintf(stdout, "Tool to manipulate conntrack and expectations. Version %s\n", VERSION);
+	fprintf(stdout, "Command line interface for the connection "
+			"tracking system. Version %s\n", VERSION);
 	fprintf(stdout, "Usage: %s [commands] [options]\n", prog);
 
 	fprintf(stdout, "\n%s", usage_commands);
@@ -581,7 +586,7 @@ void usage(char *prog) {
 	fprintf(stdout, "\n%s", usage_parameters);
 }
 
-unsigned int output_flags = NFCT_O_DEFAULT;
+static unsigned int output_mask;
 
 static int event_cb(enum nf_conntrack_msg_type type,
 		    struct nf_conntrack *ct,
@@ -589,12 +594,25 @@ static int event_cb(enum nf_conntrack_msg_type type,
 {
 	char buf[1024];
 	struct nf_conntrack *obj = data;
+	unsigned int output_type = NFCT_O_DEFAULT;
+	unsigned int output_flags = 0;
 
 	if (options & CT_COMPARISON && !nfct_compare(obj, ct))
 		return NFCT_CB_CONTINUE;
 
-	nfct_snprintf(buf, 1024, ct, type, output_flags, 0);
+	if (output_mask & _O_XML)
+		output_type = NFCT_O_XML;
+	if (output_mask & _O_EXT)
+		output_flags = NFCT_OF_SHOW_LAYER3;
+	if ((output_mask & _O_TMS) && !(output_mask & _O_XML)) {
+		struct timeval tv;
+		gettimeofday(&tv, NULL);
+		printf("[%-8ld.%-6ld]\t", tv.tv_sec, tv.tv_usec);
+	}
+
+	nfct_snprintf(buf, 1024, ct, type, output_type, output_flags);
 	printf("%s\n", buf);
+	fflush(stdout);
 
 	return NFCT_CB_CONTINUE;
 }
@@ -605,11 +623,18 @@ static int dump_cb(enum nf_conntrack_msg_type type,
 {
 	char buf[1024];
 	struct nf_conntrack *obj = data;
+	unsigned int output_type = NFCT_O_DEFAULT;
+	unsigned int output_flags = 0;
 
 	if (options & CT_COMPARISON && !nfct_compare(obj, ct))
 		return NFCT_CB_CONTINUE;
 
-	nfct_snprintf(buf, 1024, ct, NFCT_T_UNKNOWN, output_flags, 0);
+	if (output_mask & _O_XML)
+		output_type = NFCT_O_XML;
+	if (output_mask & _O_EXT)
+		output_flags = NFCT_OF_SHOW_LAYER3;
+
+	nfct_snprintf(buf, 1024, ct, NFCT_T_UNKNOWN, output_type, output_flags);
 	printf("%s\n", buf);
 
 	return NFCT_CB_CONTINUE;
@@ -652,7 +677,7 @@ int main(int argc, char *argv[])
 	memset(__exp, 0, sizeof(__exp));
 
 	while ((c = getopt_long(argc, argv, 
-		"L::I::U::D::G::E::F::hVs:d:r:q:p:t:u:e:a:z[:]:{:}:m:i::f:x", 
+		"L::I::U::D::G::E::F::hVs:d:r:q:p:t:u:e:a:z[:]:{:}:m:i::f:o:", 
 		opts, NULL)) != -1) {
 	switch(c) {
 		case 'L':
@@ -931,9 +956,9 @@ int main(int argc, char *argv[])
 				exit_error(PARAMETER_PROBLEM, "Unknown "
 					   "protocol family\n");
 			break;
-		case 'x':
-			options |= CT_OPT_XML;
-			output_flags = NFCT_O_XML;
+		case 'o':
+			options |= CT_OPT_OUTPUT;
+			parse_parameter(optarg, &output_mask, PARSE_OUTPUT);
 			break;
 		default:
 			if (h && h->parse_opts 

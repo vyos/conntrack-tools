@@ -45,15 +45,15 @@ static const char *states[] = {
 
 static void help()
 {
-	fprintf(stdout, "--orig-port-src        original source port\n");
-	fprintf(stdout, "--orig-port-dst        original destination port\n");
-	fprintf(stdout, "--reply-port-src       reply source port\n");
-	fprintf(stdout, "--reply-port-dst       reply destination port\n");
-	fprintf(stdout, "--mask-port-src	mask source port\n");
-	fprintf(stdout, "--mask-port-dst	mask destination port\n");
-	fprintf(stdout, "--tuple-port-src	expectation tuple src port\n");
-	fprintf(stdout, "--tuple-port-src	expectation tuple dst port\n");
-	fprintf(stdout, "--state                TCP state, fe. ESTABLISHED\n");
+	fprintf(stdout, "  --orig-port-src\t\toriginal source port\n");
+	fprintf(stdout, "  --orig-port-dst\t\toriginal destination port\n");
+	fprintf(stdout, "  --reply-port-src\t\treply source port\n");
+	fprintf(stdout, "  --reply-port-dst\t\treply destination port\n");
+	fprintf(stdout, "  --mask-port-src\t\tmask source port\n");
+	fprintf(stdout, "  --mask-port-dst\t\tmask destination port\n");
+	fprintf(stdout, "  --tuple-port-src\t\texpectation tuple src port\n");
+	fprintf(stdout, "  --tuple-port-src\t\texpectation tuple dst port\n");
+	fprintf(stdout, "  --state\t\t\tTCP state, fe. ESTABLISHED\n");
 }
 
 static int parse_options(char c, char *argv[],

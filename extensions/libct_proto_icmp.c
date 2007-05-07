@@ -26,21 +26,10 @@ static struct option opts[] = {
 
 static void help()
 {
-	fprintf(stdout, "--icmp-type            icmp type\n");
-	fprintf(stdout, "--icmp-code            icmp code\n");
-	fprintf(stdout, "--icmp-id              icmp id\n");
+	fprintf(stdout, "  --icmp-type\t\t\ticmp type\n");
+	fprintf(stdout, "  --icmp-code\t\t\ticmp code\n");
+	fprintf(stdout, "  --icmp-id\t\t\ticmp id\n");
 }
-
-/* Add 1; spaces filled with 0. */
-static u_int8_t invmap[]
-	= { [ICMP_ECHO] = ICMP_ECHOREPLY + 1,
-	    [ICMP_ECHOREPLY] = ICMP_ECHO + 1,
-	    [ICMP_TIMESTAMP] = ICMP_TIMESTAMPREPLY + 1,
-	    [ICMP_TIMESTAMPREPLY] = ICMP_TIMESTAMP + 1,
-	    [ICMP_INFO_REQUEST] = ICMP_INFO_REPLY + 1,
-	    [ICMP_INFO_REPLY] = ICMP_INFO_REQUEST + 1,
-	    [ICMP_ADDRESS] = ICMP_ADDRESSREPLY + 1,
-	    [ICMP_ADDRESSREPLY] = ICMP_ADDRESS + 1};
 
 static int parse(char c, char *argv[], 
 		 struct nf_conntrack *ct,
@@ -56,10 +45,6 @@ static int parse(char c, char *argv[],
 			nfct_set_attr_u8(ct, 
 					 ATTR_ICMP_TYPE,
 					 atoi(optarg));
-			/* FIXME: 
-			reply->l4dst.icmp.type =
-				invmap[orig->l4dst.icmp.type] - 1;
-			*/
 			*flags |= ICMP_TYPE;
 			break;
 		case '2':

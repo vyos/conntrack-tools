@@ -124,12 +124,23 @@ enum options {
 	CT_OPT_DST_NAT_BIT	= 18,
 	CT_OPT_DST_NAT		= (1 << CT_OPT_DST_NAT_BIT),
 
-	CT_OPT_XML_BIT		= 19,
-	CT_OPT_XML		= (1 << CT_OPT_XML_BIT),
+	CT_OPT_OUTPUT_BIT	= 19,
+	CT_OPT_OUTPUT		= (1 << CT_OPT_OUTPUT_BIT),
 
-	CT_OPT_MAX		= CT_OPT_XML_BIT
+	CT_OPT_MAX		= CT_OPT_OUTPUT_BIT
 };
 #define NUMBER_OF_OPT	CT_OPT_MAX+1
+
+enum {
+	_O_XML_BIT		= 0,
+	_O_XML			= (1 << _O_XML_BIT),
+
+	_O_EXT_BIT		= 1,
+	_O_EXT			= (1 << _O_EXT_BIT),
+
+	_O_TMS_BIT		= 2,
+	_O_TMS			= (1 << _O_TMS_BIT),
+};
 
 struct ctproto_handler {
 	struct list_head 	head;
