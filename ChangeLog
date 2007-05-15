@@ -29,6 +29,7 @@ o introduce 'Replicate' clause to explicitely set states to be replicated
 o kill cache feature abuse: introduce nicer cache hooks for sync algorithms
 o fix oversized buffer allocated in the stack in the cache functions
 o add support to dump internal/external cache in XML format '-x'
+o add script for keepalived fault state (eg. unplugged cable/link down)
 
 = conntrack =
 o port conntrack to the new libnetfilter_conntrack API
