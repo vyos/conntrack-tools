@@ -182,6 +182,10 @@ static int do_flush(void *data1, void *data2)
 		c->features[i]->destroy(u, data);
 		data += c->features[i]->size;
 	}
+
+	if (c->extra && c->extra->destroy)
+		c->extra->destroy(u, ((void *) u) + c->extra_offset);
+
 	free(u->ct);
 
 	return 0;
@@ -215,7 +219,7 @@ static int do_bulk(void *data1, void *data2)
 		debug_ct(u->ct, "failed to build");
 
 	mcast_send_netmsg(STATE_SYNC(mcast_client), net);
-	STATE_SYNC(mcast_sync)->post_send(net, u);
+	STATE_SYNC(mcast_sync)->post_send(NFCT_T_UPDATE, net, u);
 
 	/* keep iterating even if we have found errors */
 	return 0;

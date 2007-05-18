@@ -114,7 +114,9 @@ static int notrack_pre_recv(const struct nlnetwork *net)
 	return 0;
 }
 
-static void notrack_post_send(const struct nlnetwork *n, struct us_conntrack *u)
+static void notrack_post_send(int type,
+			      const struct nlnetwork *n, 
+			      struct us_conntrack *u)
 {
 }
 

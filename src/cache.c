@@ -228,7 +228,7 @@ static struct us_conntrack *__add(struct cache *c, struct nf_conntrack *ct)
 			data += c->features[i]->size;
 		}
 
-		if (c->extra)
+		if (c->extra && c->extra->add)
 			c->extra->add(u, ((void *) u) + c->extra_offset);
 
 		return u;
@@ -247,7 +247,8 @@ struct us_conntrack *__cache_add(struct cache *c, struct nf_conntrack *ct)
 		c->add_ok++;
 		return u;
 	}
-	c->add_fail++;
+	if (errno != EEXIST)
+		c->add_fail++;
 
 	return NULL;
 }
@@ -281,7 +282,7 @@ static struct us_conntrack *__update(struct cache *c, struct nf_conntrack *ct)
 			data += c->features[i]->size;
 		}
 
-		if (c->extra)
+		if (c->extra && c->extra->update)
 			c->extra->update(u, ((void *) u) + c->extra_offset);
 
 		if (nfct_attr_is_set(ct, ATTR_STATUS))
@@ -380,7 +381,7 @@ static int __del(struct cache *c, struct nf_conntrack *ct)
 			data += c->features[i]->size;
 		}
 
-		if (c->extra)
+		if (c->extra && c->extra->destroy)
 			c->extra->destroy(u, ((void *) u) + c->extra_offset);
 
 		hashtable_del(c->h, u);

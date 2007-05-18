@@ -282,18 +282,15 @@ static void mcast_send_sync(struct nlmsghdr *nlh,
 {
 	char buf[4096];
 	struct nlnetwork *net = (struct nlnetwork *) buf;
-	int mangled = 0;
 
 	memset(buf, 0, sizeof(buf));
 
 	if (!state_helper_verdict(type, ct))
 		return;
 
-	if (!mangled)
-		memcpy(buf + sizeof(struct nlnetwork), nlh, nlh->nlmsg_len);
-
+	memcpy(buf + sizeof(struct nlnetwork), nlh, nlh->nlmsg_len);
 	mcast_send_netmsg(STATE_SYNC(mcast_client), net); 
-	STATE_SYNC(mcast_sync)->post_send(net, u);
+	STATE_SYNC(mcast_sync)->post_send(type, net, u);
 }
 
 static void overrun_sync(struct nf_conntrack *ct, struct nlmsghdr *nlh)
@@ -333,7 +330,8 @@ retry:
 	} else {
 		if (errno == EEXIST) {
 			char buf[4096];
-			struct nlmsghdr *nlh = (struct nlmsghdr *) buf;
+			unsigned int size = sizeof(struct nlnetwork);
+			struct nlmsghdr *nlh = (struct nlmsghdr *) (buf + size);
 
 			int ret = build_network_msg(NFCT_Q_DESTROY,
 						    STATE(subsys_event),
@@ -344,9 +342,10 @@ retry:
 				return;
 
 			cache_del(STATE_SYNC(internal), ct);
-			mcast_send_sync(nlh, NULL, ct, NFCT_T_NEW);
+			mcast_send_sync(nlh, NULL, ct, NFCT_T_DESTROY);
 			goto retry;
 		}
+
 		dlog(STATE(log), "can't add to internal cache: "
 				      "%s\n", strerror(errno));
 		debug_ct(ct, "can't add");
@@ -360,19 +359,8 @@ static void event_update_sync(struct nf_conntrack *ct, struct nlmsghdr *nlh)
 	nfct_attr_unset(ct, ATTR_TIMEOUT);
 
 	if ((u = cache_update(STATE_SYNC(internal), ct)) == NULL) {
-		/*
-		 * Perhaps we are losing events. If we are working 
-		 * in relax mode then add a new entry to the cache.
-		 *
-		 * FIXME: relax transitions not implemented yet
-		 */
-		if ((CONFIG(flags) & RELAX_TRANSITIONS)
-		    && (u = cache_add(STATE_SYNC(internal), ct))) {
-			debug_ct(u->ct, "forcing internal update");
-		} else {
-			debug_ct(ct, "can't update");
-			return;
-		}
+		debug_ct(ct, "can't update");
+		return;
 	}
 	debug_ct(u->ct, "internal update");
 	mcast_send_sync(nlh, u, ct, NFCT_T_UPDATE);
@@ -382,24 +370,11 @@ static int event_destroy_sync(struct nf_conntrack *ct, struct nlmsghdr *nlh)
 {
 	nfct_attr_unset(ct, ATTR_TIMEOUT);
 
-	if (CONFIG(flags) & DELAY_DESTROY_MSG) {
-
-		nfct_set_attr_u32(ct, ATTR_STATUS, IPS_DYING);
-
-		if (cache_update(STATE_SYNC(internal), ct)) {
-			debug_ct(ct, "delay internal destroy");
-			return 1;
-		} else {
-			debug_ct(ct, "can't delay destroy!");
-			return 0;
-		}
-	} else {
-		if (cache_del(STATE_SYNC(internal), ct)) {
-			mcast_send_sync(nlh, NULL, ct, NFCT_T_DESTROY);
-			debug_ct(ct, "internal destroy");
-		} else
-			debug_ct(ct, "can't destroy");
-	}
+	if (cache_del(STATE_SYNC(internal), ct)) {
+		mcast_send_sync(nlh, NULL, ct, NFCT_T_DESTROY);
+		debug_ct(ct, "internal destroy");
+	} else
+		debug_ct(ct, "can't destroy");
 }
 
 struct ct_mode sync_mode = {

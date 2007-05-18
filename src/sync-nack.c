@@ -43,37 +43,24 @@ struct cache_nack {
 static void cache_nack_add(struct us_conntrack *u, void *data)
 {
 	struct cache_nack *cn = data;
-
 	INIT_LIST_HEAD(&cn->head);
-	list_add(&cn->head, &queue);
 }
 
-static void cache_nack_update(struct us_conntrack *u, void *data)
+static void cache_nack_del(struct us_conntrack *u, void *data)
 {
 	struct cache_nack *cn = data;
 
-	if (cn->head.next != LIST_POISON1 &&
-	    cn->head.prev != LIST_POISON2)
-		list_del(&cn->head);
+	if (cn->head.next == &cn->head &&
+	    cn->head.prev == &cn->head)
+	    	return;
 
-	INIT_LIST_HEAD(&cn->head);
-	list_add(&cn->head, &queue);
-}
-
-static void cache_nack_destroy(struct us_conntrack *u, void *data)
-{
-	struct cache_nack *cn = data;
-
-	if (cn->head.next != LIST_POISON1 &&
-	    cn->head.prev != LIST_POISON2)
-		list_del(&cn->head);
+	list_del(&cn->head);
 }
 
 static struct cache_extra cache_nack_extra = {
 	.size 		= sizeof(struct cache_nack),
 	.add		= cache_nack_add,
-	.update		= cache_nack_update,
-	.destroy	= cache_nack_destroy
+	.destroy	= cache_nack_del
 };
 
 static int nack_init()
@@ -200,7 +187,9 @@ static void queue_resend(struct cache *c, unsigned int from, unsigned int to)
 			}
 
 			mcast_send_netmsg(STATE_SYNC(mcast_client), buf); 
-			STATE_SYNC(mcast_sync)->post_send(net, u);
+			STATE_SYNC(mcast_sync)->post_send(NFCT_T_UPDATE,
+							  net, 
+							  u);
 			dp("(newseq=%u)\n", *seq);
 		} 
 	}
@@ -224,6 +213,7 @@ static void queue_empty(struct cache *c, unsigned int from, unsigned int to)
 			debug_ct(u->ct, "ack received: empty queue");
 			dp("queue: deleting from queue (seq=%u)\n", cn->seq);
 			list_del(&cn->head);
+			INIT_LIST_HEAD(&cn->head);
 		} 
 	}
 	unlock();
@@ -272,28 +262,35 @@ static int nack_pre_recv(const struct nlnetwork *net)
 	return 0;
 }
 
-static void nack_post_send(const struct nlnetwork *net, struct us_conntrack *u)
+static void nack_post_send(int type, 
+			   const struct nlnetwork *net, 
+			   struct us_conntrack *u)
 {
-	unsigned int size = sizeof(struct nlnetwork);
-	struct nlmsghdr *nlh = (struct nlmsghdr *) ((void *) net + size);
+	unsigned int size = sizeof(struct nlnetwork); 
+ 	struct nlmsghdr *nlh = (struct nlmsghdr *) ((void *) net + size);
+	struct cache_nack *cn;
+ 
+	size += ntohl(nlh->nlmsg_len);
 
-	if (NFNL_MSG_TYPE(ntohs(nlh->nlmsg_type)) == IPCTNL_MSG_CT_DELETE) {
-		buffer_add(STATE_SYNC(buffer), net, 
-			   ntohl(nlh->nlmsg_len) + size); 
-	} else if (u != NULL) {
-		unsigned int *seq;
-		struct list_head *n;
-		struct cache_nack *cn;
-
-		cn = (struct cache_nack *)
+	switch(type) {
+	case NFCT_T_NEW:
+	case NFCT_T_UPDATE:
+		cn = (struct cache_nack *) 
 			cache_get_extra(STATE_SYNC(internal), u);
-		cn->seq = ntohl(net->seq);
-		if (cn->head.next != LIST_POISON1 &&
-		    cn->head.prev != LIST_POISON2)
-		    	list_del(&cn->head);
 
+		if (cn->head.next == &cn->head &&
+		    cn->head.prev == &cn->head)
+		    	goto insert;
+
+		list_del(&cn->head);
 		INIT_LIST_HEAD(&cn->head);
+insert:
+		cn->seq = ntohl(net->seq);
 		list_add(&cn->head, &queue);
+		break;
+	case NFCT_T_DESTROY:
+		buffer_add(STATE_SYNC(buffer), net, size);
+		break;
 	}
 }
 

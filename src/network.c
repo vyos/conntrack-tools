@@ -70,7 +70,7 @@ int mcast_resend_netmsg(struct mcast_sock *m, void *data)
 {
 	struct nlnetwork *net = data;
 	struct nlmsghdr *nlh = data + sizeof(struct nlnetwork);
-	unsigned int len = htonl(nlh->nlmsg_len) + sizeof(struct nlnetwork);
+	unsigned int len;
 
 	net->flags = ntohs(net->flags);
 
@@ -80,10 +80,10 @@ int mcast_resend_netmsg(struct mcast_sock *m, void *data)
 		net->flags |= NET_HELLO;
 	}
 
-	if (net->flags & NET_NACK || net->flags & NET_ACK) {
-		struct nlnetwork_ack *nack = (struct nlnetwork_ack *) net;
+	if (net->flags & NET_NACK || net->flags & NET_ACK)
 		len = sizeof(struct nlnetwork_ack);
-	}
+	else
+		len = sizeof(struct nlnetwork) + ntohl(nlh->nlmsg_len);
 
 	net->flags = htons(net->flags);
 	net->seq = htonl(cur_seq++);
@@ -147,32 +147,44 @@ int mcast_recv_netmsg(struct mcast_sock *m, void *data, int len)
 	if (ret <= 0)
 		return ret;
 
+	/* message too small: no room for the header */
 	if (ret < sizeof(struct nlnetwork))
 		return -1;
 
-	if (!valid_checksum(data, ret))
-		return -1;
+	if (ntohs(net->flags) & NET_HELLO)
+		STATE_SYNC(last_seq_recv) = ntohl(net->seq) - 1;
 
-	net->flags = ntohs(net->flags);
-	net->seq = ntohl(net->seq);
-
-	if (net->flags & NET_HELLO)
-		STATE_SYNC(last_seq_recv) = net->seq-1;
-
-	if (net->flags & NET_NACK || net->flags & NET_ACK) {
+	if (ntohs(net->flags) & NET_NACK || ntohs(net->flags) & NET_ACK) {
 		struct nlnetwork_ack *nack = (struct nlnetwork_ack *) net;
 
+		/* message too small: no room for the header */
 		if (ret < sizeof(struct nlnetwork_ack))
 			return -1;
 
+		if (!valid_checksum(data, ret))
+			return -1;
+
+		/* host byte order conversion */
+		net->flags = ntohs(net->flags);
+		net->seq = ntohl(net->seq);
+
+		/* acknowledgement conversion */
 		nack->from = ntohl(nack->from);
 		nack->to = ntohl(nack->to);
 
 		return ret;
 	}
 
-	if (net->flags & NET_RESYNC)
+	if (ntohs(net->flags) & NET_RESYNC) {
+		if (!valid_checksum(data, ret))
+			return -1;
+
+		/* host byte order conversion */
+		net->flags = ntohs(net->flags);
+		net->seq = ntohl(net->seq);
+
 		return ret;
+	}
 
 	/* information received is too small */
 	if (ret < NLMSG_SPACE(sizeof(struct nfgenmsg)))
@@ -196,6 +208,13 @@ int mcast_recv_netmsg(struct mcast_sock *m, void *data, int len)
 	/* only process message coming from nfnetlink v0 */
 	if (nfhdr->version != NFNETLINK_V0)
 		return -1;
+
+	if (!valid_checksum(data, ret))
+		return -1;
+
+	/* host byte order conversion */
+	net->flags = ntohs(net->flags);
+	net->seq = ntohl(net->seq);
 
 	if (nlh_network2host(nlh) == -1)
 		return -1;
