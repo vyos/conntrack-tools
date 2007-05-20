@@ -445,3 +445,12 @@ void cache_stats(struct cache *c, int fd)
 	unlock();
 	send(fd, buf, size, 0);
 }
+
+void cache_iterate(struct cache *c, 
+		   void *data, 
+		   int (*iterate)(void *data1, void *data2))
+{
+	lock();
+	hashtable_iterate(c->h, data, iterate);
+	unlock();
+}

@@ -207,66 +207,6 @@ int nl_init_dump_handler(void)
 	return 0;
 }
 
-static int nl_overrun_handler(struct nlmsghdr *nlh,
-			      struct nfattr *nfa[],
-			      void *data)
-{
-	char buf[1024];
-	struct nf_conntrack *ct = (struct nf_conntrack *) buf;
-	int type;
-
-	memset(buf, 0, sizeof(buf));
-
-	if ((type = nfct_parse_conntrack(NFCT_T_ALL, nlh, ct)) == NFCT_T_ERROR)
-		return NFCT_CB_CONTINUE;
-
-	/* 
-	 * Ignore this conntrack: it talks about a
-	 * connection that is not interesting for us.
-	 */
-	if (ignore_conntrack(ct))
-		return NFCT_CB_CONTINUE;
-
-	switch(type) {
-	case NFCT_T_UPDATE:
-		if (STATE(mode)->overrun)
-			STATE(mode)->overrun(ct, nlh);
-		break;
-	default:
-		dlog(STATE(log), "received unknown msg from ctnetlink");
-		break;
-	}
-	return NFCT_CB_CONTINUE;
-}
-
-int nl_init_overrun_handler(void)
-{
-	struct nfnl_callback cb_sync = {
-		.call		= nl_overrun_handler,
-		.attr_count	= CTA_MAX
-	};
-
-	/* open sync netlink socket */
-	STATE(sync) = nfnl_open();
-	if (!STATE(sync))
-		return -1;
-
-	/* open synchronizer subsystem */
-	STATE(subsys_sync) = nfnl_subsys_open(STATE(sync),
-					      NFNL_SUBSYS_CTNETLINK,
-					      IPCTNL_MSG_MAX,
-					      0);
-	if (STATE(subsys_sync) == NULL)
-		return -1;
-
-	/* register callback for dumped entries */
-	nfnl_callback_register(STATE(subsys_sync),
-			       IPCTNL_MSG_CT_NEW,
-			       &cb_sync);
-
-	return 0;
-}
-
 static int warned = 0;
 
 void nl_resize_socket_buffer(struct nfnl_handle *h)
@@ -278,7 +218,14 @@ void nl_resize_socket_buffer(struct nfnl_handle *h)
 		return;
 
 	if (s > CONFIG(netlink_buffer_size_max_grown)) {
-		dlog(STATE(log), "maximum netlink socket buffer size reached");
+		dlog(STATE(log), "WARNING: maximum netlink socket buffer "
+				 "size has been reached. We are likely to "
+				 "be losing events, this may lead to "
+				 "unsynchronized replicas. Please, consider "
+				 "increasing netlink socket buffer size via "
+				 "SocketBufferSize and "
+				 "SocketBufferSizeMaxGrown clauses in "
+				 "conntrackd.conf");
 		s = CONFIG(netlink_buffer_size_max_grown);
 		warned = 1;
 	}
@@ -313,13 +260,13 @@ int nl_flush_master_conntrack_table(void)
 	struct nfnlhdr req;
 
 	memset(&req, 0, sizeof(req));
-	nfct_build_query(STATE(subsys_sync), 
+	nfct_build_query(STATE(subsys_dump), 
 			 NFCT_Q_FLUSH, 
 			 &CONFIG(family), 
 			 &req, 
 			 sizeof(req));
 
-	if (nfnl_query(STATE(sync), &req.nlh) == -1)
+	if (nfnl_query(STATE(dump), &req.nlh) == -1)
 		return -1;
 
 	return 0;

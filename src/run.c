@@ -32,10 +32,8 @@ void killer(int foo)
 
 	nfnl_subsys_close(STATE(subsys_event));
 	nfnl_subsys_close(STATE(subsys_dump));
-	nfnl_subsys_close(STATE(subsys_sync));
 	nfnl_close(STATE(event));
 	nfnl_close(STATE(dump));
-	nfnl_close(STATE(sync));
 
 	ignore_pool_destroy(STATE(ignore_pool));
 	local_server_destroy(STATE(local));
@@ -120,12 +118,6 @@ int init(int mode)
 		return -1;
 	}
 
-	if (nl_init_overrun_handler() == -1) {
-		dlog(STATE(log), "[FAIL] can't open netlink handler! "
-				 "no ctnetlink kernel support?");
-		return -1;
-	}
-
         /* Signals handling */
 	sigemptyset(&STATE(block));
 	sigaddset(&STATE(block), SIGTERM);
@@ -196,8 +188,7 @@ static void __run(void)
 				 * size and resync with master conntrack table.
 				 */
 				nl_resize_socket_buffer(STATE(event));
-				nl_dump_conntrack_table(STATE(sync),
-							STATE(subsys_sync));
+				STATE(mode)->overrun();
 				break;
 			case ENOENT:
 				/*

@@ -111,7 +111,7 @@ static int do_commit(void *data1, void *data2)
 	 */
 	nfct_set_attr_u32(ct, ATTR_TIMEOUT, CONFIG(commit_timeout));
 
-        ret = nfct_build_query(STATE(subsys_sync),
+        ret = nfct_build_query(STATE(subsys_dump),
 			       NFCT_Q_CREATE,
 			       ct,
 			       nlh,
@@ -125,7 +125,7 @@ static int do_commit(void *data1, void *data2)
 		return 0;
 	}
 
-	ret = nfnl_query(STATE(sync), nlh);
+	ret = nfnl_query(STATE(dump), nlh);
 	if (ret == -1) {
 		switch(errno) {
 			case EEXIST:
@@ -211,7 +211,7 @@ static int do_bulk(void *data1, void *data2)
 	struct nlnetwork *net = (struct nlnetwork *) buf;
 
 	ret = build_network_msg(NFCT_Q_UPDATE,
-				STATE(subsys_sync),
+				STATE(subsys_dump),
 				u->ct,
 				buf,
 				sizeof(buf));

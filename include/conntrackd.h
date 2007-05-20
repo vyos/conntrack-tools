@@ -102,11 +102,9 @@ struct ct_general_state {
 	struct ignore_pool		*ignore_pool;
 
 	struct nfnl_handle		*event;         /* event handler */
-	struct nfnl_handle		*sync;          /* sync handler */
 	struct nfnl_handle		*dump;		/* dump handler */
 
 	struct nfnl_subsys_handle	*subsys_event;  /* events */
-	struct nfnl_subsys_handle	*subsys_sync;	/* resync */
 	struct nfnl_subsys_handle	*subsys_dump;   /* dump */
 
 	/* statistics */
@@ -159,7 +157,7 @@ struct ct_mode {
 	int (*local)(int fd, int type, void *data);
 	void (*kill)(void);
 	void (*dump)(struct nf_conntrack *ct, struct nlmsghdr *nlh);
-	void (*overrun)(struct nf_conntrack *ct, struct nlmsghdr *nlh);
+	void (*overrun)(void);
 	void (*event_new)(struct nf_conntrack *ct, struct nlmsghdr *nlh);
 	void (*event_upd)(struct nf_conntrack *ct, struct nlmsghdr *nlh);
 	int (*event_dst)(struct nf_conntrack *ct, struct nlmsghdr *nlh);

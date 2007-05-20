@@ -43,12 +43,10 @@ static void help()
 
 static int parse_options(char c, char *argv[],
 			 struct nf_conntrack *ct,
-			 struct nfct_tuple *exptuple,
-			 struct nfct_tuple *mask,
+			 struct nf_conntrack *exptuple,
+			 struct nf_conntrack *mask,
 			 unsigned int *flags)
 {
-	int i;
-
 	switch(c) {
 		case '1':
 			if (!optarg)
@@ -91,28 +89,44 @@ static int parse_options(char c, char *argv[],
 			*flags |= UDP_REPL_DPORT;
 			break;
 		case '5':
-			if (optarg) {
-				mask->l4src.udp.port = htons(atoi(optarg));
-				*flags |= UDP_MASK_SPORT;
-			}
+			if (!optarg)
+				break;
+
+			nfct_set_attr_u16(mask,
+					  ATTR_ORIG_PORT_SRC,
+					  htons(atoi(optarg)));
+
+			*flags |= UDP_MASK_SPORT;
 			break;
 		case '6':
-			if (optarg) {
-				mask->l4dst.udp.port = htons(atoi(optarg));
-				*flags |= UDP_MASK_DPORT;
-			}
+			if (!optarg)
+				break;
+
+			nfct_set_attr_u16(mask, 
+					  ATTR_ORIG_PORT_DST, 
+					  htons(atoi(optarg)));
+
+			*flags |= UDP_MASK_DPORT;
 			break;
 		case '7':
-			if (optarg) {
-				exptuple->l4src.udp.port = htons(atoi(optarg));
-				*flags |= UDP_EXPTUPLE_SPORT;
-			}
+			if (!optarg)
+				break;
+
+			nfct_set_attr_u16(exptuple, 
+					  ATTR_ORIG_PORT_SRC, 
+					  htons(atoi(optarg)));
+
+			*flags |= UDP_EXPTUPLE_SPORT;
 			break;
 		case '8':
-			if (optarg) {
-				exptuple->l4dst.udp.port = htons(atoi(optarg));
-				*flags |= UDP_EXPTUPLE_DPORT;
-			}
+			if (!optarg)
+				break;
+
+			nfct_set_attr_u16(exptuple, 
+					  ATTR_ORIG_PORT_DST, 
+					  htons(atoi(optarg)));
+
+			*flags |= UDP_EXPTUPLE_DPORT;
 			break;
 	}
 	return 1;

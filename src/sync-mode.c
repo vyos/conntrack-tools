@@ -1,5 +1,5 @@
 /*
- * (C) 2006 by Pablo Neira Ayuso <pablo@netfilter.org>
+ * (C) 2006-2007 by Pablo Neira Ayuso <pablo@netfilter.org>
  * 
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -293,7 +293,9 @@ static void mcast_send_sync(struct nlmsghdr *nlh,
 	STATE_SYNC(mcast_sync)->post_send(type, net, u);
 }
 
-static void overrun_sync(struct nf_conntrack *ct, struct nlmsghdr *nlh)
+static int overrun_cb(enum nf_conntrack_msg_type type,
+		      struct nf_conntrack *ct,
+		      void *data)
 {
 	struct us_conntrack *u;
 
@@ -307,10 +309,87 @@ static void overrun_sync(struct nf_conntrack *ct, struct nlmsghdr *nlh)
 
 	if (!cache_test(STATE_SYNC(internal), ct)) {
 		if ((u = cache_update_force(STATE_SYNC(internal), ct))) {
-			debug_ct(ct, "overrun resync");
+			int ret;
+			char buf[4096];
+			struct nlnetwork *net = (struct nlnetwork *) buf;
+			unsigned int size = sizeof(struct nlnetwork);
+			struct nlmsghdr *nlh = (struct nlmsghdr *) (buf + size);
+
+			debug_ct(u->ct, "overrun resync");
+
+			ret = build_network_msg(NFCT_Q_UPDATE,
+						STATE(subsys_dump),
+						u->ct,
+						buf,
+						sizeof(buf));
+
+			if (ret == -1) {
+				dlog(STATE(log), "can't build overrun");
+				return NFCT_CB_CONTINUE;
+			}
+
 			mcast_send_sync(nlh, u, ct, NFCT_T_UPDATE);
 		}
 	}
+
+	return NFCT_CB_CONTINUE;
+}
+
+static int overrun_purge_step(void *data1, void *data2)
+{
+	int ret;
+	struct nfct_handle *h = data1;
+	struct us_conntrack *u = data2;
+
+	ret = nfct_query(h, NFCT_Q_GET, u->ct);
+	if (ret == -1 && errno == ENOENT) {
+		char buf[4096];
+		struct nlnetwork *net = (struct nlnetwork *) buf;
+		unsigned int size = sizeof(struct nlnetwork);
+		struct nlmsghdr *nlh = (struct nlmsghdr *) (buf + size);
+
+		debug_ct(u->ct, "overrun purge resync");
+
+		ret = build_network_msg(NFCT_Q_DESTROY,
+					STATE(subsys_dump),
+					u->ct,
+					buf,
+					sizeof(buf));
+
+		if (ret == -1)
+			dlog(STATE(log), "failed to build network message");
+
+		mcast_send_sync(nlh, NULL, u->ct, NFCT_T_DESTROY);
+		__cache_del(STATE_SYNC(internal), u->ct);
+	}
+
+	return 0;
+}
+
+/* it's likely that we're losing events, just try to do our best here */
+static void overrun_sync()
+{
+	int ret;
+	struct nfct_handle *h;
+	int family = CONFIG(family);
+
+	h = nfct_open(CONNTRACK, 0);
+	if (!h) {
+		dlog(STATE(log), "can't open overrun handler");
+		return;
+	}
+
+	nfct_callback_register(h, NFCT_T_ALL, overrun_cb, NULL);
+
+	ret = nfct_query(h, NFCT_Q_DUMP, &family);
+	if (ret == -1)
+		dlog(STATE(log), "overrun query error %s", strerror(errno));
+
+	nfct_callback_unregister(h);
+
+	cache_iterate(STATE_SYNC(internal), h, overrun_purge_step);
+
+	nfct_close(h);
 }
 
 static void event_new_sync(struct nf_conntrack *ct, struct nlmsghdr *nlh)

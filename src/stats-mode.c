@@ -1,5 +1,5 @@
 /*
- * (C) 2006 by Pablo Neira Ayuso <pablo@netfilter.org>
+ * (C) 2006-2007 by Pablo Neira Ayuso <pablo@netfilter.org>
  * 
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -65,7 +65,7 @@ static int local_handler_stats(int fd, int type, void *data)
 		cache_dump(STATE_STATS(cache), fd, NFCT_O_PLAIN);
 		break;
 	case DUMP_INT_XML:
-		cache_dump(STATE_SYNC(internal), fd, NFCT_O_XML);
+		cache_dump(STATE_STATS(cache), fd, NFCT_O_XML);
 		break;
 	case FLUSH_CACHE:
 		dlog(STATE(log), "[REQ] flushing caches");
@@ -90,6 +90,48 @@ static void dump_stats(struct nf_conntrack *ct, struct nlmsghdr *nlh)
 {
 	if (cache_update_force(STATE_STATS(cache), ct))
 		debug_ct(ct, "resync entry");
+}
+
+static int overrun_cb(enum nf_conntrack_msg_type type,
+		      struct nf_conntrack *ct,
+		      void *data)
+{
+	/* This is required by kernels < 2.6.20 */
+	nfct_attr_unset(ct, ATTR_TIMEOUT);
+	nfct_attr_unset(ct, ATTR_ORIG_COUNTER_BYTES);
+	nfct_attr_unset(ct, ATTR_ORIG_COUNTER_PACKETS);
+	nfct_attr_unset(ct, ATTR_REPL_COUNTER_BYTES);
+	nfct_attr_unset(ct, ATTR_REPL_COUNTER_PACKETS);
+	nfct_attr_unset(ct, ATTR_USE);
+
+	if (!cache_test(STATE_STATS(cache), ct))
+		if (!cache_update_force(STATE_STATS(cache), ct))
+			debug_ct(ct, "overrun stats resync");
+
+	return NFCT_CB_CONTINUE;
+}
+
+static void overrun_stats()
+{
+	int ret;
+	struct nfct_handle *h;
+	int family = CONFIG(family);
+
+	h = nfct_open(CONNTRACK, 0);
+	if (!h) {
+		dlog(STATE(log), "can't open overrun handler");
+		return;
+	}
+
+	nfct_callback_register(h, NFCT_T_ALL, overrun_cb, NULL);
+
+	cache_flush(STATE_STATS(cache));
+
+	ret = nfct_query(h, NFCT_Q_DUMP, &family);
+	if (ret == -1)
+		dlog(STATE(log), "overrun query error %s", strerror(errno));
+
+	nfct_close(h);
 }
 
 static void event_new_stats(struct nf_conntrack *ct, struct nlmsghdr *nlh)
@@ -144,7 +186,7 @@ struct ct_mode stats_mode = {
 	.local			= local_handler_stats,
 	.kill			= kill_stats,
 	.dump			= dump_stats,
-	.overrun		= dump_stats,
+	.overrun		= overrun_stats,
 	.event_new		= event_new_stats,
 	.event_upd		= event_update_stats,
 	.event_dst		= event_destroy_stats

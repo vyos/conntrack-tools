@@ -11,8 +11,11 @@
 #include <netinet/in.h>
 #include <libnetfilter_conntrack/libnetfilter_conntrack.h>
 
+#undef DEBUG_CT
+
 static inline void debug_ct(struct nf_conntrack *ct, char *msg)
 {
+#ifdef DEBUG_CT
 	struct in_addr addr, addr2, addr3, addr4;
 
 	debug("----%s (%p) ----\n", msg, ct);
@@ -48,6 +51,7 @@ static inline void debug_ct(struct nf_conntrack *ct, char *msg)
 			inet_ntoa(addr4),
 			ntohs(nfct_get_attr_u16(ct, ATTR_REPL_PORT_DST)));
 	debug("-------------------------\n");
+#endif
 }
 
 #endif

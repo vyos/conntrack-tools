@@ -82,6 +82,7 @@ int cache_test(struct cache *c, struct nf_conntrack *ct);
 void cache_stats(struct cache *c, int fd);
 struct us_conntrack *cache_get_conntrack(struct cache *, void *);
 void *cache_get_extra(struct cache *, void *);
+void cache_iterate(struct cache *c, void *data, int (*iterate)(void *data1, void *data2));
 
 /* iterators */
 void cache_dump(struct cache *c, int fd, int type);
