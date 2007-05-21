@@ -25,7 +25,7 @@
 #include <stdlib.h>
 #include "network.h"
 
-static int ignore_conntrack(struct nf_conntrack *ct)
+int ignore_conntrack(struct nf_conntrack *ct)
 {
 	/* ignore a certain protocol */
 	if (CONFIG(ignore_protocol)[nfct_get_attr_u8(ct, ATTR_ORIG_L4PROTO)])

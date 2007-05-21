@@ -96,6 +96,9 @@ static int overrun_cb(enum nf_conntrack_msg_type type,
 		      struct nf_conntrack *ct,
 		      void *data)
 {
+	if (ignore_conntrack(ct))
+		return NFCT_CB_CONTINUE;
+
 	/* This is required by kernels < 2.6.20 */
 	nfct_attr_unset(ct, ATTR_TIMEOUT);
 	nfct_attr_unset(ct, ATTR_ORIG_COUNTER_BYTES);
