@@ -41,9 +41,9 @@ Copyright (C) 2005-2007 Pablo Neira Ayuso <pablo netfilter org>
 	$ make
 	# make install
 
- Up to this point, the command line interface `conntrack' is ready for use.
- However, the userspace daemon so-called `conntrackd' requires some magic 
- speells to get it working.
+ Up to this point, the command line interface `conntrack' is ready for use,
+ see man conntrack(8). However, the userspace daemon so-called `conntrackd' 
+ requires some magic spells to get it working.
 
 3.Setting up conntrackd
 =======================
@@ -68,8 +68,8 @@ Copyright (C) 2005-2007 Pablo Neira Ayuso <pablo netfilter org>
 
     There is an example file available inside the conntrackd tarball:
 
-    For node 1: conntrackd-x.x.x/examples/sync/node1/keepalived.conf
-    For node 2: conntrackd-x.x.x/examples/sync/node2/keepalived.conf
+    For node 1: conntrackd-x.x.x/examples/sync/_type_/node1/keepalived.conf
+    For node 2: conntrackd-x.x.x/examples/sync/_type_/node2/keepalived.conf
 
     These files can be used to set up a simple VRRP cluster composed of
     two machines that hold the virtual IPs 192.168.0.100 on eth0 and
@@ -94,8 +94,9 @@ Copyright (C) 2005-2007 Pablo Neira Ayuso <pablo netfilter org>
 
     Where _type_ is the synchronization type selected, currently there are
     two: the persistent mode and the NACK mode. The persistent mode consumes
-    more resources than the NACK mode, however the NACK mode is still
-    experimental
+    more resources than the NACK mode but resolves synchronization issues 
+    better. On the other the NACK mode reduces resource consumption. I'll
+    provide more information on both approaches soon.
 
     Do not forget to edit the files in order to adapt them to the
     setting that you are deploying.
