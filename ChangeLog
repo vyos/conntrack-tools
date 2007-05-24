@@ -1,4 +1,10 @@
-version 0.9.3 (yet unreleased)
+version 0.9.4 (yet unreleased)
+------------------------------
+
+= conntrackd =
+o simplify checksum code: use UDP/multicast checksum facilities
+
+version 0.9.3 (2006/05/22)
 ------------------------------
 
 = conntrackd =

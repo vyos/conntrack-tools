@@ -104,11 +104,12 @@ timeout: T_TIMEOUT T_NUMBER
 
 checksum: T_CHECKSUM T_ON 
 {
+	conf.mcast.checksum = 0;
 };
 
 checksum: T_CHECKSUM T_OFF
 {
-	conf.flags |= DONT_CHECKSUM;
+	conf.mcast.checksum = 1;
 };
 
 ignore_traffic : T_IGNORE_TRAFFIC '{' ignore_traffic_options '}';

@@ -192,6 +192,14 @@ struct mcast_sock *mcast_client_create(struct mcast_conf *conf)
 		return NULL;
 	}
 
+	if (setsockopt(m->fd, SOL_SOCKET, SO_NO_CHECK, &conf->checksum, 
+				sizeof(int)) == -1) {
+		debug("mcast_sock_client_create:setsockopt1");
+		close(m->fd);
+		free(m);
+		return NULL;
+	}
+
 	switch(conf->ipproto) {
 		case AF_INET:
 			ret = __mcast_client_create_ipv4(m, conf);

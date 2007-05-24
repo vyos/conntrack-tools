@@ -60,9 +60,6 @@ int mcast_send_netmsg(struct mcast_sock *m, void *data)
 	if (nlh_host2network(nlh) == -1)
 		return -1;
 
-	net->checksum = 0;
-	net->checksum = ntohs(do_csum(data, len));
-
 	return send_netmsg(m, data, len);
 }
 
@@ -87,8 +84,6 @@ int mcast_resend_netmsg(struct mcast_sock *m, void *data)
 
 	net->flags = htons(net->flags);
 	net->seq = htonl(cur_seq++);
-	net->checksum = 0;
-	net->checksum = ntohs(do_csum(data, len));
 
 	return send_netmsg(m, data, len);
 }
@@ -113,27 +108,8 @@ int mcast_send_error(struct mcast_sock *m, void *data)
 
 	net->flags = htons(net->flags);
 	net->seq = htonl(cur_seq++);
-	net->checksum = 0;
-	net->checksum = ntohs(do_csum(data, len));
 
 	return send_netmsg(m, data, len);
-}
-
-static int valid_checksum(void *data, unsigned int len)
-{
-	struct nlnetwork *net = data;
-	unsigned short checksum, tmp;
-
-	checksum = ntohs(net->checksum);
-
-	/* no checksum, skip */
-	if (!checksum)
-		return 1;
-
-	net->checksum = 0;
-	tmp = do_csum(data, len);
-
-	return tmp == checksum;
 }
 
 int mcast_recv_netmsg(struct mcast_sock *m, void *data, int len)
@@ -161,9 +137,6 @@ int mcast_recv_netmsg(struct mcast_sock *m, void *data, int len)
 		if (ret < sizeof(struct nlnetwork_ack))
 			return -1;
 
-		if (!valid_checksum(data, ret))
-			return -1;
-
 		/* host byte order conversion */
 		net->flags = ntohs(net->flags);
 		net->seq = ntohl(net->seq);
@@ -176,9 +149,6 @@ int mcast_recv_netmsg(struct mcast_sock *m, void *data, int len)
 	}
 
 	if (ntohs(net->flags) & NET_RESYNC) {
-		if (!valid_checksum(data, ret))
-			return -1;
-
 		/* host byte order conversion */
 		net->flags = ntohs(net->flags);
 		net->seq = ntohl(net->seq);
@@ -207,9 +177,6 @@ int mcast_recv_netmsg(struct mcast_sock *m, void *data, int len)
 
 	/* only process message coming from nfnetlink v0 */
 	if (nfhdr->version != NFNETLINK_V0)
-		return -1;
-
-	if (!valid_checksum(data, ret))
 		return -1;
 
 	/* host byte order conversion */

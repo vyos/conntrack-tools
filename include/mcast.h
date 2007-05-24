@@ -7,6 +7,7 @@ struct mcast_conf {
 	int ipproto;
 	int backlog;
 	int reuseaddr;
+	int checksum;
 	unsigned short port;
 	union {
 		struct in_addr inet_addr;
