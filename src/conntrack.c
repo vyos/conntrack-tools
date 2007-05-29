@@ -96,7 +96,7 @@ static struct option original_opts[] = {
 	{"family", 1, 0, 'f'},
 	{"src-nat", 1, 0, 'n'},
 	{"dst-nat", 1, 0, 'g'},
-	{"output", 0, 0, 'o'},
+	{"output", 1, 0, 'o'},
 	{0, 0, 0, 0}
 };
 
