@@ -249,6 +249,7 @@ int build_network_msg(const int msg_type,
 {
 	memset(buffer, 0, size);
 	buffer += sizeof(struct nlnetwork);
+	size -= sizeof(struct nlnetwork);
 	return nfct_build_query(ssh, msg_type, ct, buffer, size);
 }
 
