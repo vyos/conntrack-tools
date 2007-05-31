@@ -26,8 +26,8 @@ fi
 AC_CHECK_PROGS(XLEX,$LEX flex lex,none)
 if test "$XLEX" = "none"
 then
-	echo "*** Error: No suitable bison/yacc found. ***"
-	echo "    Please install the 'bison' package."
+	echo "*** Error: No suitable flex/lex found. ***"
+	echo "    Please install the 'flex' package."
 	exit 1
 fi
 
