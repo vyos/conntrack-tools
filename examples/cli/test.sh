@@ -24,32 +24,30 @@ case $1 in
 		;;
 	new-simple)
 		echo "creating a new conntrack (simplified)"
-		$CONNTRACK -I --orig-src $SRC --orig-dst $DST \
-		-p tcp --orig-port-src $SPORT  --orig-port-dst $DPORT \
+		$CONNTRACK -I -s $SRC -d $DST \
+		-p tcp --sport $SPORT  --dport $DPORT \
 		--state LISTEN -u SEEN_REPLY -t 50
 		;;
 	new-nat)
 		echo "creating a new conntrack (NAT)"
-		$CONNTRACK -I --orig-src $SRC --orig-dst $DST \
-		-p tcp --orig-port-src $SPORT  --orig-port-dst $DPORT \
+		$CONNTRACK -I -s $SRC -d $DST \
+		-p tcp --sport $SPORT  --dport $DPORT \
 		--state LISTEN -u SEEN_REPLY -t 50 --dst-nat 8.8.8.8
 		;;
 	get)
 		echo "getting a conntrack"
-		$CONNTRACK -G --orig-src $SRC --orig-dst $DST \
-		-p tcp --orig-port-src $SPORT --orig-port-dst $DPORT
+		$CONNTRACK -G -s $SRC -d $DST \
+		-p tcp --sport $SPORT --dport $DPORT
 		;;
 	change)
 		echo "change a conntrack"
-		$CONNTRACK -U --orig-src $SRC --orig-dst $DST \
-		--reply-src $DST --reply-dst $SRC -p tcp \
-		--orig-port-src $SPORT --orig-port-dst $DPORT \
-		--reply-port-src $DPORT --reply-port-dst $SPORT \
+		$CONNTRACK -U -s $SRC -d $DST \
+		-p tcp --sport $SPORT --dport $DPORT \
 		--state TIME_WAIT -u ASSURED,SEEN_REPLY -t 500
 		;;
 	delete)
-		$CONNTRACK -D --orig-src $SRC --orig-dst $DST \
-		-p tcp --orig-port-src $SPORT --orig-port-dst $DPORT
+		$CONNTRACK -D -s $SRC -d $DST \
+		-p tcp --sport $SPORT --dport $DPORT
 		;;
 	output)
 		proc=$(cat /proc/net/ip_conntrack | wc -l)

@@ -19,7 +19,9 @@
 
 static struct option opts[] = {
 	{"orig-port-src", 1, 0, '1'},
+	{"sport", 1, 0, '1'},
 	{"orig-port-dst", 1, 0, '2'},
+	{"dport", 1, 0, '2'},
 	{"reply-port-src", 1, 0, '3'},
 	{"reply-port-dst", 1, 0, '4'},
 	{"mask-port-src", 1, 0, '5'},

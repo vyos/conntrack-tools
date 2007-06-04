@@ -16,6 +16,7 @@ o lots of cleanups
 o fix segfault with conntrack --output (Krzysztof Oledzky)
 o use NFCT_SOPT_SETUP_* facilities: nfct_setobjopt
 o remove bogus option to get a conntrack in test.sh example file
+o add aliases --sport and --dport to make it more iptables-like
 
 version 0.9.3 (2006/05/22)
 ------------------------------
