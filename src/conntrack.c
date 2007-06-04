@@ -1024,57 +1024,10 @@ int main(int argc, char *argv[])
 		break;
 			
 	case CT_CREATE:
-		if ((options & CT_OPT_ORIG) 
-		    && !(options & CT_OPT_REPL)) {
-		    	nfct_set_attr_u8(obj, 
-					 ATTR_REPL_L3PROTO, 
-					 nfct_get_attr_u8(obj,
-					 		  ATTR_ORIG_L3PROTO));
-			if (family == AF_INET) {
-				nfct_set_attr_u32(obj,
-						  ATTR_REPL_IPV4_SRC,
-						  nfct_get_attr_u32(obj,
-						  	ATTR_ORIG_IPV4_DST));
-				nfct_set_attr_u32(obj,
-						  ATTR_REPL_IPV4_DST,
-						  nfct_get_attr_u32(obj,
-						  	ATTR_ORIG_IPV4_SRC));
-			} else if (family == AF_INET6) {
-				nfct_set_attr(obj,
-					      ATTR_REPL_IPV6_SRC,
-					      nfct_get_attr(obj,
-					      		ATTR_ORIG_IPV6_DST));
-				nfct_set_attr(obj,
-					      ATTR_REPL_IPV6_DST,
-					      nfct_get_attr(obj,
-					      		ATTR_ORIG_IPV6_SRC));
-			}
-		} else if (!(options & CT_OPT_ORIG)
-			   && (options & CT_OPT_REPL)) {
-		    	nfct_set_attr_u8(obj, 
-					 ATTR_ORIG_L3PROTO, 
-					 nfct_get_attr_u8(obj,
-					 		  ATTR_REPL_L3PROTO));
-			if (family == AF_INET) {
-				nfct_set_attr_u32(obj,
-						  ATTR_ORIG_IPV4_SRC,
-						  nfct_get_attr_u32(obj,
-						  	ATTR_REPL_IPV4_DST));
-				nfct_set_attr_u32(obj,
-						  ATTR_ORIG_IPV4_DST,
-						  nfct_get_attr_u32(obj,
-						  	ATTR_REPL_IPV4_SRC));
-			} else if (family == AF_INET6) {
-				nfct_set_attr(obj,
-					      ATTR_ORIG_IPV6_SRC,
-					      nfct_get_attr(obj,
-					      		ATTR_REPL_IPV6_DST));
-				nfct_set_attr(obj,
-					      ATTR_ORIG_IPV6_DST,
-					      nfct_get_attr(obj,
-					      		ATTR_REPL_IPV6_SRC));
-			}
-		}
+		if ((options & CT_OPT_ORIG) && !(options & CT_OPT_REPL))
+		    	nfct_setobjopt(obj, NFCT_SOPT_SETUP_REPLY);
+		else if (!(options & CT_OPT_ORIG) && (options & CT_OPT_REPL))
+			nfct_setobjopt(obj, NFCT_SOPT_SETUP_ORIGINAL);
 
 		cth = nfct_open(CONNTRACK, 0);
 		if (!cth)
@@ -1098,57 +1051,10 @@ int main(int argc, char *argv[])
 		break;
 
 	case CT_UPDATE:
-		if ((options & CT_OPT_ORIG) 
-		    && !(options & CT_OPT_REPL)) {
-		    	nfct_set_attr_u8(obj, 
-					 ATTR_REPL_L3PROTO, 
-					 nfct_get_attr_u8(obj,
-					 		  ATTR_ORIG_L3PROTO));
-			if (family == AF_INET) {
-				nfct_set_attr_u32(obj,
-						  ATTR_REPL_IPV4_SRC,
-						  nfct_get_attr_u32(obj,
-						  	ATTR_ORIG_IPV4_DST));
-				nfct_set_attr_u32(obj,
-						  ATTR_REPL_IPV4_DST,
-						  nfct_get_attr_u32(obj,
-						  	ATTR_ORIG_IPV4_SRC));
-			} else if (family == AF_INET6) {
-				nfct_set_attr(obj,
-					      ATTR_REPL_IPV6_SRC,
-					      nfct_get_attr(obj,
-					      		ATTR_ORIG_IPV6_DST));
-				nfct_set_attr(obj,
-					      ATTR_REPL_IPV6_DST,
-					      nfct_get_attr(obj,
-					      		ATTR_ORIG_IPV6_SRC));
-			}
-		} else if (!(options & CT_OPT_ORIG)
-			   && (options & CT_OPT_REPL)) {
-		    	nfct_set_attr_u8(obj, 
-					 ATTR_ORIG_L3PROTO, 
-					 nfct_get_attr_u8(obj,
-					 		  ATTR_REPL_L3PROTO));
-			if (family == AF_INET) {
-				nfct_set_attr_u32(obj,
-						  ATTR_ORIG_IPV4_SRC,
-						  nfct_get_attr_u32(obj,
-						  	ATTR_REPL_IPV4_DST));
-				nfct_set_attr_u32(obj,
-						  ATTR_ORIG_IPV4_DST,
-						  nfct_get_attr_u32(obj,
-						  	ATTR_REPL_IPV4_SRC));
-			} else if (family == AF_INET6) {
-				nfct_set_attr(obj,
-					      ATTR_ORIG_IPV6_SRC,
-					      nfct_get_attr(obj,
-					      		ATTR_REPL_IPV6_DST));
-				nfct_set_attr(obj,
-					      ATTR_ORIG_IPV6_DST,
-					      nfct_get_attr(obj,
-					      		ATTR_REPL_IPV6_SRC));
-			}
-		}
+		if ((options & CT_OPT_ORIG) && !(options & CT_OPT_REPL))
+		    	nfct_setobjopt(obj, NFCT_SOPT_SETUP_REPLY);
+		else if (!(options & CT_OPT_ORIG) && (options & CT_OPT_REPL))
+			nfct_setobjopt(obj, NFCT_SOPT_SETUP_ORIGINAL);
 
 		cth = nfct_open(CONNTRACK, 0);
 		if (!cth)

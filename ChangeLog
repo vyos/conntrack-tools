@@ -14,6 +14,8 @@ o lots of cleanups
 
 = conntrack =
 o fix segfault with conntrack --output (Krzysztof Oledzky)
+o use NFCT_SOPT_SETUP_* facilities: nfct_setobjopt
+o remove bogus option to get a conntrack in test.sh example file
 
 version 0.9.3 (2006/05/22)
 ------------------------------

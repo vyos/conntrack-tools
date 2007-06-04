@@ -37,8 +37,7 @@ case $1 in
 	get)
 		echo "getting a conntrack"
 		$CONNTRACK -G --orig-src $SRC --orig-dst $DST \
-		-p tcp --orig-port-src $SPORT --orig-port-dst $DPORT \
-		--reply-port-src $DPORT --reply-port-dst $SPORT
+		-p tcp --orig-port-src $SPORT --orig-port-dst $DPORT
 		;;
 	change)
 		echo "change a conntrack"
