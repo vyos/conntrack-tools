@@ -30,22 +30,13 @@
 #define DEFAULT_LOCKFILE	"/var/lock/conntrackd.lock"
 
 enum {
-	STRIP_NAT_BIT = 0,
-	STRIP_NAT = (1 << STRIP_NAT_BIT),
-
-	DELAY_DESTROY_MSG_BIT = 1,
-	DELAY_DESTROY_MSG = (1 << DELAY_DESTROY_MSG_BIT),
-
-	RELAX_TRANSITIONS_BIT = 2,
-	RELAX_TRANSITIONS = (1 << RELAX_TRANSITIONS_BIT),
-
-	SYNC_MODE_PERSISTENT_BIT = 3,
+	SYNC_MODE_PERSISTENT_BIT = 0,
 	SYNC_MODE_PERSISTENT = (1 << SYNC_MODE_PERSISTENT_BIT),
 
-	SYNC_MODE_NACK_BIT = 4,
+	SYNC_MODE_NACK_BIT = 1,
 	SYNC_MODE_NACK = (1 << SYNC_MODE_NACK_BIT),
 
-	DONT_CHECKSUM_BIT = 5,
+	DONT_CHECKSUM_BIT = 2,
 	DONT_CHECKSUM = (1 << DONT_CHECKSUM_BIT),
 };
 
@@ -122,7 +113,7 @@ struct ct_sync_state {
 	struct mcast_sock *mcast_server;  /* multicast socket: incoming */
 	struct mcast_sock *mcast_client;  /* multicast socket: outgoing  */
 
-	struct sync_mode *mcast_sync;
+	struct sync_mode *sync;		/* sync mode */
 	struct buffer *buffer;
 
 	u_int32_t last_seq_sent;	/* last sequence number sent */

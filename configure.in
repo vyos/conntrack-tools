@@ -1,4 +1,4 @@
-AC_INIT(conntrack-tools, 0.9.3, pablo@netfilter.org)
+AC_INIT(conntrack-tools, 0.9.4, pablo@netfilter.org)
 
 AC_CANONICAL_SYSTEM
 

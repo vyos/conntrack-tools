@@ -84,7 +84,8 @@ lock : T_LOCK T_PATH_VAL
 
 strip_nat: T_STRIP_NAT
 {
-	conf.flags |= STRIP_NAT;
+	fprintf(stderr, "Notice: StripNAT clause is obsolete. "
+			"Please, remove it from conntrackd.conf\n");
 };
 
 refreshtime : T_REFRESH T_NUMBER
@@ -228,7 +229,8 @@ multicast_option : T_IPV6_IFACE T_IP
 
 multicast_option : T_BACKLOG T_NUMBER
 {
-	conf.mcast.backlog = $2;
+	fprintf(stderr, "Notice: Backlog option inside Multicast clause is "
+			"obsolete. Please, remove it from conntrackd.conf.\n");
 };
 
 multicast_option : T_GROUP T_NUMBER
@@ -354,12 +356,14 @@ window_size: T_WINDOWSIZE T_NUMBER
 
 relax_transitions: T_RELAX_TRANSITIONS
 {
-	conf.flags |= RELAX_TRANSITIONS;
+	fprintf(stderr, "Notice: RelaxTransitions clause is obsolete. "
+			"Please, remove it from conntrackd.conf\n");
 };
 
 delay_destroy_msgs: T_DELAY
 {
-	conf.flags |= DELAY_DESTROY_MSG;
+	fprintf(stderr, "Notice: DelayDestroyMessages clause is obsolete. "
+			"Please, remove it from conntrackd.conf\n");
 };
 
 listen_to: T_LISTEN_TO T_IP

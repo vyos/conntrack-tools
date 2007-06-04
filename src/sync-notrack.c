@@ -25,33 +25,18 @@
 static void refresher(struct alarm_list *a, void *data)
 {
 	struct us_conntrack *u = data;
-	char buf[8192];
+	char __net[4096];
 	int size;
 
-	if (nfct_get_attr_u32(u->ct, ATTR_STATUS) & IPS_DYING) {
-		
-		debug_ct(u->ct, "persistence destroy");
+	debug_ct(u->ct, "persistence update");
 
-		size = build_network_msg(NFCT_Q_DESTROY,
-					 STATE(subsys_event),
-					 u->ct,
-					 buf,
-					 sizeof(buf));
-
-		__cache_del(u->cache, u->ct);
-		mcast_send_netmsg(STATE_SYNC(mcast_client), buf);
-	} else {
-		
-		debug_ct(u->ct, "persistence update");
-
-		a->expires = random() % CONFIG(refresh) + 1;
-		size = build_network_msg(NFCT_Q_UPDATE,
-					 STATE(subsys_event),
-					 u->ct,
-					 buf, 
-					 sizeof(buf));
-		mcast_send_netmsg(STATE_SYNC(mcast_client), buf);
-	}
+	a->expires = random() % CONFIG(refresh) + 1;
+	size = build_network_msg(NFCT_Q_UPDATE,
+				 STATE(subsys_event),
+				 u->ct,
+				 __net, 
+				 sizeof(__net));
+	mcast_send_netmsg(STATE_SYNC(mcast_client), __net);
 }
 
 static void cache_notrack_add(struct us_conntrack *u, void *data)
@@ -84,7 +69,7 @@ static struct cache_extra cache_notrack_extra = {
 	.destroy	= cache_notrack_destroy
 };
 
-static int notrack_pre_recv(const struct nlnetwork *net)
+static int notrack_recv(const struct nlnetwork *net)
 {
 	unsigned int exp_seq;
 
@@ -114,16 +99,9 @@ static int notrack_pre_recv(const struct nlnetwork *net)
 	return 0;
 }
 
-static void notrack_post_send(int type,
-			      const struct nlnetwork *n, 
-			      struct us_conntrack *u)
-{
-}
-
 struct sync_mode notrack = {
 	.internal_cache_flags	= LIFETIME,
 	.external_cache_flags	= TIMER | LIFETIME,
 	.internal_cache_extra	= &cache_notrack_extra,
-	.pre_recv 		= notrack_pre_recv,
-	.post_send		= notrack_post_send,
+	.recv 			= notrack_recv,
 };

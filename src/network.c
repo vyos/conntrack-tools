@@ -205,33 +205,16 @@ int mcast_track_seq(u_int32_t seq, u_int32_t *exp_seq)
 		goto out;
 
 	/* out of sequence: some messages got lost */
-	if (seq > STATE_SYNC(last_seq_recv)+1) {
+	if (after(seq, STATE_SYNC(last_seq_recv)+1)) {
 		STATE_SYNC(packets_lost) += seq-STATE_SYNC(last_seq_recv)+1;
 		ret = 0;
 		goto out;
 	}
 
-	/* out of sequence: replayed or sequence wrapped around issues */
-	if (seq < STATE_SYNC(last_seq_recv)+1) {
-		/* 
-		 * Check if the sequence has wrapped around.
-		 * Perhaps it can be a replayed packet.
-		 */
-		if (STATE_SYNC(last_seq_recv)+1-seq > ~0U/2) {
-			/* 
-			 * Indeed, it is a wrapped around
-			 */
-			STATE_SYNC(packets_lost) += 
-				~0U-STATE_SYNC(last_seq_recv)+1+seq;
-		} else {
-			/*
-			 * It is a delayed packet
-			 */
-			dlog(STATE(log), "delayed packet? exp=%u rcv=%u",
-					 STATE_SYNC(last_seq_recv)+1, seq);
-		}
-		ret = 0;
-	}
+	/* out of sequence: replayed/delayed packet? */
+	if (before(seq, STATE_SYNC(last_seq_recv)+1))
+		dlog(STATE(log), "delayed packet? exp=%u rcv=%u",
+				 STATE_SYNC(last_seq_recv)+1, seq);
 
 out:
 	*exp_seq = STATE_SYNC(last_seq_recv)+1;

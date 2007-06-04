@@ -139,7 +139,6 @@ static void overrun_stats()
 
 static void event_new_stats(struct nf_conntrack *ct, struct nlmsghdr *nlh)
 {
-	debug_ct(ct, "debug event");
 	if (cache_add(STATE_STATS(cache), ct)) {
 		debug_ct(ct, "cache new");
 	} else {
@@ -151,22 +150,9 @@ static void event_new_stats(struct nf_conntrack *ct, struct nlmsghdr *nlh)
 
 static void event_update_stats(struct nf_conntrack *ct, struct nlmsghdr *nlh)
 {
-	debug_ct(ct, "update");
-
-	if (!cache_update(STATE_STATS(cache), ct)) {
-		/*
-		 * Perhaps we are losing events. If we are working 
-		 * in relax mode then add a new entry to the cache.
-		 *
-		 * FIXME: relax transitions not implemented yet
-		 */
-		if ((CONFIG(flags) & RELAX_TRANSITIONS)
-		    && cache_add(STATE_STATS(cache), ct)) {
-			debug_ct(ct, "forcing cache update");
-		} else {
-			debug_ct(ct, "can't update");
-			return;
-		}
+	if (!cache_update_force(STATE_STATS(cache), ct)) {
+		debug_ct(ct, "can't update");
+		return;
 	}
 	debug_ct(ct, "update");
 }

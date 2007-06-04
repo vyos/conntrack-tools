@@ -219,7 +219,8 @@ static int do_bulk(void *data1, void *data2)
 		debug_ct(u->ct, "failed to build");
 
 	mcast_send_netmsg(STATE_SYNC(mcast_client), net);
-	STATE_SYNC(mcast_sync)->post_send(NFCT_T_UPDATE, net, u);
+	if (STATE_SYNC(sync)->send)
+		STATE_SYNC(sync)->send(NFCT_T_UPDATE, net, u);
 
 	/* keep iterating even if we have found errors */
 	return 0;

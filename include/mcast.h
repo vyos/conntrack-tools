@@ -5,7 +5,6 @@
 
 struct mcast_conf {
 	int ipproto;
-	int backlog;
 	int reuseaddr;
 	int checksum;
 	unsigned short port;

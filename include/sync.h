@@ -13,10 +13,10 @@ struct sync_mode {
 	int  (*init)(void);
 	void (*kill)(void);
 	int  (*local)(int fd, int type, void *data);
-	int  (*pre_recv)(const struct nlnetwork *net);
-	void (*post_send)(int type,
-			  const struct nlnetwork *net,
-			  struct us_conntrack *u);
+	int  (*recv)(const struct nlnetwork *net); /* recv callback */
+	void (*send)(int type,			   /* send callback */
+		     const struct nlnetwork *net,
+		     struct us_conntrack *u);
 };
 
 extern struct sync_mode notrack;

@@ -30,4 +30,23 @@ enum {
 	NET_ACK = (1 << NET_ACK_BIT),
 };
 
+/* extracted from net/tcp.h */
+
+/*
+ * The next routines deal with comparing 32 bit unsigned ints
+ * and worry about wraparound (automatic with unsigned arithmetic).
+ */
+
+static inline int before(__u32 seq1, __u32 seq2)
+{
+	return (__s32)(seq1-seq2) < 0;
+}
+#define after(seq2, seq1)       before(seq1, seq2)
+
+/* is s2<=s1<=s3 ? */
+static inline int between(__u32 seq1, __u32 seq2, __u32 seq3)
+{
+	return seq3 - seq2 >= seq1 - seq2;
+}
+
 #endif

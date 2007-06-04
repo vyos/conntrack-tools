@@ -32,15 +32,13 @@ int ignore_conntrack(struct nf_conntrack *ct)
 		return 1;
 
 	/* Accept DNAT'ed traffic: not really coming to the local machine */
-	if ((CONFIG(flags) & STRIP_NAT) && 
-	    nfct_getobjopt(ct, NFCT_GOPT_IS_DNAT)) {
+	if (nfct_getobjopt(ct, NFCT_GOPT_IS_DNAT)) {
 		debug_ct(ct, "DNAT");
 		return 0;
 	}
 
         /* Accept SNAT'ed traffic: not really coming to the local machine */
-	if ((CONFIG(flags) & STRIP_NAT) && 
-	    nfct_getobjopt(ct, NFCT_GOPT_IS_SNAT)) {
+	if (nfct_getobjopt(ct, NFCT_GOPT_IS_SNAT)) {
 		debug_ct(ct, "SNAT");
 		return 0;
 	}

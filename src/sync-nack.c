@@ -136,7 +136,7 @@ static int buffer_compare(void *data1, void *data2)
 
 	unsigned old_seq = ntohl(net->seq);
 
-	if (ntohl(net->seq) >= nack->from && ntohl(net->seq) <= nack->to) {
+	if (between(ntohl(net->seq), nack->from, nack->to)) {
 		if (mcast_resend_netmsg(STATE_SYNC(mcast_client), net))
 			dp("resend destroy (old seq=%u) (seq=%u)\n", 
 			   old_seq, ntohl(net->seq));
@@ -149,7 +149,7 @@ static int buffer_remove(void *data1, void *data2)
 	struct nlnetwork *net = data1;
 	struct nlnetwork_ack *h = data2;
 
-	if (ntohl(net->seq) >= h->from && ntohl(net->seq) <= h->to) {
+	if (between(ntohl(net->seq), h->from, h->to)) {
 		dp("remove from buffer (seq=%u)\n", ntohl(net->seq));
 		__buffer_del(STATE_SYNC(buffer), data1);
 	}
@@ -169,7 +169,7 @@ static void queue_resend(struct cache *c, unsigned int from, unsigned int to)
 		
 		u = cache_get_conntrack(STATE_SYNC(internal), cn);
 
-		if (cn->seq >= from && cn->seq <= to) {
+		if (between(cn->seq, from, to)) {
 			debug_ct(u->ct, "resend nack");
 			dp("resending nack'ed (oldseq=%u) ", cn->seq);
 
@@ -186,10 +186,9 @@ static void queue_resend(struct cache *c, unsigned int from, unsigned int to)
 				break;
 			}
 
-			mcast_send_netmsg(STATE_SYNC(mcast_client), buf); 
-			STATE_SYNC(mcast_sync)->post_send(NFCT_T_UPDATE,
-							  net, 
-							  u);
+			mcast_send_netmsg(STATE_SYNC(mcast_client), buf);
+			if (STATE_SYNC(sync)->send)
+				STATE_SYNC(sync)->send(NFCT_T_UPDATE, net, u);
 			dp("(newseq=%u)\n", *seq);
 		} 
 	}
@@ -208,7 +207,7 @@ static void queue_empty(struct cache *c, unsigned int from, unsigned int to)
 		struct cache_nack *cn = (struct cache_nack *) n;
 
 		u = cache_get_conntrack(STATE_SYNC(internal), cn);
-		if (cn->seq >= from && cn->seq <= to) {
+		if (between(cn->seq, from, to)) {
 			dp("remove %u\n", cn->seq);
 			debug_ct(u->ct, "ack received: empty queue");
 			dp("queue: deleting from queue (seq=%u)\n", cn->seq);
@@ -219,7 +218,7 @@ static void queue_empty(struct cache *c, unsigned int from, unsigned int to)
 	unlock();
 }
 
-static int nack_pre_recv(const struct nlnetwork *net)
+static int nack_recv(const struct nlnetwork *net)
 {
 	static unsigned int window = 0;
 	unsigned int exp_seq;
@@ -262,9 +261,9 @@ static int nack_pre_recv(const struct nlnetwork *net)
 	return 0;
 }
 
-static void nack_post_send(int type, 
-			   const struct nlnetwork *net, 
-			   struct us_conntrack *u)
+static void nack_send(int type, 
+		      const struct nlnetwork *net,
+		      struct us_conntrack *u)
 {
 	unsigned int size = sizeof(struct nlnetwork); 
  	struct nlmsghdr *nlh = (struct nlmsghdr *) ((void *) net + size);
@@ -301,6 +300,6 @@ struct sync_mode nack = {
 	.init			= nack_init,
 	.kill			= nack_kill,
 	.local			= nack_local,
-	.pre_recv		= nack_pre_recv,
-	.post_send		= nack_post_send,
+	.recv			= nack_recv,
+	.send			= nack_send,
 };

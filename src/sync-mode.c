@@ -32,25 +32,24 @@
 static void mcast_handler()
 {
 	int ret;
-	char buf[4096], tmp[256];
-	struct mcast_sock *m = STATE_SYNC(mcast_server);
-	unsigned int type;
-	struct nlnetwork *net = (struct nlnetwork *) buf;
-	unsigned int size = sizeof(struct nlnetwork);
-	struct nlmsghdr *nlh = (struct nlmsghdr *) (buf + size);
-	struct nf_conntrack *ct = (struct nf_conntrack *) tmp;
+	unsigned int type, size = sizeof(struct nlnetwork);
+	char __net[4096];
+	struct nlnetwork *net = (struct nlnetwork *) __net;
+	struct nlmsghdr *nlh = (struct nlmsghdr *) (__net + size);
+	char __ct[nfct_maxsize()];
+	struct nf_conntrack *ct = (struct nf_conntrack *) __ct;
 	struct us_conntrack *u = NULL;
 
-	memset(tmp, 0, sizeof(tmp));
-
-	ret = mcast_recv_netmsg(m, buf, sizeof(buf));
+	ret = mcast_recv_netmsg(STATE_SYNC(mcast_server), net, sizeof(__net));
 	if (ret <= 0) {
 		STATE(malformed)++;
 		return;
 	}
 
-	if (STATE_SYNC(mcast_sync)->pre_recv(net))
+	if (STATE_SYNC(sync)->recv(net))
 		return;
+
+	memset(ct, 0, sizeof(__ct));
 
 	if ((type = parse_network_msg(ct, nlh)) == NFCT_T_ERROR) {
 		STATE(malformed)++;
@@ -111,19 +110,19 @@ static int init_sync(void)
 	memset(state.sync, 0, sizeof(struct ct_sync_state));
 
 	if (CONFIG(flags) & SYNC_MODE_NACK)
-		STATE_SYNC(mcast_sync) = &nack;
+		STATE_SYNC(sync) = &nack;
 	else
 		/* default to persistent mode */
-		STATE_SYNC(mcast_sync) = &notrack;
+		STATE_SYNC(sync) = &notrack;
 
-	if (STATE_SYNC(mcast_sync)->init)
-		STATE_SYNC(mcast_sync)->init();
+	if (STATE_SYNC(sync)->init)
+		STATE_SYNC(sync)->init();
 
 	STATE_SYNC(internal) =
 		cache_create("internal", 
-			     STATE_SYNC(mcast_sync)->internal_cache_flags,
+			     STATE_SYNC(sync)->internal_cache_flags,
 			     CONFIG(family),
-			     STATE_SYNC(mcast_sync)->internal_cache_extra);
+			     STATE_SYNC(sync)->internal_cache_extra);
 
 	if (!STATE_SYNC(internal)) {
 		dlog(STATE(log), "[FAIL] can't allocate memory for "
@@ -133,7 +132,7 @@ static int init_sync(void)
 
 	STATE_SYNC(external) = 
 		cache_create("external",
-			     STATE_SYNC(mcast_sync)->external_cache_flags,
+			     STATE_SYNC(sync)->external_cache_flags,
 			     CONFIG(family),
 			     NULL);
 
@@ -192,8 +191,8 @@ static void kill_sync()
 
 	destroy_alarm_thread();
 
-	if (STATE_SYNC(mcast_sync)->kill)
-		STATE_SYNC(mcast_sync)->kill();
+	if (STATE_SYNC(sync)->kill)
+		STATE_SYNC(sync)->kill();
 }
 
 static dump_stats_sync(int fd)
@@ -253,8 +252,8 @@ static int local_handler_sync(int fd, int type, void *data)
 		cache_bulk(STATE_SYNC(internal));
 		break;
 	default:
-		if (STATE_SYNC(mcast_sync)->local)
-			ret = STATE_SYNC(mcast_sync)->local(fd, type, data);
+		if (STATE_SYNC(sync)->local)
+			ret = STATE_SYNC(sync)->local(fd, type, data);
 		break;
 	}
 
@@ -280,17 +279,18 @@ static void mcast_send_sync(struct nlmsghdr *nlh,
 			    struct nf_conntrack *ct,
 			    int type)
 {
-	char buf[4096];
-	struct nlnetwork *net = (struct nlnetwork *) buf;
+	char __net[4096];
+	struct nlnetwork *net = (struct nlnetwork *) __net;
 
-	memset(buf, 0, sizeof(buf));
+	memset(__net, 0, sizeof(__net));
 
 	if (!state_helper_verdict(type, ct))
 		return;
 
-	memcpy(buf + sizeof(struct nlnetwork), nlh, nlh->nlmsg_len);
-	mcast_send_netmsg(STATE_SYNC(mcast_client), net); 
-	STATE_SYNC(mcast_sync)->post_send(type, net, u);
+	memcpy(__net + sizeof(struct nlnetwork), nlh, nlh->nlmsg_len);
+	mcast_send_netmsg(STATE_SYNC(mcast_client), net);
+	if (STATE_SYNC(sync)->send)
+		STATE_SYNC(sync)->send(type, net, u);
 }
 
 static int overrun_cb(enum nf_conntrack_msg_type type,
@@ -313,18 +313,16 @@ static int overrun_cb(enum nf_conntrack_msg_type type,
 	if (!cache_test(STATE_SYNC(internal), ct)) {
 		if ((u = cache_update_force(STATE_SYNC(internal), ct))) {
 			int ret;
-			char buf[4096];
-			struct nlnetwork *net = (struct nlnetwork *) buf;
-			unsigned int size = sizeof(struct nlnetwork);
-			struct nlmsghdr *nlh = (struct nlmsghdr *) (buf + size);
+			char __nlh[4096];
+			struct nlmsghdr *nlh = (struct nlmsghdr *) __nlh;
 
 			debug_ct(u->ct, "overrun resync");
 
-			ret = build_network_msg(NFCT_Q_UPDATE,
-						STATE(subsys_dump),
-						u->ct,
-						buf,
-						sizeof(buf));
+			ret = nfct_build_query(STATE(subsys_dump),
+					       NFCT_Q_UPDATE,
+					       u->ct,
+					       __nlh,
+					       sizeof(__nlh));
 
 			if (ret == -1) {
 				dlog(STATE(log), "can't build overrun");
@@ -346,18 +344,16 @@ static int overrun_purge_step(void *data1, void *data2)
 
 	ret = nfct_query(h, NFCT_Q_GET, u->ct);
 	if (ret == -1 && errno == ENOENT) {
-		char buf[4096];
-		struct nlnetwork *net = (struct nlnetwork *) buf;
-		unsigned int size = sizeof(struct nlnetwork);
-		struct nlmsghdr *nlh = (struct nlmsghdr *) (buf + size);
+		char __nlh[4096];
+		struct nlmsghdr *nlh = (struct nlmsghdr *) (__nlh);
 
 		debug_ct(u->ct, "overrun purge resync");
-
-		ret = build_network_msg(NFCT_Q_DESTROY,
-					STATE(subsys_dump),
-					u->ct,
-					buf,
-					sizeof(buf));
+	
+		ret = nfct_build_query(STATE(subsys_dump),
+				       NFCT_Q_DESTROY,
+				       u->ct,
+				       __nlh,
+				       sizeof(__nlh));
 
 		if (ret == -1)
 			dlog(STATE(log), "failed to build network message");
@@ -411,18 +407,6 @@ retry:
 		debug_ct(u->ct, "internal new");
 	} else {
 		if (errno == EEXIST) {
-			char buf[4096];
-			unsigned int size = sizeof(struct nlnetwork);
-			struct nlmsghdr *nlh = (struct nlmsghdr *) (buf + size);
-
-			int ret = build_network_msg(NFCT_Q_DESTROY,
-						    STATE(subsys_event),
-						    ct,
-						    buf,
-						    sizeof(buf));
-			if (ret == -1)
-				return;
-
 			cache_del(STATE_SYNC(internal), ct);
 			mcast_send_sync(nlh, NULL, ct, NFCT_T_DESTROY);
 			goto retry;
@@ -440,7 +424,7 @@ static void event_update_sync(struct nf_conntrack *ct, struct nlmsghdr *nlh)
 
 	nfct_attr_unset(ct, ATTR_TIMEOUT);
 
-	if ((u = cache_update(STATE_SYNC(internal), ct)) == NULL) {
+	if ((u = cache_update_force(STATE_SYNC(internal), ct)) == NULL) {
 		debug_ct(ct, "can't update");
 		return;
 	}
