@@ -112,7 +112,7 @@ static int do_commit(void *data1, void *data2)
 	nfct_set_attr_u32(ct, ATTR_TIMEOUT, CONFIG(commit_timeout));
 
         ret = nfct_build_query(STATE(subsys_dump),
-			       NFCT_Q_CREATE,
+			       NFCT_Q_CREATE_UPDATE,
 			       ct,
 			       nlh,
 			       sizeof(buf));
