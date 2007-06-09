@@ -1,10 +1,12 @@
 version 0.9.4 (yet unreleased)
 ------------------------------
 
+o fix error message in configure.in (Eric Leblond)
+o add library dependency checking to configure.in
+
 = conntrackd =
 o simplify checksum code: use UDP/multicast checksum facilities
 o fix silly bug in build_network_message: out of bound memset
-o fix error message in configure.in (Eric Leblond)
 o remove useless backlog parameter in multicast sockets
 o remove reminiscents of delay destroy message and relax transitions
 o remove confusing StripNAT parameter: NAT support enabled by default
