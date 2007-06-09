@@ -94,8 +94,8 @@ static struct option original_opts[] = {
 	{"mark", 1, 0, 'm'},
 	{"id", 2, 0, 'i'},		/* deprecated */
 	{"family", 1, 0, 'f'},
-	{"src-nat", 1, 0, 'n'},
-	{"dst-nat", 1, 0, 'g'},
+	{"src-nat", 2, 0, 'n'},
+	{"dst-nat", 2, 0, 'g'},
 	{"output", 1, 0, 'o'},
 	{0, 0, 0, 0}
 };
@@ -119,13 +119,13 @@ static char commands_v_options[NUMBER_OF_CMD][NUMBER_OF_OPT] =
 /* Well, it's better than "Re: Linux vs FreeBSD" */
 {
           /*   s d r q p t u z e [ ] { } a m i f n g o */
-/*CT_LIST*/   {2,2,2,2,2,0,0,2,0,0,0,0,0,0,2,2,2,0,0,2},
+/*CT_LIST*/   {2,2,2,2,2,0,0,2,0,0,0,0,0,0,2,2,2,2,2,2},
 /*CT_CREATE*/ {2,2,2,2,1,1,1,0,0,0,0,0,0,2,2,0,0,2,2,0},
 /*CT_UPDATE*/ {2,2,2,2,1,2,2,0,0,0,0,0,0,0,2,2,0,0,0,0},
 /*CT_DELETE*/ {2,2,2,2,2,0,0,0,0,0,0,0,0,0,0,2,0,0,0,0},
 /*CT_GET*/    {2,2,2,2,1,0,0,0,0,0,0,0,0,0,0,2,0,0,0,2},
 /*CT_FLUSH*/  {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-/*CT_EVENT*/  {2,2,2,2,2,0,0,0,2,0,0,0,0,0,2,0,0,0,0,2},
+/*CT_EVENT*/  {2,2,2,2,2,0,0,0,2,0,0,0,0,0,2,0,0,2,2,2},
 /*VERSION*/   {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
 /*HELP*/      {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
 /*EXP_LIST*/  {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,2,0,0,0},
@@ -597,6 +597,18 @@ static int event_cb(enum nf_conntrack_msg_type type,
 	unsigned int output_type = NFCT_O_DEFAULT;
 	unsigned int output_flags = 0;
 
+	if (options & CT_OPT_SRC_NAT && options & CT_OPT_DST_NAT) {
+		if (!nfct_getobjopt(ct, NFCT_GOPT_IS_SNAT) &&
+		    !nfct_getobjopt(ct, NFCT_GOPT_IS_DNAT))
+			return NFCT_CB_CONTINUE;
+	} else if (options & CT_OPT_SRC_NAT && 
+		   !nfct_getobjopt(ct, NFCT_GOPT_IS_SNAT)) {
+	 	return NFCT_CB_CONTINUE;
+	} else if (options & CT_OPT_DST_NAT &&
+		   !nfct_getobjopt(ct, NFCT_GOPT_IS_DNAT)) {
+		return NFCT_CB_CONTINUE;
+	}
+
 	if (options & CT_COMPARISON && !nfct_compare(obj, ct))
 		return NFCT_CB_CONTINUE;
 
@@ -625,6 +637,18 @@ static int dump_cb(enum nf_conntrack_msg_type type,
 	struct nf_conntrack *obj = data;
 	unsigned int output_type = NFCT_O_DEFAULT;
 	unsigned int output_flags = 0;
+
+	if (options & CT_OPT_SRC_NAT && options & CT_OPT_DST_NAT) {
+		if (!nfct_getobjopt(ct, NFCT_GOPT_IS_SNAT) &&
+		    !nfct_getobjopt(ct, NFCT_GOPT_IS_DNAT))
+			return NFCT_CB_CONTINUE;
+	} else if (options & CT_OPT_SRC_NAT && 
+		   !nfct_getobjopt(ct, NFCT_GOPT_IS_SNAT)) {
+	 	return NFCT_CB_CONTINUE;
+	} else if (options & CT_OPT_DST_NAT &&
+		   !nfct_getobjopt(ct, NFCT_GOPT_IS_DNAT)) {
+		return NFCT_CB_CONTINUE;
+	}
 
 	if (options & CT_COMPARISON && !nfct_compare(obj, ct))
 		return NFCT_CB_CONTINUE;
@@ -930,11 +954,15 @@ int main(int argc, char *argv[])
 			break;
 		case 'n':
 			options |= CT_OPT_SRC_NAT;
+			if (!optarg)
+				break;
 			set_family(&family, AF_INET);
 			nat_parse(optarg, 1, obj, CT_OPT_SRC_NAT);
 			break;
 		case 'g':
 			options |= CT_OPT_DST_NAT;
+			if (!optarg)
+				break;
 			set_family(&family, AF_INET);
 			nat_parse(optarg, 1, obj, CT_OPT_DST_NAT);
 		case 'm':

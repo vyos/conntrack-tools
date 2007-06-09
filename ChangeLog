@@ -18,6 +18,8 @@ o fix segfault with conntrack --output (Krzysztof Oledzky)
 o use NFCT_SOPT_SETUP_* facilities: nfct_setobjopt
 o remove bogus option to get a conntrack in test.sh example file
 o add aliases --sport and --dport to make it more iptables-like
+o add support for `-L --src-nat' and `-L --dst-nat' to show natted connections
+o update conntrack(8) manpage
 
 version 0.9.3 (2006/05/22)
 ------------------------------

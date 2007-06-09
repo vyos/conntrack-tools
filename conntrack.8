@@ -107,13 +107,14 @@ This option is only required in conjunction with "-L, --dump". If this option is
 .BI "-t, --timeout " "TIMEOUT"
 Specify the timeout.
 .TP
-.BI "-u, --status " "[ASSURED|SEEN_REPLY|UNSET|SRC_NAT|DST_NAT][,...]"
+.BI "-u, --status " "[ASSURED|SEEN_REPLY|UNSET][,...]"
 Specify the conntrack status.
 .TP
-.BI "-i, --id " "ID"
-Specify the conntrack ID. 
-.
-This option can only be used in conjunction with "-L, --dump" to display the conntrack IDs.
+.BI "-n, --src-nat "
+Filter source NAT connections. 
+.TP
+.BI "-g, --dst-nat "
+Filter destination NAT connections. 
 .TP
 .BI "--tuple-src " IP_ADDRESS
 Specify the tuple source address of an expectation.
@@ -143,6 +144,9 @@ Dump the connection tracking table in XML
 .TP
 .B conntrack \-L -f ipv6 -o extended
 Only dump IPv6 connections in /proc/net/nf_conntrack format
+.TP
+.B conntrack \-L --src-nat
+Dump source NAT connections
 .TP
 .B conntrack \-E \-o timestamp
 Show connection events together with the timestamp
