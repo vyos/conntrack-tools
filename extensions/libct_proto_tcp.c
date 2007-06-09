@@ -215,9 +215,7 @@ static struct ctproto_handler tcp = {
 	.version		= VERSION,
 };
 
-static void __attribute__ ((constructor)) init(void);
-
-static void init(void)
+void register_tcp(void)
 {
 	register_proto(&tcp);
 }

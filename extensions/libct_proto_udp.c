@@ -176,9 +176,7 @@ static struct ctproto_handler udp = {
 	.version		= VERSION,
 };
 
-static void __attribute__ ((constructor)) init(void);
-
-static void init(void)
+void register_udp(void)
 {
 	register_proto(&udp);
 }

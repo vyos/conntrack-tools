@@ -136,8 +136,6 @@ static char commands_v_options[NUMBER_OF_CMD][NUMBER_OF_OPT] =
 /*EXP_EVENT*/ {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
 };
 
-static char *lib_dir = CONNTRACK_LIB_DIR;
-
 static LIST_HEAD(proto_list);
 
 static unsigned int options;
@@ -163,26 +161,12 @@ static struct ctproto_handler *findproto(char *name)
 	if (!name) 
 		return handler;
 
-	lib_dir = getenv("CONNTRACK_LIB_DIR");
-	if (!lib_dir)
-		lib_dir = CONNTRACK_LIB_DIR;
-
 	list_for_each(i, &proto_list) {
 		cur = (struct ctproto_handler *) i;
 		if (strcmp(cur->name, name) == 0) {
 			handler = cur;
 			break;
 		}
-	}
-
-	if (!handler) {
-		char path[sizeof("ct_proto_.so")
-			 + strlen(name) + strlen(lib_dir)];
-                sprintf(path, "%s/ct_proto_%s.so", lib_dir, name);
-		if (dlopen(path, RTLD_NOW))
-			handler = findproto(name);
-		else
-			fprintf(stderr, "%s\n", dlerror());
 	}
 
 	return handler;
@@ -699,6 +683,10 @@ int main(int argc, char *argv[])
 	memset(__exptuple, 0, sizeof(__exptuple));
 	memset(__mask, 0, sizeof(__mask));
 	memset(__exp, 0, sizeof(__exp));
+
+	register_tcp();
+	register_udp();
+	register_icmp();
 
 	while ((c = getopt_long(argc, argv, 
 		"L::I::U::D::G::E::F::hVs:d:r:q:p:t:u:e:a:z[:]:{:}:m:i::f:o:", 

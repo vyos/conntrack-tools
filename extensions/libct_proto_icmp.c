@@ -91,9 +91,7 @@ static struct ctproto_handler icmp = {
 	.version	= VERSION,
 };
 
-static void __attribute__ ((constructor)) init(void);
-
-static void init(void)
+void register_icmp(void)
 {
 	register_proto(&icmp);
 }

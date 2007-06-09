@@ -7,7 +7,7 @@ CLEANFILES = read_config_yy.c read_config_lex.c
 sbin_PROGRAMS = conntrack conntrackd
 
 conntrack_SOURCES = conntrack.c
-conntrack_LDFLAGS = -rdynamic
+conntrack_LDADD = ../extensions/libct_proto_tcp.la ../extensions/libct_proto_udp.la ../extensions/libct_proto_icmp.la
 
 conntrackd_SOURCES = alarm.c main.c run.c hash.c buffer.c \
 		    local.c log.c mcast.c netlink.c proxy.c lock.c \
