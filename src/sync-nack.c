@@ -77,47 +77,25 @@ static void nack_kill()
 	buffer_destroy(STATE_SYNC(buffer));
 }
 
-static void mcast_send_nack(u_int32_t expt_seq, u_int32_t recv_seq)
-{
-	struct nlnetwork_ack nack = {
-		.flags = NET_NACK,
-		.from  = expt_seq,
-		.to    = recv_seq,
-	};
-
-	mcast_send_error(STATE_SYNC(mcast_client), &nack);
-	buffer_add(STATE_SYNC(buffer), &nack, sizeof(struct nlnetwork_ack));
-}
-
-static void mcast_send_ack(u_int32_t from, u_int32_t to)
+static void mcast_send_control(u_int32_t flags, u_int32_t from, u_int32_t to)
 {
 	struct nlnetwork_ack ack = {
-		.flags = NET_ACK,
-		.from   = from,
-		.to	= to,
+		.flags = flags,
+		.from  = from,
+		.to    = to,
 	};
 
 	mcast_send_error(STATE_SYNC(mcast_client), &ack);
 	buffer_add(STATE_SYNC(buffer), &ack, sizeof(struct nlnetwork_ack));
 }
 
-static void mcast_send_resync()
-{
-	struct nlnetwork net = {
-		.flags = NET_RESYNC,
-	};
-
-	mcast_send_error(STATE_SYNC(mcast_client), &net);
-	buffer_add(STATE_SYNC(buffer), &net, sizeof(struct nlnetwork));
-}
-
-int nack_local(int fd, int type, void *data)
+static int nack_local(int fd, int type, void *data)
 {
 	int ret = 1;
 
 	switch(type) {
 		case REQUEST_DUMP:
-			mcast_send_resync();
+			mcast_send_control(NET_RESYNC, 0, 0);
 			dlog(STATE(log), "[REQ] request resync");
 			break;
 		default:
@@ -228,13 +206,15 @@ static int nack_recv(const struct nlnetwork *net)
 
 	if (!mcast_track_seq(net->seq, &exp_seq)) {
 		dp("OOS: sending nack (seq=%u)\n", exp_seq);
-		mcast_send_nack(exp_seq, net->seq - 1);
+		mcast_send_control(NET_NACK, exp_seq, net->seq - 1);
 		window = CONFIG(window_size);
 	} else {
 		/* received a window, send an acknowledgement */
 		if (--window == 0) {
 			dp("sending ack (seq=%u)\n", net->seq);
-			mcast_send_ack(net->seq-CONFIG(window_size), net->seq);
+			mcast_send_control(NET_ACK, 
+					   net->seq - CONFIG(window_size), 
+					   net->seq);
 		}
 	}
 

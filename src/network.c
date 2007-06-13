@@ -19,20 +19,25 @@
 #include "conntrackd.h"
 #include "network.h"
 
-#if 0 
-#define _TEST_DROP
-#else
-#undef _TEST_DROP
-#endif
-
-static int drop = 0; /* debugging purposes */
 static unsigned int seq_set, cur_seq;
 
 static int send_netmsg(struct mcast_sock *m, void *data, unsigned int len)
 {
 	struct nlnetwork *net = data;
 
+	if (!seq_set) {
+		seq_set = 1;
+		cur_seq = time(NULL);
+		net->flags |= NET_HELLO;
+	}
+
+	net->flags = htons(net->flags);
+	net->seq = htonl(cur_seq++);
+
+#undef _TEST_DROP
 #ifdef _TEST_DROP
+	static int drop = 0;
+
         if (++drop > 10) {
 		drop = 0;
 		printf("dropping resend (seq=%u)\n", ntohl(net->seq));
@@ -48,15 +53,6 @@ int mcast_send_netmsg(struct mcast_sock *m, void *data)
 	unsigned int len = nlh->nlmsg_len + sizeof(struct nlnetwork);
 	struct nlnetwork *net = data;
 
-	if (!seq_set) {
-		seq_set = 1;
-		cur_seq = time(NULL);
-		net->flags |= NET_HELLO;
-	}
-
-	net->flags = htons(net->flags);
-	net->seq = htonl(cur_seq++);
-
 	if (nlh_host2network(nlh) == -1)
 		return -1;
 
@@ -71,19 +67,10 @@ int mcast_resend_netmsg(struct mcast_sock *m, void *data)
 
 	net->flags = ntohs(net->flags);
 
-	if (!seq_set) {
-		seq_set = 1;
-		cur_seq = time(NULL);
-		net->flags |= NET_HELLO;
-	}
-
 	if (net->flags & NET_NACK || net->flags & NET_ACK)
 		len = sizeof(struct nlnetwork_ack);
 	else
 		len = sizeof(struct nlnetwork) + ntohl(nlh->nlmsg_len);
-
-	net->flags = htons(net->flags);
-	net->seq = htonl(cur_seq++);
 
 	return send_netmsg(m, data, len);
 }
@@ -93,21 +80,12 @@ int mcast_send_error(struct mcast_sock *m, void *data)
 	struct nlnetwork *net = data;
 	unsigned int len = sizeof(struct nlnetwork);
 
-	if (!seq_set) {
-		seq_set = 1;
-		cur_seq = time(NULL);
-		net->flags |= NET_HELLO;
-	}
-
 	if (net->flags & NET_NACK || net->flags & NET_ACK) {
 		struct nlnetwork_ack *nack = (struct nlnetwork_ack *) net;
 		nack->from = htonl(nack->from);
 		nack->to = htonl(nack->to);
 		len = sizeof(struct nlnetwork_ack);
 	}
-
-	net->flags = htons(net->flags);
-	net->seq = htonl(cur_seq++);
 
 	return send_netmsg(m, data, len);
 }

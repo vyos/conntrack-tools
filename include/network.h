@@ -4,13 +4,14 @@
 #include <sys/types.h>
 
 struct nlnetwork {
-	u_int16_t flags; 
+	u_int16_t flags;
+	u_int16_t padding;
 	u_int32_t seq;
 };
 
 struct nlnetwork_ack {
 	u_int16_t flags; 
-	u_int16_t checksum;
+	u_int16_t padding;
 	u_int32_t seq;
 	u_int32_t from;
 	u_int32_t to;

@@ -13,6 +13,7 @@ o remove confusing StripNAT parameter: NAT support enabled by default
 o relax event tracking: *_update callbacks use cache_update_force
 o use wraparound-aware functions after/before/between
 o commit phase: if conntrack exists, update it
+o local requests return EXIT_FAILURE if it can't connect to the daemon
 o lots of cleanups
 
 = conntrack =

@@ -252,9 +252,11 @@ int main(int argc, char *argv[])
 	}
 
 	if (type == REQUEST) {
-		if (do_local_request(action, &conf.local, local_step) == -1)
+		if (do_local_request(action, &conf.local, local_step) == -1) {
 			fprintf(stderr, "can't connect: is conntrackd "
 					"running? appropiate permissions?\n");
+			exit(EXIT_FAILURE);
+		}
 		exit(EXIT_SUCCESS);
 	}
 
