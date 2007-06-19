@@ -79,14 +79,14 @@ static void nack_kill()
 
 static void mcast_send_control(u_int32_t flags, u_int32_t from, u_int32_t to)
 {
-	struct nlnetwork_ack ack = {
+	struct nethdr_ack ack = {
 		.flags = flags,
 		.from  = from,
 		.to    = to,
 	};
 
 	mcast_send_error(STATE_SYNC(mcast_client), &ack);
-	buffer_add(STATE_SYNC(buffer), &ack, sizeof(struct nlnetwork_ack));
+	buffer_add(STATE_SYNC(buffer), &ack, NETHDR_ACK_SIZ);
 }
 
 static int nack_local(int fd, int type, void *data)
@@ -95,7 +95,7 @@ static int nack_local(int fd, int type, void *data)
 
 	switch(type) {
 		case REQUEST_DUMP:
-			mcast_send_control(NET_RESYNC, 0, 0);
+			mcast_send_control(NET_F_RESYNC, 0, 0);
 			dlog(STATE(log), "[REQ] request resync");
 			break;
 		default:
@@ -108,9 +108,9 @@ static int nack_local(int fd, int type, void *data)
 
 static int buffer_compare(void *data1, void *data2)
 {
-	struct nlnetwork *net = data1;
-	struct nlnetwork_ack *nack = data2;
-	struct nlmsghdr *nlh = data1 + sizeof(struct nlnetwork);
+	struct nethdr *net = data1;
+	struct nethdr_ack *nack = data2;
+	struct nlmsghdr *nlh = data1 + NETHDR_SIZ;
 
 	unsigned old_seq = ntohl(net->seq);
 
@@ -124,8 +124,8 @@ static int buffer_compare(void *data1, void *data2)
 
 static int buffer_remove(void *data1, void *data2)
 {
-	struct nlnetwork *net = data1;
-	struct nlnetwork_ack *h = data2;
+	struct nethdr *net = data1;
+	struct nethdr_ack *h = data2;
 
 	if (between(ntohl(net->seq), h->from, h->to)) {
 		dp("remove from buffer (seq=%u)\n", ntohl(net->seq));
@@ -138,9 +138,7 @@ static void queue_resend(struct cache *c, unsigned int from, unsigned int to)
 {
 	struct list_head *n;
 	struct us_conntrack *u;
-	unsigned int *seq;
 
-	lock();
 	list_for_each(n, &queue) {
 		struct cache_nack *cn = (struct cache_nack *) n;
 		struct us_conntrack *u;
@@ -151,35 +149,19 @@ static void queue_resend(struct cache *c, unsigned int from, unsigned int to)
 			debug_ct(u->ct, "resend nack");
 			dp("resending nack'ed (oldseq=%u) ", cn->seq);
 
-			char buf[4096];
-			struct nlnetwork *net = (struct nlnetwork *) buf;
+			if (mcast_build_send_update(u) == -1)
+				continue;
 
-			int ret = build_network_msg(NFCT_Q_UPDATE,
-						    STATE(subsys_event),
-						    u->ct,
-						    buf,
-						    sizeof(buf));
-			if (ret == -1) {
-				unlock();
-				break;
-			}
-
-			mcast_send_netmsg(STATE_SYNC(mcast_client), buf);
-			if (STATE_SYNC(sync)->send)
-				STATE_SYNC(sync)->send(NFCT_T_UPDATE, net, u);
-			dp("(newseq=%u)\n", *seq);
+			dp("(newseq=%u)\n", cn->seq);
 		} 
 	}
-	unlock();
 }
 
 static void queue_empty(struct cache *c, unsigned int from, unsigned int to)
 {
 	struct list_head *n, *tmp;
 	struct us_conntrack *u;
-	unsigned int *seq;
 
-	lock();
 	dp("ACK from %u to %u\n", from, to);
 	list_for_each_safe(n, tmp, &queue) {
 		struct cache_nack *cn = (struct cache_nack *) n;
@@ -193,10 +175,9 @@ static void queue_empty(struct cache *c, unsigned int from, unsigned int to)
 			INIT_LIST_HEAD(&cn->head);
 		} 
 	}
-	unlock();
 }
 
-static int nack_recv(const struct nlnetwork *net)
+static int nack_recv(const struct nethdr *net)
 {
 	static unsigned int window = 0;
 	unsigned int exp_seq;
@@ -206,31 +187,31 @@ static int nack_recv(const struct nlnetwork *net)
 
 	if (!mcast_track_seq(net->seq, &exp_seq)) {
 		dp("OOS: sending nack (seq=%u)\n", exp_seq);
-		mcast_send_control(NET_NACK, exp_seq, net->seq - 1);
+		mcast_send_control(NET_F_NACK, exp_seq, net->seq - 1);
 		window = CONFIG(window_size);
 	} else {
 		/* received a window, send an acknowledgement */
 		if (--window == 0) {
 			dp("sending ack (seq=%u)\n", net->seq);
-			mcast_send_control(NET_ACK, 
+			mcast_send_control(NET_F_ACK, 
 					   net->seq - CONFIG(window_size), 
 					   net->seq);
 		}
 	}
 
-	if (net->flags & NET_NACK) {
-		struct nlnetwork_ack *nack = (struct nlnetwork_ack *) net;
+	if (net->flags & NET_F_NACK) {
+		struct nethdr_ack *nack = (struct nethdr_ack *) net;
 
 		dp("NACK: from seq=%u to seq=%u\n", nack->from, nack->to);
 		queue_resend(STATE_SYNC(internal), nack->from, nack->to);
 		buffer_iterate(STATE_SYNC(buffer), nack, buffer_compare);
 		return 1;
-	} else if (net->flags & NET_RESYNC) {
+	} else if (net->flags & NET_F_RESYNC) {
 		dp("RESYNC ALL\n");
 		cache_bulk(STATE_SYNC(internal));
 		return 1;
-	} else if (net->flags & NET_ACK) {
-		struct nlnetwork_ack *h = (struct nlnetwork_ack *) net;
+	} else if (net->flags & NET_F_ACK) {
+		struct nethdr_ack *h = (struct nethdr_ack *) net;
 
 		dp("ACK: from seq=%u to seq=%u\n", h->from, h->to);
 		queue_empty(STATE_SYNC(internal), h->from, h->to);
@@ -242,10 +223,10 @@ static int nack_recv(const struct nlnetwork *net)
 }
 
 static void nack_send(int type, 
-		      const struct nlnetwork *net,
+		      const struct nethdr *net,
 		      struct us_conntrack *u)
 {
-	unsigned int size = sizeof(struct nlnetwork); 
+	int size = NETHDR_SIZ;
  	struct nlmsghdr *nlh = (struct nlmsghdr *) ((void *) net + size);
 	struct cache_nack *cn;
  

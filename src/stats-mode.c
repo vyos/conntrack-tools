@@ -142,9 +142,11 @@ static void event_new_stats(struct nf_conntrack *ct, struct nlmsghdr *nlh)
 	if (cache_add(STATE_STATS(cache), ct)) {
 		debug_ct(ct, "cache new");
 	} else {
-		dlog(STATE(log), "can't add to cache cache: "
-				      "%s\n", strerror(errno));
-		debug_ct(ct, "can't add");
+		if (errno != EEXIST) {
+			dlog(STATE(log), "can't add to cache cache: "
+					 "%s\n", strerror(errno));
+			debug_ct(ct, "can't add");
+		}
 	}
 }
 

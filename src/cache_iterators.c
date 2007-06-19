@@ -23,7 +23,6 @@
 #include <libnetfilter_conntrack/libnetfilter_conntrack.h>
 #include <errno.h>
 #include "us-conntrack.h"
-#include "debug.h"
 
 struct __dump_container {
 	int fd;
@@ -120,8 +119,7 @@ static int do_commit(void *data1, void *data2)
 	free(ct);
 
 	if (ret == -1) {
-		/* XXX: Please cleanup this debug crap, default in logfile */
-		debug("--- failed to build: %s --- \n", strerror(errno));
+		dlog(STATE(log), "failed to build: %s", strerror(errno));
 		return 0;
 	}
 
@@ -135,10 +133,8 @@ static int do_commit(void *data1, void *data2)
 				c->commit_fail++;
 				break;
 		}
-		debug("--- failed to commit: %s --- \n", strerror(errno));
 	} else {
 		c->commit_ok++;
-		debug("----- commit -----\n");
 	}
 
 	/* keep iterating even if we have found errors */
@@ -207,20 +203,8 @@ static int do_bulk(void *data1, void *data2)
 {
 	int ret;
 	struct us_conntrack *u = data2;
-	char buf[4096];
-	struct nlnetwork *net = (struct nlnetwork *) buf;
 
-	ret = build_network_msg(NFCT_Q_UPDATE,
-				STATE(subsys_dump),
-				u->ct,
-				buf,
-				sizeof(buf));
-	if (ret == -1)
-		debug_ct(u->ct, "failed to build");
-
-	mcast_send_netmsg(STATE_SYNC(mcast_client), net);
-	if (STATE_SYNC(sync)->send)
-		STATE_SYNC(sync)->send(NFCT_T_UPDATE, net, u);
+	mcast_build_send_update(u);
 
 	/* keep iterating even if we have found errors */
 	return 0;

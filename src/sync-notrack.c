@@ -25,18 +25,11 @@
 static void refresher(struct alarm_list *a, void *data)
 {
 	struct us_conntrack *u = data;
-	char __net[4096];
-	int size;
 
 	debug_ct(u->ct, "persistence update");
 
 	a->expires = random() % CONFIG(refresh) + 1;
-	size = build_network_msg(NFCT_Q_UPDATE,
-				 STATE(subsys_event),
-				 u->ct,
-				 __net, 
-				 sizeof(__net));
-	mcast_send_netmsg(STATE_SYNC(mcast_client), __net);
+	mcast_build_send_update(u);
 }
 
 static void cache_notrack_add(struct us_conntrack *u, void *data)
@@ -69,7 +62,7 @@ static struct cache_extra cache_notrack_extra = {
 	.destroy	= cache_notrack_destroy
 };
 
-static int notrack_recv(const struct nlnetwork *net)
+static int notrack_recv(const struct nethdr *net)
 {
 	unsigned int exp_seq;
 
@@ -78,7 +71,7 @@ static int notrack_recv(const struct nlnetwork *net)
 	 * generated in notrack mode, we don't want to crash the daemon 
 	 * if someone nuts mixes nack and notrack.
 	 */
-	if (net->flags & (NET_RESYNC | NET_NACK))
+	if (net->flags)
 		return 1;
 
 	/* 

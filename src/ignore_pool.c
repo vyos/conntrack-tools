@@ -20,7 +20,6 @@
 #include "hash.h"
 #include "conntrackd.h"
 #include "ignore.h"
-#include "debug.h"
 #include <libnetfilter_conntrack/libnetfilter_conntrack.h>
 
 #define IGNORE_POOL_SIZE 32

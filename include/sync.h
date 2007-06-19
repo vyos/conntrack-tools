@@ -1,7 +1,7 @@
 #ifndef _SYNC_HOOKS_H_
 #define _SYNC_HOOKS_H_
 
-struct nlnetwork;
+struct nethdr;
 struct us_conntrack;
 
 struct sync_mode {
@@ -13,9 +13,9 @@ struct sync_mode {
 	int  (*init)(void);
 	void (*kill)(void);
 	int  (*local)(int fd, int type, void *data);
-	int  (*recv)(const struct nlnetwork *net); /* recv callback */
+	int  (*recv)(const struct nethdr *net);    /* recv callback */
 	void (*send)(int type,			   /* send callback */
-		     const struct nlnetwork *net,
+		     const struct nethdr *net,
 		     struct us_conntrack *u);
 };
 

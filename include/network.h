@@ -3,32 +3,34 @@
 
 #include <sys/types.h>
 
-struct nlnetwork {
+struct nethdr {
 	u_int16_t flags;
 	u_int16_t padding;
 	u_int32_t seq;
 };
+#define NETHDR_SIZ sizeof(struct nethdr)
 
-struct nlnetwork_ack {
+struct nethdr_ack {
 	u_int16_t flags; 
 	u_int16_t padding;
 	u_int32_t seq;
 	u_int32_t from;
 	u_int32_t to;
 };
+#define NETHDR_ACK_SIZ sizeof(struct nethdr_ack)
 
 enum {
-	NET_HELLO_BIT = 0,
-	NET_HELLO = (1 << NET_HELLO_BIT),
+	NET_F_HELLO_BIT = 0,
+	NET_F_HELLO = (1 << NET_F_HELLO_BIT),
 
-	NET_RESYNC_BIT = 1,
-	NET_RESYNC = (1 << NET_RESYNC_BIT),
+	NET_F_RESYNC_BIT = 1,
+	NET_F_RESYNC = (1 << NET_F_RESYNC_BIT),
 
-	NET_NACK_BIT = 2,
-	NET_NACK = (1 << NET_NACK_BIT),
+	NET_F_NACK_BIT = 2,
+	NET_F_NACK = (1 << NET_F_NACK_BIT),
 
-	NET_ACK_BIT = 3,
-	NET_ACK = (1 << NET_ACK_BIT),
+	NET_F_ACK_BIT = 3,
+	NET_F_ACK = (1 << NET_F_ACK_BIT),
 };
 
 /* extracted from net/tcp.h */

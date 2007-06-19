@@ -23,7 +23,6 @@
 #include <errno.h>
 #include "us-conntrack.h"
 #include "cache.h"
-#include "debug.h"
 
 static u_int32_t hash(const void *data, struct hashtable *table)
 {

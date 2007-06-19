@@ -47,6 +47,11 @@ void killer(int foo)
 	exit(0);			
 }
 
+static void child(int foo)
+{
+	while(wait(NULL) > 0);
+}
+
 void local_handler(int fd, void *data)
 {
 	int ret;
@@ -54,11 +59,11 @@ void local_handler(int fd, void *data)
 
 	ret = read(fd, &type, sizeof(type));
 	if (ret == -1) {
-		dlog(STATE(log), "can't read from unix socket\n");
+		dlog(STATE(log), "can't read from unix socket");
 		return;
 	}
 	if (ret == 0) {
-		debug("nothing to process\n");
+		dlog(STATE(log), "local request: nothing to process?");
 		return;
 	}
 
@@ -122,6 +127,7 @@ int init(int mode)
 	sigemptyset(&STATE(block));
 	sigaddset(&STATE(block), SIGTERM);
 	sigaddset(&STATE(block), SIGINT);
+	sigaddset(&STATE(block), SIGCHLD);
 
 	if (signal(SIGINT, killer) == SIG_ERR)
 		return -1;
@@ -131,6 +137,9 @@ int init(int mode)
 
 	/* ignore connection reset by peer */
 	if (signal(SIGPIPE, SIG_IGN) == SIG_ERR)
+		return -1;
+
+	if (signal(SIGCHLD, child) == SIG_ERR)
 		return -1;
 
 	dlog(STATE(log), "[OK] initialization completed");

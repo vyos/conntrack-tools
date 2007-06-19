@@ -23,12 +23,12 @@ static unsigned int seq_set, cur_seq;
 
 static int send_netmsg(struct mcast_sock *m, void *data, unsigned int len)
 {
-	struct nlnetwork *net = data;
+	struct nethdr *net = data;
 
 	if (!seq_set) {
 		seq_set = 1;
 		cur_seq = time(NULL);
-		net->flags |= NET_HELLO;
+		net->flags |= NET_F_HELLO;
 	}
 
 	net->flags = htons(net->flags);
@@ -49,9 +49,9 @@ static int send_netmsg(struct mcast_sock *m, void *data, unsigned int len)
 
 int mcast_send_netmsg(struct mcast_sock *m, void *data)
 {
-	struct nlmsghdr *nlh = data + sizeof(struct nlnetwork);
-	unsigned int len = nlh->nlmsg_len + sizeof(struct nlnetwork);
-	struct nlnetwork *net = data;
+	struct nlmsghdr *nlh = data + NETHDR_SIZ;
+	unsigned int len = nlh->nlmsg_len + NETHDR_SIZ;
+	struct nethdr *net = data;
 
 	if (nlh_host2network(nlh) == -1)
 		return -1;
@@ -61,40 +61,77 @@ int mcast_send_netmsg(struct mcast_sock *m, void *data)
 
 int mcast_resend_netmsg(struct mcast_sock *m, void *data)
 {
-	struct nlnetwork *net = data;
-	struct nlmsghdr *nlh = data + sizeof(struct nlnetwork);
+	struct nethdr *net = data;
+	struct nlmsghdr *nlh = data + NETHDR_SIZ;
 	unsigned int len;
 
 	net->flags = ntohs(net->flags);
 
-	if (net->flags & NET_NACK || net->flags & NET_ACK)
-		len = sizeof(struct nlnetwork_ack);
+	if (net->flags & NET_F_NACK || net->flags & NET_F_ACK)
+		len = NETHDR_ACK_SIZ;
 	else
-		len = sizeof(struct nlnetwork) + ntohl(nlh->nlmsg_len);
+		len = ntohl(nlh->nlmsg_len) + NETHDR_SIZ;
 
 	return send_netmsg(m, data, len);
 }
 
 int mcast_send_error(struct mcast_sock *m, void *data)
 {
-	struct nlnetwork *net = data;
-	unsigned int len = sizeof(struct nlnetwork);
+	struct nethdr *net = data;
+	unsigned int len = NETHDR_SIZ;
 
-	if (net->flags & NET_NACK || net->flags & NET_ACK) {
-		struct nlnetwork_ack *nack = (struct nlnetwork_ack *) net;
+	if (net->flags & NET_F_NACK || net->flags & NET_F_ACK) {
+		struct nethdr_ack *nack = (struct nethdr_ack *) net;
 		nack->from = htonl(nack->from);
 		nack->to = htonl(nack->to);
-		len = sizeof(struct nlnetwork_ack);
+		len = NETHDR_ACK_SIZ;
 	}
 
 	return send_netmsg(m, data, len);
 }
 
+#include "us-conntrack.h"
+#include "sync.h"
+
+static int __build_send(struct us_conntrack *u, int type, int query)
+{
+	char __net[4096];
+	struct nethdr *net = (struct nethdr *) __net;
+
+	if (!state_helper_verdict(type, u->ct))
+		return 0;
+
+	int ret = build_network_msg(query,
+				    STATE(subsys_event),
+				    u->ct,
+				    __net,
+				    sizeof(__net));
+
+	if (ret == -1)
+		return -1;
+
+	mcast_send_netmsg(STATE_SYNC(mcast_client), __net);
+	if (STATE_SYNC(sync)->send)
+		STATE_SYNC(sync)->send(type, net, u);
+
+	return 0;
+}
+
+int mcast_build_send_update(struct us_conntrack *u)
+{
+	return __build_send(u, NFCT_T_UPDATE, NFCT_Q_UPDATE);
+}
+
+int mcast_build_send_destroy(struct us_conntrack *u)
+{
+	return __build_send(u, NFCT_T_DESTROY, NFCT_Q_DESTROY);
+}
+
 int mcast_recv_netmsg(struct mcast_sock *m, void *data, int len)
 {
 	int ret;
-	struct nlnetwork *net = data;
-	struct nlmsghdr *nlh = data + sizeof(struct nlnetwork);
+	struct nethdr *net = data;
+	struct nlmsghdr *nlh = data + NETHDR_SIZ;
 	struct nfgenmsg *nfhdr;
 
 	ret = mcast_recv(m, net, len);
@@ -102,17 +139,17 @@ int mcast_recv_netmsg(struct mcast_sock *m, void *data, int len)
 		return ret;
 
 	/* message too small: no room for the header */
-	if (ret < sizeof(struct nlnetwork))
+	if (ret < NETHDR_SIZ)
 		return -1;
 
-	if (ntohs(net->flags) & NET_HELLO)
+	if (ntohs(net->flags) & NET_F_HELLO)
 		STATE_SYNC(last_seq_recv) = ntohl(net->seq) - 1;
 
-	if (ntohs(net->flags) & NET_NACK || ntohs(net->flags) & NET_ACK) {
-		struct nlnetwork_ack *nack = (struct nlnetwork_ack *) net;
+	if (ntohs(net->flags) & NET_F_NACK || ntohs(net->flags) & NET_F_ACK) {
+		struct nethdr_ack *nack = (struct nethdr_ack *) net;
 
 		/* message too small: no room for the header */
-		if (ret < sizeof(struct nlnetwork_ack))
+		if (ret < NETHDR_ACK_SIZ)
 			return -1;
 
 		/* host byte order conversion */
@@ -126,7 +163,7 @@ int mcast_recv_netmsg(struct mcast_sock *m, void *data, int len)
 		return ret;
 	}
 
-	if (ntohs(net->flags) & NET_RESYNC) {
+	if (ntohs(net->flags) & NET_F_RESYNC) {
 		/* host byte order conversion */
 		net->flags = ntohs(net->flags);
 		net->seq = ntohl(net->seq);
@@ -139,7 +176,7 @@ int mcast_recv_netmsg(struct mcast_sock *m, void *data, int len)
 		return -1;
 
 	/* information received and message length does not match */
-	if (ret != ntohl(nlh->nlmsg_len) + sizeof(struct nlnetwork))
+	if (ret != ntohl(nlh->nlmsg_len) + NETHDR_SIZ)
 		return -1;
 
 	/* this message does not come from ctnetlink */
@@ -209,8 +246,8 @@ int build_network_msg(const int msg_type,
 		      unsigned int size)
 {
 	memset(buffer, 0, size);
-	buffer += sizeof(struct nlnetwork);
-	size -= sizeof(struct nlnetwork);
+	buffer += NETHDR_SIZ;
+	size -= NETHDR_SIZ;
 	return nfct_build_query(ssh, msg_type, ct, buffer, size);
 }
 

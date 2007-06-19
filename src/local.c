@@ -1,5 +1,5 @@
 /*
- * (C) 2006 by Pablo Neira Ayuso <pablo@netfilter.org>
+ * (C) 2006-2007 by Pablo Neira Ayuso <pablo@netfilter.org>
  * 
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,7 +22,6 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <errno.h>
-#include "debug.h"
 
 #include "local.h"
 
@@ -32,14 +31,11 @@ int local_server_create(struct local_conf *conf)
 	int len;
 	struct sockaddr_un local;
 
-	if ((fd = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
-		debug("local_server_create:socket");
+	if ((fd = socket(AF_UNIX, SOCK_STREAM, 0)) == -1)
 		return -1;
-	}
 
 	if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &conf->reuseaddr, 
 				sizeof(conf->reuseaddr)) == -1) {
-		debug("local_server_create:setsockopt");
 		close(fd);
 		return -1;
 	}
@@ -50,14 +46,12 @@ int local_server_create(struct local_conf *conf)
 	unlink(conf->path);
 
 	if (bind(fd, (struct sockaddr *) &local, len) == -1) {
-		debug("local_server_create:bind");
 		close(fd);
 		return -1;
 	}
 
 	if (listen(fd, conf->backlog) == -1) {
 		close(fd);
-		debug("local_server_create:listen");
 		return -1;
 	}
 
@@ -76,10 +70,8 @@ int do_local_server_step(int fd, void *data,
 	struct sockaddr_un local;
 	size_t sin_size = sizeof(struct sockaddr_un);
 	
-	if ((rfd = accept(fd, (struct sockaddr *)&local, &sin_size)) == -1) {
-		debug("do_local_server_step:accept");
+	if ((rfd = accept(fd, (struct sockaddr *)&local, &sin_size)) == -1)
 		return -1;
-	}
 
 	process(rfd, data);
 	close(rfd);
@@ -102,7 +94,6 @@ int local_client_create(struct local_conf *conf)
 
 	if (connect(fd, (struct sockaddr *) &local, len) == -1) {
 		close(fd);
-		debug("local_client_create: connect: ");
 		return -1;
 	}
 
@@ -146,10 +137,8 @@ int do_local_request(int request,
 		return -1;
 
 	ret = send(fd, &request, sizeof(int), 0);
-	if (ret == -1) {
-		debug("send:");
+	if (ret == -1)
 		return -1;
-	}
 
 	do_local_client_step(fd, step);
 
