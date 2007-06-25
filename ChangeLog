@@ -15,7 +15,7 @@ o use wraparound-aware functions after/before/between
 o commit phase: if conntrack exists, update it
 o local requests return EXIT_FAILURE if it can't connect to the daemon
 o remove several debug statements
-o fork when internal/external dump cache requests are received
+o fork when internal/external dump and commit requests are received
 o lots of cleanups
 
 = conntrack =

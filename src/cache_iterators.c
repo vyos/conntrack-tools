@@ -71,9 +71,8 @@ void cache_dump(struct cache *c, int fd, int type)
 		.type	= type
 	};
 
-	lock();
+	/* does not require locking: called inside fork() */
 	hashtable_iterate(c->h, (void *) &tmp, do_dump);
-	unlock();
 }
 
 static int do_commit(void *data1, void *data2)
@@ -147,9 +146,8 @@ void cache_commit(struct cache *c)
 	unsigned int commit_exist = c->commit_exist;
 	unsigned int commit_fail = c->commit_fail;
 
-	lock();
+	/* does not require locking: called inside fork() */
 	hashtable_iterate(c->h, c, do_commit);
-	unlock();
 
 	/* calculate new entries committed */
 	commit_ok = c->commit_ok - commit_ok;

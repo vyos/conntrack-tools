@@ -244,8 +244,12 @@ static int local_handler_sync(int fd, int type, void *data)
 		}
 		break;
 	case COMMIT:
-		dlog(STATE(log), "[REQ] commit external cache to master table");
-		cache_commit(STATE_SYNC(external));
+		ret = fork();
+		if (ret == 0) {
+			dlog(STATE(log), "[REQ] committing external cache");
+			cache_commit(STATE_SYNC(external));
+			exit(EXIT_SUCCESS);
+		}
 		break;
 	case FLUSH_CACHE:
 		dlog(STATE(log), "[REQ] flushing caches");
