@@ -18,3 +18,4 @@ libtool: $(LIBTOOL_DEPS)
 
 dist-hook:
 	rm -rf `find $(distdir)/debian -name .svn`
+	rm -rf `find $(distdir)/examples -name .svn`
