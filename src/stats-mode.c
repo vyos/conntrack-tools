@@ -86,7 +86,7 @@ static int local_handler_stats(int fd, int type, void *data)
 	return ret;
 }
 
-static void dump_stats(struct nf_conntrack *ct, struct nlmsghdr *nlh)
+static void dump_stats(struct nf_conntrack *ct)
 {
 	if (cache_update_force(STATE_STATS(cache), ct))
 		debug_ct(ct, "resync entry");
@@ -137,7 +137,7 @@ static void overrun_stats()
 	nfct_close(h);
 }
 
-static void event_new_stats(struct nf_conntrack *ct, struct nlmsghdr *nlh)
+static void event_new_stats(struct nf_conntrack *ct)
 {
 	if (cache_add(STATE_STATS(cache), ct)) {
 		debug_ct(ct, "cache new");
@@ -150,7 +150,7 @@ static void event_new_stats(struct nf_conntrack *ct, struct nlmsghdr *nlh)
 	}
 }
 
-static void event_update_stats(struct nf_conntrack *ct, struct nlmsghdr *nlh)
+static void event_update_stats(struct nf_conntrack *ct)
 {
 	if (!cache_update_force(STATE_STATS(cache), ct)) {
 		debug_ct(ct, "can't update");
@@ -159,7 +159,7 @@ static void event_update_stats(struct nf_conntrack *ct, struct nlmsghdr *nlh)
 	debug_ct(ct, "update");
 }
 
-static int event_destroy_stats(struct nf_conntrack *ct, struct nlmsghdr *nlh)
+static int event_destroy_stats(struct nf_conntrack *ct)
 {
 	if (cache_del(STATE_STATS(cache), ct)) {
 		debug_ct(ct, "cache destroy");
@@ -173,7 +173,7 @@ static int event_destroy_stats(struct nf_conntrack *ct, struct nlmsghdr *nlh)
 struct ct_mode stats_mode = {
 	.init 			= init_stats,
 	.add_fds_to_set 	= NULL,
-	.step			= NULL,
+	.run			= NULL,
 	.local			= local_handler_stats,
 	.kill			= kill_stats,
 	.dump			= dump_stats,

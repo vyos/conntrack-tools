@@ -29,7 +29,6 @@ struct buffer *buffer_create(size_t max_size)
 
 	b->max_size = max_size;
 	INIT_LIST_HEAD(&b->head);
-	pthread_mutex_init(&b->lock, NULL);
 
 	return b;
 }
@@ -39,14 +38,12 @@ void buffer_destroy(struct buffer *b)
 	struct list_head *i, *tmp;
 	struct buffer_node *node;
 
-	pthread_mutex_lock(&b->lock);
+	/* XXX: set cur_size and num_elems */
 	list_for_each_safe(i, tmp, &b->head) {
 		node = (struct buffer_node *) i;
 		list_del(i);
 		free(node);
 	}
-	pthread_mutex_unlock(&b->lock);
-	pthread_mutex_destroy(&b->lock);
 	free(b);
 }
 
@@ -69,8 +66,6 @@ int buffer_add(struct buffer *b, const void *data, size_t size)
 {
 	int ret = 0;
 	struct buffer_node *n;
-
-	pthread_mutex_lock(&b->lock);
 
 	/* does it fit this buffer? */
 	if (size > b->max_size) {
@@ -97,26 +92,20 @@ retry:
 
 	list_add(&n->head, &b->head);
 	b->cur_size += size;
+	b->num_elems++;
 
 err:
-	pthread_mutex_unlock(&b->lock);
 	return ret;
 }
 
-void __buffer_del(struct buffer *b, void *data)
+void buffer_del(struct buffer *b, void *data)
 {
 	struct buffer_node *n = container_of(data, struct buffer_node, data); 
 
 	list_del(&n->head);
 	b->cur_size -= n->size;
+	b->num_elems--;
 	free(n);
-}
-
-void buffer_del(struct buffer *b, void *data)
-{
-	pthread_mutex_lock(&b->lock);
-	buffer_del(b, data);
-	pthread_mutex_unlock(&b->lock);
 }
 
 void buffer_iterate(struct buffer *b, 
@@ -126,11 +115,14 @@ void buffer_iterate(struct buffer *b,
 	struct list_head *i, *tmp;
 	struct buffer_node *n;
 
-	pthread_mutex_lock(&b->lock);
 	list_for_each_safe(i, tmp, &b->head) {
 		n = (struct buffer_node *) i;
 		if (iterate(n->data, data))
 			break;
 	}
-	pthread_mutex_unlock(&b->lock);
+}
+
+unsigned int buffer_len(struct buffer *b)
+{
+	return b->num_elems;
 }

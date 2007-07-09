@@ -13,10 +13,9 @@ struct sync_mode {
 	int  (*init)(void);
 	void (*kill)(void);
 	int  (*local)(int fd, int type, void *data);
-	int  (*recv)(const struct nethdr *net);    /* recv callback */
-	void (*send)(int type,			   /* send callback */
-		     const struct nethdr *net,
-		     struct us_conntrack *u);
+	int  (*recv)(const struct nethdr *net);
+	void (*send)(struct nethdr *net, struct us_conntrack *u);
+	void (*run)(int step);
 };
 
 extern struct sync_mode notrack;

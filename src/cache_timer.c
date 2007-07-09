@@ -27,7 +27,7 @@ static void timeout(struct alarm_list *a, void *data)
 	struct us_conntrack *u = data;
 
 	debug_ct(u->ct, "expired timeout");
-	__cache_del(u->cache, u->ct);
+	cache_del(u->cache, u->ct);
 }
 
 static void timer_add(struct us_conntrack *u, void *data)

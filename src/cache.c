@@ -193,9 +193,7 @@ struct cache *cache_create(char *name,
 
 void cache_destroy(struct cache *c)
 {
-	lock();
 	hashtable_destroy(c->h);
-	unlock();
 	free(c->features);
 	free(c->feature_offset);
 	free(c);
@@ -237,7 +235,7 @@ static struct us_conntrack *__add(struct cache *c, struct nf_conntrack *ct)
 	return NULL;
 }
 
-struct us_conntrack *__cache_add(struct cache *c, struct nf_conntrack *ct)
+struct us_conntrack *cache_add(struct cache *c, struct nf_conntrack *ct)
 {
 	struct us_conntrack *u;
 
@@ -250,17 +248,6 @@ struct us_conntrack *__cache_add(struct cache *c, struct nf_conntrack *ct)
 		c->add_fail++;
 
 	return NULL;
-}
-
-struct us_conntrack *cache_add(struct cache *c, struct nf_conntrack *ct)
-{
-	struct us_conntrack *u;
-
-	lock();
-	u = __cache_add(c, ct);
-	unlock();
-
-	return u;
 }
 
 static struct us_conntrack *__update(struct cache *c, struct nf_conntrack *ct)
@@ -317,9 +304,7 @@ struct us_conntrack *cache_update(struct cache *c, struct nf_conntrack *ct)
 {
 	struct us_conntrack *u;
 
-	lock();
 	u = __cache_update(c, ct);
-	unlock();
 
 	return u;
 }
@@ -329,19 +314,15 @@ struct us_conntrack *cache_update_force(struct cache *c,
 {
 	struct us_conntrack *u;
 
-	lock();
 	if ((u = __update(c, ct)) != NULL) {
 		c->upd_ok++;
-		unlock();
 		return u;
 	}
 	if ((u = __add(c, ct)) != NULL) {
 		c->add_ok++;
-		unlock();
 		return u;
 	}
 	c->add_fail++;
-	unlock();
 	return NULL;
 }
 
@@ -354,9 +335,7 @@ int cache_test(struct cache *c, struct nf_conntrack *ct)
 
 	u->ct = ct;
 
-	lock();
 	ret = hashtable_test(c->h, u);
-	unlock();
 
 	return ret != NULL;
 }
@@ -390,7 +369,7 @@ static int __del(struct cache *c, struct nf_conntrack *ct)
 	return 0;
 }
 
-int __cache_del(struct cache *c, struct nf_conntrack *ct)
+int cache_del(struct cache *c, struct nf_conntrack *ct)
 {
 	if (__del(c, ct)) {
 		c->del_ok++;
@@ -399,17 +378,6 @@ int __cache_del(struct cache *c, struct nf_conntrack *ct)
 	c->del_fail++;
 
 	return 0;
-}
-
-int cache_del(struct cache *c, struct nf_conntrack *ct)
-{
-	int ret;
-
-	lock();
-	ret = __cache_del(c, ct);
-	unlock();
-
-	return ret;
 }
 
 struct us_conntrack *cache_get_conntrack(struct cache *c, void *data)
@@ -427,7 +395,6 @@ void cache_stats(struct cache *c, int fd)
 	char buf[512];
 	int size;
 
-	lock();
 	size = sprintf(buf, "cache %s:\n"
 			    "current active connections:\t%12u\n"
 			    "connections created:\t\t%12u\tfailed:\t%12u\n"
@@ -441,7 +408,6 @@ void cache_stats(struct cache *c, int fd)
 						 c->upd_fail,
 						 c->del_ok,
 						 c->del_fail);
-	unlock();
 	send(fd, buf, size, 0);
 }
 
@@ -449,7 +415,5 @@ void cache_iterate(struct cache *c,
 		   void *data, 
 		   int (*iterate)(void *data1, void *data2))
 {
-	lock();
 	hashtable_iterate(c->h, data, iterate);
-	unlock();
 }

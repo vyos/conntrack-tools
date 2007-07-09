@@ -52,19 +52,10 @@ int ignore_conntrack(struct nf_conntrack *ct)
 	return 0;
 }
 
-static int nl_event_handler(struct nlmsghdr *nlh,
-			    struct nfattr *nfa[],
-			    void *data)
+static int event_handler(enum nf_conntrack_msg_type type,
+			 struct nf_conntrack *ct,
+			 void *data)
 {
-	char tmp[1024];
-	struct nf_conntrack *ct = (struct nf_conntrack *) tmp;
-	int type;
-
-	memset(tmp, 0, sizeof(tmp));
-
-	if ((type = nfct_parse_conntrack(NFCT_T_ALL, nlh, ct)) == NFCT_T_ERROR)
-		return NFCT_CB_STOP;
-
 	/* 
 	 * Ignore this conntrack: it talks about a
 	 * connection that is not interesting for us.
@@ -74,13 +65,13 @@ static int nl_event_handler(struct nlmsghdr *nlh,
 
 	switch(type) {
 	case NFCT_T_NEW:
-		STATE(mode)->event_new(ct, nlh);
+		STATE(mode)->event_new(ct);
 		break;
 	case NFCT_T_UPDATE:
-		STATE(mode)->event_upd(ct, nlh);
+		STATE(mode)->event_upd(ct);
 		break;
 	case NFCT_T_DESTROY:
-		if (STATE(mode)->event_dst(ct, nlh))
+		if (STATE(mode)->event_dst(ct))
 			update_traffic_stats(ct);
 		break;
 	default:
@@ -88,30 +79,31 @@ static int nl_event_handler(struct nlmsghdr *nlh,
 		break;
 	}
 
-	return NFCT_CB_STOP;
+	return NFCT_CB_CONTINUE;
 }
+
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <sys/fcntl.h>
 
 int nl_init_event_handler(void)
 {
-	struct nfnl_callback cb_events = {
-		.call		= nl_event_handler,
-		.attr_count	= CTA_MAX
-	};
-
-	/* open event netlink socket */
-	STATE(event) = nfnl_open();
+	STATE(event) = nfct_open(CONNTRACK, NFCT_ALL_CT_GROUPS);
 	if (!STATE(event))
 		return -1;
 
+	fcntl(nfct_fd(STATE(event)), F_SETFL, O_NONBLOCK);
+
 	/* set up socket buffer size */
 	if (CONFIG(netlink_buffer_size))
-		nfnl_rcvbufsiz(STATE(event), CONFIG(netlink_buffer_size));
+		nfnl_rcvbufsiz(nfct_nfnlh(STATE(event)), 
+			       CONFIG(netlink_buffer_size));
 	else {
 		socklen_t socklen = sizeof(unsigned int);
 		unsigned int read_size;
 
 		/* get current buffer size */
-		getsockopt(nfnl_fd(STATE(event)), SOL_SOCKET,
+		getsockopt(nfct_fd(STATE(event)), SOL_SOCKET,
 			   SO_RCVBUF, &read_size, &socklen);
 
 		CONFIG(netlink_buffer_size) = read_size;
@@ -122,40 +114,16 @@ int nl_init_event_handler(void)
 		CONFIG(netlink_buffer_size_max_grown) = 
 					CONFIG(netlink_buffer_size);
 
-	/* open event subsystem */
-	STATE(subsys_event) = nfnl_subsys_open(STATE(event),
-					       NFNL_SUBSYS_CTNETLINK,
-					       IPCTNL_MSG_MAX,
-					       NFCT_ALL_CT_GROUPS);
-	if (STATE(subsys_event) == NULL)
-		return -1;
-
-	/* register callback for new and update events */
-	nfnl_callback_register(STATE(subsys_event),
-			       IPCTNL_MSG_CT_NEW,
-			       &cb_events);
-
-	/* register callback for delete events */
-	nfnl_callback_register(STATE(subsys_event),
-			       IPCTNL_MSG_CT_DELETE,
-			       &cb_events);
+	/* register callback for events */
+	nfct_callback_register(STATE(event), NFCT_T_ALL, event_handler, NULL);
 
 	return 0;
 }
 
-static int nl_dump_handler(struct nlmsghdr *nlh,
-			   struct nfattr *nfa[],
-			   void *data)
+static int dump_handler(enum nf_conntrack_msg_type type,
+			struct nf_conntrack *ct,
+			void *data)
 {
-	char buf[1024];
-	struct nf_conntrack *ct = (struct nf_conntrack *) buf;
-	int type;
-
-	memset(buf, 0, sizeof(buf));
-
-	if ((type = nfct_parse_conntrack(NFCT_T_ALL, nlh, ct)) == NFCT_T_ERROR)
-		return NFCT_CB_CONTINUE;
-
 	/* 
 	 * Ignore this conntrack: it talks about a
 	 * connection that is not interesting for us.
@@ -165,7 +133,7 @@ static int nl_dump_handler(struct nlmsghdr *nlh,
 
 	switch(type) {
 	case NFCT_T_UPDATE:
-		STATE(mode)->dump(ct, nlh);
+		STATE(mode)->dump(ct);
 		break;
 	default:
 		dlog(STATE(log), "received unknown msg from ctnetlink");
@@ -176,30 +144,15 @@ static int nl_dump_handler(struct nlmsghdr *nlh,
 
 int nl_init_dump_handler(void)
 {
-	struct nfnl_callback cb_dump = {
-		.call		= nl_dump_handler,
-		.attr_count	= CTA_MAX
-	};
-
 	/* open dump netlink socket */
-	STATE(dump) = nfnl_open();
+	STATE(dump) = nfct_open(CONNTRACK, 0);
 	if (!STATE(dump))
 		return -1;
 
-	/* open dump subsystem */
-	STATE(subsys_dump) = nfnl_subsys_open(STATE(dump),
-					      NFNL_SUBSYS_CTNETLINK,
-					      IPCTNL_MSG_MAX,
-					      0);
-	if (STATE(subsys_dump) == NULL)
-		return -1;
-
 	/* register callback for dumped entries */
-	nfnl_callback_register(STATE(subsys_dump),
-			       IPCTNL_MSG_CT_NEW,
-			       &cb_dump);
+	nfct_callback_register(STATE(dump), NFCT_T_ALL, dump_handler, NULL);
 
-	if (nl_dump_conntrack_table(STATE(dump), STATE(subsys_dump)) == -1)
+	if (nl_dump_conntrack_table() == -1)
 		return -1;
 
 	return 0;
@@ -207,7 +160,7 @@ int nl_init_dump_handler(void)
 
 static int warned = 0;
 
-void nl_resize_socket_buffer(struct nfnl_handle *h)
+void nl_resize_socket_buffer(struct nfct_handle *h)
 {
 	unsigned int s = CONFIG(netlink_buffer_size) * 2;
 
@@ -228,44 +181,14 @@ void nl_resize_socket_buffer(struct nfnl_handle *h)
 		warned = 1;
 	}
 
-	CONFIG(netlink_buffer_size) = nfnl_rcvbufsiz(h, s);
+	CONFIG(netlink_buffer_size) = nfnl_rcvbufsiz(nfct_nfnlh(h), s);
 
 	/* notify the sysadmin */
 	dlog(STATE(log), "netlink socket buffer size has been set to %u bytes", 
 			  CONFIG(netlink_buffer_size));
 }
 
-int nl_dump_conntrack_table(struct nfnl_handle *h, 
-			    struct nfnl_subsys_handle *subsys)
+int nl_dump_conntrack_table(void)
 {
-	struct nfnlhdr req;
-
-	memset(&req, 0, sizeof(req));
-	nfct_build_query(subsys, 
-			 NFCT_Q_DUMP, 
-			 &CONFIG(family), 
-			 &req, 
-			 sizeof(req));
-
-	if (nfnl_query(h, &req.nlh) == -1)
-		return -1;
-
-	return 0;
-}
-
-int nl_flush_master_conntrack_table(void)
-{
-	struct nfnlhdr req;
-
-	memset(&req, 0, sizeof(req));
-	nfct_build_query(STATE(subsys_dump), 
-			 NFCT_Q_FLUSH, 
-			 &CONFIG(family), 
-			 &req, 
-			 sizeof(req));
-
-	if (nfnl_query(STATE(dump), &req.nlh) == -1)
-		return -1;
-
-	return 0;
+	return nfct_query(STATE(dump), NFCT_Q_DUMP, &CONFIG(family));
 }

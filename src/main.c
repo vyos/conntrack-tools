@@ -187,6 +187,7 @@ int main(int argc, char *argv[])
 		case 'F':
 			set_operation_mode(&type, REQUEST, argv);
 			action = FLUSH_MASTER;
+			break;
 		case 'f':
 			set_operation_mode(&type, REQUEST, argv);
 			action = FLUSH_CACHE;

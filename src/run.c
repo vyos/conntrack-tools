@@ -24,20 +24,21 @@
 #include "us-conntrack.h"
 #include <signal.h>
 #include <stdlib.h>
+#include <unistd.h>
+#include "timer.h"
 
 void killer(int foo)
 {
 	/* no signals while handling signals */
 	sigprocmask(SIG_BLOCK, &STATE(block), NULL);
 
-	nfnl_subsys_close(STATE(subsys_event));
-	nfnl_subsys_close(STATE(subsys_dump));
-	nfnl_close(STATE(event));
-	nfnl_close(STATE(dump));
+	nfct_close(STATE(event));
+	nfct_close(STATE(dump));
 
 	ignore_pool_destroy(STATE(ignore_pool));
 	local_server_destroy(STATE(local));
 	STATE(mode)->kill();
+	destroy_alarm_scheduler();
         unlink(CONFIG(lockfile));
 	dlog(STATE(log), "------- shutdown received ----");
 	close_log(STATE(log));
@@ -69,12 +70,16 @@ void local_handler(int fd, void *data)
 
 	switch(type) {
 	case FLUSH_MASTER:
-		dlog(STATE(log), "[REQ] flushing master table");
-		nl_flush_master_conntrack_table();
+		dlog(STATE(log), "[DEPRECATED] `conntrackd -F' is deprecated. "
+				 "Use conntrack -F instead.");
+		if (fork() == 0) {
+			execlp("conntrack", "conntrack", "-F", NULL);
+			exit(EXIT_SUCCESS);
+		}
 		return;
 	case RESYNC_MASTER:
 		dlog(STATE(log), "[REQ] resync with master table");
-		nl_dump_conntrack_table(STATE(dump), STATE(subsys_dump));
+		nl_dump_conntrack_table();
 		return;
 	}
 
@@ -101,6 +106,11 @@ int init(int mode)
 	/* Initialization */
 	if (STATE(mode)->init() == -1) {
 		dlog(STATE(log), "[FAIL] initialization failed");
+		return -1;
+	}
+
+        if (init_alarm_scheduler() == -1) {
+		dlog(STATE(log), "[FAIL] can't initialize alarm scheduler");
 		return -1;
 	}
 
@@ -147,22 +157,20 @@ int init(int mode)
 	return 0;
 }
 
-#define POLL_NSECS 1
-
-static void __run(void)
+static void __run(long credit, int step)
 {
 	int max, ret;
 	fd_set readfds;
 	struct timeval tv = {
-		.tv_sec         = POLL_NSECS,
-		.tv_usec        = 0
+		.tv_sec         = 0,
+		.tv_usec        = credit,
 	};
 
 	FD_ZERO(&readfds);
 	FD_SET(STATE(local), &readfds);
-	FD_SET(nfnl_fd(STATE(event)), &readfds);
+	FD_SET(nfct_fd(STATE(event)), &readfds);
 
-	max = MAX(STATE(local), nfnl_fd(STATE(event)));
+	max = MAX(STATE(local), nfct_fd(STATE(event)));
 
 	if (STATE(mode)->add_fds_to_set)
 		max = MAX(max, STATE(mode)->add_fds_to_set(&readfds));
@@ -185,8 +193,8 @@ static void __run(void)
 		do_local_server_step(STATE(local), NULL, local_handler);
 
 	/* conntrack event has happened */
-	if (FD_ISSET(nfnl_fd(STATE(event)), &readfds)) {
-		ret = nfnl_catch(STATE(event));
+	if (FD_ISSET(nfct_fd(STATE(event)), &readfds)) {
+		while ((ret = nfct_catch(STATE(event))) != -1);
 		if (ret == -1) {
 			switch(errno) {
 			case ENOBUFS:
@@ -197,6 +205,7 @@ static void __run(void)
 				 * size and resync with master conntrack table.
 				 */
 				nl_resize_socket_buffer(STATE(event));
+				/* XXX: schedule overrun call via alarm */
 				STATE(mode)->overrun();
 				break;
 			case ENOENT:
@@ -206,6 +215,8 @@ static void __run(void)
 				 * interested in. Just ignore it.
 				 */
 				break;
+			case EAGAIN:
+				break;
 			default:
 				dlog(STATE(log), "event catch says: %s",
 						  strerror(errno));
@@ -214,14 +225,35 @@ static void __run(void)
 		}
 	}
 
-	if (STATE(mode)->step)
-		STATE(mode)->step(&readfds);
+	if (STATE(mode)->run)
+		STATE(mode)->run(&readfds, step);
 
 	sigprocmask(SIG_UNBLOCK, &STATE(block), NULL);
 }
 
 void run(void)
 {
-	while(1)
-		__run();
+	int step = 0;
+	struct timer timer;
+
+	timer_init(&timer);
+
+	while(1) {
+		timer_start(&timer);
+		__run(GET_CREDITS(timer), step);
+		timer_stop(&timer);
+
+		if (timer_adjust_credit(&timer)) {
+			timer_start(&timer);
+			sigprocmask(SIG_BLOCK, &STATE(block), NULL);
+			do_alarm_run(step);
+			sigprocmask(SIG_UNBLOCK, &STATE(block), NULL);
+			timer_stop(&timer);
+
+			if (timer_adjust_credit(&timer))
+				dlog(STATE(log), "alarm run takes too long!");
+
+			step = (step + 1) < STEPS_PER_SECONDS ? step + 1 : 0;
+		}
+	}
 }

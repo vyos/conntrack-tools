@@ -25,7 +25,7 @@ int state_helper_verdict(int type, struct nf_conntrack *ct)
 {
 	u_int8_t l4proto;
 
-        if (type == NFCT_T_DESTROY)
+        if (type == NFCT_Q_DESTROY)
 		return ST_H_REPLICATE;
 
 	l4proto = nfct_get_attr_u8(ct, ATTR_ORIG_L4PROTO);

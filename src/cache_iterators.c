@@ -71,37 +71,25 @@ void cache_dump(struct cache *c, int fd, int type)
 		.type	= type
 	};
 
-	/* does not require locking: called inside fork() */
 	hashtable_iterate(c->h, (void *) &tmp, do_dump);
 }
 
+/* no need to clone, called from child process */
 static int do_commit(void *data1, void *data2)
 {
 	int ret;
 	struct cache *c = data1;
 	struct us_conntrack *u = data2;
-	struct nf_conntrack *ct;
-	char buf[4096];
-	struct nlmsghdr *nlh = (struct nlmsghdr *)buf;
+	struct nf_conntrack *ct = u->ct;
 
-	ct = nfct_clone(u->ct);
-	if (ct == NULL)
-		return 0;
-
+	/* XXX: related connections */
 	if (nfct_attr_is_set(ct, ATTR_STATUS)) {
 		u_int32_t status = nfct_get_attr_u32(ct, ATTR_STATUS);
 		status &= ~IPS_EXPECTED;
 		nfct_set_attr_u32(ct, ATTR_STATUS, status);
 	}
 
-	if (nfct_getobjopt(ct, NFCT_GOPT_IS_SNAT))
-		nfct_setobjopt(ct, NFCT_SOPT_UNDO_SNAT);
-	if (nfct_getobjopt(ct, NFCT_GOPT_IS_DNAT))
-		nfct_setobjopt(ct, NFCT_SOPT_UNDO_DNAT);
-	if (nfct_getobjopt(ct, NFCT_GOPT_IS_SPAT))
-		nfct_setobjopt(ct, NFCT_SOPT_UNDO_SPAT);
-	if (nfct_getobjopt(ct, NFCT_GOPT_IS_DPAT))
-		nfct_setobjopt(ct, NFCT_SOPT_UNDO_DPAT);
+	nfct_setobjopt(ct, NFCT_SOPT_SETUP_REPLY);
 
         /* 
 	 * Set a reduced timeout for candidate-to-be-committed
@@ -109,20 +97,12 @@ static int do_commit(void *data1, void *data2)
 	 */
 	nfct_set_attr_u32(ct, ATTR_TIMEOUT, CONFIG(commit_timeout));
 
-        ret = nfct_build_query(STATE(subsys_dump),
-			       NFCT_Q_CREATE_UPDATE,
-			       ct,
-			       nlh,
-			       sizeof(buf));
-
-	free(ct);
-
 	if (ret == -1) {
 		dlog(STATE(log), "failed to build: %s", strerror(errno));
 		return 0;
 	}
 
-	ret = nfnl_query(STATE(dump), nlh);
+	ret = nfct_query(STATE(dump), NFCT_Q_CREATE_UPDATE, ct);
 	if (ret == -1) {
 		switch(errno) {
 			case EEXIST:
@@ -146,7 +126,6 @@ void cache_commit(struct cache *c)
 	unsigned int commit_exist = c->commit_exist;
 	unsigned int commit_fail = c->commit_fail;
 
-	/* does not require locking: called inside fork() */
 	hashtable_iterate(c->h, c, do_commit);
 
 	/* calculate new entries committed */
@@ -187,30 +166,7 @@ static int do_flush(void *data1, void *data2)
 
 void cache_flush(struct cache *c)
 {
-	lock();
 	hashtable_iterate(c->h, c, do_flush);
 	hashtable_flush(c->h);
 	c->flush++;
-	unlock();
-}
-
-#include "sync.h"
-#include "network.h"
-
-static int do_bulk(void *data1, void *data2)
-{
-	int ret;
-	struct us_conntrack *u = data2;
-
-	mcast_build_send_update(u);
-
-	/* keep iterating even if we have found errors */
-	return 0;
-}
-
-void cache_bulk(struct cache *c)
-{
-	lock();
-	hashtable_iterate(c->h, NULL, do_bulk);
-	unlock();
 }

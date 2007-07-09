@@ -18,10 +18,35 @@
 
 #include "conntrackd.h"
 #include "network.h"
+#include "us-conntrack.h"
+#include "sync.h"
 
 static unsigned int seq_set, cur_seq;
 
-static int send_netmsg(struct mcast_sock *m, void *data, unsigned int len)
+static int __do_send(struct mcast_sock *m, void *data, int len)
+{
+	struct nethdr *net = data;
+
+#undef _TEST_DROP
+#ifdef _TEST_DROP
+	static int drop = 0;
+
+	if (++drop >= 10) {
+		printf("drop sq: %u fl:%u len:%u\n",
+			ntohl(net->seq), ntohs(net->flags),
+			ntohs(net->len));
+		drop = 0;
+		return 0;
+	}
+#endif
+	debug("send sq: %u fl:%u len:%u\n",
+		ntohl(net->seq), ntohs(net->flags),
+		ntohs(net->len));
+
+	return mcast_send(m, net, len);
+}
+
+static int __do_prepare(struct mcast_sock *m, void *data, int len)
 {
 	struct nethdr *net = data;
 
@@ -30,178 +55,122 @@ static int send_netmsg(struct mcast_sock *m, void *data, unsigned int len)
 		cur_seq = time(NULL);
 		net->flags |= NET_F_HELLO;
 	}
+	net->len = len;
+	net->seq = cur_seq++;
+	HDR_HOST2NETWORK(net);
 
-	net->flags = htons(net->flags);
-	net->seq = htonl(cur_seq++);
+	return len;
+}
 
-#undef _TEST_DROP
-#ifdef _TEST_DROP
-	static int drop = 0;
+static int __prepare_ctl(struct mcast_sock *m, void *data)
+{
+	struct nethdr_ack *nack = (struct nethdr_ack *) data;
 
-        if (++drop > 10) {
-		drop = 0;
-		printf("dropping resend (seq=%u)\n", ntohl(net->seq));
-		return 0;
+	return __do_prepare(m, data, NETHDR_ACK_SIZ);
+}
+
+static int __prepare_data(struct mcast_sock *m, void *data)
+{
+	struct nethdr *net = (struct nethdr *) data;
+	struct netpld *pld = NETHDR_DATA(net);
+
+	return __do_prepare(m, data, ntohs(pld->len) + NETPLD_SIZ + NETHDR_SIZ);
+}
+
+int prepare_send_netmsg(struct mcast_sock *m, void *data)
+{
+	int ret = 0;
+	struct nethdr *net = (struct nethdr *) data;
+
+	if (IS_DATA(net))
+		ret = __prepare_data(m, data);
+	else if (IS_CTL(net))
+		ret = __prepare_ctl(m, data);
+
+	return ret;
+}
+
+static int tx_buflen = 0;
+/* XXX: use buffer size of interface MTU */
+static char __tx_buf[1460], *tx_buf = __tx_buf;
+
+/* return 0 if it is not sent, otherwise return 1 */
+int mcast_buffered_send_netmsg(struct mcast_sock *m, void *data, int len)
+{
+	int ret = 0;
+	struct nethdr *net = data;
+
+retry:
+	if (tx_buflen + len < sizeof(__tx_buf)) {
+		memcpy(__tx_buf + tx_buflen, net, len);
+		tx_buflen += len;
+	} else {
+		__do_send(m, tx_buf, tx_buflen);
+		ret = 1;
+		tx_buflen = 0;
+		goto retry;
 	}
-#endif
-	return mcast_send(m, net, len);
+
+	return ret;
+}
+
+int mcast_buffered_pending_netmsg(struct mcast_sock *m)
+{
+	int ret;
+
+	if (tx_buflen == 0)
+		return 0;
+
+	ret = __do_send(m, tx_buf, tx_buflen);
+	tx_buflen = 0;
+
+	return ret;
 }
 
 int mcast_send_netmsg(struct mcast_sock *m, void *data)
 {
-	struct nlmsghdr *nlh = data + NETHDR_SIZ;
-	unsigned int len = nlh->nlmsg_len + NETHDR_SIZ;
-	struct nethdr *net = data;
-
-	if (nlh_host2network(nlh) == -1)
-		return -1;
-
-	return send_netmsg(m, data, len);
-}
-
-int mcast_resend_netmsg(struct mcast_sock *m, void *data)
-{
-	struct nethdr *net = data;
-	struct nlmsghdr *nlh = data + NETHDR_SIZ;
-	unsigned int len;
-
-	net->flags = ntohs(net->flags);
-
-	if (net->flags & NET_F_NACK || net->flags & NET_F_ACK)
-		len = NETHDR_ACK_SIZ;
-	else
-		len = ntohl(nlh->nlmsg_len) + NETHDR_SIZ;
-
-	return send_netmsg(m, data, len);
-}
-
-int mcast_send_error(struct mcast_sock *m, void *data)
-{
-	struct nethdr *net = data;
-	unsigned int len = NETHDR_SIZ;
-
-	if (net->flags & NET_F_NACK || net->flags & NET_F_ACK) {
-		struct nethdr_ack *nack = (struct nethdr_ack *) net;
-		nack->from = htonl(nack->from);
-		nack->to = htonl(nack->to);
-		len = NETHDR_ACK_SIZ;
-	}
-
-	return send_netmsg(m, data, len);
-}
-
-#include "us-conntrack.h"
-#include "sync.h"
-
-static int __build_send(struct us_conntrack *u, int type, int query)
-{
-	char __net[4096];
-	struct nethdr *net = (struct nethdr *) __net;
-
-	if (!state_helper_verdict(type, u->ct))
-		return 0;
-
-	int ret = build_network_msg(query,
-				    STATE(subsys_event),
-				    u->ct,
-				    __net,
-				    sizeof(__net));
-
-	if (ret == -1)
-		return -1;
-
-	mcast_send_netmsg(STATE_SYNC(mcast_client), __net);
-	if (STATE_SYNC(sync)->send)
-		STATE_SYNC(sync)->send(type, net, u);
-
-	return 0;
-}
-
-int mcast_build_send_update(struct us_conntrack *u)
-{
-	return __build_send(u, NFCT_T_UPDATE, NFCT_Q_UPDATE);
-}
-
-int mcast_build_send_destroy(struct us_conntrack *u)
-{
-	return __build_send(u, NFCT_T_DESTROY, NFCT_Q_DESTROY);
-}
-
-int mcast_recv_netmsg(struct mcast_sock *m, void *data, int len)
-{
 	int ret;
-	struct nethdr *net = data;
-	struct nlmsghdr *nlh = data + NETHDR_SIZ;
-	struct nfgenmsg *nfhdr;
+	int len = prepare_send_netmsg(m, data);
 
-	ret = mcast_recv(m, net, len);
-	if (ret <= 0)
-		return ret;
-
-	/* message too small: no room for the header */
-	if (ret < NETHDR_SIZ)
-		return -1;
-
-	if (ntohs(net->flags) & NET_F_HELLO)
-		STATE_SYNC(last_seq_recv) = ntohl(net->seq) - 1;
-
-	if (ntohs(net->flags) & NET_F_NACK || ntohs(net->flags) & NET_F_ACK) {
-		struct nethdr_ack *nack = (struct nethdr_ack *) net;
-
-		/* message too small: no room for the header */
-		if (ret < NETHDR_ACK_SIZ)
-			return -1;
-
-		/* host byte order conversion */
-		net->flags = ntohs(net->flags);
-		net->seq = ntohl(net->seq);
-
-		/* acknowledgement conversion */
-		nack->from = ntohl(nack->from);
-		nack->to = ntohl(nack->to);
-
-		return ret;
-	}
-
-	if (ntohs(net->flags) & NET_F_RESYNC) {
-		/* host byte order conversion */
-		net->flags = ntohs(net->flags);
-		net->seq = ntohl(net->seq);
-
-		return ret;
-	}
-
-	/* information received is too small */
-	if (ret < NLMSG_SPACE(sizeof(struct nfgenmsg)))
-		return -1;
-
-	/* information received and message length does not match */
-	if (ret != ntohl(nlh->nlmsg_len) + NETHDR_SIZ)
-		return -1;
-
-	/* this message does not come from ctnetlink */
-	if (NFNL_SUBSYS_ID(ntohs(nlh->nlmsg_type)) != NFNL_SUBSYS_CTNETLINK)
-		return -1;
-
-	nfhdr = NLMSG_DATA(nlh);
-
-	/* only AF_INET and AF_INET6 are supported */
-	if (nfhdr->nfgen_family != AF_INET &&
-	    nfhdr->nfgen_family != AF_INET6)
-		return -1;
-
-	/* only process message coming from nfnetlink v0 */
-	if (nfhdr->version != NFNETLINK_V0)
-		return -1;
-
-	/* host byte order conversion */
-	net->flags = ntohs(net->flags);
-	net->seq = ntohl(net->seq);
-
-	if (nlh_network2host(nlh) == -1)
-		return -1;
+	ret = mcast_buffered_send_netmsg(m, data, len);
+	mcast_buffered_pending_netmsg(m);
 
 	return ret;
+}
+
+void build_netmsg(struct nf_conntrack *ct, int query, struct nethdr *net)
+{
+	struct netpld *pld = NETHDR_DATA(net);
+
+	build_netpld(ct, pld, query);
+}
+
+int handle_netmsg(struct nethdr *net)
+{
+	int ret;
+	struct netpld *pld = NETHDR_DATA(net);
+
+	/* message too small: no room for the header */
+	if (ntohs(net->len) < NETHDR_ACK_SIZ)
+		return -1;
+
+	HDR_NETWORK2HOST(net);
+
+	if (IS_HELLO(net))
+		STATE_SYNC(last_seq_recv) = net->seq - 1;
+
+	if (IS_CTL(net))
+		return 0;
+
+	/* information received is too small */
+	if (net->len < sizeof(struct netpld))
+		return -1;
+
+	/* size mismatch! */
+	if (net->len < ntohs(pld->len) + NETHDR_SIZ)
+		return -1;
+
+	return 0;
 }
 
 int mcast_track_seq(u_int32_t seq, u_int32_t *exp_seq)
@@ -238,30 +207,3 @@ out:
 
 	return ret;
 }
-
-int build_network_msg(const int msg_type,
-		      struct nfnl_subsys_handle *ssh, 
-		      struct nf_conntrack *ct,
-		      void *buffer,
-		      unsigned int size)
-{
-	memset(buffer, 0, size);
-	buffer += NETHDR_SIZ;
-	size -= NETHDR_SIZ;
-	return nfct_build_query(ssh, msg_type, ct, buffer, size);
-}
-
-unsigned int parse_network_msg(struct nf_conntrack *ct, 
-			       const struct nlmsghdr *nlh)
-{
-	/* 
-	 * The parsing of netlink messages going through network is 
-	 * similar to the one that is done for messages coming from
-	 * kernel, therefore do not replicate more code and use the
-	 * function provided in the libraries.
-	 *
-	 * Yup, this is a hack 8)
-	 */
-	return nfct_parse_conntrack(NFCT_T_ALL, nlh, ct);
-}
-

@@ -87,7 +87,6 @@ struct mcast_sock *mcast_server_create(struct mcast_conf *conf)
 		return NULL;
 	}
 
-
 	switch(conf->ipproto) {
 	case AF_INET:
 		if (setsockopt(m->fd, IPPROTO_IP, IP_ADD_MEMBERSHIP,

@@ -22,16 +22,12 @@
 #include "conntrackd.h"
 #include "alarm.h"
 #include "jhash.h"
-#include <pthread.h>
 #include <time.h>
 #include <errno.h>
 
 /* alarm cascade */
-#define ALARM_CASCADE_SIZE     10
+#define ALARM_CASCADE_SIZE     STEPS_PER_SECONDS
 static struct list_head *alarm_cascade;
-
-/* thread stuff */
-static pthread_t alarm_thread;
 
 struct alarm_list *create_alarm()
 {	
@@ -86,24 +82,11 @@ int mod_alarm(struct alarm_list *alarm, unsigned long expires)
 	return 0;
 }
 
-void __run_alarms()
+void do_alarm_run(int step)
 {
 	struct list_head *i, *tmp;
 	struct alarm_list *t;
-	struct timespec req = {0, 1000000000 / ALARM_CASCADE_SIZE};
-	struct timespec rem;
-	static int step = 0;
 
-retry:
-	if (nanosleep(&req, &rem) == -1) {
-		/* interrupted syscall: retry with remaining time */
-		if (errno == EINTR) {
-			memcpy(&req, &rem, sizeof(struct timespec));
-			goto retry;
-		}
-	}
-
-	lock();
 	list_for_each_safe(i, tmp, &alarm_cascade[step]) {
 		t = (struct alarm_list *) i;
 
@@ -111,17 +94,9 @@ retry:
 		if (t->expires == 0)
 			t->function(t, t->data);
 	}
-	step = (step + 1) < ALARM_CASCADE_SIZE ? step + 1 : 0;
-	unlock();
 }
 
-void *run_alarms(void *foo)
-{
-	while(1)
-		__run_alarms();
-}
-
-int create_alarm_thread()
+int init_alarm_scheduler()
 {
 	int i;
 
@@ -132,10 +107,10 @@ int create_alarm_thread()
 	for (i=0; i<ALARM_CASCADE_SIZE; i++)
 		INIT_LIST_HEAD(&alarm_cascade[i]);
 
-	return pthread_create(&alarm_thread, NULL, run_alarms, NULL);
+	return 0;
 }
 
-int destroy_alarm_thread()
+void destroy_alarm_scheduler()
 {
-	return pthread_cancel(alarm_thread);
+	free(alarm_cascade);
 }

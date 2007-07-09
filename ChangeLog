@@ -1,3 +1,19 @@
+version 0.9.5 (yet unreleased)
+------------------------------
+
+= conntrackd =
+o conntrack-tools requires libnetfilter_conntrack >= 0.0.81 
+o add len field to nethdr
+o implement buffered send/recv to batch messages
+o stop using netlink format for network messages: use similar TLV-based format
+o reduce synchronization messages size up to 60%
+o introduce periodic alive messages for sync-nack protocol
+o timeslice alarm implementation: remove alarm pthread, remove locking
+o simplify debugging functions: use nfct_snprintf instead
+o remove major use of libnfnetlink functions: use libnetfilter_conntrack API
+o deprecate conntrackd -F, use conntrack -F instead
+o major rework of the network infrastructure: much simple, less messy
+
 version 0.9.4 (2007/07/02)
 ------------------------------
 

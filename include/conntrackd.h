@@ -10,6 +10,7 @@
 #include "debug.h"
 #include <signal.h>
 #include "state_helper.h"
+#include "linux_list.h"
 #include <libnetfilter_conntrack/libnetfilter_conntrack_tcp.h>
 
 /* UNIX facilities */
@@ -92,11 +93,8 @@ struct ct_general_state {
 	struct ct_mode 			*mode;
 	struct ignore_pool		*ignore_pool;
 
-	struct nfnl_handle		*event;         /* event handler */
-	struct nfnl_handle		*dump;		/* dump handler */
-
-	struct nfnl_subsys_handle	*subsys_event;  /* events */
-	struct nfnl_subsys_handle	*subsys_dump;   /* dump */
+	struct nfct_handle		*event;         /* event handler */
+	struct nfct_handle		*dump;		/* dump handler */
 
 	/* statistics */
 	u_int64_t			malformed;
@@ -114,7 +112,6 @@ struct ct_sync_state {
 	struct mcast_sock *mcast_client;  /* multicast socket: outgoing  */
 
 	struct sync_mode *sync;		/* sync mode */
-	struct buffer *buffer;
 
 	u_int32_t last_seq_sent;	/* last sequence number sent */
 	u_int32_t last_seq_recv;	/* last sequence number recv */
@@ -141,17 +138,19 @@ extern struct ct_general_state st;
 #define IPPROTO_VRRP 112
 #endif
 
+#define STEPS_PER_SECONDS	5
+
 struct ct_mode {
 	int (*init)(void);
 	int (*add_fds_to_set)(fd_set *readfds);
-	void (*step)(fd_set *readfds);
+	void (*run)(fd_set *readfds, int step);
 	int (*local)(int fd, int type, void *data);
 	void (*kill)(void);
-	void (*dump)(struct nf_conntrack *ct, struct nlmsghdr *nlh);
+	void (*dump)(struct nf_conntrack *ct);
 	void (*overrun)(void);
-	void (*event_new)(struct nf_conntrack *ct, struct nlmsghdr *nlh);
-	void (*event_upd)(struct nf_conntrack *ct, struct nlmsghdr *nlh);
-	int (*event_dst)(struct nf_conntrack *ct, struct nlmsghdr *nlh);
+	void (*event_new)(struct nf_conntrack *ct);
+	void (*event_upd)(struct nf_conntrack *ct);
+	int (*event_dst)(struct nf_conntrack *ct);
 };
 
 /* conntrackd modes */

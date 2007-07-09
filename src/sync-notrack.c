@@ -24,12 +24,16 @@
 
 static void refresher(struct alarm_list *a, void *data)
 {
+	int len;
+	struct nethdr *net;
 	struct us_conntrack *u = data;
 
 	debug_ct(u->ct, "persistence update");
 
 	a->expires = random() % CONFIG(refresh) + 1;
-	mcast_build_send_update(u);
+	net = BUILD_NETMSG(u->ct, NFCT_Q_UPDATE);
+	len = prepare_send_netmsg(STATE_SYNC(mcast_client), net);
+	mcast_buffered_send_netmsg(STATE_SYNC(mcast_client), net, len);
 }
 
 static void cache_notrack_add(struct us_conntrack *u, void *data)
