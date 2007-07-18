@@ -127,6 +127,49 @@ Specify the source address mask of an expectation.
 .TP
 .BI "--mask-dst " IP_ADDRESS
 Specify the destination address mask of an expectation.
+.SS PROTOCOL FILTER PARAMETERS
+.TP
+TCP-specific fields:
+.TP
+.BI "--orig-port-src " "PORT"
+Source port in original direction
+.TP
+.BI "--orig-port-dst " "PORT"
+Destination port in original direction
+.TP
+.BI "--reply-port-src " "PORT"
+Source port in reply direction
+.TP
+.BI "--reply-port-dst " "PORT"
+Destination port in reply direction
+.TP
+.BI "--state " "[NONE | SYN_SENT | SYN_RECV | ESTABLISHED | FIN_WAIT | CLOSE_WAIT | LAST_ACK | TIME_WAIT | CLOSE | LISTEN]"
+TCP state
+.TP
+UDP-specific fields:
+.TP
+.BI "--orig-port-src " "PORT"
+Source port in original direction
+.TP
+.BI "--orig-port-dst " "PORT"
+Destination port in original direction
+.TP
+.BI "--reply-port-src " "PORT"
+Source port in reply direction
+.TP
+.BI "--reply-port-dst " "PORT"
+Destination port in reply direction
+.TP
+ICMP-specific fields:
+.TP
+.BI "--icmp-type " "TYPE"
+ICMP Type. Has to be specified numerically.
+.TP
+.BI "--icmp-code " "CODE"
+ICMP Code. Has to be specified numerically.
+.TP
+.BI "--icmp-id " "ID"
+ICMP Id. Has to be specified numerically (non-mandatory)
 .SH DIAGNOSTICS
 The exit code is 0 for correct function.  Errors which appear to be caused by
 invalid command line parameters cause an exit code of 2.  Any other errors

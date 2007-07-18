@@ -20,6 +20,7 @@ o better protocol argument checkings
 o fix per-protocol filtering, eg. conntrack -L -p tcp 
 o show per-protocol help, ie. conntrack -h -p tcp
 o add alias --src for --orig-src and alias --dst for --orig-dst
+o include protocol filters in the manpage
 
 version 0.9.4 (2007/07/02)
 ------------------------------
