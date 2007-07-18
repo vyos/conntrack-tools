@@ -5,6 +5,7 @@ version 0.9.5 (yet unreleased)
 o conntrack-tools requires libnetfilter_conntrack >= 0.0.81 
 o add len field to nethdr
 o implement buffered send/recv to batch messages
+o use buffer of MTU size
 o stop using netlink format for network messages: use similar TLV-based format
 o reduce synchronization messages size up to 60%
 o introduce periodic alive messages for sync-nack protocol
@@ -13,6 +14,12 @@ o simplify debugging functions: use nfct_snprintf instead
 o remove major use of libnfnetlink functions: use libnetfilter_conntrack API
 o deprecate conntrackd -F, use conntrack -F instead
 o major rework of the network infrastructure: much simple, less messy
+
+= conntrack =
+o better protocol argument checkings
+o fix per-protocol filtering, eg. conntrack -L -p tcp 
+o show per-protocol help, ie. conntrack -h -p tcp
+o add alias --src for --orig-src and alias --dst for --orig-dst
 
 version 0.9.4 (2007/07/02)
 ------------------------------

@@ -151,15 +151,15 @@ struct ctproto_handler {
 
 	enum ctattr_protoinfo	protoinfo_attr;
 	
-	int (*parse_opts)(char c, char *argv[], 
-		     struct nf_conntrack *ct,
-		     struct nf_conntrack *exptuple,
-		     struct nf_conntrack *mask,
-		     unsigned int *flags);
+	int (*parse_opts)(char c,
+			  struct nf_conntrack *ct,
+			  struct nf_conntrack *exptuple,
+			  struct nf_conntrack *mask,
+			  unsigned int *flags);
 
-	int (*final_check)(unsigned int flags,
-			   unsigned int command,
-			   struct nf_conntrack *ct);
+	void (*final_check)(unsigned int flags,
+			    unsigned int command,
+			    struct nf_conntrack *ct);
 
 	void (*help)();
 
@@ -167,6 +167,18 @@ struct ctproto_handler {
 
 	unsigned int		option_offset;
 };
+
+enum exittype {
+	OTHER_PROBLEM = 1,
+	PARAMETER_PROBLEM,
+	VERSION_PROBLEM
+};
+
+void generic_opt_check(int options, 
+		       int nops,
+		       char *optset,
+		       const char *optflg[]);
+void exit_error(enum exittype status, char *msg, ...);
 
 extern void register_proto(struct ctproto_handler *h);
 

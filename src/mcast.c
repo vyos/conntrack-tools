@@ -26,6 +26,8 @@
 #include <sys/time.h>
 #include <unistd.h>
 #include <string.h>
+#include <sys/ioctl.h>
+#include <net/if.h>
 #include "mcast.h"
 #include "debug.h"
 
@@ -69,6 +71,18 @@ struct mcast_sock *mcast_server_create(struct mcast_conf *conf)
 		debug("mcast_sock_server_create:socket");
 		free(m);
 		return NULL;
+	}
+
+	if(conf->iface[0]) {
+		struct ifreq ifr;
+
+		strncpy(ifr.ifr_name, conf->iface, sizeof(ifr.ifr_name));
+
+		if (ioctl(m->fd, SIOCGIFMTU, &ifr) == -1) {
+			debug("ioctl");
+			return NULL;
+		}
+		conf->mtu = ifr.ifr_mtu;
 	}
 
 	if (setsockopt(m->fd, SOL_SOCKET, SO_REUSEADDR, &yes, 

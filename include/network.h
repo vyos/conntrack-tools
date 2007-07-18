@@ -55,6 +55,13 @@ int prepare_send_netmsg(struct mcast_sock *m, void *data);
 int mcast_send_netmsg(struct mcast_sock *m, void *data);
 int mcast_recv_netmsg(struct mcast_sock *m, void *data, int len);
 
+struct mcast_conf;
+
+int mcast_buffered_init(struct mcast_conf *conf);
+void mcast_buffered_destroy();
+int mcast_buffered_send_netmsg(struct mcast_sock *m, void *data, int len);
+int mcast_buffered_pending_netmsg(struct mcast_sock *m);
+
 #define IS_DATA(x)	((x->flags & ~NET_F_HELLO) == 0)
 #define IS_ACK(x)	(x->flags & NET_F_ACK)
 #define IS_NACK(x)	(x->flags & NET_F_NACK)

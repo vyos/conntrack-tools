@@ -42,7 +42,7 @@ ip6_part	{hex_255}":"?
 ip6_form1	{ip6_part}{0,16}"::"{ip6_part}{0,16}
 ip6_form2	({hex_255}":"){16}{hex_255}
 ip6		{ip6_form1}|{ip6_form2}
-string		[a-zA-Z]*
+string		[a-zA-Z0-9]*
 persistent	[P|p][E|e][R|r][S|s][I|i][S|s][T|t][E|e][N|n][T|T]
 nack		[N|n][A|a][C|c][K|k]
 
@@ -52,6 +52,7 @@ nack		[N|n][A|a][C|c][K|k]
 "IPv6_address"			{ return T_IPV6_ADDR; }
 "IPv4_interface"		{ return T_IPV4_IFACE; }
 "IPv6_interface"		{ return T_IPV6_IFACE; }
+"Interface"			{ return T_IFACE; }
 "Port"				{ return T_PORT; }
 "Multicast"			{ return T_MULTICAST; }
 "HashSize"			{ return T_HASHSIZE; }

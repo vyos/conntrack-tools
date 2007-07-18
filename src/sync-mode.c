@@ -86,7 +86,7 @@ retry:
 static void mcast_handler()
 {
 	int numbytes, remain;
-	char __net[4096], *ptr = __net;
+	char __net[65536], *ptr = __net; /* XXX: maximum MTU for IPv4 */
 
 	numbytes = mcast_recv(STATE_SYNC(mcast_server), __net, sizeof(__net));
 	if (numbytes <= 0)
@@ -173,6 +173,11 @@ static int init_sync(void)
 		return -1;
 	}
 
+	if (mcast_buffered_init(&CONFIG(mcast)) == -1) {
+		dlog(STATE(log), "[FAIL] can't init tx buffer!");
+		return -1;
+	}
+
 	/* initialization of multicast sequence generation */
 	STATE_SYNC(last_seq_sent) = time(NULL);
 
@@ -206,6 +211,8 @@ static void kill_sync()
 
 	mcast_server_destroy(STATE_SYNC(mcast_server));
 	mcast_client_destroy(STATE_SYNC(mcast_client));
+
+	mcast_buffered_destroy();
 
 	if (STATE_SYNC(sync)->kill)
 		STATE_SYNC(sync)->kill();

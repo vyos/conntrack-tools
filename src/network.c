@@ -90,9 +90,33 @@ int prepare_send_netmsg(struct mcast_sock *m, void *data)
 	return ret;
 }
 
+static int tx_buflenmax;
 static int tx_buflen = 0;
-/* XXX: use buffer size of interface MTU */
-static char __tx_buf[1460], *tx_buf = __tx_buf;
+static char *tx_buf;
+
+#define HEADERSIZ 28 /* IP header (20 bytes) + UDP header 8 (bytes) */
+
+int mcast_buffered_init(struct mcast_conf *conf)
+{
+	int mtu = conf->mtu - HEADERSIZ;
+
+	/* default to Ethernet MTU 1500 bytes */
+	if (mtu == 0)
+		mtu = 1500 - HEADERSIZ;
+
+	tx_buf = malloc(mtu);
+	if (tx_buf == NULL)
+		return -1;
+
+	tx_buflenmax = mtu;
+
+	return 0;
+}
+
+void mcast_buffered_destroy(void)
+{
+	free(tx_buf);
+}
 
 /* return 0 if it is not sent, otherwise return 1 */
 int mcast_buffered_send_netmsg(struct mcast_sock *m, void *data, int len)
@@ -101,8 +125,8 @@ int mcast_buffered_send_netmsg(struct mcast_sock *m, void *data, int len)
 	struct nethdr *net = data;
 
 retry:
-	if (tx_buflen + len < sizeof(__tx_buf)) {
-		memcpy(__tx_buf + tx_buflen, net, len);
+	if (tx_buflen + len < tx_buflenmax) {
+		memcpy(tx_buf + tx_buflen, net, len);
 		tx_buflen += len;
 	} else {
 		__do_send(m, tx_buf, tx_buflen);

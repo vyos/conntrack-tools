@@ -24,6 +24,33 @@ static struct option opts[] = {
 	{0, 0, 0, 0}
 };
 
+#define ICMP_NUMBER_OF_OPT 4
+
+static const char *icmp_optflags[ICMP_NUMBER_OF_OPT] = {
+"icmp-type", "icmp-code", "icmp-id"
+};
+
+static char icmp_commands_v_options[NUMBER_OF_CMD][ICMP_NUMBER_OF_OPT] =
+/* Well, it's better than "Re: Maradona vs Pele" */
+{
+		/* 1 2 3 */
+/*CT_LIST*/	  {2,2,2},
+/*CT_CREATE*/	  {1,1,2},
+/*CT_UPDATE*/	  {1,1,2},
+/*CT_DELETE*/	  {1,1,2},
+/*CT_GET*/	  {1,1,2},
+/*CT_FLUSH*/	  {0,0,0},
+/*CT_EVENT*/	  {2,2,2},
+/*CT_VERSION*/	  {0,0,0},
+/*CT_HELP*/	  {0,0,0},
+/*EXP_LIST*/	  {0,0,0},
+/*EXP_CREATE*/	  {0,0,0},
+/*EXP_DELETE*/	  {0,0,0},
+/*EXP_GET*/	  {0,0,0},
+/*EXP_FLUSH*/	  {0,0,0},
+/*EXP_EVENT*/	  {0,0,0},
+};
+
 static void help()
 {
 	fprintf(stdout, "  --icmp-type\t\t\ticmp type\n");
@@ -31,7 +58,7 @@ static void help()
 	fprintf(stdout, "  --icmp-id\t\t\ticmp id\n");
 }
 
-static int parse(char c, char *argv[], 
+static int parse(char c,
 		 struct nf_conntrack *ct,
 		 struct nf_conntrack *exptuple,
 		 struct nf_conntrack *mask,
@@ -69,16 +96,14 @@ static int parse(char c, char *argv[],
 	return 1;
 }
 
-static int final_check(unsigned int flags,
-		       unsigned int command,
-		       struct nf_conntrack *ct)
+static void final_check(unsigned int flags,
+		        unsigned int cmd,
+		        struct nf_conntrack *ct)
 {
-	if (!(flags & ICMP_TYPE))
-		return 0;
-	else if (!(flags & ICMP_CODE))
-		return 0;
-
-	return 1;
+	generic_opt_check(flags,
+			  ICMP_NUMBER_OF_OPT,
+			  icmp_commands_v_options[cmd],
+			  icmp_optflags);
 }
 
 static struct ctproto_handler icmp = {

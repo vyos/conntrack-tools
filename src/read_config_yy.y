@@ -1,6 +1,6 @@
 %{
 /*
- * (C) 2006 by Pablo Neira Ayuso <pablo@netfilter.org>
+ * (C) 2006-2007 by Pablo Neira Ayuso <pablo@netfilter.org>
  * 
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -45,7 +45,7 @@ struct ct_conf conf;
 %token T_GENERAL T_SYNC T_STATS T_RELAX_TRANSITIONS T_BUFFER_SIZE T_DELAY
 %token T_SYNC_MODE T_LISTEN_TO T_FAMILY T_RESEND_BUFFER_SIZE
 %token T_PERSISTENT T_NACK T_CHECKSUM T_WINDOWSIZE T_ON T_OFF
-%token T_REPLICATE T_FOR 
+%token T_REPLICATE T_FOR T_IFACE 
 %token T_ESTABLISHED T_SYN_SENT T_SYN_RECV T_FIN_WAIT 
 %token T_CLOSE_WAIT T_LAST_ACK T_TIME_WAIT T_CLOSE T_LISTEN
 
@@ -225,6 +225,11 @@ multicast_option : T_IPV6_IFACE T_IP
 	}
 
 	conf.mcast.ipproto = AF_INET6;
+};
+
+multicast_option : T_IFACE T_STRING
+{
+	strncpy(conf.mcast.iface, $2, IFNAMSIZ);
 };
 
 multicast_option : T_BACKLOG T_NUMBER

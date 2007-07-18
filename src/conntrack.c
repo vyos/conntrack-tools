@@ -64,8 +64,10 @@ static const char cmdflags[NUMBER_OF_CMD]
 static const char cmd_need_param[NUMBER_OF_CMD]
 = { 2,  0,  0,  0,  0,  2,  2,  2,  2,  2,  0,  0,  0,  2,  2 };
 
-static const char optflags[NUMBER_OF_OPT]
-= {'s','d','r','q','p','t','u','z','e','[',']','{','}','a','m','i','f','n','g','x'};
+static const char *optflags[NUMBER_OF_OPT] = {
+"src","dst","reply-src","reply-dst","protonum","timeout","status","zero",
+"event-mask","tuple-src","tuple-dst","mask-src","mask-dst","nat-range","mark",
+"id","family","src-nat","dst-nat","output" };
 
 static struct option original_opts[] = {
 	{"dump", 2, 0, 'L'},
@@ -78,7 +80,9 @@ static struct option original_opts[] = {
 	{"version", 0, 0, 'V'},
 	{"help", 0, 0, 'h'},
 	{"orig-src", 1, 0, 's'},
+	{"src", 1, 0, 's'},
 	{"orig-dst", 1, 0, 'd'},
+	{"dst", 1, 0, 'd'},
 	{"reply-src", 1, 0, 'r'},
 	{"reply-dst", 1, 0, 'q'},
 	{"protonum", 1, 0, 'p'},
@@ -127,7 +131,7 @@ static char commands_v_options[NUMBER_OF_CMD][NUMBER_OF_OPT] =
 /*CT_FLUSH*/  {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
 /*CT_EVENT*/  {2,2,2,2,2,0,0,0,2,0,0,0,0,0,2,0,0,2,2,2},
 /*VERSION*/   {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-/*HELP*/      {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+/*HELP*/      {0,0,0,0,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
 /*EXP_LIST*/  {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,2,0,0,0},
 /*EXP_CREATE*/{1,1,2,2,1,1,2,0,0,1,1,1,1,0,0,0,0,0,0,0},
 /*EXP_DELETE*/{1,1,2,2,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
@@ -172,12 +176,6 @@ static struct ctproto_handler *findproto(char *name)
 	return handler;
 }
 
-enum exittype {
-        OTHER_PROBLEM = 1,
-        PARAMETER_PROBLEM,
-        VERSION_PROBLEM
-};
-
 void extension_help(struct ctproto_handler *h)
 {
 	fprintf(stdout, "\n");
@@ -193,8 +191,7 @@ exit_tryhelp(int status)
 	exit(status);
 }
 
-static void
-exit_error(enum exittype status, char *msg, ...)
+void exit_error(enum exittype status, char *msg, ...)
 {
 	va_list args;
 
@@ -218,51 +215,43 @@ exit_error(enum exittype status, char *msg, ...)
 static void
 generic_cmd_check(int command, int options)
 {
-	int i;
-	
-	for (i = 0; i < NUMBER_OF_CMD; i++) {
-		if (!(command & (1<<i)))
-			continue;
-
-		if (cmd_need_param[i] == 0 && !options)
-			exit_error(PARAMETER_PROBLEM,
-				   "You need to supply parameters to `-%c'\n",
-				   cmdflags[i]);
-	}
+	if (cmd_need_param[command] == 0 && !options)
+		exit_error(PARAMETER_PROBLEM,
+			   "You need to supply parameters to `-%c'\n",
+			   cmdflags[command]);
 }
 
-static void
-generic_opt_check(int command, int options)
+static int bit2cmd(int command)
 {
-	int i, j, legal = 0;
+	int i;
 
-	/* Check that commands are valid with options.  Complicated by the
-	 * fact that if an option is legal with *any* command given, it is
-	 * legal overall (ie. -z and -l).
-	 */
-	for (i = 0; i < NUMBER_OF_OPT; i++) {
-		legal = 0; /* -1 => illegal, 1 => legal, 0 => undecided. */
+	for (i = 0; i < NUMBER_OF_CMD; i++)
+		if (command & (1<<i))
+			break;
 
-		for (j = 0; j < NUMBER_OF_CMD; j++) {
-			if (!(command & (1<<j)))
-				continue;
+	return i;
+}
 
-			if (!(options & (1<<i))) {
-				if (commands_v_options[j][i] == 1) 
-					exit_error(PARAMETER_PROBLEM, 
-						   "You need to supply the "
-						   "`-%c' option for this "
-						   "command\n", optflags[i]);
-			} else {
-				if (commands_v_options[j][i] != 0)
-					legal = 1;
-				else if (legal == 0)
-					legal = -1;
-			}
+void generic_opt_check(int options, 
+		       int num_opts,
+		       char *optset, 
+		       const char *optflg[])
+{
+	int i;
+
+	for (i = 0; i < num_opts; i++) {
+		if (!(options & (1<<i))) {
+			if (optset[i] == 1)
+				exit_error(PARAMETER_PROBLEM, 
+					   "You need to supply the "
+					   "`--%s' option for this "
+					   "command\n", optflg[i]);
+		} else {
+			if (optset[i] == 0)
+				exit_error(PARAMETER_PROBLEM, "Illegal "
+					   "option `--%s' with this "
+					   "command\n", optflg[i]);
 		}
-		if (legal == -1)
-			exit_error(PARAMETER_PROBLEM, "Illegal option `-%c' "
-				   "with this command\n", optflags[i]);
 	}
 }
 
@@ -664,7 +653,7 @@ static struct ctproto_handler *h;
 
 int main(int argc, char *argv[])
 {
-	int c;
+	int c, cmd;
 	unsigned int type = 0, event_mask = 0, l4flags = 0, status = 0;
 	int res = 0;
 	int family = AF_UNSPEC;
@@ -978,7 +967,7 @@ int main(int argc, char *argv[])
 			break;
 		default:
 			if (h && h->parse_opts 
-			    &&!h->parse_opts(c - h->option_offset, argv, obj,
+			    &&!h->parse_opts(c - h->option_offset, obj,
 			    		     exptuple, mask, &l4flags))
 				exit_error(PARAMETER_PROBLEM, "parse error\n");
 
@@ -996,16 +985,15 @@ int main(int argc, char *argv[])
 	if (family == AF_UNSPEC)
 		family = AF_INET;
 
-	generic_cmd_check(command, options);
-	generic_opt_check(command, options);
+	cmd = bit2cmd(command);
+	generic_cmd_check(cmd, options);
+	generic_opt_check(options,
+			  NUMBER_OF_OPT,
+			  commands_v_options[cmd],
+			  optflags);
 
-	if (!(command & CT_HELP)
-	    && h && h->final_check 
-	    && !h->final_check(l4flags, command, obj)) {
-		usage(argv[0]);
-		extension_help(h);
-		exit_error(PARAMETER_PROBLEM, "Missing protocol arguments!\n");
-	}
+	if (!(command & CT_HELP) && h && h->final_check)
+		h->final_check(l4flags, cmd, obj);
 
 	switch(command) {
 

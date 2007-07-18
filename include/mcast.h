@@ -2,6 +2,7 @@
 #define _MCAST_H_
 
 #include <netinet/in.h>
+#include <net/if.h>
 
 struct mcast_conf {
 	int ipproto;
@@ -16,6 +17,8 @@ struct mcast_conf {
 		struct in_addr interface_addr;
 		struct in6_addr interface_addr6;
 	} ifa;
+	int mtu;
+	char iface[IFNAMSIZ];
 };
 
 struct mcast_stats {

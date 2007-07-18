@@ -31,6 +31,13 @@ static struct option opts[] = {
 	{0, 0, 0, 0}
 };
 
+#define UDP_NUMBER_OF_OPT       9
+
+static const char *udp_optflags[UDP_NUMBER_OF_OPT] = {
+"sport", "dport", "reply-port-src", "reply-port-dst", "mask-port-src",
+"mask-port-dst", "tuple-port-src", "tuple-port-dst"
+};
+
 static void help()
 {
 	fprintf(stdout, "  --orig-port-src\t\toriginal source port\n");
@@ -43,7 +50,28 @@ static void help()
 	fprintf(stdout, "  --tuple-port-src\t\texpectation tuple dst port\n");
 }
 
-static int parse_options(char c, char *argv[],
+static char udp_commands_v_options[NUMBER_OF_CMD][UDP_NUMBER_OF_OPT] =
+/* Well, it's better than "Re: Galeano vs Vargas Llosa" */
+{
+		/* 1 2 3 4 5 6 7 8 */
+/*CT_LIST*/	  {2,2,2,2,0,0,0,0},
+/*CT_CREATE*/     {1,1,1,1,0,0,0,0},
+/*CT_UPDATE*/     {1,1,1,1,0,0,0,0},
+/*CT_DELETE*/     {1,1,1,1,0,0,0,0},
+/*CT_GET*/        {1,1,1,1,0,0,0,0},
+/*CT_FLUSH*/      {0,0,0,0,0,0,0,0},
+/*CT_EVENT*/      {2,2,2,2,0,0,0,0},
+/*CT_VERSION*/    {0,0,0,0,0,0,0,0},
+/*CT_HELP*/       {0,0,0,0,0,0,0,0},
+/*EXP_LIST*/      {0,0,0,0,0,0,0,0},
+/*EXP_CREATE*/    {1,1,1,1,1,1,1,1},
+/*EXP_DELETE*/    {1,1,1,1,0,0,0,0},
+/*EXP_GET*/       {1,1,1,1,0,0,0,0},
+/*EXP_FLUSH*/     {0,0,0,0,0,0,0,0},
+/*EXP_EVENT*/     {0,0,0,0,0,0,0,0},
+};
+
+static int parse_options(char c,
 			 struct nf_conntrack *ct,
 			 struct nf_conntrack *exptuple,
 			 struct nf_conntrack *mask,
@@ -134,9 +162,9 @@ static int parse_options(char c, char *argv[],
 	return 1;
 }
 
-static int final_check(unsigned int flags,
-		       unsigned int command,
-		       struct nf_conntrack *ct)
+static void final_check(unsigned int flags,
+		        unsigned int cmd,
+		        struct nf_conntrack *ct)
 {
 	int ret = 0;
 	
@@ -148,7 +176,8 @@ static int final_check(unsigned int flags,
 		nfct_set_attr_u16(ct,
 				  ATTR_REPL_PORT_DST,
 				  nfct_get_attr_u16(ct, ATTR_ORIG_PORT_SRC));
-		ret = 1;
+		flags |= UDP_REPL_SPORT;
+		flags |= UDP_REPL_DPORT;
 	} else if (!(flags & (UDP_ORIG_SPORT|UDP_ORIG_DPORT))
 	            && (flags & (UDP_REPL_SPORT|UDP_REPL_DPORT))) {
 	    	nfct_set_attr_u16(ct,
@@ -157,13 +186,14 @@ static int final_check(unsigned int flags,
 		nfct_set_attr_u16(ct,
 				  ATTR_ORIG_PORT_DST,
 				  nfct_get_attr_u16(ct, ATTR_REPL_PORT_SRC));
-		ret = 1;
+		flags |= UDP_ORIG_SPORT;
+		flags |= UDP_ORIG_DPORT;
 	}
-	if ((flags & (UDP_ORIG_SPORT|UDP_ORIG_DPORT)) 
-	    && ((flags & (UDP_REPL_SPORT|UDP_REPL_DPORT))))
-		ret = 1;
 
-	return ret;
+	generic_opt_check(flags, 
+			  UDP_NUMBER_OF_OPT,
+			  udp_commands_v_options[cmd],
+			  udp_optflags);
 }
 
 static struct ctproto_handler udp = {

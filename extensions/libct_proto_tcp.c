@@ -32,6 +32,34 @@ static struct option opts[] = {
 	{0, 0, 0, 0}
 };
 
+#define TCP_NUMBER_OF_OPT	10
+
+static const char *tcp_optflags[TCP_NUMBER_OF_OPT] = {
+"sport", "dport", "reply-port-src", "reply-port-dst", "mask-port-src",
+"mask-port-dst", "state", "tuple-port-src", "tuple-port-dst"
+};
+
+static char tcp_commands_v_options[NUMBER_OF_CMD][TCP_NUMBER_OF_OPT] =
+/* Well, it's better than "Re: Sevilla vs Betis" */
+{
+	    	/* 1 2 3 4 5 6 7 8 9 */
+/*CT_LIST*/   	  {2,2,2,2,0,0,2,0,0},
+/*CT_CREATE*/	  {1,1,1,1,0,0,1,0,0},
+/*CT_UPDATE*/	  {1,1,1,1,0,0,2,0,0},
+/*CT_DELETE*/	  {1,1,1,1,0,0,0,0,0},
+/*CT_GET*/	  {1,1,1,1,0,0,2,0,0},
+/*CT_FLUSH*/	  {0,0,0,0,0,0,0,0,0},
+/*CT_EVENT*/	  {2,2,2,2,0,0,2,0,0},
+/*CT_VERSION*/	  {0,0,0,0,0,0,0,0,0},
+/*CT_HELP*/	  {0,0,0,0,0,0,0,0,0},
+/*EXP_LIST*/	  {0,0,0,0,0,0,0,0,0},
+/*EXP_CREATE*/	  {1,1,1,1,1,1,0,1,1},
+/*EXP_DELETE*/	  {1,1,1,1,0,0,0,0,0},
+/*EXP_GET*/	  {1,1,1,1,0,0,0,0,0},
+/*EXP_FLUSH*/	  {0,0,0,0,0,0,0,0,0},
+/*EXP_EVENT*/	  {0,0,0,0,0,0,0,0,0},
+};
+
 static const char *states[] = {
 	"NONE",
 	"SYN_SENT",
@@ -58,7 +86,7 @@ static void help()
 	fprintf(stdout, "  --state\t\t\tTCP state, fe. ESTABLISHED\n");
 }
 
-static int parse_options(char c, char *argv[],
+static int parse_options(char c,
 			 struct nf_conntrack *ct,
 			 struct nf_conntrack *exptuple,
 			 struct nf_conntrack *mask,
@@ -139,10 +167,9 @@ static int parse_options(char c, char *argv[],
 					break;
 				}
 			}
-			if (i == 10) {
-				printf("doh?\n");
-				return 0;
-			}
+			if (i == 10)
+				exit_error(PARAMETER_PROBLEM,
+					   "Unknown TCP state %s\n", optarg);
 			*flags |= TCP_STATE;
 			break;
 		case '8':
@@ -169,12 +196,10 @@ static int parse_options(char c, char *argv[],
 	return 1;
 }
 
-static int final_check(unsigned int flags,
-		       unsigned int command,
-		       struct nf_conntrack *ct)
+static void final_check(unsigned int flags,
+			unsigned int cmd,
+			struct nf_conntrack *ct)
 {
-	int ret = 0;
-
 	if ((flags & (TCP_ORIG_SPORT|TCP_ORIG_DPORT)) 
 	    && !(flags & (TCP_REPL_SPORT|TCP_REPL_DPORT))) {
 	    	nfct_set_attr_u16(ct,
@@ -183,7 +208,8 @@ static int final_check(unsigned int flags,
 		nfct_set_attr_u16(ct,
 				  ATTR_REPL_PORT_DST,
 				  nfct_get_attr_u16(ct, ATTR_ORIG_PORT_SRC));
-		ret = 1;
+		flags |= TCP_REPL_SPORT;
+		flags |= TCP_REPL_DPORT;
 	} else if (!(flags & (TCP_ORIG_SPORT|TCP_ORIG_DPORT))
 	            && (flags & (TCP_REPL_SPORT|TCP_REPL_DPORT))) {
 	    	nfct_set_attr_u16(ct,
@@ -192,17 +218,14 @@ static int final_check(unsigned int flags,
 		nfct_set_attr_u16(ct,
 				  ATTR_ORIG_PORT_DST,
 				  nfct_get_attr_u16(ct, ATTR_REPL_PORT_SRC));
-		ret = 1;
+		flags |= TCP_ORIG_SPORT;
+		flags |= TCP_ORIG_DPORT;
 	}
-	if ((flags & (TCP_ORIG_SPORT|TCP_ORIG_DPORT)) 
-	    && ((flags & (TCP_REPL_SPORT|TCP_REPL_DPORT))))
-		ret = 1;
 
-	/* --state is missing and we are trying to create a conntrack */
-	if (ret && (command & CT_CREATE) && (!(flags & TCP_STATE)))
-		ret = 0;
-
-	return ret;
+	generic_opt_check(flags, 
+			  TCP_NUMBER_OF_OPT,
+			  tcp_commands_v_options[cmd],
+			  tcp_optflags);
 }
 
 static struct ctproto_handler tcp = {
