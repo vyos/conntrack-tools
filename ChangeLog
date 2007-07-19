@@ -14,6 +14,7 @@ o simplify debugging functions: use nfct_snprintf instead
 o remove major use of libnfnetlink functions: use libnetfilter_conntrack API
 o deprecate conntrackd -F, use conntrack -F instead
 o major rework of the network infrastructure: much simple, less messy
+o simplify cache_flush function: use cache_del()
 
 = conntrack =
 o better protocol argument checkings

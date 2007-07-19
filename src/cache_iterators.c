@@ -148,18 +148,8 @@ static int do_flush(void *data1, void *data2)
 {
 	struct cache *c = data1;
 	struct us_conntrack *u = data2;
-	void *data = u->data;
-	int i;
 
-	for (i = 0; i < c->num_features; i++) {
-		c->features[i]->destroy(u, data);
-		data += c->features[i]->size;
-	}
-
-	if (c->extra && c->extra->destroy)
-		c->extra->destroy(u, ((void *) u) + c->extra_offset);
-
-	free(u->ct);
+	cache_del(c, u->ct);
 
 	return 0;
 }
@@ -167,6 +157,5 @@ static int do_flush(void *data1, void *data2)
 void cache_flush(struct cache *c)
 {
 	hashtable_iterate(c->h, c, do_flush);
-	hashtable_flush(c->h);
 	c->flush++;
 }
