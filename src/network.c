@@ -101,7 +101,7 @@ int mcast_buffered_init(struct mcast_conf *conf)
 	int mtu = conf->mtu - HEADERSIZ;
 
 	/* default to Ethernet MTU 1500 bytes */
-	if (mtu == 0)
+	if (conf->mtu == 0)
 		mtu = 1500 - HEADERSIZ;
 
 	tx_buf = malloc(mtu);
