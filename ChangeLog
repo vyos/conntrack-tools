@@ -15,6 +15,7 @@ o remove major use of libnfnetlink functions: use libnetfilter_conntrack API
 o deprecate conntrackd -F, use conntrack -F instead
 o major rework of the network infrastructure: much simple, less messy
 o simplify cache_flush function: use cache_del()
+o remove current script_fault.sh when we reach fault state
 
 = conntrack =
 o better protocol argument checkings
