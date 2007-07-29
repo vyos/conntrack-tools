@@ -23,6 +23,9 @@ Copyright (C) 2005-2007 Pablo Neira Ayuso <pablo netfilter org>
      - nfnetlink
      - ctnetlink (ip_conntrack_netlink)
      - connection tracking event notification API
+     	(To check that the event API is enabled in the kernel, make sure
+	 you have loaded nf_netlink_conntrack module, run conntrack -E and 
+	 generate traffic, you should see network events)
 
  o libnfnetlink: the netfilter netlink library available at:
 
