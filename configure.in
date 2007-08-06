@@ -104,4 +104,8 @@ dnl                  debug/src/Makefile
 dnl                  extensions/Makefile
 dnl                  src/Makefile])
 
+CFLAGS="$CFLAGS $LIBNETFILTER_CONNTRACK_CFLAGS"
+
+AC_SUBST(LIBNETFILTER_CONNTRACK_LIBS)
+
 AC_OUTPUT(Makefile src/Makefile include/Makefile extensions/Makefile)

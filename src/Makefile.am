@@ -8,6 +8,7 @@ sbin_PROGRAMS = conntrack conntrackd
 
 conntrack_SOURCES = conntrack.c
 conntrack_LDADD = ../extensions/libct_proto_tcp.la ../extensions/libct_proto_udp.la ../extensions/libct_proto_icmp.la
+conntrack_LDFLAGS = $(all_libraries) @LIBNETFILTER_CONNTRACK_LIBS@
 
 conntrackd_SOURCES = alarm.c main.c run.c hash.c buffer.c \
 		    local.c log.c mcast.c netlink.c \
@@ -22,6 +23,6 @@ conntrackd_SOURCES = alarm.c main.c run.c hash.c buffer.c \
 		    build.c parse.c \
 		    read_config_yy.y read_config_lex.l
 
-conntrackd_LDFLAGS = $(all_libraries) -lnfnetlink -lnetfilter_conntrack
+conntrackd_LDFLAGS = $(all_libraries) @LIBNETFILTER_CONNTRACK_LIBS@
 
 EXTRA_DIST = read_config_yy.h

@@ -9,7 +9,7 @@ EXTRA_DIST = $(man_MANS) Make_global.am ChangeLog TODO examples
 
 SUBDIRS   = extensions src
 DIST_SUBDIRS = include src extensions
-LINKOPTS  = -lnfnetlink -lnetfilter_conntrack -lpthread
+LIBS = @LIBNETFILTER_CONNTRACK_LIBS@
 AM_CFLAGS = -g
 
 $(OBJECTS): libtool

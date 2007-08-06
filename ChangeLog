@@ -1,3 +1,8 @@
+version 0.9.6 (yet unreleased)
+------------------------------
+
+o fix compilation problem due to missing headers (Krisztian Kovacs)
+
 version 0.9.5 (2007/07/29)
 ------------------------------
 
