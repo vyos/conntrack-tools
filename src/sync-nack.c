@@ -74,13 +74,13 @@ static int nack_init()
 {
 	tx_queue = buffer_create(CONFIG(resend_buffer_size));
 	if (tx_queue == NULL) {
-		dlog(STATE(log), "[FAIL] cannot create tx buffer");
+		dlog(STATE(log), LOG_ERR, "cannot create tx buffer");
 		return -1;
 	}
 
 	rs_queue = buffer_create(CONFIG(resend_buffer_size));
 	if (rs_queue == NULL) {
-		dlog(STATE(log), "[FAIL] cannot create rs buffer");
+		dlog(STATE(log), LOG_ERR, "cannot create rs buffer");
 		return -1;
 	}
 
@@ -125,11 +125,11 @@ static int nack_local(int fd, int type, void *data)
 
 	switch(type) {
 	case REQUEST_DUMP:
-		dlog(STATE(log), "[REQ] request resync");
+		dlog(STATE(log), LOG_NOTICE, "request resync");
 		tx_queue_add_ctlmsg(NET_F_RESYNC, 0, 0);
 		break;
 	case SEND_BULK:
-		dlog(STATE(log), "[REQ] sending bulk update");
+		dlog(STATE(log), LOG_NOTICE, "sending bulk update");
 		cache_iterate(STATE_SYNC(internal), NULL, do_cache_to_tx);
 		break;
 	default:

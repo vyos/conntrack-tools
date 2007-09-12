@@ -25,6 +25,7 @@
 #include <errno.h>
 #include "conntrackd.h"
 #include "ignore.h"
+#include <syslog.h>
 
 extern char *yytext;
 extern int   yylineno;
@@ -48,6 +49,7 @@ struct ct_conf conf;
 %token T_REPLICATE T_FOR T_IFACE 
 %token T_ESTABLISHED T_SYN_SENT T_SYN_RECV T_FIN_WAIT 
 %token T_CLOSE_WAIT T_LAST_ACK T_TIME_WAIT T_CLOSE T_LISTEN
+%token T_SYSLOG
 
 
 %token <string> T_IP T_PATH_VAL
@@ -72,9 +74,54 @@ line : ignore_protocol
      | stats
      ;
 
-log : T_LOG T_PATH_VAL
+logfile_bool : T_LOG T_ON
+{
+	strncpy(conf.logfile, DEFAULT_LOGFILE, FILENAME_MAXLEN);
+};
+
+logfile_bool : T_LOG T_OFF
+{
+};
+
+logfile_path : T_LOG T_PATH_VAL
 {
 	strncpy(conf.logfile, $2, FILENAME_MAXLEN);
+};
+
+syslog_bool : T_SYSLOG T_ON
+{
+	conf.syslog_facility = DEFAULT_SYSLOG_FACILITY;
+};
+
+syslog_bool : T_SYSLOG T_OFF
+{
+	conf.syslog_facility = -1;
+}
+
+syslog_facility : T_SYSLOG T_STRING
+{
+	if (!strcmp($2, "daemon"))
+		conf.syslog_facility = LOG_DAEMON;
+	else if (!strcmp($2, "local0"))
+		conf.syslog_facility = LOG_LOCAL0;
+	else if (!strcmp($2, "local1"))
+		conf.syslog_facility = LOG_LOCAL1;
+	else if (!strcmp($2, "local2"))
+		conf.syslog_facility = LOG_LOCAL2;
+	else if (!strcmp($2, "local3"))
+		conf.syslog_facility = LOG_LOCAL3;
+	else if (!strcmp($2, "local4"))
+		conf.syslog_facility = LOG_LOCAL4;
+	else if (!strcmp($2, "local5"))
+		conf.syslog_facility = LOG_LOCAL5;
+	else if (!strcmp($2, "local6"))
+		conf.syslog_facility = LOG_LOCAL6;
+	else if (!strcmp($2, "local7"))
+		conf.syslog_facility = LOG_LOCAL7;
+	else {
+		fprintf(stderr, "'%s' is not a known syslog facility, ignoring.\n", $2);
+		return;
+	}
 };
 
 lock : T_LOCK T_PATH_VAL
@@ -461,7 +508,10 @@ general_list:
 
 general_line: hashsize
 	    | hashlimit
-	    | log
+	    | logfile_bool
+	    | logfile_path
+	    | syslog_facility
+	    | syslog_bool
 	    | lock
 	    | unix_line
 	    | netlink_buffer_size
@@ -515,6 +565,9 @@ init_config(char *filename)
 	fp = fopen(filename, "r");
 	if (!fp)
 		return -1;
+
+	/* Zero may be a valid facility */
+	CONFIG(syslog_facility) = -1;
 
 	yyrestart(fp);
 	yyparse();

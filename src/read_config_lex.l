@@ -42,7 +42,7 @@ ip6_part	{hex_255}":"?
 ip6_form1	{ip6_part}{0,16}"::"{ip6_part}{0,16}
 ip6_form2	({hex_255}":"){16}{hex_255}
 ip6		{ip6_form1}|{ip6_form2}
-string		[a-zA-Z0-9]*
+string		[a-zA-Z][a-zA-Z0-9]*
 persistent	[P|p][E|e][R|r][S|s][I|i][S|s][T|t][E|e][N|n][T|T]
 nack		[N|n][A|a][C|c][K|k]
 
@@ -73,6 +73,7 @@ nack		[N|n][A|a][C|c][K|k]
 "Backlog"			{ return T_BACKLOG; }
 "Group"				{ return T_GROUP; }
 "LogFile"			{ return T_LOG; }
+"Syslog"			{ return T_SYSLOG; }
 "LockFile"			{ return T_LOCK; }
 "General"			{ return T_GENERAL; }
 "Sync"				{ return T_SYNC; }

@@ -244,10 +244,10 @@ int main(int argc, char *argv[])
 	}
 
 	/*
-	 * Setting up logfile
+	 * Setting up logging
 	 */
 	STATE(log) = init_log(CONFIG(logfile));
-	if (!STATE(log)) {
+	if (config_set && !STATE(log)) {
 		fprintf(stdout, "can't open logfile `%s\n'", CONFIG(logfile));
 		exit(EXIT_FAILURE);
 	}
@@ -276,15 +276,15 @@ int main(int argc, char *argv[])
 		pid_t pid;
 
 		if ((pid = fork()) == -1) {
-			dlog(STATE(log), "fork() failed: "
-					 "%s", strerror(errno));
+			dlog(STATE(log), LOG_ERR, "fork() failed: "
+						  "%s", strerror(errno));
 			exit(EXIT_FAILURE);
 		} else if (pid)
 			exit(EXIT_SUCCESS);
 		
-		dlog(STATE(log), "--- starting in daemon mode ---");
+		dlog(STATE(log), LOG_INFO, "--- starting in daemon mode ---");
 	} else
-		dlog(STATE(log), "--- starting in console mode ---");
+		dlog(STATE(log), LOG_INFO, "--- starting in console mode ---");
 
 	/*
 	 * initialization process

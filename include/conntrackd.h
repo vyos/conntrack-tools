@@ -12,6 +12,7 @@
 #include "state_helper.h"
 #include "linux_list.h"
 #include <libnetfilter_conntrack/libnetfilter_conntrack_tcp.h>
+#include <syslog.h>
 
 /* UNIX facilities */
 #define FLUSH_MASTER	0	/* flush kernel conntrack table 	*/
@@ -29,6 +30,8 @@
 
 #define DEFAULT_CONFIGFILE	"/etc/conntrackd/conntrackd.conf"
 #define DEFAULT_LOCKFILE	"/var/lock/conntrackd.lock"
+#define DEFAULT_LOGFILE		"/var/log/conntrackd.log"
+#define DEFAULT_SYSLOG_FACILITY	LOG_DAEMON
 
 enum {
 	SYNC_MODE_PERSISTENT_BIT = 0,
@@ -65,6 +68,7 @@ union inet_address {
 
 struct ct_conf {
 	char logfile[FILENAME_MAXLEN];
+	int syslog_facility;
 	char lockfile[FILENAME_MAXLEN];
 	int hashsize;			/* hashtable size */
 	struct mcast_conf mcast;	/* multicast settings */

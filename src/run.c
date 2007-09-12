@@ -40,7 +40,7 @@ void killer(int foo)
 	STATE(mode)->kill();
 	destroy_alarm_scheduler();
         unlink(CONFIG(lockfile));
-	dlog(STATE(log), "------- shutdown received ----");
+	dlog(STATE(log), LOG_INFO, "------- shutdown received ----");
 	close_log(STATE(log));
 
 	sigprocmask(SIG_UNBLOCK, &STATE(block), NULL);
@@ -60,31 +60,31 @@ void local_handler(int fd, void *data)
 
 	ret = read(fd, &type, sizeof(type));
 	if (ret == -1) {
-		dlog(STATE(log), "can't read from unix socket");
+		dlog(STATE(log), LOG_INFO, "can't read from unix socket");
 		return;
 	}
 	if (ret == 0) {
-		dlog(STATE(log), "local request: nothing to process?");
+		dlog(STATE(log), LOG_INFO, "local request: nothing received?");
 		return;
 	}
 
 	switch(type) {
 	case FLUSH_MASTER:
-		dlog(STATE(log), "[DEPRECATED] `conntrackd -F' is deprecated. "
-				 "Use conntrack -F instead.");
+		dlog(STATE(log), LOG_NOTICE, "`conntrackd -F' is deprecated. "
+				 	     "Use conntrack -F instead.");
 		if (fork() == 0) {
 			execlp("conntrack", "conntrack", "-F", NULL);
 			exit(EXIT_SUCCESS);
 		}
 		return;
 	case RESYNC_MASTER:
-		dlog(STATE(log), "[REQ] resync with master table");
+		dlog(STATE(log), LOG_NOTICE, "resync with master table");
 		nl_dump_conntrack_table();
 		return;
 	}
 
 	if (!STATE(mode)->local(fd, type, data))
-		dlog(STATE(log), "[FAIL] unknown local request %d", type);
+		dlog(STATE(log), LOG_ERR, "unknown local request %d", type);
 }
 
 int init(int mode)
@@ -105,30 +105,30 @@ int init(int mode)
 
 	/* Initialization */
 	if (STATE(mode)->init() == -1) {
-		dlog(STATE(log), "[FAIL] initialization failed");
+		dlog(STATE(log), LOG_ERR, "initialization failed");
 		return -1;
 	}
 
         if (init_alarm_scheduler() == -1) {
-		dlog(STATE(log), "[FAIL] can't initialize alarm scheduler");
+		dlog(STATE(log), LOG_ERR, "can't initialize alarm scheduler");
 		return -1;
 	}
 
 	/* local UNIX socket */
 	STATE(local) = local_server_create(&CONFIG(local));
 	if (!STATE(local)) {
-		dlog(STATE(log), "[FAIL] can't open unix socket!");
+		dlog(STATE(log), LOG_ERR, "can't open unix socket!");
 		return -1;
 	}
 
 	if (nl_init_event_handler() == -1) {
-		dlog(STATE(log), "[FAIL] can't open netlink handler! "
-				 "no ctnetlink kernel support?");
+		dlog(STATE(log), LOG_ERR, "can't open netlink handler! "
+				 	  "no ctnetlink kernel support?");
 		return -1;
 	}
 
 	if (nl_init_dump_handler() == -1) {
-		dlog(STATE(log), "[FAIL] can't open netlink handler! "
+		dlog(STATE(log), LOG_ERR, "can't open netlink handler! "
 				 "no ctnetlink kernel support?");
 		return -1;
 	}
@@ -152,7 +152,7 @@ int init(int mode)
 	if (signal(SIGCHLD, child) == SIG_ERR)
 		return -1;
 
-	dlog(STATE(log), "[OK] initialization completed");
+	dlog(STATE(log), LOG_INFO, "initialization completed");
 
 	return 0;
 }

@@ -4,7 +4,7 @@
 #include <stdio.h>
 
 FILE *init_log(char *filename);
-void dlog(FILE *fd, char *format, ...);
+void dlog(FILE *fd, int priority, char *format, ...);
 void close_log(FILE *fd);
 
 #endif

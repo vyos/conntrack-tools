@@ -22,36 +22,74 @@
 #include <time.h>
 #include <stdarg.h>
 #include <string.h>
+#include "conntrackd.h"
 
 FILE *init_log(char *filename)
 {
-	FILE *fd;
+	FILE *fd = NULL;
 
-	fd = fopen(filename, "a+");
-	if (fd == NULL) {
-		fprintf(stderr, "can't open log file `%s'\n", filename);
-		return NULL;
+	if (filename[0]) {
+		fd = fopen(filename, "a+");
+		if (fd == NULL) {
+			fprintf(stderr, "can't open log file `%s'\n", filename);
+			return NULL;
+		}
 	}
+
+	if (CONFIG(syslog_facility) != -1)
+		openlog(PACKAGE, LOG_PID, CONFIG(syslog_facility));
 
 	return fd;
 }
 
-void dlog(FILE *fd, char *format, ...)
-{
-	time_t t = time(NULL);
-	char *buf = ctime(&t);
-	va_list args;
+void dlog(FILE *fd, int priority, char *format, ...)
+ {
+	time_t t;
+	char *buf;
+	char *prio;
+ 	va_list args;
+ 
+	if (fd) {
+		t = time(NULL);
+		buf = ctime(&t);
+		buf[strlen(buf)-1]='\0';
+		switch (priority) {
+		case LOG_INFO:
+			prio = "info";
+			break;
+		case LOG_NOTICE:
+			prio = "notice";
+			break;
+		case LOG_WARNING:
+			prio = "warning";
+			break;
+		case LOG_ERR:
+			prio = "ERROR";
+			break;
+		default:
+			prio = "?";
+			break;
+		}
+		va_start(args, format);
+		fprintf(fd, "[%s] (pid=%d) [%s] ", buf, getpid(), prio);
+		vfprintf(fd, format, args);
+		va_end(args);
+		fprintf(fd, "\n");
+		fflush(fd);
+	}
 
-	buf[strlen(buf)-1]='\0';
-	va_start(args, format);
-	fprintf(fd, "[%s] (pid=%d) ", buf, getpid());
-	vfprintf(fd, format, args);
-	va_end(args);
-	fprintf(fd, "\n");
-	fflush(fd);
+	if (CONFIG(syslog_facility) != -1) {
+		va_start(args, format);
+		vsyslog(priority, format, args);
+		va_end(args);
+	}
 }
 
 void close_log(FILE *fd)
 {
-	fclose(fd);
+	if (fd != NULL)
+		fclose(fd);
+
+	if (CONFIG(syslog_facility) != -1)
+		closelog();
 }

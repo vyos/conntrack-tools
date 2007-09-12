@@ -139,14 +139,14 @@ void cache_commit(struct cache *c)
 	commit_exist = c->commit_exist - commit_exist;
 
 	/* log results */
-	dlog(STATE(log), "Committed %u new entries", commit_ok);
+	dlog(STATE(log), LOG_INFO, "Committed %u new entries", commit_ok);
 
 	if (commit_exist)
-		dlog(STATE(log), "%u entries ignored, "
-				 "already exist", commit_exist);
+		dlog(STATE(log), LOG_INFO, "%u entries ignored, "
+					   "already exist", commit_exist);
 	if (commit_fail)
-		dlog(STATE(log), "%u entries can't be "
-				 "committed", commit_fail);
+		dlog(STATE(log), LOG_INFO, "%u entries can't be "
+					   "committed", commit_fail);
 }
 
 static int do_flush(void *data1, void *data2)

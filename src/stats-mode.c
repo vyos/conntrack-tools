@@ -32,7 +32,7 @@ static int init_stats(void)
 
 	state.stats = malloc(sizeof(struct ct_stats_state));
 	if (!state.stats) {
-		dlog(STATE(log), "[FAIL] can't allocate memory for stats sync");
+		dlog(STATE(log), LOG_ERR, "can't allocate memory for stats");
 		return -1;
 	}
 	memset(state.stats, 0, sizeof(struct ct_stats_state));
@@ -42,8 +42,8 @@ static int init_stats(void)
 					  CONFIG(family),
 					  NULL); 
 	if (!STATE_STATS(cache)) {
-		dlog(STATE(log), "[FAIL] can't allocate memory for the "
-				 "external cache");
+		dlog(STATE(log), LOG_ERR, "can't allocate memory for the "
+				 	  "external cache");
 		return -1;
 	}
 
@@ -68,7 +68,7 @@ static int local_handler_stats(int fd, int type, void *data)
 		cache_dump(STATE_STATS(cache), fd, NFCT_O_XML);
 		break;
 	case FLUSH_CACHE:
-		dlog(STATE(log), "[REQ] flushing caches");
+		dlog(STATE(log), LOG_NOTICE, "flushing caches");
 		cache_flush(STATE_STATS(cache));
 		break;
 	case KILL:
@@ -122,7 +122,7 @@ static void overrun_stats()
 
 	h = nfct_open(CONNTRACK, 0);
 	if (!h) {
-		dlog(STATE(log), "can't open overrun handler");
+		dlog(STATE(log), LOG_ERR, "can't open overrun handler");
 		return;
 	}
 
@@ -132,7 +132,8 @@ static void overrun_stats()
 
 	ret = nfct_query(h, NFCT_Q_DUMP, &family);
 	if (ret == -1)
-		dlog(STATE(log), "overrun query error %s", strerror(errno));
+		dlog(STATE(log), LOG_ERR, 
+		     "overrun query error %s", strerror(errno));
 
 	nfct_close(h);
 }
@@ -143,8 +144,8 @@ static void event_new_stats(struct nf_conntrack *ct)
 		debug_ct(ct, "cache new");
 	} else {
 		if (errno != EEXIST) {
-			dlog(STATE(log), "can't add to cache cache: "
-					 "%s\n", strerror(errno));
+			dlog(STATE(log), LOG_ERR, 
+			     "can't add to cache cache: %s\n", strerror(errno));
 			debug_ct(ct, "can't add");
 		}
 	}
