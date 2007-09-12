@@ -78,6 +78,7 @@ void cache_dump(struct cache *c, int fd, int type)
 static int do_commit(void *data1, void *data2)
 {
 	int ret;
+	u_int8_t flags;
 	struct cache *c = data1;
 	struct us_conntrack *u = data2;
 	struct nf_conntrack *ct = u->ct;
@@ -97,10 +98,14 @@ static int do_commit(void *data1, void *data2)
 	 */
 	nfct_set_attr_u32(ct, ATTR_TIMEOUT, CONFIG(commit_timeout));
 
-	if (ret == -1) {
-		dlog(STATE(log), "failed to build: %s", strerror(errno));
-		return 0;
-	}
+	/*
+	 * TCP flags to overpass window tracking for recovered connections
+	 */
+	flags = IP_CT_TCP_FLAG_BE_LIBERAL | IP_CT_TCP_FLAG_SACK_PERM;
+	nfct_set_attr_u8(ct, ATTR_TCP_FLAGS_ORIG, flags);
+	nfct_set_attr_u8(ct, ATTR_TCP_MASK_ORIG, flags);
+	nfct_set_attr_u8(ct, ATTR_TCP_FLAGS_REPL, flags);
+	nfct_set_attr_u8(ct, ATTR_TCP_MASK_REPL, flags);
 
 	ret = nfct_query(STATE(dump), NFCT_Q_CREATE_UPDATE, ct);
 	if (ret == -1) {
