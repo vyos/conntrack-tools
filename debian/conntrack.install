@@ -1,3 +1,2 @@
-usr/sbin
-usr/share/man
-usr/lib/conntrack
+usr/sbin/conntrack
+usr/share/man/man8/conntrack.8

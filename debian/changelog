@@ -1,3 +1,9 @@
+conntrack (1:0.9.5-1) UNRELEASED; urgency=low
+
+  * new upstream release
+
+ -- Max Kellermann <max@duempel.org>  Tue,  6 Nov 2007 08:15:26 +0100
+
 conntrack (1.00~beta2-1) unstable; urgency=low
 
   * initial debian release (Closes: #388615)
