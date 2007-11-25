@@ -14,6 +14,9 @@ enum {
 	LIFETIME_FEATURE = 2,
 	LIFETIME = (1 << LIFETIME_FEATURE),
 
+	WRITE_THROUGH_FEATURE = 3,
+	WRITE_THROUGH = (1 << WRITE_THROUGH_FEATURE),
+
 	__CACHE_MAX_FEATURE
 };
 #define CACHE_MAX_FEATURE __CACHE_MAX_FEATURE
@@ -31,6 +34,7 @@ struct cache_feature {
 
 extern struct cache_feature lifetime_feature;
 extern struct cache_feature timer_feature;
+extern struct cache_feature writethrough_feature;
 
 #define CACHE_MAX_NAMELEN 32
 

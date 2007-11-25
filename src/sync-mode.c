@@ -147,6 +147,10 @@ static int init_sync(void)
 		return -1;
 	}
 
+	/* straight forward commit of conntrack to kernel space */
+	if (CONFIG(cache_write_through))
+		STATE_SYNC(sync)->external_cache_flags |= WRITE_THROUGH;
+
 	STATE_SYNC(external) = 
 		cache_create("external",
 			     STATE_SYNC(sync)->external_cache_flags,
@@ -301,8 +305,10 @@ static int local_handler_sync(int fd, int type, void *data)
 
 static void dump_sync(struct nf_conntrack *ct)
 {
+	if (!CONFIG(cache_write_through))
+		nfct_attr_unset(ct, ATTR_TIMEOUT);
+
 	/* This is required by kernels < 2.6.20 */
-	nfct_attr_unset(ct, ATTR_TIMEOUT);
 	nfct_attr_unset(ct, ATTR_ORIG_COUNTER_BYTES);
 	nfct_attr_unset(ct, ATTR_ORIG_COUNTER_PACKETS);
 	nfct_attr_unset(ct, ATTR_REPL_COUNTER_BYTES);
@@ -339,8 +345,10 @@ static int overrun_cb(enum nf_conntrack_msg_type type,
 	if (ignore_conntrack(ct))
 		return NFCT_CB_CONTINUE;
 
+	if (!CONFIG(cache_write_through))
+		nfct_attr_unset(ct, ATTR_TIMEOUT);
+
 	/* This is required by kernels < 2.6.20 */
-	nfct_attr_unset(ct, ATTR_TIMEOUT);
 	nfct_attr_unset(ct, ATTR_ORIG_COUNTER_BYTES);
 	nfct_attr_unset(ct, ATTR_ORIG_COUNTER_PACKETS);
 	nfct_attr_unset(ct, ATTR_REPL_COUNTER_BYTES);
@@ -420,12 +428,14 @@ static void event_new_sync(struct nf_conntrack *ct)
 {
 	struct us_conntrack *u;
 
+	if (!CONFIG(cache_write_through))
+		nfct_attr_unset(ct, ATTR_TIMEOUT);
+
 	/* required by linux kernel <= 2.6.20 */
 	nfct_attr_unset(ct, ATTR_ORIG_COUNTER_BYTES);
 	nfct_attr_unset(ct, ATTR_ORIG_COUNTER_PACKETS);
 	nfct_attr_unset(ct, ATTR_REPL_COUNTER_BYTES);
 	nfct_attr_unset(ct, ATTR_REPL_COUNTER_PACKETS);
-	nfct_attr_unset(ct, ATTR_TIMEOUT);
 retry:
 	if ((u = cache_add(STATE_SYNC(internal), ct))) {
 		mcast_send_sync(u, ct, NFCT_Q_CREATE);
@@ -447,7 +457,8 @@ static void event_update_sync(struct nf_conntrack *ct)
 {
 	struct us_conntrack *u;
 
-	nfct_attr_unset(ct, ATTR_TIMEOUT);
+	if (!CONFIG(cache_write_through))
+		nfct_attr_unset(ct, ATTR_TIMEOUT);
 
 	if ((u = cache_update_force(STATE_SYNC(internal), ct)) == NULL) {
 		debug_ct(ct, "can't update");
@@ -459,7 +470,8 @@ static void event_update_sync(struct nf_conntrack *ct)
 
 static int event_destroy_sync(struct nf_conntrack *ct)
 {
-	nfct_attr_unset(ct, ATTR_TIMEOUT);
+	if (!CONFIG(cache_write_through))
+		nfct_attr_unset(ct, ATTR_TIMEOUT);
 
 	if (cache_del(STATE_SYNC(internal), ct)) {
 		mcast_send_sync(NULL, ct, NFCT_Q_DESTROY);

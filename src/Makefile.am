@@ -14,7 +14,7 @@ conntrackd_SOURCES = alarm.c main.c run.c hash.c buffer.c \
 		    local.c log.c mcast.c netlink.c \
 		    ignore_pool.c \
 		    cache.c cache_iterators.c \
-		    cache_lifetime.c cache_timer.c \
+		    cache_lifetime.c cache_timer.c cache_wt.c \
 		    sync-mode.c sync-notrack.c sync-nack.c \
 		    traffic_stats.c stats-mode.c \
 		    network.c \

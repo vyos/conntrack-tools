@@ -90,6 +90,7 @@ nack		[N|n][A|a][C|c][K|k]
 "ACKWindowSize"			{ return T_WINDOWSIZE; }
 "Replicate"			{ return T_REPLICATE; }
 "for"				{ return T_FOR; }
+"CacheWriteThrough"		{ return T_WRITE_THROUGH; }
 "SYN_SENT"			{ return T_SYN_SENT; }
 "SYN_RECV"			{ return T_SYN_RECV; }
 "ESTABLISHED"			{ return T_ESTABLISHED; }

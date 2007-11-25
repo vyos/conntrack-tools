@@ -78,19 +78,9 @@ void cache_dump(struct cache *c, int fd, int type)
 static int do_commit(void *data1, void *data2)
 {
 	int ret;
-	u_int8_t flags;
 	struct cache *c = data1;
 	struct us_conntrack *u = data2;
 	struct nf_conntrack *ct = u->ct;
-
-	/* XXX: related connections */
-	if (nfct_attr_is_set(ct, ATTR_STATUS)) {
-		u_int32_t status = nfct_get_attr_u32(ct, ATTR_STATUS);
-		status &= ~IPS_EXPECTED;
-		nfct_set_attr_u32(ct, ATTR_STATUS, status);
-	}
-
-	nfct_setobjopt(ct, NFCT_SOPT_SETUP_REPLY);
 
         /* 
 	 * Set a reduced timeout for candidate-to-be-committed
@@ -98,16 +88,7 @@ static int do_commit(void *data1, void *data2)
 	 */
 	nfct_set_attr_u32(ct, ATTR_TIMEOUT, CONFIG(commit_timeout));
 
-	/*
-	 * TCP flags to overpass window tracking for recovered connections
-	 */
-	flags = IP_CT_TCP_FLAG_BE_LIBERAL | IP_CT_TCP_FLAG_SACK_PERM;
-	nfct_set_attr_u8(ct, ATTR_TCP_FLAGS_ORIG, flags);
-	nfct_set_attr_u8(ct, ATTR_TCP_MASK_ORIG, flags);
-	nfct_set_attr_u8(ct, ATTR_TCP_FLAGS_REPL, flags);
-	nfct_set_attr_u8(ct, ATTR_TCP_MASK_REPL, flags);
-
-	ret = nfct_query(STATE(dump), NFCT_Q_CREATE_UPDATE, ct);
+	ret = nl_create_conntrack(ct);
 	if (ret == -1) {
 		switch(errno) {
 			case EEXIST:

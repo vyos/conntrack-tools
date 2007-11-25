@@ -49,7 +49,7 @@ struct ct_conf conf;
 %token T_REPLICATE T_FOR T_IFACE 
 %token T_ESTABLISHED T_SYN_SENT T_SYN_RECV T_FIN_WAIT 
 %token T_CLOSE_WAIT T_LAST_ACK T_TIME_WAIT T_CLOSE T_LISTEN
-%token T_SYSLOG
+%token T_SYSLOG T_WRITE_THROUGH
 
 
 %token <string> T_IP T_PATH_VAL
@@ -366,6 +366,7 @@ sync_line: refreshtime
 	 | sync_mode_nack
 	 | listen_to
 	 | state_replication
+	 | cache_writethrough
 	 ;
 
 sync_mode_persistent: T_SYNC_MODE T_PERSISTENT '{' sync_mode_persistent_list '}'
@@ -498,6 +499,16 @@ tcp_state: T_LISTEN
 {
 	extern struct state_replication_helper tcp_state_helper;
 	state_helper_register(&tcp_state_helper, TCP_CONNTRACK_LISTEN);
+};
+
+cache_writethrough: T_WRITE_THROUGH T_ON
+{
+	conf.cache_write_through = 1;
+};
+
+cache_writethrough: T_WRITE_THROUGH T_OFF
+{
+	conf.cache_write_through = 0;
 };
 
 general: T_GENERAL '{' general_list '}';

@@ -7,6 +7,7 @@ o include kernel options and Fedora comments in the INSTALL file
 = conntrackd =
 o Remove window tracking disabling limitation (requires Linux kernel >= 2.6.22)
 o syslog support (based on patch from Simon Lodal)
+o add CacheWriteThrough clause: external cache write through policy
 
 version 0.9.5 (2007/07/29)
 ------------------------------

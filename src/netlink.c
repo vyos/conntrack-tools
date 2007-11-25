@@ -194,3 +194,34 @@ int nl_dump_conntrack_table(void)
 {
 	return nfct_query(STATE(dump), NFCT_Q_DUMP, &CONFIG(family));
 }
+
+/* This function modifies the conntrack passed as argument! */
+int nl_create_conntrack(struct nf_conntrack *ct)
+{
+	u_int8_t flags;
+
+	/* XXX: related connections */
+	if (nfct_attr_is_set(ct, ATTR_STATUS)) {
+		u_int32_t status = nfct_get_attr_u32(ct, ATTR_STATUS);
+		status &= ~IPS_EXPECTED;
+		nfct_set_attr_u32(ct, ATTR_STATUS, status);
+	}
+
+	nfct_setobjopt(ct, NFCT_SOPT_SETUP_REPLY);
+
+	/*
+	 * TCP flags to overpass window tracking for recovered connections
+	 */
+	flags = IP_CT_TCP_FLAG_BE_LIBERAL | IP_CT_TCP_FLAG_SACK_PERM;
+	nfct_set_attr_u8(ct, ATTR_TCP_FLAGS_ORIG, flags);
+	nfct_set_attr_u8(ct, ATTR_TCP_MASK_ORIG, flags);
+	nfct_set_attr_u8(ct, ATTR_TCP_FLAGS_REPL, flags);
+	nfct_set_attr_u8(ct, ATTR_TCP_MASK_REPL, flags);
+
+	return nfct_query(STATE(dump), NFCT_Q_CREATE_UPDATE, ct);
+}
+
+int nl_destroy_conntrack(struct nf_conntrack *ct)
+{
+	return nfct_query(STATE(dump), NFCT_Q_DESTROY, ct);
+}

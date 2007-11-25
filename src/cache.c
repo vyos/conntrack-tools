@@ -110,6 +110,7 @@ static int compare6(const void *data1, const void *data2)
 struct cache_feature *cache_feature[CACHE_MAX_FEATURE] = {
 	[TIMER_FEATURE]		= &timer_feature,
 	[LIFETIME_FEATURE]	= &lifetime_feature,
+	[WRITE_THROUGH_FEATURE] = &writethrough_feature,
 };
 
 struct cache *cache_create(char *name, 
@@ -263,14 +264,6 @@ static struct us_conntrack *__update(struct cache *c, struct nf_conntrack *ct)
 		int i;
 		void *data = u->data;
 
-		for (i = 0; i < c->num_features; i++) {
-			c->features[i]->update(u, data);
-			data += c->features[i]->size;
-		}
-
-		if (c->extra && c->extra->update)
-			c->extra->update(u, ((void *) u) + c->extra_offset);
-
 		if (nfct_attr_is_set(ct, ATTR_STATUS))
 		    	nfct_set_attr_u32(u->ct, ATTR_STATUS,
 					  nfct_get_attr_u32(ct, ATTR_STATUS));
@@ -280,6 +273,14 @@ static struct us_conntrack *__update(struct cache *c, struct nf_conntrack *ct)
 		if (nfct_attr_is_set(ct, ATTR_TIMEOUT))
 			nfct_set_attr_u32(u->ct, ATTR_TIMEOUT,
 					  nfct_get_attr_u32(ct, ATTR_TIMEOUT));
+
+		for (i = 0; i < c->num_features; i++) {
+			c->features[i]->update(u, data);
+			data += c->features[i]->size;
+		}
+
+		if (c->extra && c->extra->update)
+			c->extra->update(u, ((void *) u) + c->extra_offset);
 
 		return u;
 	} 

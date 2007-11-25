@@ -86,6 +86,7 @@ struct ct_conf {
 	int family;			/* protocol family */
 	unsigned int resend_buffer_size;/* NACK protocol */
 	unsigned int window_size;
+	int cache_write_through;
 };
 
 #define STATE(x) st.x
