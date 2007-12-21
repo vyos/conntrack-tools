@@ -55,6 +55,7 @@ parse h[ATTR_MAX] = {
 	[ATTR_TIMEOUT]		= parse_u32,
 	[ATTR_MARK]		= parse_u32,
 	[ATTR_STATUS]		= parse_u32,
+	[ATTR_SECMARK]		= parse_u32,
 };
 
 void parse_netpld(struct nf_conntrack *ct, struct netpld *pld, int *query)

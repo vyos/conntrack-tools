@@ -1,0 +1,81 @@
+.TH CONNTRACKD 8 "Dec 21, 2007" "" ""
+
+.\" Man page written by Pablo Neira Ayuso <pablo@netfilter.org> (Dec 2007)
+
+.SH NAME
+conntrackd \- netfilter connection tracking userspace daemon
+.SH SYNOPSIS
+.BR "conntrackd [options]"
+.SH DESCRIPTION
+.B conntrackd
+provides a userspace daemon for the netfilter connection tracking system. This daemon synchronizes connection tracking states among several replica firewalls. Thus,
+.B conntrackd 
+can be used to implement highly available stateful firewalls. The daemon fully supports Primary-Backup and Multiprimary setups for both symmetric and asymmetric paths. It can also be used as statistics collector.
+.SH OPTIONS
+The options recognized by
+.B conntrackd
+can be divided into several different groups.
+.SS MODES
+These options specify the particular operation mode in which conntrackd runs. Only one of them can be specified at any given time.
+.TP
+.BI "-d "
+Run conntrackd in daemon mode. This option can be combined with "-S"
+.TP
+.BI "-S "
+Run conntrackd in statistics mode. Default mode is synchronization mode, so if you want to use
+.B conntrackd
+in statistics mode, you have to pass this option
+.SS CLIENT COMMANDS
+.B conntrackd 
+can be used in client mode to request several information and operations to a running daemon
+.TP
+.BI "-i "
+Dump the internal cache, i.e. show local states
+.TP
+.BI "-e "
+Dump the external cache, i.e. show foreign states
+.TP
+.BI "-x "
+Display output in XML format. This option is only valid in combination
+with "-i" and "-e" parameters.
+.TP
+.BI "-f "
+Flush the internal and the external cache
+.TP
+.BI "-k "
+Kill the daemon
+.TP
+.BI "-s "
+Dump statistics
+.TP
+.BI "-R "
+Force a resync against the kernel connection tracking table
+.SH DIAGNOSTICS
+The exit code is 0 for correct function. Errors cause an exit code of 1.
+.SH EXAMPLES
+.TP
+.B conntrackd \-d
+Runs conntrackd in daemon and synchronization mode
+.TP
+.B conntrackd \-i
+Dumps the states held in the internal cache, i.e. those handled by this firewall
+.TP
+.B conntrackd \-e
+Dumps the states held in the external cache, i.e. those handled by other replica firewalls
+.TP
+.B conntrackd \-c
+Commits the internal cache into the kernel connection tracking system. This is used to inject the state so that the connections can be recovered during the failover.
+.SH DEPENDENCIES
+This daemon requires a Linux kernel version >= 2.6.18. TCP window tracking support requires >= 2.6.22, otherwise you have to disable it. Helpers are fully supported since >= 2.6.25, however, if you use any previous version, depending on the protocol helper and your setup (e.g. if you setup performs NAT sequence adjustments or not), your help connection may be successfully recovered.
+.TP
+There are several unsupported stateful iptables matches such as recent, connbytes and the quota matches which gather internal information to operate. Since that information does not belong to the domain of the connection tracking system, connections affected by those matches may not be fully recovered during the takeover.
+.SH SEE ALSO
+.BR conntrack (8), iptables (8)
+.br
+.BR "http://people.netfilter.org/pablo/conntrack-tools/"
+.SH AUTHORS
+Pablo Neira Ayuso wrote and maintains the conntrackd tool
+.TP
+Please send bug reports to <netfilter-failover@lists.netfilter.org>. Subscription is required.
+.PP
+Man page written by Pablo Neira Ayuso <pablo@netfilter.org>.

@@ -2,28 +2,32 @@ There are several tasks that are pending to be done, I have classified them
 by dificulty levels:
 
 = Relatively easy =
- * add syslog support (based on Simon Lodal's patch)
- * improve shell scripts for keepalived/heartbeat: *really* important
- * use NACK based protocol, feedback: call pablo :-)
- * manpage for conntrackd(8)
- * use the floating priority feature in keepalived to avoid premature
-   take over.
+ [ ] improve shell scripts for keepalived/heartbeat: *really* important
+ [ ] NACK as default protocol
+ [ ] rename persistent to alarm
+ [X] manpage for conntrackd(8)
+ [ ] add scripts to use the floating priority feature in keepalived to avoid 
+     premature take over.
+ [ ] ignorepool with unlimited size and ignore networks
+ [ ] selective conntracks removal
+ [ ] debian/rpm packages
+ [ ] improve website
+ [ ] Dumazet improvement hashtable (multiply vs. divide)
+ [X] add secmark support
 
 = Requires some work =
- * study better keepalived transitions
- * test/fix ipv6 support
- * have a look at open issues
- * implement support for TCP window tracking (patches are on the table) at 
-   the moment you have to disable it:
+ [ ] study better keepalived transitions
+ [ ] test/fix ipv6 support
+ [ ] add support setup related conntracks
+ [ ] NAT sequence adjustment support
 
-  	echo 1 > /proc/sys/net/ipv4/netfilter/ip_conntrack_tcp_be_liberal
-
-= Requires kernel patches =
- * setup master conntrack to match IPCT_RELATED
-
-= Open issues =
- * unsupported iptables matches:
+= Open issues that won't be ever resolved =
+ * unsupported stateful iptables matches:
    * connbytes: probably the persistent may support it
    * recent: requires further study
    * quota: private data counters
- * connection tracking NAT helpers: sequence adjustment issues (?)
+
+= conntrack =
+ * add support for -D --dport 1000
+ * improve error messages
+ * add support for SCTP (requires kernel >= 2.6.25)

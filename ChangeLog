@@ -4,10 +4,18 @@ version 0.9.6 (yet unreleased)
 o fix compilation problem due to missing headers (Krisztian Kovacs)
 o include kernel options and Fedora comments in the INSTALL file
 
+= conntrack =
+o fix missing `-g' and `-n' options in getopt_long control string
+o add support for secmark (requires Linux kernel >= 2.6.25)
+o add mark and secmark information to the manpage
+o cleanup error message
+
 = conntrackd =
 o Remove window tracking disabling limitation (requires Linux kernel >= 2.6.22)
 o syslog support (based on patch from Simon Lodal)
 o add CacheWriteThrough clause: external cache write through policy
+o add support for secmark (requires Linux kernel >= 2.6.25)
+o add conntrackd (8) manpage
 
 version 0.9.5 (2007/07/29)
 ------------------------------

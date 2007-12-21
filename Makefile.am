@@ -4,7 +4,7 @@ include Make_global.am
 # have all needed files, that a GNU package needs
 AUTOMAKE_OPTIONS = foreign dist-bzip2 1.6
 
-man_MANS = conntrack.8
+man_MANS = conntrack.8 conntrackd.8
 EXTRA_DIST = $(man_MANS) Make_global.am ChangeLog TODO examples
 
 SUBDIRS   = extensions src

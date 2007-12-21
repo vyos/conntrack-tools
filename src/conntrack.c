@@ -67,7 +67,7 @@ static const char cmd_need_param[NUMBER_OF_CMD]
 static const char *optflags[NUMBER_OF_OPT] = {
 "src","dst","reply-src","reply-dst","protonum","timeout","status","zero",
 "event-mask","tuple-src","tuple-dst","mask-src","mask-dst","nat-range","mark",
-"id","family","src-nat","dst-nat","output" };
+"id","family","src-nat","dst-nat","output","secmark"};
 
 static struct option original_opts[] = {
 	{"dump", 2, 0, 'L'},
@@ -96,6 +96,7 @@ static struct option original_opts[] = {
 	{"mask-dst", 1, 0, '}'},
 	{"nat-range", 1, 0, 'a'},	/* deprecated */
 	{"mark", 1, 0, 'm'},
+	{"secmark", 1, 0, 'c'},
 	{"id", 2, 0, 'i'},		/* deprecated */
 	{"family", 1, 0, 'f'},
 	{"src-nat", 2, 0, 'n'},
@@ -122,22 +123,22 @@ static unsigned int global_option_offset = 0;
 static char commands_v_options[NUMBER_OF_CMD][NUMBER_OF_OPT] =
 /* Well, it's better than "Re: Linux vs FreeBSD" */
 {
-          /*   s d r q p t u z e [ ] { } a m i f n g o */
-/*CT_LIST*/   {2,2,2,2,2,0,0,2,0,0,0,0,0,0,2,2,2,2,2,2},
-/*CT_CREATE*/ {2,2,2,2,1,1,1,0,0,0,0,0,0,2,2,0,0,2,2,0},
-/*CT_UPDATE*/ {2,2,2,2,1,2,2,0,0,0,0,0,0,0,2,2,0,0,0,0},
-/*CT_DELETE*/ {2,2,2,2,2,0,0,0,0,0,0,0,0,0,0,2,0,0,0,0},
-/*CT_GET*/    {2,2,2,2,1,0,0,0,0,0,0,0,0,0,0,2,0,0,0,2},
-/*CT_FLUSH*/  {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-/*CT_EVENT*/  {2,2,2,2,2,0,0,0,2,0,0,0,0,0,2,0,0,2,2,2},
-/*VERSION*/   {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-/*HELP*/      {0,0,0,0,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-/*EXP_LIST*/  {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,2,0,0,0},
-/*EXP_CREATE*/{1,1,2,2,1,1,2,0,0,1,1,1,1,0,0,0,0,0,0,0},
-/*EXP_DELETE*/{1,1,2,2,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-/*EXP_GET*/   {1,1,2,2,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-/*EXP_FLUSH*/ {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-/*EXP_EVENT*/ {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+          /*   s d r q p t u z e [ ] { } a m i f n g o c */
+/*CT_LIST*/   {2,2,2,2,2,0,0,2,0,0,0,0,0,0,2,2,2,2,2,2,2},
+/*CT_CREATE*/ {2,2,2,2,1,1,1,0,0,0,0,0,0,2,2,0,0,2,2,0,2},
+/*CT_UPDATE*/ {2,2,2,2,1,2,2,0,0,0,0,0,0,0,2,2,0,0,0,0,2},
+/*CT_DELETE*/ {2,2,2,2,2,0,0,0,0,0,0,0,0,0,0,2,0,0,0,0,0},
+/*CT_GET*/    {2,2,2,2,1,0,0,0,0,0,0,0,0,0,0,2,0,0,0,2,0},
+/*CT_FLUSH*/  {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+/*CT_EVENT*/  {2,2,2,2,2,0,0,0,2,0,0,0,0,0,2,0,0,2,2,2,2},
+/*VERSION*/   {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+/*HELP*/      {0,0,0,0,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+/*EXP_LIST*/  {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,2,0,0,0,0},
+/*EXP_CREATE*/{1,1,2,2,1,1,2,0,0,1,1,1,1,0,0,0,0,0,0,0,0},
+/*EXP_DELETE*/{1,1,2,2,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+/*EXP_GET*/   {1,1,2,2,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+/*EXP_FLUSH*/ {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+/*EXP_EVENT*/ {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
 };
 
 static LIST_HEAD(proto_list);
@@ -145,7 +146,8 @@ static LIST_HEAD(proto_list);
 static unsigned int options;
 static unsigned int command;
 
-#define CT_COMPARISON (CT_OPT_PROTO | CT_OPT_ORIG | CT_OPT_REPL | CT_OPT_MARK)
+#define CT_COMPARISON (CT_OPT_PROTO | CT_OPT_ORIG | CT_OPT_REPL | CT_OPT_MARK |\
+		       CT_OPT_SECMARK)
 
 void register_proto(struct ctproto_handler *h)
 {
@@ -206,7 +208,6 @@ void exit_error(enum exittype status, char *msg, ...)
 	fprintf(stderr,"%s v%s: ", PROGNAME, VERSION);
 	vfprintf(stderr, msg, args);
 	va_end(args);
-	fprintf(stderr, "\n");
 	if (status == PARAMETER_PROBLEM)
 		exit_tryhelp(status);
 	exit(status);
@@ -522,6 +523,7 @@ static const char usage_conntrack_parameters[] =
 	"  -n, --src-nat ip\t\t\tsource NAT ip\n"
 	"  -g, --dst-nat ip\t\t\tdestination NAT ip\n"
 	"  -m, --mark mark\t\t\tSet mark\n"
+	"  -c, --secmark secmark\t\t\tSet selinux secmark\n"
 	"  -e, --event-mask eventmask\t\tEvent mask, eg. NEW,DESTROY\n"
 	"  -z, --zero \t\t\t\tZero counters while listing\n"
 	"  -o, --output type[,...]\t\tOutput format, eg. xml\n";
@@ -556,7 +558,7 @@ void usage(char *prog) {
 	fprintf(stdout, "\n%s", usage_tables);
 	fprintf(stdout, "\n%s", usage_conntrack_parameters);
 	fprintf(stdout, "\n%s", usage_expectation_parameters);
-	fprintf(stdout, "\n%s", usage_parameters);
+	fprintf(stdout, "\n%s\n", usage_parameters);
 }
 
 static unsigned int output_mask;
@@ -677,9 +679,10 @@ int main(int argc, char *argv[])
 	register_udp();
 	register_icmp();
 
-	while ((c = getopt_long(argc, argv, 
-		"L::I::U::D::G::E::F::hVs:d:r:q:p:t:u:e:a:z[:]:{:}:m:i::f:o:", 
-		opts, NULL)) != -1) {
+	while ((c = getopt_long(argc, argv, "L::I::U::D::G::E::F::hVs:d:r:q:"
+					    "p:t:u:e:a:z[:]:{:}:m:i::f:o:n::"
+					    "g::c:", 
+					    opts, NULL)) != -1) {
 	switch(c) {
 		case 'L':
 			type = check_type(argc, argv);
@@ -947,6 +950,12 @@ int main(int argc, char *argv[])
 			if (!optarg)
 				continue;
 			nfct_set_attr_u32(obj, ATTR_MARK, atol(optarg));
+			break;
+		case 'c':
+			options |= CT_OPT_SECMARK;
+			if (!optarg)
+				continue;
+			nfct_set_attr_u32(obj, ATTR_SECMARK, atol(optarg));
 			break;
 		case 'i':
 			printf("warning: ignoring --id. deprecated option.\n");
