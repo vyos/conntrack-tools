@@ -21,6 +21,7 @@ o Use more appropriate names for the existing synchronization modes:
 	o rename `persistent' mode to `alarm'
 	o rename `nack' mode to `ftfw'
 o Now default synchronization mode is ftfw instead of alarm
+o rename `examples' directory to `doc'
 
 version 0.9.5 (2007/07/29)
 ------------------------------
