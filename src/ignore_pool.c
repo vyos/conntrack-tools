@@ -22,8 +22,9 @@
 #include "ignore.h"
 #include <libnetfilter_conntrack/libnetfilter_conntrack.h>
 
-#define IGNORE_POOL_SIZE 32
-#define IGNORE_POOL_LIMIT 1024
+/* XXX: These should be configurable */
+#define IGNORE_POOL_SIZE 128
+#define IGNORE_POOL_LIMIT INT_MAX
 
 static u_int32_t hash(const void *data, struct hashtable *table)
 {
