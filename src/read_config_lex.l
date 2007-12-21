@@ -45,6 +45,8 @@ ip6		{ip6_form1}|{ip6_form2}
 string		[a-zA-Z][a-zA-Z0-9]*
 persistent	[P|p][E|e][R|r][S|s][I|i][S|s][T|t][E|e][N|n][T|T]
 nack		[N|n][A|a][C|c][K|k]
+alarm		[A|a][L|l][A|a][R|r][M|m]
+ftfw		[F|f][T|t][F|f][W|w]
 
 %%
 "UNIX"				{ return T_UNIX; }
@@ -107,8 +109,16 @@ nack		[N|n][A|a][C|c][K|k]
 {ip4}			{ yylval.string = strdup(yytext); return T_IP; }
 {ip6}			{ yylval.string = strdup(yytext); return T_IP; }
 {path}			{ yylval.string = strdup(yytext); return T_PATH_VAL; }
-{persistent}		{ return T_PERSISTENT; }
-{nack}			{ return T_NACK; }
+{alarm}			{ return T_ALARM; }
+{persistent}		{ printf("WARNING: Now `persistent' mode is called "
+				 "`alarm'. Please, update your "
+				 "your conntrackd.conf file.\n");
+			  return T_ALARM; }
+{ftfw}			{ return T_FTFW; }
+{nack}			{ printf("WARNING: Now `nack' mode is called "
+				 "`ftfw'. Please, update your "
+				 "your conntrackd.conf file.\n");
+			  return T_FTFW; }
 {string}		{ yylval.string = strdup(yytext); return T_STRING; }
 
 {comment}	;

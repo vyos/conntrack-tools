@@ -18,7 +18,7 @@ struct sync_mode {
 	void (*run)(int step);
 };
 
-extern struct sync_mode notrack;
-extern struct sync_mode nack;
+extern struct sync_mode alarm;
+extern struct sync_mode ftfw;
 
 #endif

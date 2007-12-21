@@ -17,6 +17,10 @@ o add CacheWriteThrough clause: external cache write through policy
 o add support for secmark (requires Linux kernel >= 2.6.25)
 o add conntrackd (8) manpage
 o raise ignorepool maximum limit from 1024 to INT_MAX
+o Use more appropriate names for the existing synchronization modes:
+	o rename `persistent' mode to `alarm'
+	o rename `nack' mode to `ftfw'
+o Now default synchronization mode is ftfw instead of alarm
 
 version 0.9.5 (2007/07/29)
 ------------------------------

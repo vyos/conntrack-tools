@@ -36,7 +36,7 @@ static void refresher(struct alarm_list *a, void *data)
 	mcast_buffered_send_netmsg(STATE_SYNC(mcast_client), net, len);
 }
 
-static void cache_notrack_add(struct us_conntrack *u, void *data)
+static void cache_alarm_add(struct us_conntrack *u, void *data)
 {
 	struct alarm_list *alarm = data;
 
@@ -47,33 +47,33 @@ static void cache_notrack_add(struct us_conntrack *u, void *data)
 	add_alarm(alarm);
 }
 
-static void cache_notrack_update(struct us_conntrack *u, void *data)
+static void cache_alarm_update(struct us_conntrack *u, void *data)
 {
 	struct alarm_list *alarm = data;
 	mod_alarm(alarm, (random() % conf.refresh) + 1);
 }
 
-static void cache_notrack_destroy(struct us_conntrack *u, void *data)
+static void cache_alarm_destroy(struct us_conntrack *u, void *data)
 {
 	struct alarm_list *alarm = data;
 	del_alarm(alarm);
 }
 
-static struct cache_extra cache_notrack_extra = {
+static struct cache_extra cache_alarm_extra = {
 	.size 		= sizeof(struct alarm_list),
-	.add		= cache_notrack_add,
-	.update		= cache_notrack_update,
-	.destroy	= cache_notrack_destroy
+	.add		= cache_alarm_add,
+	.update		= cache_alarm_update,
+	.destroy	= cache_alarm_destroy
 };
 
-static int notrack_recv(const struct nethdr *net)
+static int alarm_recv(const struct nethdr *net)
 {
 	unsigned int exp_seq;
 
 	/* 
 	 * Ignore error messages: Although this message type is not ever
-	 * generated in notrack mode, we don't want to crash the daemon 
-	 * if someone nuts mixes nack and notrack.
+	 * generated in alarm mode, we don't want to crash the daemon 
+	 * if someone nuts mixes ftfw and alarm.
 	 */
 	if (net->flags)
 		return 1;
@@ -96,9 +96,9 @@ static int notrack_recv(const struct nethdr *net)
 	return 0;
 }
 
-struct sync_mode notrack = {
+struct sync_mode alarm = {
 	.internal_cache_flags	= LIFETIME,
 	.external_cache_flags	= TIMER | LIFETIME,
-	.internal_cache_extra	= &cache_notrack_extra,
-	.recv 			= notrack_recv,
+	.internal_cache_extra	= &cache_alarm_extra,
+	.recv 			= alarm_recv,
 };

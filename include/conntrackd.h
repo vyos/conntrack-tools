@@ -34,11 +34,11 @@
 #define DEFAULT_SYSLOG_FACILITY	LOG_DAEMON
 
 enum {
-	SYNC_MODE_PERSISTENT_BIT = 0,
-	SYNC_MODE_PERSISTENT = (1 << SYNC_MODE_PERSISTENT_BIT),
+	SYNC_MODE_ALARM_BIT = 0,
+	SYNC_MODE_ALARM = (1 << SYNC_MODE_ALARM_BIT),
 
-	SYNC_MODE_NACK_BIT = 1,
-	SYNC_MODE_NACK = (1 << SYNC_MODE_NACK_BIT),
+	SYNC_MODE_FTFW_BIT = 1,
+	SYNC_MODE_FTFW = (1 << SYNC_MODE_FTFW_BIT),
 
 	DONT_CHECKSUM_BIT = 2,
 	DONT_CHECKSUM = (1 << DONT_CHECKSUM_BIT),
@@ -84,7 +84,7 @@ struct ct_conf {
 	unsigned int listen_to_len;
 	unsigned int flags;
 	int family;			/* protocol family */
-	unsigned int resend_buffer_size;/* NACK protocol */
+	unsigned int resend_buffer_size;/* FTFW protocol */
 	unsigned int window_size;
 	int cache_write_through;
 };

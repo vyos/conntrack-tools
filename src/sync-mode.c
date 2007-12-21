@@ -126,11 +126,11 @@ static int init_sync(void)
 	}
 	memset(state.sync, 0, sizeof(struct ct_sync_state));
 
-	if (CONFIG(flags) & SYNC_MODE_NACK)
-		STATE_SYNC(sync) = &nack;
+	if (CONFIG(flags) & SYNC_MODE_FTFW)
+		STATE_SYNC(sync) = &ftfw;
 	else
-		/* default to persistent mode */
-		STATE_SYNC(sync) = &notrack;
+		/* default to ftfw mode */
+		STATE_SYNC(sync) = &ftfw;
 
 	if (STATE_SYNC(sync)->init)
 		STATE_SYNC(sync)->init();

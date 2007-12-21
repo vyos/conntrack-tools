@@ -40,22 +40,22 @@ static unsigned int tx_list_len;
 static struct buffer *rs_queue;
 static struct buffer *tx_queue;
 
-struct cache_nack {
+struct cache_ftfw {
 	struct list_head 	rs_list;
 	struct list_head	tx_list;
 	u_int32_t 		seq;
 };
 
-static void cache_nack_add(struct us_conntrack *u, void *data)
+static void cache_ftfw_add(struct us_conntrack *u, void *data)
 {
-	struct cache_nack *cn = data;
+	struct cache_ftfw *cn = data;
 	INIT_LIST_HEAD(&cn->rs_list);
 	INIT_LIST_HEAD(&cn->tx_list);
 }
 
-static void cache_nack_del(struct us_conntrack *u, void *data)
+static void cache_ftfw_del(struct us_conntrack *u, void *data)
 {
-	struct cache_nack *cn = data;
+	struct cache_ftfw *cn = data;
 
 	if (cn->rs_list.next == &cn->rs_list &&
 	    cn->rs_list.prev == &cn->rs_list)
@@ -64,13 +64,13 @@ static void cache_nack_del(struct us_conntrack *u, void *data)
 	list_del(&cn->rs_list);
 }
 
-static struct cache_extra cache_nack_extra = {
-	.size 		= sizeof(struct cache_nack),
-	.add		= cache_nack_add,
-	.destroy	= cache_nack_del
+static struct cache_extra cache_ftfw_extra = {
+	.size 		= sizeof(struct cache_ftfw),
+	.add		= cache_ftfw_add,
+	.destroy	= cache_ftfw_del
 };
 
-static int nack_init()
+static int ftfw_init()
 {
 	tx_queue = buffer_create(CONFIG(resend_buffer_size));
 	if (tx_queue == NULL) {
@@ -90,7 +90,7 @@ static int nack_init()
 	return 0;
 }
 
-static void nack_kill()
+static void ftfw_kill()
 {
 	buffer_destroy(rs_queue);
 	buffer_destroy(tx_queue);
@@ -110,7 +110,7 @@ static void tx_queue_add_ctlmsg(u_int32_t flags, u_int32_t from, u_int32_t to)
 static int do_cache_to_tx(void *data1, void *data2)
 {
 	struct us_conntrack *u = data2;
-	struct cache_nack *cn = cache_get_extra(STATE_SYNC(internal), u);
+	struct cache_ftfw *cn = cache_get_extra(STATE_SYNC(internal), u);
 
 	/* add to tx list */
 	list_add(&cn->tx_list, &tx_list);
@@ -119,7 +119,7 @@ static int do_cache_to_tx(void *data1, void *data2)
 	return 0;
 }
 
-static int nack_local(int fd, int type, void *data)
+static int ftfw_local(int fd, int type, void *data)
 {
 	int ret = 1;
 
@@ -171,7 +171,7 @@ static void rs_list_to_tx(struct cache *c, unsigned int from, unsigned int to)
 	struct us_conntrack *u;
 
 	list_for_each(n, &rs_list) {
-		struct cache_nack *cn = (struct cache_nack *) n;
+		struct cache_ftfw *cn = (struct cache_ftfw *) n;
 		struct us_conntrack *u;
 		
 		u = cache_get_conntrack(STATE_SYNC(internal), cn);
@@ -188,7 +188,7 @@ static void rs_list_empty(struct cache *c, unsigned int from, unsigned int to)
 	struct list_head *n, *tmp;
 
 	list_for_each_safe(n, tmp, &rs_list) {
-		struct cache_nack *cn = (struct cache_nack *) n;
+		struct cache_ftfw *cn = (struct cache_ftfw *) n;
 		struct us_conntrack *u;
 
 		u = cache_get_conntrack(STATE_SYNC(internal), cn);
@@ -200,7 +200,7 @@ static void rs_list_empty(struct cache *c, unsigned int from, unsigned int to)
 	}
 }
 
-static int nack_recv(const struct nethdr *net)
+static int ftfw_recv(const struct nethdr *net)
 {
 	static unsigned int window = 0;
 	unsigned int exp_seq;
@@ -246,17 +246,17 @@ static int nack_recv(const struct nethdr *net)
 	return 0;
 }
 
-static void nack_send(struct nethdr *net, struct us_conntrack *u)
+static void ftfw_send(struct nethdr *net, struct us_conntrack *u)
 {
 	struct netpld *pld = NETHDR_DATA(net);
-	struct cache_nack *cn;
+	struct cache_ftfw *cn;
 
 	HDR_NETWORK2HOST(net);
 
 	switch(ntohs(pld->query)) {
 	case NFCT_Q_CREATE:
 	case NFCT_Q_UPDATE:
-		cn = (struct cache_nack *) 
+		cn = (struct cache_ftfw *) 
 			cache_get_extra(STATE_SYNC(internal), u);
 
 		if (cn->rs_list.next == &cn->rs_list &&
@@ -325,7 +325,7 @@ static void do_alive_alarm(struct alarm_list *a, void *data)
 	tx_queue_add_ctlmsg(NET_F_ALIVE, 0, 0);
 }
 
-static void nack_run(int step)
+static void ftfw_run(int step)
 {
 	struct list_head *i, *tmp;
 
@@ -334,10 +334,10 @@ static void nack_run(int step)
 
 	/* send conntracks in the tx_list */
 	list_for_each_safe(i, tmp, &tx_list) {
-		struct cache_nack *cn;
+		struct cache_ftfw *cn;
 		struct us_conntrack *u;
 
-		cn = container_of(i, struct cache_nack, tx_list);
+		cn = container_of(i, struct cache_ftfw, tx_list);
 		u = cache_get_conntrack(STATE_SYNC(internal), cn);
 		tx_list_xmit(i, u);
 	}
@@ -353,14 +353,14 @@ static void nack_run(int step)
 	}
 }
 
-struct sync_mode nack = {
+struct sync_mode ftfw = {
 	.internal_cache_flags	= LIFETIME,
 	.external_cache_flags	= LIFETIME,
-	.internal_cache_extra	= &cache_nack_extra,
-	.init			= nack_init,
-	.kill			= nack_kill,
-	.local			= nack_local,
-	.recv			= nack_recv,
-	.send			= nack_send,
-	.run			= nack_run,
+	.internal_cache_extra	= &cache_ftfw_extra,
+	.init			= ftfw_init,
+	.kill			= ftfw_kill,
+	.local			= ftfw_local,
+	.recv			= ftfw_recv,
+	.send			= ftfw_send,
+	.run			= ftfw_run,
 };

@@ -45,7 +45,7 @@ struct ct_conf conf;
 %token T_LOCK T_STRIP_NAT T_BUFFER_SIZE_MAX_GROWN T_EXPIRE T_TIMEOUT
 %token T_GENERAL T_SYNC T_STATS T_RELAX_TRANSITIONS T_BUFFER_SIZE T_DELAY
 %token T_SYNC_MODE T_LISTEN_TO T_FAMILY T_RESEND_BUFFER_SIZE
-%token T_PERSISTENT T_NACK T_CHECKSUM T_WINDOWSIZE T_ON T_OFF
+%token T_ALARM T_FTFW T_CHECKSUM T_WINDOWSIZE T_ON T_OFF
 %token T_REPLICATE T_FOR T_IFACE 
 %token T_ESTABLISHED T_SYN_SENT T_SYN_RECV T_FIN_WAIT 
 %token T_CLOSE_WAIT T_LAST_ACK T_TIME_WAIT T_CLOSE T_LISTEN
@@ -369,14 +369,14 @@ sync_line: refreshtime
 	 | cache_writethrough
 	 ;
 
-sync_mode_persistent: T_SYNC_MODE T_PERSISTENT '{' sync_mode_persistent_list '}'
+sync_mode_persistent: T_SYNC_MODE T_ALARM '{' sync_mode_persistent_list '}'
 {
-	conf.flags |= SYNC_MODE_PERSISTENT;
+	conf.flags |= SYNC_MODE_ALARM;
 };
 
-sync_mode_nack: T_SYNC_MODE T_NACK '{' sync_mode_nack_list '}'
+sync_mode_nack: T_SYNC_MODE T_FTFW '{' sync_mode_nack_list '}'
 {
-	conf.flags |= SYNC_MODE_NACK;
+	conf.flags |= SYNC_MODE_FTFW;
 };
 
 sync_mode_persistent_list:
