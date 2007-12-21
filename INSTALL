@@ -115,9 +115,9 @@ Copyright (C) 2005-2007 Pablo Neira Ayuso <pablo netfilter org>
         # cp examples/sync/_type_/node1/conntrackd.conf /etc/conntrackd.conf
 
     Where _type_ is the synchronization type selected, currently there are
-    two: the persistent mode and the NACK mode. The persistent mode consumes
-    more resources than the NACK mode but resolves synchronization issues 
-    better. On the other the NACK mode reduces resource consumption. I'll
+    two: the alarm mode and the FTFW mode. The alarm mode consumes
+    more resources than the FTFW mode but resolves synchronization issues 
+    better. On the other the FTFW mode reduces resource consumption. I'll
     provide more information on both approaches soon.
 
     Do not forget to edit the files in order to adapt them to the
@@ -171,7 +171,7 @@ Copyright (C) 2005-2007 Pablo Neira Ayuso <pablo netfilter org>
 
     Therefore, on failure event, the candidate node takes over the virtual
     IPs and the connections that the failing active was processing. Observe
-    that this file differs for the NACK mode.
+    that this file differs for the FTFW mode.
 
  6) Disable TCP window tracking
 

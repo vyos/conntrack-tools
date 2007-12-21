@@ -362,37 +362,37 @@ sync_line: refreshtime
 	 | multicast_line
 	 | relax_transitions
 	 | delay_destroy_msgs
-	 | sync_mode_persistent
-	 | sync_mode_nack
+	 | sync_mode_alarm
+	 | sync_mode_ftfw
 	 | listen_to
 	 | state_replication
 	 | cache_writethrough
 	 ;
 
-sync_mode_persistent: T_SYNC_MODE T_ALARM '{' sync_mode_persistent_list '}'
+sync_mode_alarm: T_SYNC_MODE T_ALARM '{' sync_mode_alarm_list '}'
 {
 	conf.flags |= SYNC_MODE_ALARM;
 };
 
-sync_mode_nack: T_SYNC_MODE T_FTFW '{' sync_mode_nack_list '}'
+sync_mode_ftfw: T_SYNC_MODE T_FTFW '{' sync_mode_ftfw_list '}'
 {
 	conf.flags |= SYNC_MODE_FTFW;
 };
 
-sync_mode_persistent_list:
-	      | sync_mode_persistent_list sync_mode_persistent_line;
+sync_mode_alarm_list:
+	      | sync_mode_alarm_list sync_mode_alarm_line;
 
-sync_mode_persistent_line: refreshtime
+sync_mode_alarm_line: refreshtime
               		 | expiretime
 	     		 | timeout
 			 | relax_transitions
 			 | delay_destroy_msgs
 			 ;
 
-sync_mode_nack_list:
-	      | sync_mode_nack_list sync_mode_nack_line;
+sync_mode_ftfw_list:
+	      | sync_mode_ftfw_list sync_mode_ftfw_line;
 
-sync_mode_nack_line: resend_buffer_size
+sync_mode_ftfw_line: resend_buffer_size
 		   | timeout
 		   | window_size
 		   ;

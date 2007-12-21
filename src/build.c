@@ -102,6 +102,20 @@ void build_netpld(struct nf_conntrack *ct, struct netpld *pld, int query)
 	if (nfct_attr_is_set(ct, ATTR_STATUS))
 		__build_u32(ct, pld, ATTR_STATUS);
 
+	/* setup the master conntrack */
+	if (nfct_attr_is_set(ct, ATTR_MASTER_IPV4_SRC))
+		__build_u32(ct, pld, ATTR_MASTER_IPV4_SRC);
+	if (nfct_attr_is_set(ct, ATTR_MASTER_IPV4_DST))
+		__build_u32(ct, pld, ATTR_MASTER_IPV4_DST);
+	if (nfct_attr_is_set(ct, ATTR_MASTER_L3PROTO))
+		__build_u8(ct, pld, ATTR_MASTER_L3PROTO);
+	if (nfct_attr_is_set(ct, ATTR_MASTER_PORT_SRC))
+		__build_u16(ct, pld, ATTR_MASTER_PORT_SRC);
+	if (nfct_attr_is_set(ct, ATTR_MASTER_PORT_DST))
+		__build_u16(ct, pld, ATTR_MASTER_PORT_DST);
+	if (nfct_attr_is_set(ct, ATTR_MASTER_L4PROTO))
+		__build_u8(ct, pld, ATTR_MASTER_L4PROTO);
+
 	/*  NAT */
 	if (nfct_getobjopt(ct, NFCT_GOPT_IS_SNAT)) {
 		u_int32_t data = nfct_get_attr_u32(ct, ATTR_REPL_IPV4_DST);

@@ -56,6 +56,12 @@ parse h[ATTR_MAX] = {
 	[ATTR_MARK]		= parse_u32,
 	[ATTR_STATUS]		= parse_u32,
 	[ATTR_SECMARK]		= parse_u32,
+	[ATTR_MASTER_IPV4_SRC]  = parse_u32,
+	[ATTR_MASTER_IPV4_DST]  = parse_u32,
+	[ATTR_MASTER_L3PROTO]   = parse_u8,
+	[ATTR_MASTER_PORT_SRC]  = parse_u16,
+	[ATTR_MASTER_PORT_DST]  = parse_u16,
+	[ATTR_MASTER_L4PROTO]   = parse_u8
 };
 
 void parse_netpld(struct nf_conntrack *ct, struct netpld *pld, int *query)

@@ -22,6 +22,7 @@ o Use more appropriate names for the existing synchronization modes:
 	o rename `nack' mode to `ftfw'
 o Now default synchronization mode is ftfw instead of alarm
 o rename `examples' directory to `doc'
+o add support for related conntracks (requires Linux kernel >= 2.6.22)
 
 version 0.9.5 (2007/07/29)
 ------------------------------
