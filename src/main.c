@@ -248,7 +248,7 @@ int main(int argc, char *argv[])
 	 */
 	STATE(log) = init_log(CONFIG(logfile));
 	if (config_set && !STATE(log)) {
-		fprintf(stdout, "can't open logfile `%s\n'", CONFIG(logfile));
+		fprintf(stderr, "can't open logfile `%s\n'", CONFIG(logfile));
 		exit(EXIT_FAILURE);
 	}
 

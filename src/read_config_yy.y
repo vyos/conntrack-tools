@@ -119,7 +119,8 @@ syslog_facility : T_SYSLOG T_STRING
 	else if (!strcmp($2, "local7"))
 		conf.syslog_facility = LOG_LOCAL7;
 	else {
-		fprintf(stderr, "'%s' is not a known syslog facility, ignoring.\n", $2);
+		fprintf(stderr, "'%s' is not a known syslog facility, "
+				"ignoring.\n", $2);
 		return;
 	}
 };
@@ -180,24 +181,24 @@ ignore_traffic_option : T_IPV4_ADDR T_IP
 #endif
 
 	if (!family) {
-		fprintf(stdout, "%s is not a valid IP, ignoring", $2);
+		fprintf(stderr, "%s is not a valid IP, ignoring", $2);
 		return;
 	}
 
 	if (!STATE(ignore_pool)) {
 		STATE(ignore_pool) = ignore_pool_create(family);
 		if (!STATE(ignore_pool)) {
-			fprintf(stdout, "Can't create ignore pool!\n");
+			fprintf(stderr, "Can't create ignore pool!\n");
 			exit(EXIT_FAILURE);
 		}
 	}
 
 	if (!ignore_pool_add(STATE(ignore_pool), &ip)) {
 		if (errno == EEXIST)
-			fprintf(stdout, "IP %s is repeated "
+			fprintf(stderr, "IP %s is repeated "
 					"in the ignore pool\n", $2);
 		if (errno == ENOSPC)
-			fprintf(stdout, "Too many IP in the ignore pool!\n");
+			fprintf(stderr, "Too many IP in the ignore pool!\n");
 	}
 };
 
@@ -327,7 +328,7 @@ ignore_proto: T_NUMBER
 	if ($1 < IPPROTO_MAX)
 		conf.ignore_protocol[$1] = 1;
 	else
-		fprintf(stdout, "Protocol number `%d' is freak\n", $1);
+		fprintf(stderr, "Protocol number `%d' is freak\n", $1);
 };
 
 ignore_proto: T_UDP
@@ -563,8 +564,8 @@ stat_line:
 int
 yyerror(char *msg)
 {
-	printf("Error parsing config file: ");
-	printf("line (%d), symbol '%s': %s\n", yylineno, yytext, msg);
+	fprintf(stderr, "Error parsing config file: ");
+	fprintf(stderr, "line (%d), symbol '%s': %s\n", yylineno, yytext, msg);
 	exit(EXIT_FAILURE);
 }
 
@@ -611,7 +612,7 @@ init_config(char *filename)
 	if (!STATE(ignore_pool)) {
 		STATE(ignore_pool) = ignore_pool_create(CONFIG(family));
 		if (!STATE(ignore_pool)) {
-			fprintf(stdout, "Can't create ignore pool!\n");
+			fprintf(stderr, "Can't create ignore pool!\n");
 			exit(EXIT_FAILURE);
 		}
 	}

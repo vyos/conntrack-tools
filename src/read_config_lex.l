@@ -110,14 +110,14 @@ ftfw		[F|f][T|t][F|f][W|w]
 {ip6}			{ yylval.string = strdup(yytext); return T_IP; }
 {path}			{ yylval.string = strdup(yytext); return T_PATH_VAL; }
 {alarm}			{ return T_ALARM; }
-{persistent}		{ printf("\nWARNING: Now `persistent' mode is called "
-				 "`alarm'. Please, update "
-				 "your conntrackd.conf file.\n");
+{persistent}		{ fprintf(stderr, "\nWARNING: Now `persistent' mode "
+				  "is called `alarm'. Please, update "
+				  "your conntrackd.conf file.\n");
 			  return T_ALARM; }
 {ftfw}			{ return T_FTFW; }
-{nack}			{ printf("\nWARNING: Now `nack' mode is called "
-				 "`ftfw'. Please, update "
-				 "your conntrackd.conf file.\n");
+{nack}			{ fprintf(stderr, "\nWARNING: Now `nack' mode "
+				  "is called `ftfw'. Please, update "
+				  "your conntrackd.conf file.\n");
 			  return T_FTFW; }
 {string}		{ yylval.string = strdup(yytext); return T_STRING; }
 

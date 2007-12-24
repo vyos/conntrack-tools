@@ -929,8 +929,8 @@ int main(int argc, char *argv[])
 					 l3protonum);
 			break;
 		case 'a':
-			printf("warning: ignoring --nat-range, "
-			       "use --src-nat or --dst-nat instead.\n");
+			fprintf(stderr, "warning: ignoring --nat-range, "
+			        "use --src-nat or --dst-nat instead.\n");
 			break;
 		case 'n':
 			options |= CT_OPT_SRC_NAT;
@@ -958,7 +958,8 @@ int main(int argc, char *argv[])
 			nfct_set_attr_u32(obj, ATTR_SECMARK, atol(optarg));
 			break;
 		case 'i':
-			printf("warning: ignoring --id. deprecated option.\n");
+			fprintf(stderr, 
+				"warning: ignoring --id. deprecated option.\n");
 			break;
 		case 'f':
 			options |= CT_OPT_FAMILY;
