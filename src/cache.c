@@ -38,7 +38,14 @@ static u_int32_t hash(const void *data, struct hashtable *table)
 		  ((nfct_get_attr_u16(ct, ATTR_ORIG_PORT_SRC) << 16) |
 		   (nfct_get_attr_u16(ct, ATTR_ORIG_PORT_DST))));
 
-	return jhash_2words(a, b, 0) % table->hashsize;
+	/*
+	 * Instead of returning hash % table->hashsize (implying a divide)
+	 * we return the high 32 bits of the (hash * table->hashsize) that will
+	 * give results between [0 and hashsize-1] and same hash distribution,
+	 * but using a multiply, less expensive than a divide. See:
+	 * http://www.mail-archive.com/netdev@vger.kernel.org/msg56623.html
+	 */
+	return ((u_int64_t)jhash_2words(a, b, 0) * table->hashsize) >> 32;
 }
 
 static u_int32_t hash6(const void *data, struct hashtable *table)
@@ -47,15 +54,15 @@ static u_int32_t hash6(const void *data, struct hashtable *table)
 	const struct us_conntrack *u = data;
 	struct nf_conntrack *ct = u->ct;
 
-	a = jhash(nfct_get_attr(ct, ATTR_ORIG_IPV6_SRC), sizeof(u_int32_t),
+	a = jhash(nfct_get_attr(ct, ATTR_ORIG_IPV6_SRC), sizeof(u_int32_t)*4,
 		  ((nfct_get_attr_u8(ct, ATTR_ORIG_L3PROTO) << 16) |
 		   (nfct_get_attr_u8(ct, ATTR_ORIG_L4PROTO))));
 
-	b = jhash(nfct_get_attr(ct, ATTR_ORIG_IPV6_DST), sizeof(u_int32_t),
+	b = jhash(nfct_get_attr(ct, ATTR_ORIG_IPV6_DST), sizeof(u_int32_t)*4,
 		  ((nfct_get_attr_u16(ct, ATTR_ORIG_PORT_SRC) << 16) |
 		   (nfct_get_attr_u16(ct, ATTR_ORIG_PORT_DST))));
 
-	return jhash_2words(a, b, 0) % table->hashsize;
+	return ((u_int64_t)jhash_2words(a, b, 0) * table->hashsize) >> 32;
 }
 
 static int __compare(const struct nf_conntrack *ct1, 

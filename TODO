@@ -11,9 +11,10 @@ by dificulty levels:
  [X] ignorepool with unlimited size and ignore networks
  [ ] selective conntracks removal
  [ ] debian/rpm packages
- [ ] improve website
- [ ] Dumazet improvement hashtable (multiply vs. divide)
+ [X] improve website
+ [X] Dumazet improvement hashtable (multiply vs. divide)
  [X] add secmark support
+ [ ] logging support for the statistics mode
 
 = Requires some work =
  [ ] study better keepalived transitions
