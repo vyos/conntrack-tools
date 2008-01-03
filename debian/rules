@@ -55,6 +55,7 @@ binary-indep: build install
 	dh_testroot -i
 	dh_installdocs -i -A README
 	dh_installchangelogs -i debian/no-upstream-changelog
+	dh_installinit -i
 	dh_install -i
 	dh_link -i
 	dh_strip -i
@@ -72,6 +73,7 @@ binary-arch: build install
 	dh_testroot -a
 	dh_installdocs -a
 	dh_installchangelogs -a
+	dh_installinit -a
 	dh_install -a
 	dh_link -a
 	dh_strip -a
