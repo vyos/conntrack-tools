@@ -118,7 +118,7 @@ int __ignore_pool_test_ipv6(struct ignore_pool *ip, struct nf_conntrack *ct)
 
 int ignore_pool_test(struct ignore_pool *ip, struct nf_conntrack *ct)
 {
-	int ret;
+	int ret = 0;
 
 	switch(nfct_get_attr_u8(ct, ATTR_ORIG_L3PROTO)) {
 	case AF_INET:
@@ -128,7 +128,7 @@ int ignore_pool_test(struct ignore_pool *ip, struct nf_conntrack *ct)
 		ret = __ignore_pool_test_ipv6(ip, ct);
 		break;
 	default:
-		dlog(STATE(log), "unknown conntrack layer 3 protocol?");
+		dlog(STATE(log), LOG_WARNING, "unknown layer 3 protocol?");
 		break;
 	}
 

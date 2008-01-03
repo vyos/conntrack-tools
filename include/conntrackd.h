@@ -31,6 +31,7 @@
 #define DEFAULT_CONFIGFILE	"/etc/conntrackd/conntrackd.conf"
 #define DEFAULT_LOCKFILE	"/var/lock/conntrackd.lock"
 #define DEFAULT_LOGFILE		"/var/log/conntrackd.log"
+#define DEFAULT_STATS_LOGFILE	"/var/log/conntrackd-stats.log"
 #define DEFAULT_SYSLOG_FACILITY	LOG_DAEMON
 
 enum {
@@ -87,6 +88,10 @@ struct ct_conf {
 	unsigned int resend_buffer_size;/* FTFW protocol */
 	unsigned int window_size;
 	int cache_write_through;
+	struct {
+		char logfile[FILENAME_MAXLEN];
+		int syslog_facility;
+	} stats;
 };
 
 #define STATE(x) st.x
@@ -94,6 +99,7 @@ struct ct_conf {
 struct ct_general_state {
 	sigset_t 			block;
 	FILE 				*log;
+	FILE				*stats_log;
 	int 				local;
 	struct ct_mode 			*mode;
 	struct ignore_pool		*ignore_pool;

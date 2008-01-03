@@ -221,8 +221,8 @@ int mcast_track_seq(u_int32_t seq, u_int32_t *exp_seq)
 
 	/* out of sequence: replayed/delayed packet? */
 	if (before(seq, STATE_SYNC(last_seq_recv)+1))
-		dlog(STATE(log), "delayed packet? exp=%u rcv=%u",
-				 STATE_SYNC(last_seq_recv)+1, seq);
+		dlog(STATE(log), LOG_WARNING, "delayed packet? exp=%u rcv=%u",
+		     STATE_SYNC(last_seq_recv)+1, seq);
 
 out:
 	*exp_seq = STATE_SYNC(last_seq_recv)+1;

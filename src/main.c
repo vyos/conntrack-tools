@@ -246,8 +246,7 @@ int main(int argc, char *argv[])
 	/*
 	 * Setting up logging
 	 */
-	STATE(log) = init_log(CONFIG(logfile));
-	if (config_set && !STATE(log)) {
+	if (config_set && init_log() == -1) {
 		fprintf(stderr, "can't open logfile `%s\n'", CONFIG(logfile));
 		exit(EXIT_FAILURE);
 	}
@@ -255,7 +254,7 @@ int main(int argc, char *argv[])
 	if (type == REQUEST) {
 		if (do_local_request(action, &conf.local, local_step) == -1) {
 			fprintf(stderr, "can't connect: is conntrackd "
-					"running? appropiate permissions?\n");
+					"running? appropriate permissions?\n");
 			exit(EXIT_FAILURE);
 		}
 		exit(EXIT_SUCCESS);
@@ -276,22 +275,21 @@ int main(int argc, char *argv[])
 		pid_t pid;
 
 		if ((pid = fork()) == -1) {
-			dlog(STATE(log), LOG_ERR, "fork() failed: "
-						  "%s", strerror(errno));
+			perror("fork has failed: ");
 			exit(EXIT_FAILURE);
 		} else if (pid)
 			exit(EXIT_SUCCESS);
 		
-		dlog(STATE(log), LOG_INFO, "--- starting in daemon mode ---");
+		dlog(STATE(log), LOG_NOTICE, "-- starting in daemon mode --");
 	} else
-		dlog(STATE(log), LOG_INFO, "--- starting in console mode ---");
+		dlog(STATE(log), LOG_NOTICE, "-- starting in console mode --");
 
 	/*
 	 * initialization process
 	 */
 
 	if (init(mode) == -1) {
-		close_log(STATE(log));
+		close_log();
 		fprintf(stderr, "ERROR: conntrackd cannot start, please "
 				"check the logfile for more info\n");
 		unlink(CONFIG(lockfile));

@@ -25,6 +25,8 @@ o rename `examples' directory to `doc'
 o add support for related conntracks (requires Linux kernel >= 2.6.22)
 o show error and warning messages to stderr
 o hash lookup speedups based on comments from netdev's discussions
+o add support for connection logging to the statistics mode via Logfile
+o minor irrelevant fixes for uncommon error paths and fix several typos
 
 version 0.9.5 (2007/07/29)
 ------------------------------

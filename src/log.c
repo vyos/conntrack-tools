@@ -24,22 +24,31 @@
 #include <string.h>
 #include "conntrackd.h"
 
-FILE *init_log(char *filename)
+int init_log(void)
 {
-	FILE *fd = NULL;
-
-	if (filename[0]) {
-		fd = fopen(filename, "a+");
-		if (fd == NULL) {
-			fprintf(stderr, "can't open log file `%s'\n", filename);
-			return NULL;
+	if (CONFIG(logfile)[0]) {
+		STATE(log) = fopen(CONFIG(logfile), "a+");
+		if (STATE(log) == NULL) {
+			fprintf(stderr, "can't open log file `%s'\n", 
+				CONFIG(logfile));
+			return -1;
 		}
 	}
 
-	if (CONFIG(syslog_facility) != -1)
+	if (CONFIG(stats).logfile[0]) {
+		STATE(stats_log) = fopen(CONFIG(stats).logfile, "a+");
+		if (STATE(stats_log) == NULL) {
+			fprintf(stderr, "can't open log file `%s'\n", 
+				CONFIG(stats).logfile);
+			return -1;
+		}
+	}
+
+	if (CONFIG(syslog_facility) != -1 || 
+	    CONFIG(stats).syslog_facility != -1)
 		openlog(PACKAGE, LOG_PID, CONFIG(syslog_facility));
 
-	return fd;
+	return 0;
 }
 
 void dlog(FILE *fd, int priority, char *format, ...)
@@ -85,10 +94,33 @@ void dlog(FILE *fd, int priority, char *format, ...)
 	}
 }
 
-void close_log(FILE *fd)
+void dlog_ct(FILE *fd, struct nf_conntrack *ct)
 {
-	if (fd != NULL)
-		fclose(fd);
+	time_t t;
+	char buf[1024];
+	char *tmp;
+
+	if (fd) {
+		t = time(NULL);
+		ctime_r(&t, buf);
+		tmp = buf + strlen(buf);
+		buf[strlen(buf)-1]='\t';
+		nfct_snprintf(buf+strlen(buf), 1024-strlen(buf), ct, 0, 0, 0);
+		fprintf(fd, "%s\n", buf);
+		fflush(fd);
+	}
+
+	if (CONFIG(stats).syslog_facility != -1)
+		syslog(LOG_INFO, "%s", tmp);
+}
+
+void close_log(void)
+{
+	if (STATE(log) != NULL)
+		fclose(STATE(log));
+
+	if (STATE(stats_log) != NULL)
+		fclose(STATE(stats_log));
 
 	if (CONFIG(syslog_facility) != -1)
 		closelog();

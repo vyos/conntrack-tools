@@ -1,10 +1,9 @@
 #ifndef _LOG_H_
 #define _LOG_H_
 
-#include <stdio.h>
-
-FILE *init_log(char *filename);
+int init_log();
 void dlog(FILE *fd, int priority, char *format, ...);
-void close_log(FILE *fd);
+void dlog_ct(FILE *fd, struct nf_conntrack *ct);
+void close_log();
 
 #endif

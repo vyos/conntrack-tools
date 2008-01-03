@@ -40,7 +40,7 @@ void killer(int foo)
 	STATE(mode)->kill();
 	destroy_alarm_scheduler();
         unlink(CONFIG(lockfile));
-	dlog(STATE(log), LOG_INFO, "------- shutdown received ----");
+	dlog(STATE(log), LOG_NOTICE, "---- shutdown received ----");
 	close_log(STATE(log));
 
 	sigprocmask(SIG_UNBLOCK, &STATE(block), NULL);
@@ -60,18 +60,16 @@ void local_handler(int fd, void *data)
 
 	ret = read(fd, &type, sizeof(type));
 	if (ret == -1) {
-		dlog(STATE(log), LOG_INFO, "can't read from unix socket");
+		dlog(STATE(log), LOG_ERR, "can't read from unix socket");
 		return;
 	}
-	if (ret == 0) {
-		dlog(STATE(log), LOG_INFO, "local request: nothing received?");
+	if (ret == 0)
 		return;
-	}
 
 	switch(type) {
 	case FLUSH_MASTER:
-		dlog(STATE(log), LOG_NOTICE, "`conntrackd -F' is deprecated. "
-				 	     "Use conntrack -F instead.");
+		dlog(STATE(log), LOG_WARNING, "`conntrackd -F' is deprecated. "
+				 	      "Use conntrack -F instead.");
 		if (fork() == 0) {
 			execlp("conntrack", "conntrack", "-F", NULL);
 			exit(EXIT_SUCCESS);
@@ -84,7 +82,7 @@ void local_handler(int fd, void *data)
 	}
 
 	if (!STATE(mode)->local(fd, type, data))
-		dlog(STATE(log), LOG_ERR, "unknown local request %d", type);
+		dlog(STATE(log), LOG_WARNING, "unknown local request %d", type);
 }
 
 int init(int mode)
@@ -152,7 +150,7 @@ int init(int mode)
 	if (signal(SIGCHLD, child) == SIG_ERR)
 		return -1;
 
-	dlog(STATE(log), LOG_INFO, "initialization completed");
+	dlog(STATE(log), LOG_NOTICE, "initialization completed");
 
 	return 0;
 }
@@ -181,7 +179,8 @@ static void __run(long credit, int step)
 		if (errno == EINTR)
 			return;
 
-		dlog(STATE(log), "select() failed: %s", strerror(errno));
+		dlog(STATE(log), LOG_WARNING, 
+		     "select failed: %s", strerror(errno));
 		return;
 	}
 
@@ -218,8 +217,8 @@ static void __run(long credit, int step)
 			case EAGAIN:
 				break;
 			default:
-				dlog(STATE(log), "event catch says: %s",
-						  strerror(errno));
+				dlog(STATE(log), LOG_WARNING,
+				     "event catch says: %s", strerror(errno));
 				break;
 			}
 		}
@@ -251,7 +250,8 @@ void run(void)
 			timer_stop(&timer);
 
 			if (timer_adjust_credit(&timer))
-				dlog(STATE(log), "alarm run takes too long!");
+				dlog(STATE(log), LOG_WARNING, 
+				     "alarm run takes too long!");
 
 			step = (step + 1) < STEPS_PER_SECONDS ? step + 1 : 0;
 		}

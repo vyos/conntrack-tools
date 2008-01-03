@@ -273,13 +273,14 @@ static int local_handler_sync(int fd, int type, void *data)
 	case COMMIT:
 		ret = fork();
 		if (ret == 0) {
-			dlog(STATE(log), LOG_INFO, "committing external cache");
+			dlog(STATE(log), LOG_NOTICE, 
+			     "committing external cache");
 			cache_commit(STATE_SYNC(external));
 			exit(EXIT_SUCCESS);
 		}
 		break;
 	case FLUSH_CACHE:
-		dlog(STATE(log), LOG_INFO, "flushing caches");
+		dlog(STATE(log), LOG_NOTICE, "flushing caches");
 		cache_flush(STATE_SYNC(internal));
 		cache_flush(STATE_SYNC(external));
 		break;

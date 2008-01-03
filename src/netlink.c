@@ -185,9 +185,9 @@ void nl_resize_socket_buffer(struct nfct_handle *h)
 	CONFIG(netlink_buffer_size) = nfnl_rcvbufsiz(nfct_nfnlh(h), s);
 
 	/* notify the sysadmin */
-	dlog(STATE(log), LOG_INFO, "netlink socket buffer size "
-				   "has been set to %u bytes",
-				   CONFIG(netlink_buffer_size));
+	dlog(STATE(log), LOG_NOTICE, "netlink socket buffer size "
+				     "has been set to %u bytes",
+				     CONFIG(netlink_buffer_size));
 }
 
 int nl_dump_conntrack_table(void)

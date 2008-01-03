@@ -123,6 +123,11 @@ syslog_facility : T_SYSLOG T_STRING
 				"ignoring.\n", $2);
 		return;
 	}
+
+	if (conf.stats.syslog_facility != -1 &&
+	    conf.syslog_facility != conf.stats.syslog_facility)
+	    	fprintf(stderr, "WARNING: Conflicting Syslog facility "
+				"values, defaulting to General.\n");
 };
 
 lock : T_LOCK T_PATH_VAL
@@ -549,15 +554,73 @@ family : T_FAMILY T_STRING
 		conf.family = AF_INET;
 };
 
-stats: T_SYNC '{' stats_list '}';
+stats: T_STATS '{' stats_list '}';
 
 stats_list:
 	 | stats_list stat_line
 	 ;
 
-stat_line:
-	 |
+stat_line: stat_logfile_bool
+	 | stat_logfile_path
+	 | stat_syslog_bool
+	 | stat_syslog_facility
 	 ;
+
+stat_logfile_bool : T_LOG T_ON
+{
+	strncpy(conf.stats.logfile, DEFAULT_STATS_LOGFILE, FILENAME_MAXLEN);
+};
+
+stat_logfile_bool : T_LOG T_OFF
+{
+};
+
+stat_logfile_path : T_LOG T_PATH_VAL
+{
+	strncpy(conf.stats.logfile, $2, FILENAME_MAXLEN);
+};
+
+stat_syslog_bool : T_SYSLOG T_ON
+{
+	conf.stats.syslog_facility = DEFAULT_SYSLOG_FACILITY;
+};
+
+stat_syslog_bool : T_SYSLOG T_OFF
+{
+	conf.stats.syslog_facility = -1;
+}
+
+stat_syslog_facility : T_SYSLOG T_STRING
+{
+	if (!strcmp($2, "daemon"))
+		conf.stats.syslog_facility = LOG_DAEMON;
+	else if (!strcmp($2, "local0"))
+		conf.stats.syslog_facility = LOG_LOCAL0;
+	else if (!strcmp($2, "local1"))
+		conf.stats.syslog_facility = LOG_LOCAL1;
+	else if (!strcmp($2, "local2"))
+		conf.stats.syslog_facility = LOG_LOCAL2;
+	else if (!strcmp($2, "local3"))
+		conf.stats.syslog_facility = LOG_LOCAL3;
+	else if (!strcmp($2, "local4"))
+		conf.stats.syslog_facility = LOG_LOCAL4;
+	else if (!strcmp($2, "local5"))
+		conf.stats.syslog_facility = LOG_LOCAL5;
+	else if (!strcmp($2, "local6"))
+		conf.stats.syslog_facility = LOG_LOCAL6;
+	else if (!strcmp($2, "local7"))
+		conf.stats.syslog_facility = LOG_LOCAL7;
+	else {
+		fprintf(stderr, "'%s' is not a known syslog facility, "
+				"ignoring.\n", $2);
+		return;
+	}
+
+	if (conf.syslog_facility != -1 &&
+	    conf.stats.syslog_facility != conf.syslog_facility)
+		fprintf(stderr, "WARNING: Conflicting Syslog facility "
+				"values, defaulting to General.\n");
+};
 
 %%
 
@@ -580,6 +643,7 @@ init_config(char *filename)
 
 	/* Zero may be a valid facility */
 	CONFIG(syslog_facility) = -1;
+	CONFIG(stats).syslog_facility = -1;
 
 	yyrestart(fp);
 	yyparse();

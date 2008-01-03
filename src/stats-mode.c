@@ -88,6 +88,8 @@ static int local_handler_stats(int fd, int type, void *data)
 
 static void dump_stats(struct nf_conntrack *ct)
 {
+	nfct_attr_unset(ct, ATTR_TIMEOUT);
+
 	if (cache_update_force(STATE_STATS(cache), ct))
 		debug_ct(ct, "resync entry");
 }
@@ -140,6 +142,8 @@ static void overrun_stats()
 
 static void event_new_stats(struct nf_conntrack *ct)
 {
+	nfct_attr_unset(ct, ATTR_TIMEOUT);
+
 	if (cache_add(STATE_STATS(cache), ct)) {
 		debug_ct(ct, "cache new");
 	} else {
@@ -153,6 +157,8 @@ static void event_new_stats(struct nf_conntrack *ct)
 
 static void event_update_stats(struct nf_conntrack *ct)
 {
+	nfct_attr_unset(ct, ATTR_TIMEOUT);
+
 	if (!cache_update_force(STATE_STATS(cache), ct)) {
 		debug_ct(ct, "can't update");
 		return;
@@ -162,8 +168,11 @@ static void event_update_stats(struct nf_conntrack *ct)
 
 static int event_destroy_stats(struct nf_conntrack *ct)
 {
+	nfct_attr_unset(ct, ATTR_TIMEOUT);
+
 	if (cache_del(STATE_STATS(cache), ct)) {
 		debug_ct(ct, "cache destroy");
+		dlog_ct(STATE(stats_log), ct);
 		return 1;
 	} else {
 		debug_ct(ct, "can't destroy!");
