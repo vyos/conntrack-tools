@@ -5,6 +5,7 @@ conntrack (1:0.9.5-1) UNRELEASED; urgency=low
   * updated watchfile for new upstream name "conntrack-tools" (Closes:
     #449899)
   * moved DH_COMPAT to debian/compat
+  * don't ignore "make distclean" errors
 
  -- Max Kellermann <max@duempel.org>  Tue,  6 Nov 2007 08:15:26 +0100
 
