@@ -14,7 +14,7 @@ by dificulty levels:
  [X] improve website
  [X] Dumazet improvement hashtable (multiply vs. divide)
  [X] add secmark support
- [ ] logging support for the statistics mode
+ [X] logging support for the statistics mode
 
 = Requires some work =
  [ ] study better keepalived transitions
