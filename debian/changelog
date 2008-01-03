@@ -2,7 +2,8 @@ conntrack (1:0.9.5-1) UNRELEASED; urgency=low
 
   * new upstream release
   * added package "conntrackd"
-  * updated watchfile for new upstream name "conntrack-tools"
+  * updated watchfile for new upstream name "conntrack-tools" (Closes:
+    #449899)
 
  -- Max Kellermann <max@duempel.org>  Tue,  6 Nov 2007 08:15:26 +0100
 
