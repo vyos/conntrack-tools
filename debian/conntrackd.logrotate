@@ -1,0 +1,5 @@
+/var/log/conntrackd.log {
+    weekly
+    rotate 2
+    missingok
+}

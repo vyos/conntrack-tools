@@ -73,6 +73,7 @@ binary-arch: build install
 	dh_testroot -a
 	dh_installdocs -a -A AUTHORS
 	dh_installchangelogs -a ChangeLog
+	dh_installlogrotate -a
 	dh_installinit -a
 	dh_install -a
 	dh_link -a
