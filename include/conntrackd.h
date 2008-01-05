@@ -87,7 +87,7 @@ struct ct_conf {
 	unsigned int listen_to_len;
 	unsigned int flags;
 	int family;			/* protocol family */
-	unsigned int resend_buffer_size;/* FTFW protocol */
+	unsigned int resend_queue_size; /* FTFW protocol */
 	unsigned int window_size;
 	int cache_write_through;
 	struct {

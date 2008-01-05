@@ -27,7 +27,6 @@
 #include <sys/select.h>
 #include "sync.h"
 #include "network.h"
-#include "buffer.h"
 #include "debug.h"
 
 static void do_mcast_handler_step(struct nethdr *net)

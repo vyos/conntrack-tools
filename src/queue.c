@@ -1,5 +1,5 @@
 /*
- * (C) 2006-2007 by Pablo Neira Ayuso <pablo@netfilter.org>
+ * (C) 2006-2008 by Pablo Neira Ayuso <pablo@netfilter.org>
  * 
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,16 +16,16 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#include "buffer.h"
+#include "queue.h"
 
-struct buffer *buffer_create(size_t max_size)
+struct queue *queue_create(size_t max_size)
 {
-	struct buffer *b;
+	struct queue *b;
 
-	b = malloc(sizeof(struct buffer));
+	b = malloc(sizeof(struct queue));
 	if (b == NULL)
 		return NULL;
-	memset(b, 0, sizeof(struct buffer));
+	memset(b, 0, sizeof(struct queue));
 
 	b->max_size = max_size;
 	INIT_LIST_HEAD(&b->head);
@@ -33,25 +33,25 @@ struct buffer *buffer_create(size_t max_size)
 	return b;
 }
 
-void buffer_destroy(struct buffer *b)
+void queue_destroy(struct queue *b)
 {
 	struct list_head *i, *tmp;
-	struct buffer_node *node;
+	struct queue_node *node;
 
 	/* XXX: set cur_size and num_elems */
 	list_for_each_safe(i, tmp, &b->head) {
-		node = (struct buffer_node *) i;
+		node = (struct queue_node *) i;
 		list_del(i);
 		free(node);
 	}
 	free(b);
 }
 
-static struct buffer_node *buffer_node_create(const void *data, size_t size)
+static struct queue_node *queue_node_create(const void *data, size_t size)
 {
-	struct buffer_node *n;
+	struct queue_node *n;
 
-	n = malloc(sizeof(struct buffer_node) + size);
+	n = malloc(sizeof(struct queue_node) + size);
 	if (n == NULL)
 		return NULL;
 
@@ -62,12 +62,12 @@ static struct buffer_node *buffer_node_create(const void *data, size_t size)
 	return n;
 }
 
-int buffer_add(struct buffer *b, const void *data, size_t size)
+int queue_add(struct queue *b, const void *data, size_t size)
 {
 	int ret = 0;
-	struct buffer_node *n;
+	struct queue_node *n;
 
-	/* does it fit this buffer? */
+	/* does it fit this queue? */
 	if (size > b->max_size) {
 		errno = ENOSPC;
 		ret = -1;
@@ -75,16 +75,16 @@ int buffer_add(struct buffer *b, const void *data, size_t size)
 	}
 
 retry:
-	/* buffer is full: kill the oldest entry */
+	/* queue is full: kill the oldest entry */
 	if (b->cur_size + size > b->max_size) {
-		n = (struct buffer_node *) b->head.prev;
+		n = (struct queue_node *) b->head.prev;
 		list_del(b->head.prev);
 		b->cur_size -= n->size;
 		free(n);
 		goto retry;
 	}
 
-	n = buffer_node_create(data, size);
+	n = queue_node_create(data, size);
 	if (n == NULL) {
 		ret = -1;
 		goto err;
@@ -98,9 +98,9 @@ err:
 	return ret;
 }
 
-void buffer_del(struct buffer *b, void *data)
+void queue_del(struct queue *b, void *data)
 {
-	struct buffer_node *n = container_of(data, struct buffer_node, data); 
+	struct queue_node *n = container_of(data, struct queue_node, data); 
 
 	list_del(&n->head);
 	b->cur_size -= n->size;
@@ -108,21 +108,21 @@ void buffer_del(struct buffer *b, void *data)
 	free(n);
 }
 
-void buffer_iterate(struct buffer *b, 
-		    void *data, 
-		    int (*iterate)(void *data1, void *data2))
+void queue_iterate(struct queue *b, 
+		   void *data, 
+		   int (*iterate)(void *data1, void *data2))
 {
 	struct list_head *i, *tmp;
-	struct buffer_node *n;
+	struct queue_node *n;
 
 	list_for_each_safe(i, tmp, &b->head) {
-		n = (struct buffer_node *) i;
+		n = (struct queue_node *) i;
 		if (iterate(n->data, data))
 			break;
 	}
 }
 
-unsigned int buffer_len(struct buffer *b)
+unsigned int queue_len(struct queue *b)
 {
 	return b->num_elems;
 }

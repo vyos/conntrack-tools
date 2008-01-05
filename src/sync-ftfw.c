@@ -1,5 +1,5 @@
 /*
- * (C) 2006-2007 by Pablo Neira Ayuso <pablo@netfilter.org>
+ * (C) 2006-2008 by Pablo Neira Ayuso <pablo@netfilter.org>
  * 
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,7 +21,7 @@
 #include "sync.h"
 #include "linux_list.h"
 #include "us-conntrack.h"
-#include "buffer.h"
+#include "queue.h"
 #include "debug.h"
 #include "network.h"
 #include "alarm.h"
@@ -37,8 +37,8 @@
 static LIST_HEAD(rs_list);
 static LIST_HEAD(tx_list);
 static unsigned int tx_list_len;
-static struct buffer *rs_queue;
-static struct buffer *tx_queue;
+static struct queue *rs_queue;
+static struct queue *tx_queue;
 
 struct cache_ftfw {
 	struct list_head 	rs_list;
@@ -72,15 +72,15 @@ static struct cache_extra cache_ftfw_extra = {
 
 static int ftfw_init()
 {
-	tx_queue = buffer_create(CONFIG(resend_buffer_size));
+	tx_queue = queue_create(CONFIG(resend_queue_size));
 	if (tx_queue == NULL) {
-		dlog(STATE(log), LOG_ERR, "cannot create tx buffer");
+		dlog(STATE(log), LOG_ERR, "cannot create tx queue");
 		return -1;
 	}
 
-	rs_queue = buffer_create(CONFIG(resend_buffer_size));
+	rs_queue = queue_create(CONFIG(resend_queue_size));
 	if (rs_queue == NULL) {
-		dlog(STATE(log), LOG_ERR, "cannot create rs buffer");
+		dlog(STATE(log), LOG_ERR, "cannot create rs queue");
 		return -1;
 	}
 
@@ -92,8 +92,8 @@ static int ftfw_init()
 
 static void ftfw_kill()
 {
-	buffer_destroy(rs_queue);
-	buffer_destroy(tx_queue);
+	queue_destroy(rs_queue);
+	queue_destroy(tx_queue);
 }
 
 static void tx_queue_add_ctlmsg(u_int32_t flags, u_int32_t from, u_int32_t to)
@@ -104,7 +104,7 @@ static void tx_queue_add_ctlmsg(u_int32_t flags, u_int32_t from, u_int32_t to)
 		.to    = to,
 	};
 
-	buffer_add(tx_queue, &ack, NETHDR_ACK_SIZ);
+	queue_add(tx_queue, &ack, NETHDR_ACK_SIZ);
 }
 
 static int do_cache_to_tx(void *data1, void *data2)
@@ -148,7 +148,7 @@ static int rs_queue_to_tx(void *data1, void *data2)
 	if (between(net->seq, nack->from, nack->to)) {
 		dp("rs_queue_to_tx sq: %u fl:%u len:%u\n",
 			net->seq, net->flags, net->len);
-		buffer_add(tx_queue, net, net->len);
+		queue_add(tx_queue, net, net->len);
 	}
 	return 0;
 }
@@ -159,8 +159,8 @@ static int rs_queue_empty(void *data1, void *data2)
 	struct nethdr_ack *h = data2;
 
 	if (between(net->seq, h->from, h->to)) {
-		dp("remove from buffer (seq=%u)\n", net->seq);
-		buffer_del(rs_queue, data1);
+		dp("remove from queue (seq=%u)\n", net->seq);
+		queue_del(rs_queue, data1);
 	}
 	return 0;
 }
@@ -227,7 +227,7 @@ static int ftfw_recv(const struct nethdr *net)
 
 		dp("NACK: from seq=%u to seq=%u\n", nack->from, nack->to);
 		rs_list_to_tx(STATE_SYNC(internal), nack->from, nack->to);
-		buffer_iterate(rs_queue, nack, rs_queue_to_tx);
+		queue_iterate(rs_queue, nack, rs_queue_to_tx);
 		return 1;
 	} else if (IS_RESYNC(net)) {
 		dp("RESYNC ALL\n");
@@ -238,7 +238,7 @@ static int ftfw_recv(const struct nethdr *net)
 
 		dp("ACK: from seq=%u to seq=%u\n", h->from, h->to);
 		rs_list_empty(STATE_SYNC(internal), h->from, h->to);
-		buffer_iterate(rs_queue, h, rs_queue_empty);
+		queue_iterate(rs_queue, h, rs_queue_empty);
 		return 1;
 	} else if (IS_ALIVE(net))
 		return 1;
@@ -270,7 +270,7 @@ insert:
 		list_add(&cn->rs_list, &rs_list);
 		break;
 	case NFCT_Q_DESTROY:
-		buffer_add(rs_queue, net, net->len);
+		queue_add(rs_queue, net, net->len);
 		break;
 	}
 }
@@ -289,9 +289,9 @@ static int tx_queue_xmit(void *data1, void *data2)
 	if (IS_DATA(net) || IS_ACK(net) || IS_NACK(net)) {
 		dp("-> back_to_tx_queue sq: %u fl:%u len:%u\n",
         	       net->seq, net->flags, net->len);
-		buffer_add(rs_queue, net, net->len);
+		queue_add(rs_queue, net, net->len);
 	}
-	buffer_del(tx_queue, net);
+	queue_del(tx_queue, net);
 
 	return 0;
 }
@@ -330,7 +330,7 @@ static void ftfw_run(int step)
 	struct list_head *i, *tmp;
 
 	/* send messages in the tx_queue */
-	buffer_iterate(tx_queue, NULL, tx_queue_xmit);
+	queue_iterate(tx_queue, NULL, tx_queue_xmit);
 
 	/* send conntracks in the tx_list */
 	list_for_each_safe(i, tmp, &tx_list) {

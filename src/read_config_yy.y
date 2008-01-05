@@ -406,14 +406,14 @@ sync_mode_alarm_line: refreshtime
 sync_mode_ftfw_list:
 	      | sync_mode_ftfw_list sync_mode_ftfw_line;
 
-sync_mode_ftfw_line: resend_buffer_size
+sync_mode_ftfw_line: resend_queue_size
 		   | timeout
 		   | window_size
 		   ;
 
-resend_buffer_size: T_RESEND_BUFFER_SIZE T_NUMBER
+resend_queue_size: T_RESEND_BUFFER_SIZE T_NUMBER
 {
-	conf.resend_buffer_size = $2;
+	conf.resend_queue_size = $2;
 };
 
 window_size: T_WINDOWSIZE T_NUMBER
@@ -685,8 +685,8 @@ init_config(char *filename)
 	if (CONFIG(refresh) == 0)
 		CONFIG(refresh) = 60;
 
-	if (CONFIG(resend_buffer_size) == 0)
-		CONFIG(resend_buffer_size) = 262144;
+	if (CONFIG(resend_queue_size) == 0)
+		CONFIG(resend_queue_size) = 262144;
 
 	/* create empty pool */
 	if (!STATE(ignore_pool)) {

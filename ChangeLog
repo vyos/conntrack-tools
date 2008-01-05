@@ -30,6 +30,7 @@ o minor irrelevant fixes for uncommon error paths and fix several typos
 o detach daemon from its terminal (Ben Lenitz <BLentz@channing-bete.com>)
 o obsolete `-S' option: Use information provided by the config file
 o daemonize conntrackd after initialization
+o rename class `buffer' to `queue' which is what it really implements
 
 version 0.9.5 (2007/07/29)
 ------------------------------
