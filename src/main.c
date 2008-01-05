@@ -33,8 +33,7 @@ union ct_state state;
 
 static const char usage_daemon_commands[] =
 	"Daemon mode commands:\n"
-	"  -d [options]\t\tRun in daemon mode\n"
-	"  -S [options]\t\tRun in statistics mode\n";
+	"  -d [options]\t\tRun in daemon mode\n";
 
 static const char usage_client_commands[] = 
 	"Client mode commands:\n"
@@ -63,7 +62,7 @@ void show_usage(char *progname)
 }
 
 /* These live in run.c */
-int init(int);
+int init(void);
 void run(void);
 
 void set_operation_mode(int *current, int want, char *argv[])
@@ -116,7 +115,7 @@ int main(int argc, char *argv[])
 {
 	int ret, i, config_set = 0, action;
 	char config_file[PATH_MAX];
-	int type = 0, mode = 0;
+	int type = 0;
 	struct utsname u;
 	int version, major, minor;
 
@@ -209,7 +208,8 @@ int main(int argc, char *argv[])
 			action = STATS;
 			break;
 		case 'S':
-			set_operation_mode(&mode, STATS_MODE, argv);
+			fprintf(stderr, "WARNING: -S option is obsolete. "
+					"Ignoring.\n");
 			break;
 		case 'n':
 			set_operation_mode(&type, REQUEST, argv);
@@ -295,7 +295,7 @@ int main(int argc, char *argv[])
 	 * initialization process
 	 */
 
-	if (init(mode) == -1) {
+	if (init() == -1) {
 		close_log();
 		fprintf(stderr, "ERROR: conntrackd cannot start, please "
 				"check the logfile for more info\n");

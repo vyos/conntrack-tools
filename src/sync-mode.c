@@ -126,11 +126,15 @@ static int init_sync(void)
 	}
 	memset(state.sync, 0, sizeof(struct ct_sync_state));
 
-	if (CONFIG(flags) & SYNC_MODE_FTFW)
+	if (CONFIG(flags) & CTD_SYNC_FTFW)
 		STATE_SYNC(sync) = &ftfw;
-	else
-		/* default to ftfw mode */
+	else if (CONFIG(flags) & CTD_SYNC_ALARM)
+		STATE_SYNC(sync) = &alarm;
+	else {
+		fprintf(stderr, "WARNING: No synchronization mode specified. "
+				"Defaulting to FT-FW mode.\n");
 		STATE_SYNC(sync) = &ftfw;
+	}
 
 	if (STATE_SYNC(sync)->init)
 		STATE_SYNC(sync)->init();

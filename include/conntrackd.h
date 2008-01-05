@@ -51,8 +51,10 @@ enum {
 #define REQUEST		2
 
 /* conntrackd modes */
-#define SYNC_MODE	0
-#define STATS_MODE      1
+#define CTD_SYNC_MODE		(1UL << 0)
+#define CTD_STATS_MODE		(1UL << 1)
+#define CTD_SYNC_FTFW		(1UL << 2)
+#define CTD_SYNC_ALARM		(1UL << 3)
 
 /* FILENAME_MAX is 4096 on my system, perhaps too much? */
 #ifndef FILENAME_MAXLEN

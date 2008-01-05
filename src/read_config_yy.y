@@ -356,7 +356,15 @@ ignore_proto: T_IGMP
 	conf.ignore_protocol[IPPROTO_IGMP] = 1;
 };
 
-sync: T_SYNC '{' sync_list '}';
+sync: T_SYNC '{' sync_list '}'
+{
+	if (conf.flags & CTD_STATS_MODE) {
+		fprintf(stderr, "ERROR: Cannot use both Stats and Sync "
+				"clauses in conntrackd.conf.\n");
+		exit(EXIT_FAILURE);
+	}
+	conf.flags |= CTD_SYNC_MODE;
+};
 
 sync_list:
 	 | sync_list sync_line;
@@ -377,12 +385,12 @@ sync_line: refreshtime
 
 sync_mode_alarm: T_SYNC_MODE T_ALARM '{' sync_mode_alarm_list '}'
 {
-	conf.flags |= SYNC_MODE_ALARM;
+	conf.flags |= CTD_SYNC_ALARM;
 };
 
 sync_mode_ftfw: T_SYNC_MODE T_FTFW '{' sync_mode_ftfw_list '}'
 {
-	conf.flags |= SYNC_MODE_FTFW;
+	conf.flags |= CTD_SYNC_FTFW;
 };
 
 sync_mode_alarm_list:
@@ -554,7 +562,15 @@ family : T_FAMILY T_STRING
 		conf.family = AF_INET;
 };
 
-stats: T_STATS '{' stats_list '}';
+stats: T_STATS '{' stats_list '}'
+{
+	if (conf.flags & CTD_SYNC_MODE) {
+		fprintf(stderr, "ERROR: Cannot use both Stats and Sync "
+				"clauses in conntrackd.conf.\n");
+		exit(EXIT_FAILURE);
+	}
+	conf.flags |= CTD_STATS_MODE;
+};
 
 stats_list:
 	 | stats_list stat_line

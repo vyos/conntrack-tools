@@ -85,20 +85,16 @@ void local_handler(int fd, void *data)
 		dlog(STATE(log), LOG_WARNING, "unknown local request %d", type);
 }
 
-int init(int mode)
+int init(void)
 {
-	switch(mode) {
-		case STATS_MODE:
-			STATE(mode) = &stats_mode;
-			break;
-		case SYNC_MODE:
-			STATE(mode) = &sync_mode;
-			break;
-		default:
-			fprintf(stderr, "Unknown running mode! default "
-					"to synchronization mode\n");
-			STATE(mode) = &sync_mode;
-			break;
+	if (CONFIG(flags) & CTD_STATS_MODE)
+		STATE(mode) = &stats_mode;
+	else if (CONFIG(flags) & CTD_SYNC_MODE)
+		STATE(mode) = &sync_mode;
+	else {
+		fprintf(stderr, "WARNING: No running mode specified. "
+				"Defaulting to statistics mode.\n");
+		STATE(mode) = &stats_mode;
 	}
 
 	/* Initialization */
