@@ -246,10 +246,8 @@ int main(int argc, char *argv[])
 	/*
 	 * Setting up logging
 	 */
-	if (config_set && init_log() == -1) {
-		fprintf(stderr, "can't open logfile `%s\n'", CONFIG(logfile));
+	if (config_set && init_log() == -1)
 		exit(EXIT_FAILURE);
-	}
 
 	if (type == REQUEST) {
 		if (do_local_request(action, &conf.local, local_step) == -1) {

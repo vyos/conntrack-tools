@@ -19,28 +19,54 @@
  */
 
 #include <stdio.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include <time.h>
 #include <stdarg.h>
 #include <string.h>
+#include <errno.h>
 #include "buffer.h"
 #include "conntrackd.h"
 
 int init_log(void)
 {
 	if (CONFIG(logfile)[0]) {
-		STATE(log) = fopen(CONFIG(logfile), "a+");
+		int fd;
+		
+		fd = open(CONFIG(logfile), O_CREAT | O_RDWR, 0600);
+		if (fd == -1) {
+			fprintf(stderr, "ERROR: can't open logfile `%s'."
+				"Reason: %s\n", CONFIG(logfile), 
+						strerror(errno));
+			return -1;
+		}
+
+		STATE(log) = fdopen(fd, "a+");
 		if (STATE(log) == NULL) {
-			fprintf(stderr, "can't open log file `%s'\n", 
-				CONFIG(logfile));
+			fprintf(stderr, "ERROR: can't open logfile `%s'."
+				"Reason: %s\n", CONFIG(logfile), 
+						strerror(errno));
 			return -1;
 		}
 	}
 
 	if (CONFIG(stats).logfile[0]) {
-		STATE(stats_log) = fopen(CONFIG(stats).logfile, "a+");
+		int fd;
+		
+		fd = open(CONFIG(stats).logfile, O_CREAT | O_RDWR, 0600);
+		if (fd == -1) {
+			fprintf(stderr, "ERROR: can't open logfile `%s'."
+				"Reason: %s\n", CONFIG(stats).logfile, 
+						strerror(errno));
+			return -1;
+		}
+
+		STATE(stats_log) = fdopen(fd, "a+");
 		if (STATE(stats_log) == NULL) {
-			fprintf(stderr, "can't open log file `%s'\n", 
-				CONFIG(stats).logfile);
+			fprintf(stderr, "ERROR: can't open logfile `%s'."
+				"Reason: %s\n", CONFIG(stats).logfile, 
+						strerror(errno));
 			return -1;
 		}
 	}
