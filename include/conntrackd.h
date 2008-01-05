@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <libnetfilter_conntrack/libnetfilter_conntrack.h> 
 #include "cache.h"
+#include "buffer.h"
 #include "debug.h"
 #include <signal.h>
 #include "state_helper.h"
@@ -93,6 +94,7 @@ struct ct_conf {
 	struct {
 		char logfile[FILENAME_MAXLEN];
 		int syslog_facility;
+		unsigned int buffer_size;
 	} stats;
 };
 
@@ -136,6 +138,7 @@ struct ct_sync_state {
 
 struct ct_stats_state {
 	struct cache *cache;            /* internal events cache (netlink) */
+	struct buffer *buffer_log;
 };
 
 union ct_state {

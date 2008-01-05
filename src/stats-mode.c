@@ -18,6 +18,7 @@
 
 #include <stdlib.h>
 #include "cache.h"
+#include "log.h"
 #include "conntrackd.h"
 #include <libnfnetlink/libnfnetlink.h>
 #include <libnetfilter_conntrack/libnetfilter_conntrack.h>
@@ -37,6 +38,12 @@ static int init_stats(void)
 	}
 	memset(state.stats, 0, sizeof(struct ct_stats_state));
 
+	STATE_STATS(buffer_log) = buffer_create(CONFIG(stats).buffer_size);
+	if (!STATE_STATS(buffer_log)) {
+		dlog(STATE(log), LOG_ERR, "can't allocate stats buffer");
+		return -1;
+	}
+
 	STATE_STATS(cache) = cache_create("stats",
 					  LIFETIME, 
 					  CONFIG(family),
@@ -53,6 +60,9 @@ static int init_stats(void)
 static void kill_stats()
 {
 	cache_destroy(STATE_STATS(cache));
+	buffer_flush(STATE_STATS(buffer_log), 
+		     dlog_buffered_ct_flush, 
+		     STATE(stats_log));
 }
 
 /* handler for requests coming via UNIX socket */
@@ -172,7 +182,7 @@ static int event_destroy_stats(struct nf_conntrack *ct)
 
 	if (cache_del(STATE_STATS(cache), ct)) {
 		debug_ct(ct, "cache destroy");
-		dlog_ct(STATE(stats_log), ct);
+		dlog_buffered_ct(STATE(stats_log), STATE_STATS(buffer_log), ct);
 		return 1;
 	} else {
 		debug_ct(ct, "can't destroy!");

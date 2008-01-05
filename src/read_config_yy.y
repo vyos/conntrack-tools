@@ -49,7 +49,7 @@ struct ct_conf conf;
 %token T_REPLICATE T_FOR T_IFACE 
 %token T_ESTABLISHED T_SYN_SENT T_SYN_RECV T_FIN_WAIT 
 %token T_CLOSE_WAIT T_LAST_ACK T_TIME_WAIT T_CLOSE T_LISTEN
-%token T_SYSLOG T_WRITE_THROUGH
+%token T_SYSLOG T_WRITE_THROUGH T_STAT_BUFFER_SIZE
 
 
 %token <string> T_IP T_PATH_VAL
@@ -580,6 +580,7 @@ stat_line: stat_logfile_bool
 	 | stat_logfile_path
 	 | stat_syslog_bool
 	 | stat_syslog_facility
+	 | buffer_size
 	 ;
 
 stat_logfile_bool : T_LOG T_ON
@@ -636,6 +637,11 @@ stat_syslog_facility : T_SYSLOG T_STRING
 	    conf.stats.syslog_facility != conf.syslog_facility)
 		fprintf(stderr, "WARNING: Conflicting Syslog facility "
 				"values, defaulting to General.\n");
+};
+
+buffer_size: T_STAT_BUFFER_SIZE T_NUMBER
+{
+	conf.stats.buffer_size = $2;
 };
 
 %%

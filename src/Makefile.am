@@ -10,7 +10,7 @@ conntrack_SOURCES = conntrack.c
 conntrack_LDADD = ../extensions/libct_proto_tcp.la ../extensions/libct_proto_udp.la ../extensions/libct_proto_icmp.la
 conntrack_LDFLAGS = $(all_libraries) @LIBNETFILTER_CONNTRACK_LIBS@
 
-conntrackd_SOURCES = alarm.c main.c run.c hash.c queue.c \
+conntrackd_SOURCES = alarm.c main.c run.c hash.c queue.c buffer.c \
 		    local.c log.c mcast.c netlink.c \
 		    ignore_pool.c \
 		    cache.c cache_iterators.c \

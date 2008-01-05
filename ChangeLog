@@ -26,6 +26,7 @@ o add support for related conntracks (requires Linux kernel >= 2.6.22)
 o show error and warning messages to stderr
 o hash lookup speedups based on comments from netdev's discussions
 o add support for connection logging to the statistics mode via Logfile
+o implement buffered connection logging to improve performance
 o minor irrelevant fixes for uncommon error paths and fix several typos
 o detach daemon from its terminal (Ben Lenitz <BLentz@channing-bete.com>)
 o obsolete `-S' option: Use information provided by the config file

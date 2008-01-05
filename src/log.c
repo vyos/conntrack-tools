@@ -22,6 +22,7 @@
 #include <time.h>
 #include <stdarg.h>
 #include <string.h>
+#include "buffer.h"
 #include "conntrackd.h"
 
 int init_log(void)
@@ -94,7 +95,15 @@ void dlog(FILE *fd, int priority, char *format, ...)
 	}
 }
 
-void dlog_ct(FILE *fd, struct nf_conntrack *ct)
+void dlog_buffered_ct_flush(void *buffer_data, void *data)
+{
+	FILE *fd = data;
+
+	fprintf(fd, "%s", buffer_data);
+	fflush(fd);
+}
+
+void dlog_buffered_ct(FILE *fd, struct buffer *b, struct nf_conntrack *ct)
 {
 	time_t t;
 	char buf[1024];
@@ -107,8 +116,21 @@ void dlog_ct(FILE *fd, struct nf_conntrack *ct)
 	nfct_snprintf(buf+strlen(buf), 1024-strlen(buf), ct, 0, 0, 0);
 
 	if (fd) {
-		fprintf(fd, "%s\n", buf);
-		fflush(fd);
+		snprintf(buf+strlen(buf), 1024-strlen(buf), "\n");
+		/* zero size buffer: force fflush */
+		if (buffer_size(b) == 0) {
+			fprintf(fd, "%s", buf);
+			fflush(fd);
+		}
+
+		if (buffer_add(b, buf, strlen(buf)) == -1) {
+			buffer_flush(b, dlog_buffered_ct_flush, fd);
+			if (buffer_add(b, buf, strlen(buf)) == -1) {
+				/* buffer too small, catacrocket! */
+				fprintf(fd, "%s", buf);
+				fflush(fd);
+			}
+		}
 	}
 
 	if (CONFIG(stats).syslog_facility != -1)
