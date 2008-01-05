@@ -29,6 +29,7 @@ o add support for connection logging to the statistics mode via Logfile
 o minor irrelevant fixes for uncommon error paths and fix several typos
 o detach daemon from its terminal (Ben Lenitz <BLentz@channing-bete.com>)
 o obsolete `-S' option: Use information provided by the config file
+o daemonize conntrackd after initialization
 
 version 0.9.5 (2007/07/29)
 ------------------------------

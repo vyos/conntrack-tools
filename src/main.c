@@ -270,6 +270,18 @@ int main(int argc, char *argv[])
 	}
 	close(ret);
 
+	/*
+	 * initialization process
+	 */
+
+	if (init() == -1) {
+		close_log();
+		fprintf(stderr, "ERROR: conntrackd cannot start, please "
+				"check the logfile for more info\n");
+		unlink(CONFIG(lockfile));
+		exit(EXIT_FAILURE);
+	}
+
 	/* Daemonize conntrackd */
 	if (type == DAEMON) {
 		pid_t pid, sid;
@@ -287,21 +299,13 @@ int main(int argc, char *argv[])
 			exit(EXIT_FAILURE);
 		}
 
+		close(STDIN_FILENO);
+		close(STDOUT_FILENO);
+		close(STDERR_FILENO);
+
 		dlog(STATE(log), LOG_NOTICE, "-- starting in daemon mode --");
 	} else
 		dlog(STATE(log), LOG_NOTICE, "-- starting in console mode --");
-
-	/*
-	 * initialization process
-	 */
-
-	if (init() == -1) {
-		close_log();
-		fprintf(stderr, "ERROR: conntrackd cannot start, please "
-				"check the logfile for more info\n");
-		unlink(CONFIG(lockfile));
-		exit(EXIT_FAILURE);
-	}
 
 	/*
 	 * run main process
