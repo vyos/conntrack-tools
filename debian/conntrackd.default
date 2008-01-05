@@ -1,0 +1,8 @@
+# Which configuration file?
+#CONFIG=/etc/conntrackd.conf
+
+# Daemon mode; -S = statistic mode, empty string = synchronization mode.
+#MODE="-S"
+
+# Additional options for daemon startup.
+#OPTIONS=""
