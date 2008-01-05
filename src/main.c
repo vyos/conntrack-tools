@@ -272,7 +272,7 @@ int main(int argc, char *argv[])
 
 	/* Daemonize conntrackd */
 	if (type == DAEMON) {
-		pid_t pid;
+		pid_t pid, sid;
 
 		if ((pid = fork()) == -1) {
 			perror("fork has failed: ");
@@ -280,6 +280,13 @@ int main(int argc, char *argv[])
 		} else if (pid)
 			exit(EXIT_SUCCESS);
 		
+		sid = setsid();
+
+		if (sid < 0) {
+			perror("setsid has failed: ");
+			exit(EXIT_FAILURE);
+		}
+
 		dlog(STATE(log), LOG_NOTICE, "-- starting in daemon mode --");
 	} else
 		dlog(STATE(log), LOG_NOTICE, "-- starting in console mode --");
