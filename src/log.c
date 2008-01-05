@@ -99,13 +99,14 @@ void dlog_ct(FILE *fd, struct nf_conntrack *ct)
 	time_t t;
 	char buf[1024];
 	char *tmp;
+		
+	t = time(NULL);
+	ctime_r(&t, buf);
+	tmp = buf + strlen(buf);
+	buf[strlen(buf)-1]='\t';
+	nfct_snprintf(buf+strlen(buf), 1024-strlen(buf), ct, 0, 0, 0);
 
 	if (fd) {
-		t = time(NULL);
-		ctime_r(&t, buf);
-		tmp = buf + strlen(buf);
-		buf[strlen(buf)-1]='\t';
-		nfct_snprintf(buf+strlen(buf), 1024-strlen(buf), ct, 0, 0, 0);
 		fprintf(fd, "%s\n", buf);
 		fflush(fd);
 	}
