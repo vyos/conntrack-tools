@@ -171,6 +171,7 @@ void close_log(void)
 	if (STATE(stats_log) != NULL)
 		fclose(STATE(stats_log));
 
-	if (CONFIG(syslog_facility) != -1)
+	if (CONFIG(syslog_facility) != -1 || 
+	    CONFIG(stats).syslog_facility != -1)
 		closelog();
 }

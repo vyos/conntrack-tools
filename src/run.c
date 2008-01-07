@@ -41,7 +41,7 @@ void killer(int foo)
 	destroy_alarm_scheduler();
         unlink(CONFIG(lockfile));
 	dlog(STATE(log), LOG_NOTICE, "---- shutdown received ----");
-	close_log(STATE(log));
+	close_log();
 
 	sigprocmask(SIG_UNBLOCK, &STATE(block), NULL);
 
