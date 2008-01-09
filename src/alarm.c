@@ -18,6 +18,7 @@
 
 #include <unistd.h>
 #include <stdlib.h>
+#include <sys/time.h>
 #include "linux_list.h"
 #include "conntrackd.h"
 #include "alarm.h"
@@ -25,23 +26,16 @@
 #include <time.h>
 #include <errno.h>
 
-/* alarm cascade */
-#define ALARM_CASCADE_SIZE     STEPS_PER_SECONDS
-static struct list_head *alarm_cascade;
+static LIST_HEAD(alarm_list);
 
-struct alarm_list *create_alarm()
-{	
-	return (struct alarm_list *) malloc(sizeof(struct alarm_list));
+void set_alarm_expiration_secs(struct alarm_list *t, unsigned long expires)
+{
+	t->tv.tv_sec = expires;
 }
 
-void destroy_alarm(struct alarm_list *t)
+void set_alarm_expiration_usecs(struct alarm_list *t, unsigned long expires)
 {
-	free(t);
-}
-
-void set_alarm_expiration(struct alarm_list *t, unsigned long expires)
-{
-	t->expires = expires;
+	t->tv.tv_usec = expires;
 }
 
 void set_alarm_function(struct alarm_list *t,
@@ -59,16 +53,18 @@ void init_alarm(struct alarm_list *t)
 {
 	INIT_LIST_HEAD(&t->head);
 
-	t->expires 	= 0;
+	timerclear(&t->tv);
 	t->data 	= 0;
 	t->function 	= NULL;
 }
 
 void add_alarm(struct alarm_list *alarm)
 {
-	unsigned int pos = jhash(alarm, sizeof(alarm), 0) % ALARM_CASCADE_SIZE;
+	struct timeval tv;
 
-	list_add(&alarm->head, &alarm_cascade[pos]);
+	gettimeofday(&tv, NULL);
+	alarm->tv.tv_sec += tv.tv_sec;
+	list_add_tail(&alarm->head, &alarm_list);
 }
 
 void del_alarm(struct alarm_list *alarm)
@@ -76,41 +72,35 @@ void del_alarm(struct alarm_list *alarm)
 	list_del(&alarm->head);
 }
 
-int mod_alarm(struct alarm_list *alarm, unsigned long expires)
+void mod_alarm(struct alarm_list *alarm, unsigned long sc, unsigned long usc)
 {
-	alarm->expires = expires;
-	return 0;
+	struct timeval tv;
+
+	list_del(&alarm->head);
+	INIT_LIST_HEAD(&alarm->head);
+	gettimeofday(&tv, NULL);
+	alarm->tv.tv_sec = tv.tv_sec + sc;
+	alarm->tv.tv_usec = tv.tv_usec + usc;
+	list_add_tail(&alarm->head, &alarm_list);
 }
 
-void do_alarm_run(int step)
+void do_alarm_run(struct timeval *next_alarm)
 {
 	struct list_head *i, *tmp;
 	struct alarm_list *t;
+	struct timeval tv;
 
-	list_for_each_safe(i, tmp, &alarm_cascade[step]) {
+	gettimeofday(&tv, NULL);
+
+	list_for_each_safe(i, tmp, &alarm_list) {
 		t = (struct alarm_list *) i;
 
-		t->expires--;
-		if (t->expires == 0)
-			t->function(t, t->data);
+		if (timercmp(&t->tv, &tv, >)) {
+			timersub(&t->tv, &tv, next_alarm);
+			break;
+		}
+
+		del_alarm(t);
+		t->function(t, t->data);
 	}
-}
-
-int init_alarm_scheduler()
-{
-	int i;
-
-	alarm_cascade = malloc(sizeof(struct list_head) * ALARM_CASCADE_SIZE);
-	if (alarm_cascade == NULL)
-		return -1;
-
-	for (i=0; i<ALARM_CASCADE_SIZE; i++)
-		INIT_LIST_HEAD(&alarm_cascade[i]);
-
-	return 0;
-}
-
-void destroy_alarm_scheduler()
-{
-	free(alarm_cascade);
 }

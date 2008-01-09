@@ -15,7 +15,7 @@ struct sync_mode {
 	int  (*local)(int fd, int type, void *data);
 	int  (*recv)(const struct nethdr *net);
 	void (*send)(struct nethdr *net, struct us_conntrack *u);
-	void (*run)(int step);
+	void (*run)(void);
 };
 
 extern struct sync_mode alarm;

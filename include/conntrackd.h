@@ -159,7 +159,7 @@ extern struct ct_general_state st;
 struct ct_mode {
 	int (*init)(void);
 	int (*add_fds_to_set)(fd_set *readfds);
-	void (*run)(fd_set *readfds, int step);
+	void (*run)(fd_set *readfds);
 	int (*local)(int fd, int type, void *data);
 	void (*kill)(void);
 	void (*dump)(struct nf_conntrack *ct);

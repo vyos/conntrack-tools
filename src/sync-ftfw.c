@@ -70,6 +70,29 @@ static struct cache_extra cache_ftfw_extra = {
 	.destroy	= cache_ftfw_del
 };
 
+static void tx_queue_add_ctlmsg(u_int32_t flags, u_int32_t from, u_int32_t to)
+{
+	struct nethdr_ack ack = {
+		.flags = flags,
+		.from  = from,
+		.to    = to,
+	};
+
+	queue_add(tx_queue, &ack, NETHDR_ACK_SIZ);
+}
+
+static struct alarm_list alive_alarm;
+
+static void do_alive_alarm(struct alarm_list *a, void *data)
+{
+	tx_queue_add_ctlmsg(NET_F_ALIVE, 0, 0);
+
+	init_alarm(&alive_alarm);
+	set_alarm_expiration_secs(&alive_alarm, 1);
+	set_alarm_function(&alive_alarm, do_alive_alarm);
+	add_alarm(&alive_alarm);
+}
+
 static int ftfw_init()
 {
 	tx_queue = queue_create(CONFIG(resend_queue_size));
@@ -87,6 +110,12 @@ static int ftfw_init()
 	INIT_LIST_HEAD(&tx_list);
 	INIT_LIST_HEAD(&rs_list);
 
+	/* XXX: alive message expiration configurable */
+	init_alarm(&alive_alarm);
+	set_alarm_expiration_secs(&alive_alarm, 1);
+	set_alarm_function(&alive_alarm, do_alive_alarm);
+	add_alarm(&alive_alarm);
+
 	return 0;
 }
 
@@ -94,17 +123,6 @@ static void ftfw_kill()
 {
 	queue_destroy(rs_queue);
 	queue_destroy(tx_queue);
-}
-
-static void tx_queue_add_ctlmsg(u_int32_t flags, u_int32_t from, u_int32_t to)
-{
-	struct nethdr_ack ack = {
-		.flags = flags,
-		.from  = from,
-		.to    = to,
-	};
-
-	queue_add(tx_queue, &ack, NETHDR_ACK_SIZ);
 }
 
 static int do_cache_to_tx(void *data1, void *data2)
@@ -317,15 +335,7 @@ static int tx_list_xmit(struct list_head *i, struct us_conntrack *u)
 	return ret;
 }
 
-static struct alarm_list alive_alarm;
-
-static void do_alive_alarm(struct alarm_list *a, void *data)
-{
-	del_alarm(a);
-	tx_queue_add_ctlmsg(NET_F_ALIVE, 0, 0);
-}
-
-static void ftfw_run(int step)
+static void ftfw_run()
 {
 	struct list_head *i, *tmp;
 
@@ -342,15 +352,7 @@ static void ftfw_run(int step)
 		tx_list_xmit(i, u);
 	}
 
-	if (alive_alarm.expires > 0)
-		mod_alarm(&alive_alarm, 1);
-	else {
-		init_alarm(&alive_alarm);
-		/* XXX: alive message expiration configurable */
-		set_alarm_expiration(&alive_alarm, 1);
-		set_alarm_function(&alive_alarm, do_alive_alarm);
-		add_alarm(&alive_alarm);
-	}
+	mod_alarm(&alive_alarm, 1, 0);
 }
 
 struct sync_mode ftfw = {

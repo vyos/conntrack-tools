@@ -25,7 +25,6 @@
 #include <signal.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include "timer.h"
 
 void killer(int foo)
 {
@@ -38,7 +37,6 @@ void killer(int foo)
 	ignore_pool_destroy(STATE(ignore_pool));
 	local_server_destroy(STATE(local));
 	STATE(mode)->kill();
-	destroy_alarm_scheduler();
         unlink(CONFIG(lockfile));
 	dlog(STATE(log), LOG_NOTICE, "---- shutdown received ----");
 	close_log();
@@ -103,11 +101,6 @@ int init(void)
 		return -1;
 	}
 
-        if (init_alarm_scheduler() == -1) {
-		dlog(STATE(log), LOG_ERR, "can't initialize alarm scheduler");
-		return -1;
-	}
-
 	/* local UNIX socket */
 	STATE(local) = local_server_create(&CONFIG(local));
 	if (!STATE(local)) {
@@ -151,14 +144,10 @@ int init(void)
 	return 0;
 }
 
-static void __run(long credit, int step)
+static int __run(struct timeval *next_alarm)
 {
 	int max, ret;
 	fd_set readfds;
-	struct timeval tv = {
-		.tv_sec         = 0,
-		.tv_usec        = credit,
-	};
 
 	FD_ZERO(&readfds);
 	FD_SET(STATE(local), &readfds);
@@ -169,7 +158,7 @@ static void __run(long credit, int step)
 	if (STATE(mode)->add_fds_to_set)
 		max = MAX(max, STATE(mode)->add_fds_to_set(&readfds));
 
-	ret = select(max+1, &readfds, NULL, NULL, &tv);
+	ret = select(max+1, &readfds, NULL, NULL, next_alarm);
 	if (ret == -1) {
 		/* interrupted syscall, retry */
 		if (errno == EINTR)
@@ -179,6 +168,10 @@ static void __run(long credit, int step)
 		     "select failed: %s", strerror(errno));
 		return;
 	}
+
+	/* timeout expired, run the alarm list */
+	if (ret == 0)
+		return 1;
 
 	/* signals are racy */
 	sigprocmask(SIG_BLOCK, &STATE(block), NULL);		
@@ -221,35 +214,25 @@ static void __run(long credit, int step)
 	}
 
 	if (STATE(mode)->run)
-		STATE(mode)->run(&readfds, step);
+		STATE(mode)->run(&readfds);
 
 	sigprocmask(SIG_UNBLOCK, &STATE(block), NULL);
+
+	return 0;
 }
 
 void run(void)
 {
-	int step = 0;
-	struct timer timer;
-
-	timer_init(&timer);
+	struct timeval next_alarm = {
+		.tv_sec 	= 1,
+		.tv_usec 	= 0
+	};
 
 	while(1) {
-		timer_start(&timer);
-		__run(GET_CREDITS(timer), step);
-		timer_stop(&timer);
-
-		if (timer_adjust_credit(&timer)) {
-			timer_start(&timer);
+		if (__run(&next_alarm)) {
 			sigprocmask(SIG_BLOCK, &STATE(block), NULL);
-			do_alarm_run(step);
+			do_alarm_run(&next_alarm);
 			sigprocmask(SIG_UNBLOCK, &STATE(block), NULL);
-			timer_stop(&timer);
-
-			if (timer_adjust_credit(&timer))
-				dlog(STATE(log), LOG_WARNING, 
-				     "alarm run takes too long!");
-
-			step = (step + 1) < STEPS_PER_SECONDS ? step + 1 : 0;
 		}
 	}
 }

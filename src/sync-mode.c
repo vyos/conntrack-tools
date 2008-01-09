@@ -198,14 +198,14 @@ static int add_fds_to_set_sync(fd_set *readfds)
 	return STATE_SYNC(mcast_server->fd);
 }
 
-static void run_sync(fd_set *readfds, int step)
+static void run_sync(fd_set *readfds)
 {
 	/* multicast packet has been received */
 	if (FD_ISSET(STATE_SYNC(mcast_server->fd), readfds))
 		mcast_handler();
 
 	if (STATE_SYNC(sync)->run)
-		STATE_SYNC(sync)->run(step);
+		STATE_SYNC(sync)->run();
 
 	/* flush pending messages */
 	mcast_buffered_pending_netmsg(STATE_SYNC(mcast_client));

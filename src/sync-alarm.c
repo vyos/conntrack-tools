@@ -30,7 +30,14 @@ static void refresher(struct alarm_list *a, void *data)
 
 	debug_ct(u->ct, "persistence update");
 
-	a->expires = random() % CONFIG(refresh) + 1;
+	init_alarm(a);
+	set_alarm_expiration_secs(a, random() % CONFIG(refresh) + 1);
+	set_alarm_expiration_usecs(a, random() % 999999 + 1);
+
+	set_alarm_data(a, u);
+	set_alarm_function(a, refresher);
+	add_alarm(a);
+
 	net = BUILD_NETMSG(u->ct, NFCT_Q_UPDATE);
 	len = prepare_send_netmsg(STATE_SYNC(mcast_client), net);
 	mcast_buffered_send_netmsg(STATE_SYNC(mcast_client), net, len);
@@ -41,7 +48,8 @@ static void cache_alarm_add(struct us_conntrack *u, void *data)
 	struct alarm_list *alarm = data;
 
 	init_alarm(alarm);
-	set_alarm_expiration(alarm, (random() % conf.refresh) + 1);
+	set_alarm_expiration_secs(alarm, random() % CONFIG(refresh) + 1);
+	set_alarm_expiration_usecs(alarm, random() % 999999 + 1);
 	set_alarm_data(alarm, u);
 	set_alarm_function(alarm, refresher);
 	add_alarm(alarm);
@@ -50,7 +58,7 @@ static void cache_alarm_add(struct us_conntrack *u, void *data)
 static void cache_alarm_update(struct us_conntrack *u, void *data)
 {
 	struct alarm_list *alarm = data;
-	mod_alarm(alarm, (random() % conf.refresh) + 1);
+	mod_alarm(alarm, random() % CONFIG(refresh) + 1, random() % 999999 + 1);
 }
 
 static void cache_alarm_destroy(struct us_conntrack *u, void *data)

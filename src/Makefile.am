@@ -19,7 +19,6 @@ conntrackd_SOURCES = alarm.c main.c run.c hash.c queue.c buffer.c \
 		    traffic_stats.c stats-mode.c \
 		    network.c \
 		    state_helper.c state_helper_tcp.c \
-		    timer.c \
 		    build.c parse.c \
 		    read_config_yy.y read_config_lex.l
 

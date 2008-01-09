@@ -33,6 +33,7 @@ o obsolete `-S' option: Use information provided by the config file
 o daemonize conntrackd after initialization
 o rename class `buffer' to `queue' which is what it really implements
 o fix logfiles permissions, do not default to umask
+o wake up the daemon iff there are real events to handle instead of polling
 
 version 0.9.5 (2007/07/29)
 ------------------------------

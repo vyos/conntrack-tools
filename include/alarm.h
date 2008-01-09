@@ -5,7 +5,7 @@
 
 struct alarm_list {
 	struct list_head	head;
-	unsigned long		expires;
+	struct timeval		tv;
 	void			*data;
 	void			(*function)(struct alarm_list *a, void *data);
 };

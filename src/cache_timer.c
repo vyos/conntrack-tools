@@ -17,6 +17,7 @@
  */
 
 #include <stdio.h>
+#include <sys/time.h>
 #include "conntrackd.h"
 #include "us-conntrack.h"
 #include "cache.h"
@@ -35,7 +36,7 @@ static void timer_add(struct us_conntrack *u, void *data)
 	struct alarm_list *alarm = data;
 
 	init_alarm(alarm);
-	set_alarm_expiration(alarm, CONFIG(cache_timeout));
+	set_alarm_expiration_secs(alarm, CONFIG(cache_timeout));
 	set_alarm_data(alarm, u);
 	set_alarm_function(alarm, timeout);
 	add_alarm(alarm);
@@ -55,12 +56,15 @@ static void timer_destroy(struct us_conntrack *u, void *data)
 
 static int timer_dump(struct us_conntrack *u, void *data, char *buf, int type)
 {
+	struct timeval tv, tmp;
  	struct alarm_list *alarm = data;
 
 	if (type == NFCT_O_XML)
 		return 0;
 
-	return sprintf(buf, " [expires in %ds]", alarm->expires);
+	gettimeofday(&tv, NULL);
+	timersub(&tv, &alarm->tv, &tmp);
+	return sprintf(buf, " [expires in %ds]", tmp.tv_sec);
 }
 
 struct cache_feature timer_feature = {

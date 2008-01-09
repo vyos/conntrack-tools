@@ -246,7 +246,7 @@ int main(int argc, char *argv[])
 	/*
 	 * Setting up logging
 	 */
-	if (config_set && init_log() == -1)
+	if (init_log() == -1)
 		exit(EXIT_FAILURE);
 
 	if (type == REQUEST) {
