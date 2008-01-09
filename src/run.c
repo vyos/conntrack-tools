@@ -227,11 +227,15 @@ void run(void)
 		.tv_sec 	= 1,
 		.tv_usec 	= 0
 	};
+	struct timeval *next = &next_alarm;
+
+	if (CONFIG(flags) & CTD_STATS_MODE)
+		next = NULL;
 
 	while(1) {
-		if (__run(&next_alarm)) {
+		if (__run(next)) {
 			sigprocmask(SIG_BLOCK, &STATE(block), NULL);
-			do_alarm_run(&next_alarm);
+			do_alarm_run(next);
 			sigprocmask(SIG_UNBLOCK, &STATE(block), NULL);
 		}
 	}
