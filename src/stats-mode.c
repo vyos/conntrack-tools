@@ -62,7 +62,7 @@ static void kill_stats()
 	cache_destroy(STATE_STATS(cache));
 	/* flush the buffer before exiting */
 	if (STATE(stats_log) != NULL)
-		buffer_flush(STATE(stats_log), 
+		buffer_flush(STATE_STATS(buffer_log), 
 			     dlog_buffered_ct_flush, 
 			     STATE(stats_log));
 }
