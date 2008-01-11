@@ -42,7 +42,7 @@ ip6_part	{hex_255}":"?
 ip6_form1	{ip6_part}{0,16}"::"{ip6_part}{0,16}
 ip6_form2	({hex_255}":"){16}{hex_255}
 ip6		{ip6_form1}|{ip6_form2}
-string		[a-zA-Z][a-zA-Z0-9]*
+string		[a-zA-Z][a-zA-Z0-9\.]*
 persistent	[P|p][E|e][R|r][S|s][I|i][S|s][T|t][E|e][N|n][T|T]
 nack		[N|n][A|a][C|c][K|k]
 alarm		[A|a][L|l][A|a][R|r][M|m]
