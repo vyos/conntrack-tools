@@ -3,6 +3,8 @@ version 0.9.6 (yet unreleased)
 
 o fix compilation problem due to missing headers (Krisztian Kovacs)
 o include kernel options and Fedora comments in the INSTALL file
+o remove -lpthread during compilation
+o update library function checking in configure.in
 
 = conntrack =
 o fix missing `-g' and `-n' options in getopt_long control string

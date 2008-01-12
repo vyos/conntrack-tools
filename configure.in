@@ -48,9 +48,8 @@ AC_CHECK_HEADERS([linux/capability.h],, [AC_MSG_ERROR([Cannot find linux/capabib
 dnl AC_CHECK_LIB([c], [main])
 # FIXME: Replace `main' with a function in `-ldl':
 
-AC_CHECK_LIB([nfnetlink], [nfnl_talk] ,,,[-lnfnetlink])
-AC_CHECK_LIB([netfilter_conntrack], [nfct_dump_conntrack_table] ,,,[-lnetfilter_conntrack])
-AC_CHECK_LIB([pthread], [pthread_create] ,,,[-lpthread])
+AC_CHECK_LIB([nfnetlink], [nfnl_query] ,,,[-lnfnetlink])
+AC_CHECK_LIB([netfilter_conntrack], [nfct_query] ,,,[-lnetfilter_conntrack])
 
 AC_CHECK_HEADERS(arpa/inet.h)
 dnl check for inet_pton
