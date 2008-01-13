@@ -591,11 +591,14 @@ static int event_cb(enum nf_conntrack_msg_type type,
 		output_type = NFCT_O_XML;
 	if (output_mask & _O_EXT)
 		output_flags = NFCT_OF_SHOW_LAYER3;
-	if ((output_mask & _O_TMS) && !(output_mask & _O_XML)) {
-		struct timeval tv;
-		gettimeofday(&tv, NULL);
-		printf("[%-8ld.%-6ld]\t", tv.tv_sec, tv.tv_usec);
-	}
+	if (output_mask & _O_TMS) {
+		if (!(output_mask & _O_XML)) {
+			struct timeval tv;
+			gettimeofday(&tv, NULL);
+			printf("[%-8ld.%-6ld]\t", tv.tv_sec, tv.tv_usec);
+		} else
+			output_flags |= NFCT_OF_TIME;
+	}	
 
 	nfct_snprintf(buf, 1024, ct, type, output_type, output_flags);
 	printf("%s\n", buf);

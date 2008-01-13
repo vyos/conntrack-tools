@@ -11,6 +11,7 @@ o fix missing `-g' and `-n' options in getopt_long control string
 o add support for secmark (requires Linux kernel >= 2.6.25)
 o add mark and secmark information to the manpage
 o cleanup error message
+o add support for -E -o xml,timestamp
 
 = conntrackd =
 o Remove window tracking disabling limitation (requires Linux kernel >= 2.6.22)
