@@ -28,16 +28,6 @@
 
 static LIST_HEAD(alarm_list);
 
-void set_alarm_expiration_secs(struct alarm_list *t, unsigned long expires)
-{
-	t->tv.tv_sec = expires;
-}
-
-void set_alarm_expiration_usecs(struct alarm_list *t, unsigned long expires)
-{
-	t->tv.tv_usec = expires;
-}
-
 void set_alarm_function(struct alarm_list *t,
 			void (*fcn)(struct alarm_list *a, void *data))
 {
@@ -51,8 +41,6 @@ void set_alarm_data(struct alarm_list *t, void *data)
 
 void init_alarm(struct alarm_list *t)
 {
-	INIT_LIST_HEAD(&t->head);
-
 	timerclear(&t->tv);
 	t->data 	= 0;
 	t->function 	= NULL;
@@ -77,14 +65,26 @@ void mod_alarm(struct alarm_list *alarm, unsigned long sc, unsigned long usc)
 	struct timeval tv;
 
 	list_del(&alarm->head);
-	INIT_LIST_HEAD(&alarm->head);
 	gettimeofday(&tv, NULL);
 	alarm->tv.tv_sec = tv.tv_sec + sc;
 	alarm->tv.tv_usec = tv.tv_usec + usc;
 	list_add_tail(&alarm->head, &alarm_list);
 }
 
-void do_alarm_run(struct timeval *next_alarm)
+int get_next_alarm(struct timeval *tv, struct timeval *next_alarm)
+{
+	struct list_head *i;
+	struct alarm_list *t;
+
+	list_for_each(i, &alarm_list) {
+		t = (struct alarm_list *) i;
+		timersub(&t->tv, tv, next_alarm);
+		return 1;
+	}
+	return 0;
+}
+
+int do_alarm_run(struct timeval *next_alarm)
 {
 	struct list_head *i, *tmp;
 	struct alarm_list *t;
@@ -97,10 +97,13 @@ void do_alarm_run(struct timeval *next_alarm)
 
 		if (timercmp(&t->tv, &tv, >)) {
 			timersub(&t->tv, &tv, next_alarm);
-			break;
+			return 1;
 		}
 
 		del_alarm(t);
 		t->function(t, t->data);
 	}
+
+	/* check for refreshed alarms to get the next one */
+	return get_next_alarm(&tv, next_alarm);
 }

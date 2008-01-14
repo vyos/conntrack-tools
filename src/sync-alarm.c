@@ -31,8 +31,9 @@ static void refresher(struct alarm_list *a, void *data)
 	debug_ct(u->ct, "persistence update");
 
 	init_alarm(a);
-	set_alarm_expiration_secs(a, random() % CONFIG(refresh) + 1);
-	set_alarm_expiration_usecs(a, random() % 999999 + 1);
+	set_alarm_expiration(a, 
+			     random() % CONFIG(refresh) + 1,
+			     random() % 999999 + 1);
 
 	set_alarm_data(a, u);
 	set_alarm_function(a, refresher);
@@ -48,8 +49,9 @@ static void cache_alarm_add(struct us_conntrack *u, void *data)
 	struct alarm_list *alarm = data;
 
 	init_alarm(alarm);
-	set_alarm_expiration_secs(alarm, random() % CONFIG(refresh) + 1);
-	set_alarm_expiration_usecs(alarm, random() % 999999 + 1);
+	set_alarm_expiration(alarm, 
+			     random() % CONFIG(refresh) + 1,
+			     random() % 999999 + 1);
 	set_alarm_data(alarm, u);
 	set_alarm_function(alarm, refresher);
 	add_alarm(alarm);

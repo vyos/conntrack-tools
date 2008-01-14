@@ -36,7 +36,7 @@ static void timer_add(struct us_conntrack *u, void *data)
 	struct alarm_list *alarm = data;
 
 	init_alarm(alarm);
-	set_alarm_expiration_secs(alarm, CONFIG(cache_timeout));
+	set_alarm_expiration(alarm, CONFIG(cache_timeout), 0);
 	set_alarm_data(alarm, u);
 	set_alarm_function(alarm, timeout);
 	add_alarm(alarm);

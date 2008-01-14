@@ -38,6 +38,7 @@ o rename class `buffer' to `queue' which is what it really implements
 o fix logfiles permissions, do not default to umask
 o wake up the daemon iff there are real events to handle instead of polling
 o add support for tagged vlan interfaces in the config file, e.g. eth0.1
+o improve alarm framework based on suggestions from Max Duempel
 
 version 0.9.5 (2007/07/29)
 ------------------------------

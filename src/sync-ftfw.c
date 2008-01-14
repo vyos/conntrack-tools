@@ -88,7 +88,7 @@ static void do_alive_alarm(struct alarm_list *a, void *data)
 	tx_queue_add_ctlmsg(NET_F_ALIVE, 0, 0);
 
 	init_alarm(&alive_alarm);
-	set_alarm_expiration_secs(&alive_alarm, 1);
+	set_alarm_expiration(&alive_alarm, 1, 0);
 	set_alarm_function(&alive_alarm, do_alive_alarm);
 	add_alarm(&alive_alarm);
 }
@@ -112,7 +112,7 @@ static int ftfw_init()
 
 	/* XXX: alive message expiration configurable */
 	init_alarm(&alive_alarm);
-	set_alarm_expiration_secs(&alive_alarm, 1);
+	set_alarm_expiration(&alive_alarm, 1, 0);
 	set_alarm_function(&alive_alarm, do_alive_alarm);
 	add_alarm(&alive_alarm);
 

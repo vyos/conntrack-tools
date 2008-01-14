@@ -224,19 +224,20 @@ static int __run(struct timeval *next_alarm)
 
 void run(void)
 {
-	struct timeval next_alarm = {
-		.tv_sec 	= 1,
-		.tv_usec 	= 0
-	};
+	struct timeval next_alarm;
 	struct timeval *next = &next_alarm;
+	struct timeval tv;
 
-	if (CONFIG(flags) & CTD_STATS_MODE)
-		next = NULL;
+	/* initialization: get the first alarm available */
+	gettimeofday(&tv, NULL);
+	get_next_alarm(&tv, next);
 
 	while(1) {
 		if (__run(next)) {
 			sigprocmask(SIG_BLOCK, &STATE(block), NULL);
-			do_alarm_run(next);
+			next = &next_alarm;
+			if (!do_alarm_run(next))
+				next = NULL; /* no next alarms */
 			sigprocmask(SIG_UNBLOCK, &STATE(block), NULL);
 		}
 	}
