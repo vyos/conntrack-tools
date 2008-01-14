@@ -46,13 +46,29 @@ void init_alarm(struct alarm_list *t)
 	t->function 	= NULL;
 }
 
+void __add_alarm(struct alarm_list *alarm)
+{
+	struct list_head *i;
+	struct alarm_list *t;
+
+	list_for_each(i, &alarm_list) {
+		t = (struct alarm_list *) i;
+
+		if (timercmp(&alarm->tv, &t->tv, <)) {
+			list_add_tail(&alarm->head, &t->head);
+			return;
+		}
+	}
+	list_add_tail(&alarm->head, &alarm_list);
+}
+
 void add_alarm(struct alarm_list *alarm)
 {
 	struct timeval tv;
 
 	gettimeofday(&tv, NULL);
 	alarm->tv.tv_sec += tv.tv_sec;
-	list_add_tail(&alarm->head, &alarm_list);
+	__add_alarm(alarm);
 }
 
 void del_alarm(struct alarm_list *alarm)
@@ -68,7 +84,7 @@ void mod_alarm(struct alarm_list *alarm, unsigned long sc, unsigned long usc)
 	gettimeofday(&tv, NULL);
 	alarm->tv.tv_sec = tv.tv_sec + sc;
 	alarm->tv.tv_usec = tv.tv_usec + usc;
-	list_add_tail(&alarm->head, &alarm_list);
+	__add_alarm(alarm);
 }
 
 int get_next_alarm(struct timeval *tv, struct timeval *next_alarm)
