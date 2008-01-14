@@ -92,6 +92,7 @@ int init(void)
 	else {
 		fprintf(stderr, "WARNING: No running mode specified. "
 				"Defaulting to statistics mode.\n");
+		CONFIG(flags) |= CTD_STATS_MODE;
 		STATE(mode) = &stats_mode;
 	}
 

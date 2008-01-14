@@ -132,6 +132,7 @@ static int init_sync(void)
 	else {
 		fprintf(stderr, "WARNING: No synchronization mode specified. "
 				"Defaulting to FT-FW mode.\n");
+		CONFIG(flags) |= CTD_SYNC_FTFW;
 		STATE_SYNC(sync) = &ftfw;
 	}
 
