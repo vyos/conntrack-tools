@@ -230,7 +230,8 @@ void run(void)
 
 	/* initialization: get the first alarm available */
 	gettimeofday(&tv, NULL);
-	get_next_alarm(&tv, next);
+	if (!get_next_alarm(&tv, next))
+		next = NULL;
 
 	while(1) {
 		if (__run(next)) {
