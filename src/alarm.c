@@ -83,7 +83,7 @@ void mod_alarm(struct alarm_list *alarm, unsigned long sc, unsigned long usc)
 	list_del(&alarm->head);
 	gettimeofday(&tv, NULL);
 	alarm->tv.tv_sec = tv.tv_sec + sc;
-	alarm->tv.tv_usec = tv.tv_usec + usc;
+	alarm->tv.tv_usec = usc;
 	__add_alarm(alarm);
 }
 
