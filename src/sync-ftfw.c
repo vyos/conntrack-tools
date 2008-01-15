@@ -274,7 +274,7 @@ static void ftfw_send(struct nethdr *net, struct us_conntrack *u)
 		cn = (struct cache_ftfw *) 
 			cache_get_extra(STATE_SYNC(internal), u);
 
-		if (!list_empty(&cn->rs_list)
+		if (!list_empty(&cn->rs_list))
 			list_del(&cn->rs_list);
 
 		cn->seq = net->seq;
