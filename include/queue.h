@@ -25,7 +25,7 @@ unsigned int queue_len(const struct queue *b);
 int queue_add(struct queue *b, const void *data, size_t size);
 void queue_del(struct queue *b, void *data);
 void queue_iterate(struct queue *b, 
-		   void *data, 
+		   const void *data, 
 		   int (*iterate)(void *data1, void *data2));
 
 #endif
