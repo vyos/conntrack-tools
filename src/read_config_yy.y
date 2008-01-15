@@ -217,7 +217,7 @@ multicast_options :
 multicast_option : T_IPV4_ADDR T_IP
 {
 	if (!inet_aton($2, &conf.mcast.in)) {
-		fprintf(stderr, "%s is not a valid IPv4 address\n");
+		fprintf(stderr, "%s is not a valid IPv4 address\n", $2);
 		break;
 	}
 
@@ -251,7 +251,7 @@ multicast_option : T_IPV6_ADDR T_IP
 multicast_option : T_IPV4_IFACE T_IP
 {
 	if (!inet_aton($2, &conf.mcast.ifa)) {
-		fprintf(stderr, "%s is not a valid IPv4 address\n");
+		fprintf(stderr, "%s is not a valid IPv4 address\n", $2);
 		break;
 	}
 
