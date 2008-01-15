@@ -54,7 +54,7 @@ void add_alarm(struct alarm_list *alarm)
 	struct timeval tv;
 
 	gettimeofday(&tv, NULL);
-	alarm->tv.tv_sec += tv.tv_sec;
+	timeradd(&alarm->tv, &tv, &alarm->tv);
 	__add_alarm(alarm);
 }
 
@@ -68,9 +68,9 @@ void mod_alarm(struct alarm_list *alarm, unsigned long sc, unsigned long usc)
 	struct timeval tv;
 
 	list_del(&alarm->head);
+	set_alarm_expiration(alarm, sc, usc);
 	gettimeofday(&tv, NULL);
-	alarm->tv.tv_sec = tv.tv_sec + sc;
-	alarm->tv.tv_usec = usc;
+	timeradd(&alarm->tv, &tv, &alarm->tv);
 	__add_alarm(alarm);
 }
 
