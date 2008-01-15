@@ -110,7 +110,7 @@ void queue_del(struct queue *b, void *data)
 
 void queue_iterate(struct queue *b, 
 		   const void *data, 
-		   int (*iterate)(void *data1, void *data2))
+		   int (*iterate)(void *data1, const void *data2))
 {
 	struct list_head *i, *tmp;
 	struct queue_node *n;

@@ -157,7 +157,7 @@ static int ftfw_local(int fd, int type, void *data)
 	return ret;
 }
 
-static int rs_queue_to_tx(void *data1, void *data2)
+static int rs_queue_to_tx(void *data1, const void *data2)
 {
 	struct nethdr *net = data1;
 	const struct nethdr_ack *nack = data2;
@@ -170,7 +170,7 @@ static int rs_queue_to_tx(void *data1, void *data2)
 	return 0;
 }
 
-static int rs_queue_empty(void *data1, void *data2)
+static int rs_queue_empty(void *data1, const void *data2)
 {
 	struct nethdr *net = data1;
 	const struct nethdr_ack *h = data2;
@@ -237,7 +237,7 @@ static int ftfw_recv(const struct nethdr *net)
 	}
 
 	if (IS_NACK(net)) {
-		struct nethdr_ack *nack = (struct nethdr_ack *) net;
+		const struct nethdr_ack *nack = (const struct nethdr_ack *) net;
 
 		dp("NACK: from seq=%u to seq=%u\n", nack->from, nack->to);
 		rs_list_to_tx(STATE_SYNC(internal), nack->from, nack->to);
@@ -248,7 +248,7 @@ static int ftfw_recv(const struct nethdr *net)
 		cache_iterate(STATE_SYNC(internal), NULL, do_cache_to_tx);
 		return 1;
 	} else if (IS_ACK(net)) {
-		struct nethdr_ack *h = (struct nethdr_ack *) net;
+		const struct nethdr_ack *h = (const struct nethdr_ack *) net;
 
 		dp("ACK: from seq=%u to seq=%u\n", h->from, h->to);
 		rs_list_empty(STATE_SYNC(internal), h->from, h->to);
@@ -289,7 +289,7 @@ insert:
 	}
 }
 
-static int tx_queue_xmit(void *data1, void *data2)
+static int tx_queue_xmit(void *data1, const void *data2)
 {
 	struct nethdr *net = data1;
 	int len = prepare_send_netmsg(STATE_SYNC(mcast_client), net);
