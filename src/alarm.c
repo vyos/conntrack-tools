@@ -70,7 +70,7 @@ void del_alarm(struct alarm_list *alarm)
 
 void mod_alarm(struct alarm_list *alarm, unsigned long sc, unsigned long usc)
 {
-	list_del_init(&alarm->head);
+	list_del(&alarm->head);
 	set_alarm_expiration(alarm, sc, usc);
 	add_alarm(alarm);
 }
