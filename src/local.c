@@ -37,6 +37,7 @@ int local_server_create(struct local_conf *conf)
 	if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &conf->reuseaddr, 
 				sizeof(conf->reuseaddr)) == -1) {
 		close(fd);
+		unlink(conf->path);
 		return -1;
 	}
 
@@ -47,19 +48,22 @@ int local_server_create(struct local_conf *conf)
 
 	if (bind(fd, (struct sockaddr *) &local, len) == -1) {
 		close(fd);
+		unlink(conf->path);
 		return -1;
 	}
 
 	if (listen(fd, conf->backlog) == -1) {
 		close(fd);
+		unlink(conf->path);
 		return -1;
 	}
 
 	return fd;
 }
 
-void local_server_destroy(int fd)
+void local_server_destroy(int fd, const char *path)
 {
+	unlink(path);
 	close(fd);
 }
 

@@ -43,7 +43,7 @@ void killer(int foo)
 	nfct_close(STATE(dump));
 
 	ignore_pool_destroy(STATE(ignore_pool));
-	local_server_destroy(STATE(local));
+	local_server_destroy(STATE(local), CONFIG(local).path);
 	STATE(mode)->kill();
         unlink(CONFIG(lockfile));
 	dlog(STATE(log), LOG_NOTICE, "---- shutdown received ----");

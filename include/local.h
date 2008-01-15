@@ -15,7 +15,7 @@ struct local_conf {
 
 /* local server */
 int local_server_create(struct local_conf *conf);
-void local_server_destroy(int fd);
+void local_server_destroy(int fd, const char *);
 int do_local_server_step(int fd, void *data, 
 			 void (*process)(int fd, void *data));
 
