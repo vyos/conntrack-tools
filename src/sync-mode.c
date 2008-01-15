@@ -31,7 +31,7 @@
 
 static void do_mcast_handler_step(struct nethdr *net)
 {
-	unsigned int query;
+	int query;
 	struct netpld *pld = NETHDR_DATA(net);
 	char __ct[nfct_maxsize()];
 	struct nf_conntrack *ct = (struct nf_conntrack *) __ct;
@@ -82,7 +82,7 @@ retry:
 }
 
 /* handler for multicast messages received */
-static void mcast_handler()
+static void mcast_handler(void)
 {
 	int numbytes, remain;
 	char __net[65536], *ptr = __net; /* XXX: maximum MTU for IPv4 */
@@ -116,8 +116,6 @@ static void mcast_handler()
 
 static int init_sync(void)
 {
-	int ret;
-
 	state.sync = malloc(sizeof(struct ct_sync_state));
 	if (!state.sync) {
 		dlog(STATE(log), LOG_ERR, "can't allocate memory for sync");
@@ -212,7 +210,7 @@ static void run_sync(fd_set *readfds)
 	mcast_buffered_pending_netmsg(STATE_SYNC(mcast_client));
 }
 
-static void kill_sync()
+static void kill_sync(void)
 {
 	cache_destroy(STATE_SYNC(internal));
 	cache_destroy(STATE_SYNC(external));
@@ -226,7 +224,7 @@ static void kill_sync()
 		STATE_SYNC(sync)->kill();
 }
 
-static dump_stats_sync(int fd)
+static void dump_stats_sync(int fd)
 {
 	char buf[512];
 	int size;
@@ -234,8 +232,8 @@ static dump_stats_sync(int fd)
 	size = sprintf(buf, "multicast sequence tracking:\n"
 			    "%20llu Pckts mfrm "
 			    "%20llu Pckts lost\n\n",
-			STATE(malformed),
-			STATE_SYNC(packets_lost));
+			(unsigned long long)STATE(malformed),
+			(unsigned long long)STATE_SYNC(packets_lost));
 
 	send(fd, buf, size, 0);
 }
@@ -289,7 +287,7 @@ static int local_handler_sync(int fd, int type, void *data)
 		cache_flush(STATE_SYNC(external));
 		break;
 	case KILL:
-		killer();
+		killer(0);
 		break;
 	case STATS:
 		cache_stats(STATE_SYNC(internal), fd);
@@ -403,7 +401,7 @@ static int overrun_purge_step(void *data1, void *data2)
 }
 
 /* it's likely that we're losing events, just try to do our best here */
-static void overrun_sync()
+static void overrun_sync(void)
 {
 	int ret;
 	struct nfct_handle *h;
@@ -481,8 +479,11 @@ static int event_destroy_sync(struct nf_conntrack *ct)
 	if (cache_del(STATE_SYNC(internal), ct)) {
 		mcast_send_sync(NULL, ct, NFCT_Q_DESTROY);
 		debug_ct(ct, "internal destroy");
-	} else
+		return 1;
+	} else {
 		debug_ct(ct, "can't destroy");
+		return 0;
+	}
 }
 
 struct ct_mode sync_mode = {

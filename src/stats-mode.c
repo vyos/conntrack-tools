@@ -84,7 +84,7 @@ static int local_handler_stats(int fd, int type, void *data)
 		cache_flush(STATE_STATS(cache));
 		break;
 	case KILL:
-		killer();
+		killer(0);
 		break;
 	case STATS:
 		cache_stats(STATE_STATS(cache), fd);

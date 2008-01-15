@@ -45,7 +45,7 @@ static void timer_add(struct us_conntrack *u, void *data)
 static void timer_update(struct us_conntrack *u, void *data)
 {
 	struct alarm_list *alarm = data;
-	mod_alarm(alarm, CONFIG(cache_timeout));
+	mod_alarm(alarm, CONFIG(cache_timeout), 0);
 }
 
 static void timer_destroy(struct us_conntrack *u, void *data)
