@@ -152,10 +152,10 @@ struct netattr {
 	(void *)(((char *)x) + sizeof(struct netattr))
 
 #define NTA_NEXT(x, len)						      \
-({									      \
-	len -= NTA_ALIGN(NTA_LENGTH(x->nta_len));			      \
-	(struct netattr *)(((char *)x) + NTA_ALIGN(NTA_LENGTH(x->nta_len)));  \
-})
+(									      \
+	len -= NTA_ALIGN(NTA_LENGTH(x->nta_len)),			      \
+	(struct netattr *)(((char *)x) + NTA_ALIGN(NTA_LENGTH(x->nta_len)))   \
+)
 
 #define NTA_ALIGNTO	4
 #define NTA_ALIGN(len)	(((len) + NTA_ALIGNTO - 1) & ~(NTA_ALIGNTO - 1))
