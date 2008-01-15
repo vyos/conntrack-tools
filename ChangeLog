@@ -61,6 +61,7 @@ o use the comma operator instead of curly braces
 o add missing function prototypes
 o merge several *_alarm() functions into init_alarm()
 o use add_alarm() in mod_alarm() to avoid code duplication
+o import tcp_state_helper only once
 
 version 0.9.5 (2007/07/29)
 ------------------------------

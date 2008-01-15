@@ -27,6 +27,8 @@
 #include "ignore.h"
 #include <syslog.h>
 
+extern struct state_replication_helper tcp_state_helper;
+
 extern char *yytext;
 extern int   yylineno;
 
@@ -471,47 +473,38 @@ state: tcp_state;
 
 tcp_state: T_SYN_SENT
 {
-	extern struct state_replication_helper tcp_state_helper;
 	state_helper_register(&tcp_state_helper, TCP_CONNTRACK_SYN_SENT);
 };
 tcp_state: T_SYN_RECV
 {
-	extern struct state_replication_helper tcp_state_helper;
 	state_helper_register(&tcp_state_helper, TCP_CONNTRACK_SYN_RECV);
 };
 tcp_state: T_ESTABLISHED
 {
-	extern struct state_replication_helper tcp_state_helper;
 	state_helper_register(&tcp_state_helper, TCP_CONNTRACK_ESTABLISHED);
 };
 tcp_state: T_FIN_WAIT
 {
-	extern struct state_replication_helper tcp_state_helper;
 	state_helper_register(&tcp_state_helper, TCP_CONNTRACK_FIN_WAIT);
 };
 tcp_state: T_CLOSE_WAIT
 {
-	extern struct state_replication_helper tcp_state_helper;
 	state_helper_register(&tcp_state_helper, TCP_CONNTRACK_CLOSE_WAIT);
 };
 tcp_state: T_LAST_ACK
 {
-	extern struct state_replication_helper tcp_state_helper;
 	state_helper_register(&tcp_state_helper, TCP_CONNTRACK_LAST_ACK);
 };
 tcp_state: T_TIME_WAIT
 {
-	extern struct state_replication_helper tcp_state_helper;
 	state_helper_register(&tcp_state_helper, TCP_CONNTRACK_TIME_WAIT);
 };
 tcp_state: T_CLOSE
 {
-	extern struct state_replication_helper tcp_state_helper;
 	state_helper_register(&tcp_state_helper, TCP_CONNTRACK_CLOSE);
 };
 tcp_state: T_LISTEN
 {
-	extern struct state_replication_helper tcp_state_helper;
 	state_helper_register(&tcp_state_helper, TCP_CONNTRACK_LISTEN);
 };
 
