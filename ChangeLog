@@ -48,6 +48,7 @@ o resolve global variable "alarm" conflict with alarm() function in unistd.h.
 o enable gcc warnings, including -Werror
 o use list_for_each_entry() instead of list_for_each()
 o use const when possible
+o remove prefetch in slist.h since it confuses gcc
 
 version 0.9.5 (2007/07/29)
 ------------------------------

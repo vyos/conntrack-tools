@@ -30,7 +30,7 @@ static inline void slist_add(struct slist_head *head, struct slist_head *t)
 #define slist_entry(ptr, type, member) container_of(ptr,type,member)
 
 #define slist_for_each(pos, head) \
-	for (pos = (head)->next; pos && ({ prefetch(pos.next); 1; }); \
+	for (pos = (head)->next; pos; \
 	     pos = pos->next)
 
 #define slist_for_each_safe(pos, prev, next, head) \
