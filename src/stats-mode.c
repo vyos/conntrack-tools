@@ -16,6 +16,8 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#include "netlink.h"
+#include "traffic_stats.h"
 #include <stdlib.h>
 #include "cache.h"
 #include "log.h"

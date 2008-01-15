@@ -54,6 +54,8 @@ void build_netmsg(struct nf_conntrack *ct, int query, struct nethdr *net);
 int prepare_send_netmsg(struct mcast_sock *m, void *data);
 int mcast_send_netmsg(struct mcast_sock *m, void *data);
 int mcast_recv_netmsg(struct mcast_sock *m, void *data, int len);
+int handle_netmsg(struct nethdr *net);
+int mcast_track_seq(u_int32_t seq, u_int32_t *exp_seq);
 
 struct mcast_conf;
 
@@ -160,5 +162,9 @@ struct netattr {
 #define NTA_ALIGNTO	4
 #define NTA_ALIGN(len)	(((len) + NTA_ALIGNTO - 1) & ~(NTA_ALIGNTO - 1))
 #define NTA_LENGTH(len)	(NTA_ALIGN(sizeof(struct netattr)) + (len))
+
+void build_netpld(struct nf_conntrack *ct, struct netpld *pld, int query);
+
+void parse_netpld(struct nf_conntrack *ct, struct netpld *pld, int *query);
 
 #endif

@@ -19,6 +19,7 @@
  */
 
 #include "conntrackd.h"
+#include "netlink.h"
 #include <libnetfilter_conntrack/libnetfilter_conntrack.h>
 #include <errno.h>
 #include "us-conntrack.h"

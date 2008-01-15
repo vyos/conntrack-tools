@@ -20,6 +20,7 @@
 #include "network.h"
 #include "us-conntrack.h"
 #include "sync.h"
+#include "log.h"
 
 static unsigned int seq_set, cur_seq;
 

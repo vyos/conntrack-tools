@@ -61,10 +61,6 @@ void show_usage(char *progname)
 	fprintf(stdout, "%s\n", usage_options);
 }
 
-/* These live in run.c */
-int init(void);
-void run(void);
-
 void set_operation_mode(int *current, int want, char *argv[])
 {
 	if (*current == NOT_SET) {

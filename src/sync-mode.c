@@ -16,6 +16,9 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#include "netlink.h"
+#include "traffic_stats.h"
+#include "log.h"
 #include <stdlib.h>
 #include "cache.h"
 #include "conntrackd.h"
@@ -28,6 +31,7 @@
 #include "sync.h"
 #include "network.h"
 #include "debug.h"
+#include <unistd.h>
 
 static void do_mcast_handler_step(struct nethdr *net)
 {

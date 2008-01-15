@@ -16,6 +16,7 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#include "traffic_stats.h"
 #include "cache.h"
 #include "hash.h"
 #include "conntrackd.h"

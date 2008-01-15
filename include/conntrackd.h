@@ -175,4 +175,10 @@ extern struct ct_mode stats_mode;
 
 #define MAX(x, y) x > y ? x : y
 
+/* These live in run.c */
+void killer(int foo);
+void local_handler(int fd, void *data);
+int init(void);
+void run(void);
+
 #endif

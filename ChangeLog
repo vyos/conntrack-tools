@@ -57,6 +57,7 @@ o fix illegal use of return in the yacc code, use break instead
 o fix wrong invocations after prototype cleanup
 o set the return type of the parse functions to "void"
 o use the comma operator instead of curly braces
+o add missing function prototypes
 
 version 0.9.5 (2007/07/29)
 ------------------------------

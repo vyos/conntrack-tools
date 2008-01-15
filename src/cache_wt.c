@@ -16,6 +16,7 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#include "netlink.h"
 #include <stdio.h>
 #include "conntrackd.h"
 #include "us-conntrack.h"

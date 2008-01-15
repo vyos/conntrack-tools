@@ -16,7 +16,11 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#include "netlink.h"
 #include "conntrackd.h"
+#include "traffic_stats.h"
+#include "ignore.h"
+#include "log.h"
 #include <libnfnetlink/libnfnetlink.h>
 #include <libnetfilter_conntrack/libnetfilter_conntrack.h>
 #include <errno.h>
