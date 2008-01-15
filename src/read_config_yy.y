@@ -121,7 +121,7 @@ syslog_facility : T_SYSLOG T_STRING
 	else {
 		fprintf(stderr, "'%s' is not a known syslog facility, "
 				"ignoring.\n", $2);
-		return;
+		break;
 	}
 
 	if (conf.stats.syslog_facility != -1 &&
@@ -187,7 +187,7 @@ ignore_traffic_option : T_IPV4_ADDR T_IP
 
 	if (!family) {
 		fprintf(stderr, "%s is not a valid IP, ignoring", $2);
-		return;
+		break;
 	}
 
 	if (!STATE(ignore_pool)) {
@@ -216,14 +216,14 @@ multicast_option : T_IPV4_ADDR T_IP
 {
 	if (!inet_aton($2, &conf.mcast.in)) {
 		fprintf(stderr, "%s is not a valid IPv4 address\n");
-		return;
+		break;
 	}
 
         if (conf.mcast.ipproto == AF_INET6) {
 		fprintf(stderr, "Your multicast address is IPv4 but "
 		                "is binded to an IPv6 interface? Surely "
 				"this is not what you want\n");
-		return;
+		break;
 	}
 
 	conf.mcast.ipproto = AF_INET;
@@ -240,7 +240,7 @@ multicast_option : T_IPV6_ADDR T_IP
 		fprintf(stderr, "Your multicast address is IPv6 but "
 				"is binded to an IPv4 interface? Surely "
 				"this is not what you want\n");
-		return;
+		break;
 	}
 
 	conf.mcast.ipproto = AF_INET6;
@@ -250,14 +250,14 @@ multicast_option : T_IPV4_IFACE T_IP
 {
 	if (!inet_aton($2, &conf.mcast.ifa)) {
 		fprintf(stderr, "%s is not a valid IPv4 address\n");
-		return;
+		break;
 	}
 
         if (conf.mcast.ipproto == AF_INET6) {
 		fprintf(stderr, "Your multicast interface is IPv4 but "
 		                "is binded to an IPv6 interface? Surely "
 				"this is not what you want\n");
-		return;
+		break;
 	}
 
 	conf.mcast.ipproto = AF_INET;
@@ -274,7 +274,7 @@ multicast_option : T_IPV6_IFACE T_IP
 		fprintf(stderr, "Your multicast interface is IPv6 but "
 				"is binded to an IPv4 interface? Surely "
 				"this is not what you want\n");
-		return;
+		break;
 	}
 
 	conf.mcast.ipproto = AF_INET6;
@@ -630,7 +630,7 @@ stat_syslog_facility : T_SYSLOG T_STRING
 	else {
 		fprintf(stderr, "'%s' is not a known syslog facility, "
 				"ignoring.\n", $2);
-		return;
+		break;
 	}
 
 	if (conf.syslog_facility != -1 &&
