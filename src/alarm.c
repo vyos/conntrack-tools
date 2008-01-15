@@ -31,6 +31,8 @@ void init_alarm(struct alarm_list *t,
 		void *data,
 		void (*fcn)(struct alarm_list *a, void *data))
 {
+	/* initialize the head to check whether a node is inserted */
+	INIT_LIST_HEAD(&t->head);
 	timerclear(&t->tv);
 	t->data = data;
 	t->function = fcn;
@@ -61,12 +63,14 @@ void add_alarm(struct alarm_list *alarm)
 
 void del_alarm(struct alarm_list *alarm)
 {
-	list_del(&alarm->head);
+	/* don't remove a non-inserted node */
+	if (!list_empty(&alarm->head))
+		list_del_init(&alarm->head);
 }
 
 void mod_alarm(struct alarm_list *alarm, unsigned long sc, unsigned long usc)
 {
-	list_del(&alarm->head);
+	list_del_init(&alarm->head);
 	set_alarm_expiration(alarm, sc, usc);
 	add_alarm(alarm);
 }
