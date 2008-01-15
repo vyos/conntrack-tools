@@ -44,6 +44,7 @@ o improve alarm framework based on suggestions from Max Kellerman
 o constify queue_iterate()
 o use list_del_init() and list_empty() to check if a node is in the list
 o remove unix socket file on exit
+o use umask() to set up file permissions
 
 Max Kellermann <max@duempel.org>:
 

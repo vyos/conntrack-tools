@@ -33,17 +33,7 @@
 int init_log(void)
 {
 	if (CONFIG(logfile)[0]) {
-		int fd;
-		
-		fd = open(CONFIG(logfile), O_CREAT | O_RDWR, 0600);
-		if (fd == -1) {
-			fprintf(stderr, "ERROR: can't open logfile `%s'."
-				"Reason: %s\n", CONFIG(logfile), 
-						strerror(errno));
-			return -1;
-		}
-
-		STATE(log) = fdopen(fd, "a+");
+		STATE(log) = fopen(CONFIG(logfile), "a+");
 		if (STATE(log) == NULL) {
 			fprintf(stderr, "ERROR: can't open logfile `%s'."
 				"Reason: %s\n", CONFIG(logfile), 
@@ -53,17 +43,7 @@ int init_log(void)
 	}
 
 	if (CONFIG(stats).logfile[0]) {
-		int fd;
-		
-		fd = open(CONFIG(stats).logfile, O_CREAT | O_RDWR, 0600);
-		if (fd == -1) {
-			fprintf(stderr, "ERROR: can't open logfile `%s'."
-				"Reason: %s\n", CONFIG(stats).logfile, 
-						strerror(errno));
-			return -1;
-		}
-
-		STATE(stats_log) = fdopen(fd, "a+");
+		STATE(stats_log) = fopen(CONFIG(stats).logfile, "a+");
 		if (STATE(stats_log) == NULL) {
 			fprintf(stderr, "ERROR: can't open logfile `%s'."
 				"Reason: %s\n", CONFIG(stats).logfile, 

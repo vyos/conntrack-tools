@@ -239,6 +239,8 @@ int main(int argc, char *argv[])
 	if (config_set == 0)
 		strcpy(config_file, DEFAULT_CONFIGFILE);
 
+	umask(0177);
+
 	if ((ret = init_config(config_file)) == -1) {
 		fprintf(stderr, "can't open config file `%s'\n", config_file);
 		exit(EXIT_FAILURE);
@@ -262,7 +264,8 @@ int main(int argc, char *argv[])
 	/*
 	 * lock file
 	 */
-	if ((ret = open(CONFIG(lockfile), O_CREAT | O_EXCL | O_TRUNC)) == -1) {
+	ret = open(CONFIG(lockfile), O_CREAT | O_EXCL | O_TRUNC, 0600);
+	if (ret == -1) {
 		fprintf(stderr, "lockfile `%s' exists, perhaps conntrackd "
 			        "already running?\n", CONFIG(lockfile));
 		exit(EXIT_FAILURE);
