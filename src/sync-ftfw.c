@@ -50,6 +50,7 @@ struct cache_ftfw {
 static void cache_ftfw_add(struct us_conntrack *u, void *data)
 {
 	struct cache_ftfw *cn = data;
+	/* These nodes are not inserted in the list */
 	INIT_LIST_HEAD(&cn->rs_list);
 	INIT_LIST_HEAD(&cn->tx_list);
 }
@@ -58,10 +59,11 @@ static void cache_ftfw_del(struct us_conntrack *u, void *data)
 {
 	struct cache_ftfw *cn = data;
 
-	if (cn->rs_list.next == &cn->rs_list &&
-	    cn->rs_list.prev == &cn->rs_list)
+	/* this node is already out of the list */
+	if (list_empty(&cn->rs_list))
 	    	return;
 
+	/* no need for list_del_init since the entry is destroyed */
 	list_del(&cn->rs_list);
 }
 
@@ -208,8 +210,7 @@ static void rs_list_empty(struct cache *c, unsigned int from, unsigned int to)
 		u = cache_get_conntrack(STATE_SYNC(internal), cn);
 		if (between(cn->seq, from, to)) {
 			dp("queue: deleting from queue (seq=%u)\n", cn->seq);
-			list_del(&cn->rs_list);
-			INIT_LIST_HEAD(&cn->rs_list);
+			list_del_init(&cn->rs_list);
 		} 
 	}
 }
@@ -277,8 +278,7 @@ static void ftfw_send(struct nethdr *net, struct us_conntrack *u)
 		    cn->rs_list.prev == &cn->rs_list)
 		    	goto insert;
 
-		list_del(&cn->rs_list);
-		INIT_LIST_HEAD(&cn->rs_list);
+		list_del_init(&cn->rs_list);
 insert:
 		cn->seq = net->seq;
 		list_add(&cn->rs_list, &rs_list);
@@ -320,8 +320,7 @@ static int tx_list_xmit(struct list_head *i, struct us_conntrack *u)
                 ntohl(net->seq), ntohs(net->flags),
                 ntohs(net->len));
 
-	list_del(i);
-	INIT_LIST_HEAD(i);
+	list_del_init(i);
 	tx_list_len--;
 
 	ret = mcast_buffered_send_netmsg(STATE_SYNC(mcast_client), net, len);
