@@ -55,7 +55,6 @@ static struct queue_node *queue_node_create(const void *data, size_t size)
 	if (n == NULL)
 		return NULL;
 
-	INIT_LIST_HEAD(&n->head);
 	n->size = size;
 	memcpy(n->data, data, size);
 
