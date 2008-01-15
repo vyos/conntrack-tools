@@ -48,12 +48,9 @@ void init_alarm(struct alarm_list *t)
 
 void __add_alarm(struct alarm_list *alarm)
 {
-	struct list_head *i;
 	struct alarm_list *t;
 
-	list_for_each(i, &alarm_list) {
-		t = (struct alarm_list *) i;
-
+	list_for_each_entry(t, &alarm_list, head) {
 		if (timercmp(&alarm->tv, &t->tv, <)) {
 			list_add_tail(&alarm->head, &t->head);
 			return;
@@ -89,11 +86,9 @@ void mod_alarm(struct alarm_list *alarm, unsigned long sc, unsigned long usc)
 
 int get_next_alarm(struct timeval *tv, struct timeval *next_alarm)
 {
-	struct list_head *i;
 	struct alarm_list *t;
 
-	list_for_each(i, &alarm_list) {
-		t = (struct alarm_list *) i;
+	list_for_each_entry(t, &alarm_list, head) {
 		timersub(&t->tv, tv, next_alarm);
 		return 1;
 	}
@@ -102,15 +97,12 @@ int get_next_alarm(struct timeval *tv, struct timeval *next_alarm)
 
 int do_alarm_run(struct timeval *next_alarm)
 {
-	struct list_head *i, *tmp;
-	struct alarm_list *t;
+	struct alarm_list *t, *tmp;
 	struct timeval tv;
 
 	gettimeofday(&tv, NULL);
 
-	list_for_each_safe(i, tmp, &alarm_list) {
-		t = (struct alarm_list *) i;
-
+	list_for_each_entry_safe(t, tmp, &alarm_list, head) {
 		if (timercmp(&t->tv, &tv, >)) {
 			timersub(&t->tv, &tv, next_alarm);
 			return 1;

@@ -185,11 +185,9 @@ static int rs_queue_empty(void *data1, void *data2)
 
 static void rs_list_to_tx(struct cache *c, unsigned int from, unsigned int to)
 {
-	struct list_head *n;
-	struct us_conntrack *u;
+	struct cache_ftfw *cn;
 
-	list_for_each(n, &rs_list) {
-		struct cache_ftfw *cn = (struct cache_ftfw *) n;
+	list_for_each_entry(cn, &rs_list, rs_list) {
 		struct us_conntrack *u;
 		
 		u = cache_get_conntrack(STATE_SYNC(internal), cn);
@@ -203,10 +201,9 @@ static void rs_list_to_tx(struct cache *c, unsigned int from, unsigned int to)
 
 static void rs_list_empty(struct cache *c, unsigned int from, unsigned int to)
 {
-	struct list_head *n, *tmp;
+	struct cache_ftfw *cn, *tmp;
 
-	list_for_each_safe(n, tmp, &rs_list) {
-		struct cache_ftfw *cn = (struct cache_ftfw *) n;
+	list_for_each_entry_safe(cn, tmp, &rs_list, rs_list) {
 		struct us_conntrack *u;
 
 		u = cache_get_conntrack(STATE_SYNC(internal), cn);
@@ -337,19 +334,17 @@ static int tx_list_xmit(struct list_head *i, struct us_conntrack *u)
 
 static void ftfw_run()
 {
-	struct list_head *i, *tmp;
+	struct cache_ftfw *cn, *tmp;
 
 	/* send messages in the tx_queue */
 	queue_iterate(tx_queue, NULL, tx_queue_xmit);
 
 	/* send conntracks in the tx_list */
-	list_for_each_safe(i, tmp, &tx_list) {
-		struct cache_ftfw *cn;
+	list_for_each_entry_safe(cn, tmp, &tx_list, tx_list) {
 		struct us_conntrack *u;
 
-		cn = container_of(i, struct cache_ftfw, tx_list);
 		u = cache_get_conntrack(STATE_SYNC(internal), cn);
-		tx_list_xmit(i, u);
+		tx_list_xmit(&cn->tx_list, u);
 	}
 
 	mod_alarm(&alive_alarm, 1, 0);

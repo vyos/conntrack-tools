@@ -46,6 +46,7 @@ Max Kellermann <max@duempel.org>:
 = conntrackd =
 o resolve global variable "alarm" conflict with alarm() function in unistd.h.
 o enable gcc warnings, including -Werror
+o use list_for_each_entry() instead of list_for_each()
 
 version 0.9.5 (2007/07/29)
 ------------------------------
