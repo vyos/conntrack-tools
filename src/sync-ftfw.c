@@ -355,7 +355,7 @@ static void ftfw_run()
 	mod_alarm(&alive_alarm, 1, 0);
 }
 
-struct sync_mode ftfw = {
+struct sync_mode sync_ftfw = {
 	.internal_cache_flags	= LIFETIME,
 	.external_cache_flags	= LIFETIME,
 	.internal_cache_extra	= &cache_ftfw_extra,

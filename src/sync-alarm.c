@@ -106,7 +106,7 @@ static int alarm_recv(const struct nethdr *net)
 	return 0;
 }
 
-struct sync_mode alarm = {
+struct sync_mode sync_alarm = {
 	.internal_cache_flags	= LIFETIME,
 	.external_cache_flags	= TIMER | LIFETIME,
 	.internal_cache_extra	= &cache_alarm_extra,

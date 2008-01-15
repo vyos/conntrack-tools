@@ -18,7 +18,7 @@ struct sync_mode {
 	void (*run)(void);
 };
 
-extern struct sync_mode alarm;
-extern struct sync_mode ftfw;
+extern struct sync_mode sync_alarm;
+extern struct sync_mode sync_ftfw;
 
 #endif
