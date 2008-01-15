@@ -193,7 +193,7 @@ int hashtable_iterate(struct hashtable *table, void *data,
 	return 0;
 }
 
-unsigned int hashtable_counter(struct hashtable *table)
+unsigned int hashtable_counter(const struct hashtable *table)
 {
 	return table->count;
 }

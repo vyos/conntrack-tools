@@ -161,7 +161,7 @@ static int ftfw_local(int fd, int type, void *data)
 static int rs_queue_to_tx(void *data1, void *data2)
 {
 	struct nethdr *net = data1;
-	struct nethdr_ack *nack = data2;
+	const struct nethdr_ack *nack = data2;
 
 	if (between(net->seq, nack->from, nack->to)) {
 		dp("rs_queue_to_tx sq: %u fl:%u len:%u\n",
@@ -174,7 +174,7 @@ static int rs_queue_to_tx(void *data1, void *data2)
 static int rs_queue_empty(void *data1, void *data2)
 {
 	struct nethdr *net = data1;
-	struct nethdr_ack *h = data2;
+	const struct nethdr_ack *h = data2;
 
 	if (between(net->seq, h->from, h->to)) {
 		dp("remove from queue (seq=%u)\n", net->seq);

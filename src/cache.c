@@ -398,7 +398,7 @@ void *cache_get_extra(struct cache *c, void *data)
 	return data + c->extra_offset;
 }
 
-void cache_stats(struct cache *c, int fd)
+void cache_stats(const struct cache *c, int fd)
 {
 	char buf[512];
 	int size;

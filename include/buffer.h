@@ -13,6 +13,6 @@ void buffer_flush(struct buffer *b,
 		  void (*cb)(void *buffer_data, 
 		  void *data),
 		  void *data);
-unsigned int buffer_size(struct buffer *b);
+unsigned int buffer_size(const struct buffer *b);
 
 #endif

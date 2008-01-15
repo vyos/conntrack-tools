@@ -61,7 +61,7 @@ void buffer_flush(struct buffer *b,
 	memset(b->data, 0, b->size);
 }
 
-unsigned int buffer_size(struct buffer *b)
+unsigned int buffer_size(const struct buffer *b)
 {
 	return b->size;
 }

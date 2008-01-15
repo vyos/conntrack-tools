@@ -42,6 +42,6 @@ int hashtable_del(struct hashtable *table, void *data);
 int hashtable_flush(struct hashtable *table);
 int hashtable_iterate(struct hashtable *table, void *data,
 		      int (*iterate)(void *data1, void *data2));
-unsigned int hashtable_counter(struct hashtable *table);
+unsigned int hashtable_counter(const struct hashtable *table);
 
 #endif

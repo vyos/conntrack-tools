@@ -21,7 +21,7 @@ struct queue_node {
 
 struct queue *queue_create(size_t max_size);
 void queue_destroy(struct queue *b);
-unsigned int queue_len(struct queue *b);
+unsigned int queue_len(const struct queue *b);
 int queue_add(struct queue *b, const void *data, size_t size);
 void queue_del(struct queue *b, void *data);
 void queue_iterate(struct queue *b, 

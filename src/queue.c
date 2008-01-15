@@ -122,7 +122,7 @@ void queue_iterate(struct queue *b,
 	}
 }
 
-unsigned int queue_len(struct queue *b)
+unsigned int queue_len(const struct queue *b)
 {
 	return b->num_elems;
 }
