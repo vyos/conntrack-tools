@@ -27,22 +27,13 @@
 
 static LIST_HEAD(alarm_list);
 
-void set_alarm_function(struct alarm_list *t,
-			void (*fcn)(struct alarm_list *a, void *data))
-{
-	t->function = fcn;
-}
-
-void set_alarm_data(struct alarm_list *t, void *data)
-{
-	t->data = data;
-}
-
-void init_alarm(struct alarm_list *t)
+void init_alarm(struct alarm_list *t,
+		void *data,
+		void (*fcn)(struct alarm_list *a, void *data))
 {
 	timerclear(&t->tv);
-	t->data 	= 0;
-	t->function 	= NULL;
+	t->data = data;
+	t->function = fcn;
 }
 
 void __add_alarm(struct alarm_list *alarm)

@@ -30,13 +30,11 @@ static void refresher(struct alarm_list *a, void *data)
 
 	debug_ct(u->ct, "persistence update");
 
-	init_alarm(a);
+	init_alarm(a, u, refresher);
 	set_alarm_expiration(a, 
 			     random() % CONFIG(refresh) + 1,
 			     random() % 999999 + 1);
 
-	set_alarm_data(a, u);
-	set_alarm_function(a, refresher);
 	add_alarm(a);
 
 	net = BUILD_NETMSG(u->ct, NFCT_Q_UPDATE);
@@ -48,12 +46,10 @@ static void cache_alarm_add(struct us_conntrack *u, void *data)
 {
 	struct alarm_list *alarm = data;
 
-	init_alarm(alarm);
+	init_alarm(alarm, u, refresher);
 	set_alarm_expiration(alarm, 
 			     random() % CONFIG(refresh) + 1,
 			     random() % 999999 + 1);
-	set_alarm_data(alarm, u);
-	set_alarm_function(alarm, refresher);
 	add_alarm(alarm);
 }
 

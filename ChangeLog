@@ -54,6 +54,7 @@ o use const when possible
 o remove prefetch in slist.h since it confuses gcc
 o fix illegal use of return in the yacc code, use break instead
 o fix wrong invocations after prototype cleanup
+o set the return type of the parse functions to "void"
 
 version 0.9.5 (2007/07/29)
 ------------------------------

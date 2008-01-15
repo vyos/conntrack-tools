@@ -20,27 +20,27 @@
 #include <libnetfilter_conntrack/libnetfilter_conntrack.h>
 #include "network.h"
 
-static int parse_u8(struct nf_conntrack *ct, int attr, void *data)
+static void parse_u8(struct nf_conntrack *ct, int attr, void *data)
 {
 	u_int8_t *value = (u_int8_t *) data;
 	nfct_set_attr_u8(ct, attr, *value);
 }
 
-static int parse_u16(struct nf_conntrack *ct, int attr, void *data)
+static void parse_u16(struct nf_conntrack *ct, int attr, void *data)
 {
 	u_int16_t *value = (u_int16_t *) data;
 	nfct_set_attr_u16(ct, attr, ntohs(*value));
 }
 
-static int parse_u32(struct nf_conntrack *ct, int attr, void *data)
+static void parse_u32(struct nf_conntrack *ct, int attr, void *data)
 {
 	u_int32_t *value = (u_int32_t *) data;
 	nfct_set_attr_u32(ct, attr, ntohl(*value));
 }
 
-typedef int (*parse)(struct nf_conntrack *ct, int attr, void *data);
+typedef void (*parse)(struct nf_conntrack *ct, int attr, void *data);
 
-parse h[ATTR_MAX] = {
+static parse h[ATTR_MAX] = {
 	[ATTR_IPV4_SRC]		= parse_u32,
 	[ATTR_IPV4_DST]		= parse_u32,
 	[ATTR_L3PROTO]		= parse_u8,
