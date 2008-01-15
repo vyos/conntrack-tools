@@ -65,13 +65,9 @@ void del_alarm(struct alarm_list *alarm)
 
 void mod_alarm(struct alarm_list *alarm, unsigned long sc, unsigned long usc)
 {
-	struct timeval tv;
-
 	list_del(&alarm->head);
 	set_alarm_expiration(alarm, sc, usc);
-	gettimeofday(&tv, NULL);
-	timeradd(&alarm->tv, &tv, &alarm->tv);
-	__add_alarm(alarm);
+	add_alarm(alarm);
 }
 
 int get_next_alarm(struct timeval *tv, struct timeval *next_alarm)
