@@ -144,7 +144,6 @@ static char commands_v_options[NUMBER_OF_CMD][NUMBER_OF_OPT] =
 static LIST_HEAD(proto_list);
 
 static unsigned int options;
-static unsigned int command;
 
 #define CT_COMPARISON (CT_OPT_PROTO | CT_OPT_ORIG | CT_OPT_REPL | CT_OPT_MARK |\
 		       CT_OPT_SECMARK)
@@ -212,9 +211,9 @@ void exit_error(enum exittype status, char *msg, ...)
 }
 
 static void
-generic_cmd_check(int command, int options)
+generic_cmd_check(int command, int local_options)
 {
-	if (cmd_need_param[command] == 0 && !options)
+	if (cmd_need_param[command] == 0 && !local_options)
 		exit_error(PARAMETER_PROBLEM,
 			   "You need to supply parameters to `-%c'\n",
 			   cmdflags[command]);
@@ -231,7 +230,7 @@ static int bit2cmd(int command)
 	return i;
 }
 
-void generic_opt_check(int options, 
+void generic_opt_check(int local_options, 
 		       int num_opts,
 		       char *optset, 
 		       const char *optflg[])
@@ -239,7 +238,7 @@ void generic_opt_check(int options,
 	int i;
 
 	for (i = 0; i < num_opts; i++) {
-		if (!(options & (1<<i))) {
+		if (!(local_options & (1<<i))) {
 			if (optset[i] == 1)
 				exit_error(PARAMETER_PROBLEM, 
 					   "You need to supply the "
@@ -334,24 +333,24 @@ static struct parse_parameter {
 };
 
 static int
-do_parse_parameter(const char *str, size_t strlen, unsigned int *value, 
+do_parse_parameter(const char *str, size_t str_length, unsigned int *value, 
 		   int parse_type)
 {
 	int i, ret = 0;
 	struct parse_parameter *p = &parse_array[parse_type];
 
-	if (strncasecmp(str, "SRC_NAT", strlen) == 0) {
+	if (strncasecmp(str, "SRC_NAT", str_length) == 0) {
 		printf("skipping SRC_NAT, use --src-nat instead\n");
 		return 1;
 	}
 
-	if (strncasecmp(str, "DST_NAT", strlen) == 0) {
+	if (strncasecmp(str, "DST_NAT", str_length) == 0) {
 		printf("skipping DST_NAT, use --dst-nat instead\n");
 		return 1;
 	}
 
 	for (i = 0; i < p->size; i++)
-		if (strncasecmp(str, p->parameter[i], strlen) == 0) {
+		if (strncasecmp(str, p->parameter[i], str_length) == 0) {
 			*value |= p->value[i];
 			ret = 1;
 			break;
@@ -670,6 +669,7 @@ int main(int argc, char *argv[])
 	struct nf_expect *exp = (struct nf_expect *) __exp;
 	int l3protonum;
 	union ct_address ad;
+	unsigned int command;
 
 	memset(__obj, 0, sizeof(__obj));
 	memset(__exptuple, 0, sizeof(__exptuple));

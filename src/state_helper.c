@@ -35,10 +35,10 @@ int state_helper_verdict(int type, struct nf_conntrack *ct)
 	return ST_H_REPLICATE;
 }
 
-void state_helper_register(struct state_replication_helper *h, int state)
+void state_helper_register(struct state_replication_helper *h, int h_state)
 {
 	if (helper[h->proto] == NULL)
 		helper[h->proto] = h;
 
-	helper[h->proto]->state |= (1 << state);
+	helper[h->proto]->state |= (1 << h_state);
 }

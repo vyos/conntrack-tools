@@ -96,12 +96,12 @@ static char *tx_buf;
 
 #define HEADERSIZ 28 /* IP header (20 bytes) + UDP header 8 (bytes) */
 
-int mcast_buffered_init(struct mcast_conf *conf)
+int mcast_buffered_init(struct mcast_conf *mconf)
 {
-	int mtu = conf->mtu - HEADERSIZ;
+	int mtu = mconf->mtu - HEADERSIZ;
 
 	/* default to Ethernet MTU 1500 bytes */
-	if (conf->mtu == 0)
+	if (mconf->mtu == 0)
 		mtu = 1500 - HEADERSIZ;
 
 	tx_buf = malloc(mtu);
@@ -199,12 +199,12 @@ int handle_netmsg(struct nethdr *net)
 
 int mcast_track_seq(u_int32_t seq, u_int32_t *exp_seq)
 {
-	static int seq_set = 0;
+	static int local_seq_set = 0;
 	int ret = 1;
 
 	/* netlink sequence tracking initialization */
-	if (!seq_set) {
-		seq_set = 1;
+	if (!local_seq_set) {
+		local_seq_set = 1;
 		goto out;
 	}
 
