@@ -42,7 +42,6 @@ o wake up the daemon iff there are real events to handle instead of polling
 o add support for tagged vlan interfaces in the config file, e.g. eth0.1
 o improve alarm framework based on suggestions from Max Kellerman
 o constify queue_iterate()
-o use timeradd() since manipulating tv_sec directly
 
 Max Kellermann <max@duempel.org>:
 
@@ -63,6 +62,8 @@ o merge several *_alarm() functions into init_alarm()
 o use add_alarm() in mod_alarm() to avoid code duplication
 o import tcp_state_helper only once
 o add missing printf arguments
+o use timeradd() since manipulating tv_sec directly
+o fix lots of gcc warnings
 
 version 0.9.5 (2007/07/29)
 ------------------------------

@@ -48,8 +48,8 @@ void dump_traffic_stats(int fd)
 			    STATE(packets)[NFCT_DIR_REPLY];
 
 	size = sprintf(buf, "traffic processed:\n");
-	size += sprintf(buf+size, "%20llu Bytes      ", bytes);
-	size += sprintf(buf+size, "%20llu Pckts\n\n", packets);
+	size += sprintf(buf+size, "%20llu Bytes      ", (unsigned long long)bytes);
+	size += sprintf(buf+size, "%20llu Pckts\n\n", (unsigned long long)packets);
 
 	send(fd, buf, size, 0);
 }

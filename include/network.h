@@ -60,7 +60,7 @@ int mcast_track_seq(u_int32_t seq, u_int32_t *exp_seq);
 struct mcast_conf;
 
 int mcast_buffered_init(struct mcast_conf *conf);
-void mcast_buffered_destroy();
+void mcast_buffered_destroy(void);
 int mcast_buffered_send_netmsg(struct mcast_sock *m, void *data, int len);
 int mcast_buffered_pending_netmsg(struct mcast_sock *m);
 

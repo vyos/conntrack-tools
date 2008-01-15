@@ -51,7 +51,7 @@ static char icmp_commands_v_options[NUMBER_OF_CMD][ICMP_NUMBER_OF_OPT] =
 /*EXP_EVENT*/	  {0,0,0},
 };
 
-static void help()
+static void help(void)
 {
 	fprintf(stdout, "  --icmp-type\t\t\ticmp type\n");
 	fprintf(stdout, "  --icmp-code\t\t\ticmp code\n");

@@ -192,7 +192,6 @@ __mcast_client_create_ipv6(struct mcast_sock *m, struct mcast_conf *conf)
 struct mcast_sock *mcast_client_create(struct mcast_conf *conf)
 {
 	int ret = 0;
-	struct sockaddr_in addr;
 	struct mcast_sock *m;
 
 	m = (struct mcast_sock *) malloc(sizeof(struct mcast_sock));
@@ -300,9 +299,12 @@ void mcast_dump_stats(int fd, struct mcast_sock *s, struct mcast_sock *r)
 			    "%20llu Pckts recv\n"
 			    "%20llu Error send "
 			    "%20llu Error recv\n\n",
-			    s->stats.bytes, r->stats.bytes,
-			    s->stats.messages, r->stats.messages,
-			    s->stats.error, r->stats.error);
+			    (unsigned long long)s->stats.bytes,
+			    (unsigned long long)r->stats.bytes,
+			    (unsigned long long)s->stats.messages,
+			    (unsigned long long)r->stats.messages,
+			    (unsigned long long)s->stats.error,
+			    (unsigned long long)r->stats.error);
 
 	send(fd, buf, size, 0);
 }

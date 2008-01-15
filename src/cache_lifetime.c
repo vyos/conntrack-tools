@@ -21,6 +21,8 @@
 #include "us-conntrack.h"
 #include "cache.h"
 #include "alarm.h"
+#include <sys/time.h>
+#include <time.h>
 
 static void lifetime_add(struct us_conntrack *u, void *data)
 {

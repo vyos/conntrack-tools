@@ -73,7 +73,7 @@ static const char *states[] = {
 	"LISTEN"
 };
 
-static void help()
+static void help(void)
 {
 	fprintf(stdout, "  --orig-port-src\t\toriginal source port\n");
 	fprintf(stdout, "  --orig-port-dst\t\toriginal destination port\n");

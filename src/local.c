@@ -68,7 +68,7 @@ int do_local_server_step(int fd, void *data,
 {
 	int rfd;
 	struct sockaddr_un local;
-	size_t sin_size = sizeof(struct sockaddr_un);
+	socklen_t sin_size = sizeof(struct sockaddr_un);
 	
 	if ((rfd = accept(fd, (struct sockaddr *)&local, &sin_size)) == -1)
 		return -1;

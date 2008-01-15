@@ -45,6 +45,8 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/socket.h>
+#include <sys/time.h>
+#include <time.h>
 #ifdef HAVE_ARPA_INET_H
 #include <arpa/inet.h>
 #endif
@@ -175,14 +177,15 @@ static struct ctproto_handler *findproto(char *name)
 	return handler;
 }
 
-void extension_help(struct ctproto_handler *h)
+static void
+extension_help(struct ctproto_handler *h)
 {
 	fprintf(stdout, "\n");
 	fprintf(stdout, "Proto `%s' help:\n", h->name);
 	h->help();
 }
 
-void
+static void __attribute__((noreturn))
 exit_tryhelp(int status)
 {
 	fprintf(stderr, "Try `%s -h' or '%s --help' for more information.\n",
@@ -190,7 +193,8 @@ exit_tryhelp(int status)
 	exit(status);
 }
 
-void exit_error(enum exittype status, char *msg, ...)
+void __attribute__((noreturn))
+exit_error(enum exittype status, const char *msg, ...)
 {
 	va_list args;
 
@@ -281,7 +285,7 @@ merge_options(struct option *oldopts, const struct option *newopts,
 #define ENOTSUPP        524     /* Operation is not supported */
 
 /* Translates errno numbers into more human-readable form than strerror. */
-const char *
+static const char *
 err2str(int err, enum action command)
 {
 	unsigned int i;
@@ -318,7 +322,7 @@ err2str(int err, enum action command)
 #define PARSE_MAX 3
 
 static struct parse_parameter {
-	char 	*parameter[6];
+	const char	*parameter[6];
 	size_t  size;
 	unsigned int value[6];
 } parse_array[PARSE_MAX] = {
@@ -336,7 +340,8 @@ static int
 do_parse_parameter(const char *str, size_t str_length, unsigned int *value, 
 		   int parse_type)
 {
-	int i, ret = 0;
+	size_t i;
+	int ret = 0;
 	struct parse_parameter *p = &parse_array[parse_type];
 
 	if (strncasecmp(str, "SRC_NAT", str_length) == 0) {
@@ -384,7 +389,8 @@ add_command(unsigned int *cmd, const int newcmd, const int othercmds)
 	*cmd |= newcmd;
 }
 
-unsigned int check_type(int argc, char *argv[])
+static unsigned int
+check_type(int argc, char *argv[])
 {
 	char *table = NULL;
 
@@ -424,7 +430,8 @@ struct addr_parse {
 	unsigned int family;
 };
 
-int parse_inetaddr(const char *cp, struct addr_parse *parse)
+static int
+parse_inetaddr(const char *cp, struct addr_parse *parse)
 {
 	if (inet_aton(cp, &parse->addr))
 		return AF_INET;
@@ -441,7 +448,8 @@ union ct_address {
 	u_int32_t v6[4];
 };
 
-int parse_addr(const char *cp, union ct_address *address)
+static int
+parse_addr(const char *cp, union ct_address *address)
 {
 	struct addr_parse parse;
 	int ret;
@@ -458,7 +466,7 @@ int parse_addr(const char *cp, union ct_address *address)
 static void
 nat_parse(char *arg, int portok, struct nf_conntrack *obj, int type)
 {
-	char *colon, *dash, *error;
+	char *colon, *error;
 	union ct_address parse;
 
 	colon = strchr(arg, ':');
@@ -495,7 +503,8 @@ nat_parse(char *arg, int portok, struct nf_conntrack *obj, int type)
 		nfct_set_attr_u32(obj, ATTR_DNAT_IPV4, parse.v4);
 }
 
-static void event_sighandler(int s)
+static void __attribute__((noreturn))
+event_sighandler(int s)
 {
 	fprintf(stdout, "Now closing conntrack event dumping...\n");
 	nfct_close(cth);
@@ -524,7 +533,6 @@ static const char usage_conntrack_parameters[] =
 	"  -e, --event-mask eventmask\t\tEvent mask, eg. NEW,DESTROY\n"
 	"  -z, --zero \t\t\t\tZero counters while listing\n"
 	"  -o, --output type[,...]\t\tOutput format, eg. xml\n";
-	;
 
 static const char usage_expectation_parameters[] =
 	"Expectation parameters and options:\n"
@@ -546,7 +554,9 @@ static const char usage_parameters[] =
 	;
   
 
-void usage(char *prog) {
+static void
+usage(char *prog)
+{
 	fprintf(stdout, "Command line interface for the connection "
 			"tracking system. Version %s\n", VERSION);
 	fprintf(stdout, "Usage: %s [commands] [options]\n", prog);
@@ -662,11 +672,11 @@ int main(int argc, char *argv[])
 	char __obj[nfct_maxsize()];
 	char __exptuple[nfct_maxsize()];
 	char __mask[nfct_maxsize()];
-	struct nf_conntrack *obj = (struct nf_conntrack *) __obj;
-	struct nf_conntrack *exptuple = (struct nf_conntrack *) __exptuple;
-	struct nf_conntrack *mask = (struct nf_conntrack *) __mask;
+	struct nf_conntrack *obj = (struct nf_conntrack *)(void*) __obj;
+	struct nf_conntrack *exptuple = (struct nf_conntrack *)(void*) __exptuple;
+	struct nf_conntrack *mask = (struct nf_conntrack *)(void*) __mask;
 	char __exp[nfexp_maxsize()];
-	struct nf_expect *exp = (struct nf_expect *) __exp;
+	struct nf_expect *exp = (struct nf_expect *)(void*) __exp;
 	int l3protonum;
 	union ct_address ad;
 	unsigned int command;

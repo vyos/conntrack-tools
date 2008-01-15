@@ -22,6 +22,8 @@
 #include "sync.h"
 #include "log.h"
 
+#include <stdlib.h>
+
 static unsigned int seq_set, cur_seq;
 
 static int __do_send(struct mcast_sock *m, void *data, int len)
@@ -65,8 +67,6 @@ static int __do_prepare(struct mcast_sock *m, void *data, int len)
 
 static int __prepare_ctl(struct mcast_sock *m, void *data)
 {
-	struct nethdr_ack *nack = (struct nethdr_ack *) data;
-
 	return __do_prepare(m, data, NETHDR_ACK_SIZ);
 }
 
@@ -172,7 +172,6 @@ void build_netmsg(struct nf_conntrack *ct, int query, struct nethdr *net)
 
 int handle_netmsg(struct nethdr *net)
 {
-	int ret;
 	struct netpld *pld = NETHDR_DATA(net);
 
 	/* message too small: no room for the header */

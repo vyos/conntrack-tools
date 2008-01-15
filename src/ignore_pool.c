@@ -20,7 +20,10 @@
 #include "hash.h"
 #include "conntrackd.h"
 #include "ignore.h"
+#include "log.h"
 #include <libnetfilter_conntrack/libnetfilter_conntrack.h>
+
+#include <stdlib.h>
 
 /* XXX: These should be configurable */
 #define IGNORE_POOL_SIZE 128
@@ -53,7 +56,6 @@ static int compare6(const void *data1, const void *data2)
 
 struct ignore_pool *ignore_pool_create(u_int8_t proto)
 {
-	int i, j = 0;
 	struct ignore_pool *ip;
 
 	ip = malloc(sizeof(struct ignore_pool));
@@ -100,7 +102,8 @@ int ignore_pool_add(struct ignore_pool *ip, void *data)
 	return 1;
 }
 
-int __ignore_pool_test_ipv4(struct ignore_pool *ip, struct nf_conntrack *ct)
+static int
+__ignore_pool_test_ipv4(struct ignore_pool *ip, struct nf_conntrack *ct)
 {
 	return (hashtable_test(ip->h, nfct_get_attr(ct, ATTR_ORIG_IPV4_SRC)) ||
 		hashtable_test(ip->h, nfct_get_attr(ct, ATTR_ORIG_IPV4_DST)) ||
@@ -108,7 +111,8 @@ int __ignore_pool_test_ipv4(struct ignore_pool *ip, struct nf_conntrack *ct)
 		hashtable_test(ip->h, nfct_get_attr(ct, ATTR_REPL_IPV4_DST)));
 }
 
-int __ignore_pool_test_ipv6(struct ignore_pool *ip, struct nf_conntrack *ct)
+static int
+__ignore_pool_test_ipv6(struct ignore_pool *ip, struct nf_conntrack *ct)
 {
 	return (hashtable_test(ip->h, nfct_get_attr(ct, ATTR_ORIG_IPV6_SRC)) ||
 	        hashtable_test(ip->h, nfct_get_attr(ct, ATTR_ORIG_IPV6_DST)) ||

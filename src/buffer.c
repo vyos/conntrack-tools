@@ -50,6 +50,7 @@ int buffer_add(struct buffer *b, void *data, unsigned int size)
 
 	memcpy(b->data + b->cur_size, data, size);
 	b->cur_size += size;
+	return 0;
 }
 
 void buffer_flush(struct buffer *b, 

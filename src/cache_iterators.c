@@ -19,6 +19,7 @@
 #include "cache.h"
 #include "jhash.h"
 #include "hash.h"
+#include "log.h"
 #include "conntrackd.h"
 #include "netlink.h"
 #include <libnetfilter_conntrack/libnetfilter_conntrack.h>
@@ -36,8 +37,8 @@ static int do_dump(void *data1, void *data2)
 	int size;
 	struct __dump_container *container = data1;
 	struct us_conntrack *u = data2;
-	void *data = u->data;
-	int i;
+	char *data = u->data;
+	unsigned i;
 
 	memset(buf, 0, sizeof(buf));
 	size = nfct_snprintf(buf, 

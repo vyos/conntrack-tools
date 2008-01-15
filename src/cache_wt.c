@@ -25,7 +25,7 @@
 static void add_update(struct us_conntrack *u)
 {
 	char __ct[nfct_maxsize()];
-	struct nf_conntrack *ct = (struct nf_conntrack *) __ct;
+	struct nf_conntrack *ct = (struct nf_conntrack *)(void*) __ct;
 
 	memcpy(ct, u->ct, nfct_maxsize());
 

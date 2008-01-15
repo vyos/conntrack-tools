@@ -20,12 +20,19 @@
 
 #include "conntrackd.h"
 #include "netlink.h"
+#include "ignore.h"
+#include "log.h"
+#include "alarm.h"
 #include <libnetfilter_conntrack/libnetfilter_conntrack.h>
 #include <errno.h>
 #include "us-conntrack.h"
 #include <signal.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <sys/time.h>
+#include <time.h>
 
 void killer(int foo)
 {
@@ -84,7 +91,8 @@ void local_handler(int fd, void *data)
 		dlog(STATE(log), LOG_WARNING, "unknown local request %d", type);
 }
 
-int init(void)
+int
+init(void)
 {
 	if (CONFIG(flags) & CTD_STATS_MODE)
 		STATE(mode) = &stats_mode;
@@ -164,11 +172,11 @@ static int __run(struct timeval *next_alarm)
 	if (ret == -1) {
 		/* interrupted syscall, retry */
 		if (errno == EINTR)
-			return;
+			return 0;
 
 		dlog(STATE(log), LOG_WARNING, 
 		     "select failed: %s", strerror(errno));
-		return;
+		return 0;
 	}
 
 	/* timeout expired, run the alarm list */
@@ -223,7 +231,8 @@ static int __run(struct timeval *next_alarm)
 	return 0;
 }
 
-void run(void)
+void __attribute__((noreturn))
+run(void)
 {
 	struct timeval next_alarm;
 	struct timeval *next = &next_alarm;

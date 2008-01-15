@@ -25,13 +25,14 @@
 #include "debug.h"
 #include "network.h"
 #include "alarm.h"
+#include "log.h"
 #include <libnfnetlink/libnfnetlink.h>
 #include <libnetfilter_conntrack/libnetfilter_conntrack.h>
 
 #if 0 
 #define dp printf
 #else
-#define dp
+#define dp(...)
 #endif
 
 static LIST_HEAD(rs_list);
@@ -92,7 +93,7 @@ static void do_alive_alarm(struct alarm_list *a, void *data)
 	add_alarm(&alive_alarm);
 }
 
-static int ftfw_init()
+static int ftfw_init(void)
 {
 	tx_queue = queue_create(CONFIG(resend_queue_size));
 	if (tx_queue == NULL) {
@@ -117,7 +118,7 @@ static int ftfw_init()
 	return 0;
 }
 
-static void ftfw_kill()
+static void ftfw_kill(void)
 {
 	queue_destroy(rs_queue);
 	queue_destroy(tx_queue);
@@ -330,7 +331,7 @@ static int tx_list_xmit(struct list_head *i, struct us_conntrack *u)
 	return ret;
 }
 
-static void ftfw_run()
+static void ftfw_run(void)
 {
 	struct cache_ftfw *cn, *tmp;
 

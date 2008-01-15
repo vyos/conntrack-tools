@@ -148,9 +148,9 @@ enum {
 struct ctproto_handler {
 	struct list_head 	head;
 
-	char 			*name;
+	const char		*name;
 	u_int16_t 		protonum;
-	char			*version;
+	const char		*version;
 
 	enum ctattr_protoinfo	protoinfo_attr;
 	
@@ -164,7 +164,7 @@ struct ctproto_handler {
 			    unsigned int command,
 			    struct nf_conntrack *ct);
 
-	void (*help)();
+	void (*help)(void);
 
 	struct option 		*opts;
 
@@ -181,7 +181,7 @@ void generic_opt_check(int options,
 		       int nops,
 		       char *optset,
 		       const char *optflg[]);
-void exit_error(enum exittype status, char *msg, ...);
+void exit_error(enum exittype status, const char *msg, ...);
 
 extern void register_proto(struct ctproto_handler *h);
 

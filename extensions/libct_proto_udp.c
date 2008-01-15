@@ -38,7 +38,7 @@ static const char *udp_optflags[UDP_NUMBER_OF_OPT] = {
 "mask-port-dst", "tuple-port-src", "tuple-port-dst"
 };
 
-static void help()
+static void help(void)
 {
 	fprintf(stdout, "  --orig-port-src\t\toriginal source port\n");
 	fprintf(stdout, "  --orig-port-dst\t\toriginal destination port\n");
@@ -166,8 +166,6 @@ static void final_check(unsigned int flags,
 		        unsigned int cmd,
 		        struct nf_conntrack *ct)
 {
-	int ret = 0;
-	
 	if ((flags & (UDP_ORIG_SPORT|UDP_ORIG_DPORT)) 
 	    && !(flags & (UDP_REPL_SPORT|UDP_REPL_DPORT))) {
 	    	nfct_set_attr_u16(ct,

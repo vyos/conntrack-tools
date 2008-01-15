@@ -23,6 +23,7 @@
 #include <errno.h>
 #include "us-conntrack.h"
 #include "cache.h"
+#include <stdlib.h>
 
 static u_int32_t hash(const void *data, struct hashtable *table)
 {
@@ -120,7 +121,7 @@ struct cache_feature *cache_feature[CACHE_MAX_FEATURE] = {
 	[WRITE_THROUGH_FEATURE] = &writethrough_feature,
 };
 
-struct cache *cache_create(char *name, 
+struct cache *cache_create(const char *name, 
 			   unsigned int features, 
 			   u_int8_t proto,
 			   struct cache_extra *extra)
@@ -209,7 +210,7 @@ void cache_destroy(struct cache *c)
 
 static struct us_conntrack *__add(struct cache *c, struct nf_conntrack *ct)
 {
-	int i;
+	unsigned i;
 	size_t size = c->h->datasize;
 	char buf[size];
 	struct us_conntrack *u = (struct us_conntrack *) buf;
@@ -226,7 +227,7 @@ static struct us_conntrack *__add(struct cache *c, struct nf_conntrack *ct)
 
 	u = hashtable_add(c->h, u);
 	if (u) {
-		void *data = u->data;
+		char *data = u->data;
 
         	for (i = 0; i < c->num_features; i++) {
 			c->features[i]->add(u, data);
@@ -234,7 +235,7 @@ static struct us_conntrack *__add(struct cache *c, struct nf_conntrack *ct)
 		}
 
 		if (c->extra && c->extra->add)
-			c->extra->add(u, ((void *) u) + c->extra_offset);
+			c->extra->add(u, ((char *) u) + c->extra_offset);
 
 		return u;
 	}
@@ -268,8 +269,8 @@ static struct us_conntrack *__update(struct cache *c, struct nf_conntrack *ct)
 
 	u = (struct us_conntrack *) hashtable_test(c->h, u);
 	if (u) {
-		int i;
-		void *data = u->data;
+		unsigned i;
+		char *data = u->data;
 
 		if (nfct_attr_is_set(ct, ATTR_STATUS))
 		    	nfct_set_attr_u32(u->ct, ATTR_STATUS,
@@ -287,14 +288,15 @@ static struct us_conntrack *__update(struct cache *c, struct nf_conntrack *ct)
 		}
 
 		if (c->extra && c->extra->update)
-			c->extra->update(u, ((void *) u) + c->extra_offset);
+			c->extra->update(u, ((char *) u) + c->extra_offset);
 
 		return u;
 	} 
 	return NULL;
 }
 
-struct us_conntrack *__cache_update(struct cache *c, struct nf_conntrack *ct)
+static struct us_conntrack *
+__cache_update(struct cache *c, struct nf_conntrack *ct)
 {
 	struct us_conntrack *u;
 
@@ -358,8 +360,8 @@ static int __del(struct cache *c, struct nf_conntrack *ct)
 
 	u = (struct us_conntrack *) hashtable_test(c->h, u);
 	if (u) {
-		int i;
-		void *data = u->data;
+		unsigned i;
+		char *data = u->data;
 		struct nf_conntrack *p = u->ct;
 
 		for (i = 0; i < c->num_features; i++) {
@@ -368,7 +370,7 @@ static int __del(struct cache *c, struct nf_conntrack *ct)
 		}
 
 		if (c->extra && c->extra->destroy)
-			c->extra->destroy(u, ((void *) u) + c->extra_offset);
+			c->extra->destroy(u, ((char *) u) + c->extra_offset);
 
 		hashtable_del(c->h, u);
 		free(p);
@@ -390,12 +392,12 @@ int cache_del(struct cache *c, struct nf_conntrack *ct)
 
 struct us_conntrack *cache_get_conntrack(struct cache *c, void *data)
 {
-	return data - c->extra_offset;
+	return (struct us_conntrack *)((char*)data - c->extra_offset);
 }
 
 void *cache_get_extra(struct cache *c, void *data)
 {
-	return data + c->extra_offset;
+	return (char*)data + c->extra_offset;
 }
 
 void cache_stats(const struct cache *c, int fd)

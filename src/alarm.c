@@ -36,7 +36,8 @@ void init_alarm(struct alarm_list *t,
 	t->function = fcn;
 }
 
-void __add_alarm(struct alarm_list *alarm)
+static void
+__add_alarm(struct alarm_list *alarm)
 {
 	struct alarm_list *t;
 

@@ -639,7 +639,7 @@ buffer_size: T_STAT_BUFFER_SIZE T_NUMBER
 
 %%
 
-int
+int __attribute__((noreturn))
 yyerror(char *msg)
 {
 	fprintf(stderr, "Error parsing config file: ");

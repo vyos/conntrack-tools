@@ -22,6 +22,8 @@
 #include "us-conntrack.h"
 #include "alarm.h"
 
+#include <stdlib.h>
+
 static void refresher(struct alarm_list *a, void *data)
 {
 	int len;

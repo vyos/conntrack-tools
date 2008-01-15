@@ -181,4 +181,8 @@ void local_handler(int fd, void *data);
 int init(void);
 void run(void);
 
+/* from read_config_yy.c */
+int
+init_config(char *filename);
+
 #endif

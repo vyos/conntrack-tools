@@ -38,7 +38,7 @@ static void do_mcast_handler_step(struct nethdr *net)
 	int query;
 	struct netpld *pld = NETHDR_DATA(net);
 	char __ct[nfct_maxsize()];
-	struct nf_conntrack *ct = (struct nf_conntrack *) __ct;
+	struct nf_conntrack *ct = (struct nf_conntrack *)(void*) __ct;
 	struct us_conntrack *u = NULL;
 
 	if (STATE_SYNC(sync)->recv(net))

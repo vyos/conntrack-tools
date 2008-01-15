@@ -62,7 +62,7 @@ static int timer_dump(struct us_conntrack *u, void *data, char *buf, int type)
 
 	gettimeofday(&tv, NULL);
 	timersub(&tv, &alarm->tv, &tmp);
-	return sprintf(buf, " [expires in %ds]", tmp.tv_sec);
+	return sprintf(buf, " [expires in %lds]", tmp.tv_sec);
 }
 
 struct cache_feature timer_feature = {

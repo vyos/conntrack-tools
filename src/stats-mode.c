@@ -31,8 +31,6 @@
 
 static int init_stats(void)
 {
-	int ret;
-
 	state.stats = malloc(sizeof(struct ct_stats_state));
 	if (!state.stats) {
 		dlog(STATE(log), LOG_ERR, "can't allocate memory for stats");
@@ -59,7 +57,7 @@ static int init_stats(void)
 	return 0;
 }
 
-static void kill_stats()
+static void kill_stats(void)
 {
 	cache_destroy(STATE_STATS(cache));
 	/* flush the buffer before exiting */
@@ -130,7 +128,7 @@ static int overrun_cb(enum nf_conntrack_msg_type type,
 	return NFCT_CB_CONTINUE;
 }
 
-static void overrun_stats()
+static void overrun_stats(void)
 {
 	int ret;
 	struct nfct_handle *h;

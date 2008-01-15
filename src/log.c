@@ -18,7 +18,7 @@
  * Description: Logging support for the conntrack daemon
  */
 
-#include <stdio.h>
+#include "log.h"
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -26,6 +26,7 @@
 #include <stdarg.h>
 #include <string.h>
 #include <errno.h>
+#include <unistd.h>
 #include "buffer.h"
 #include "conntrackd.h"
 
@@ -78,11 +79,11 @@ int init_log(void)
 	return 0;
 }
 
-void dlog(FILE *fd, int priority, char *format, ...)
+void dlog(FILE *fd, int priority, const char *format, ...)
  {
 	time_t t;
 	char *buf;
-	char *prio;
+	const char *prio;
  	va_list args;
  
 	if (fd) {
@@ -125,7 +126,7 @@ void dlog_buffered_ct_flush(void *buffer_data, void *data)
 {
 	FILE *fd = data;
 
-	fprintf(fd, "%s", buffer_data);
+	fprintf(fd, "%s", (const char*)buffer_data);
 	fflush(fd);
 }
 

@@ -14,8 +14,8 @@
 })
 #define debug printf
 #else
-#define debug_ct(ct, msg)
-#define debug
+#define debug_ct(ct, msg) do {} while (0)
+#define debug(...) do {} while (0)
 #endif
 
 #endif

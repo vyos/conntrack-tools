@@ -28,6 +28,9 @@
 #include "hash.h"
 #include "jhash.h"
 
+#undef _POSIX_SOURCE
+#include <sys/capability.h>
+
 struct ct_general_state st;
 union ct_state state;
 
@@ -52,7 +55,8 @@ static const char usage_options[] =
 	"Options:\n"
 	"  -C [configfile], configuration file path\n";
 
-void show_usage(char *progname)
+static void
+show_usage(char *progname)
 {
 	fprintf(stdout, "Connection tracking userspace daemon v%s\n", VERSION);
 	fprintf(stdout, "Usage: %s [commands] [options]\n\n", progname);
@@ -61,7 +65,8 @@ void show_usage(char *progname)
 	fprintf(stdout, "%s\n", usage_options);
 }
 
-void set_operation_mode(int *current, int want, char *argv[])
+static void
+set_operation_mode(int *current, int want, char *argv[])
 {
 	if (*current == NOT_SET) {
 		*current = want;
@@ -109,7 +114,7 @@ static int check_capabilities(void)
 
 int main(int argc, char *argv[])
 {
-	int ret, i, config_set = 0, action;
+	int ret, i, config_set = 0, action = -1;
 	char config_file[PATH_MAX];
 	int type = 0;
 	struct utsname u;
@@ -305,4 +310,5 @@ int main(int argc, char *argv[])
 	 * run main process
 	 */
 	run();
+	return 0;
 }
