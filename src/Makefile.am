@@ -22,6 +22,9 @@ conntrackd_SOURCES = alarm.c main.c run.c hash.c queue.c buffer.c \
 		    build.c parse.c \
 		    read_config_yy.y read_config_lex.l
 
+# yacc and lex generate dirty code
+read_config_yy.o read_config_lex.o: AM_CFLAGS += -Wno-missing-prototypes -Wno-missing-declarations -Wno-implicit-function-declaration -Wno-nested-externs -Wno-undef -Wno-redundant-decls
+
 conntrackd_LDFLAGS = $(all_libraries) @LIBNETFILTER_CONNTRACK_LIBS@
 
 EXTRA_DIST = read_config_yy.h

@@ -45,6 +45,7 @@ o improve alarm framework based on suggestions from Max Kellerman
 Max Kellermann <max@duempel.org>:
 = conntrackd =
 o resolve global variable "alarm" conflict with alarm() function in unistd.h.
+o enable gcc warnings, including -Werror
 
 version 0.9.5 (2007/07/29)
 ------------------------------
