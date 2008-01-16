@@ -679,7 +679,7 @@ int main(int argc, char *argv[])
 	struct nf_expect *exp = (struct nf_expect *)(void*) __exp;
 	int l3protonum;
 	union ct_address ad;
-	unsigned int command;
+	unsigned int command = 0;
 
 	memset(__obj, 0, sizeof(__obj));
 	memset(__exptuple, 0, sizeof(__exptuple));
