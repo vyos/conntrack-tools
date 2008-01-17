@@ -152,7 +152,6 @@ __mcast_client_create_ipv4(struct mcast_sock *m, struct mcast_conf *conf)
 		       sizeof(struct in_addr)) == -1) {
 		debug("mcast_sock_client_create:setsockopt3");
 		close(m->fd);
-		free(m);
 		return -1;
 	}
 
@@ -182,7 +181,6 @@ __mcast_client_create_ipv6(struct mcast_sock *m, struct mcast_conf *conf)
 		       sizeof(struct in_addr)) == -1) {
 		debug("mcast_sock_client_create:setsockopt3");
 		close(m->fd);
-		free(m);
 		return -1;
 	}
 
