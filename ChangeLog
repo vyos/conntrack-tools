@@ -52,10 +52,12 @@ o fix shadow warnings by renaming variables or making them local
 o remove "-g" from Makefile.am, this should be specified by the user
 o enable C99 mode
 o use C99 integers (uint32_t instead of u_int32_t)
+o remove several superfluous initializations
 
 = conntrack =
 o check for malloc() failure in merge_opts
 o eliminate local variable by returning from the loop
+o explicitly cast in nat_parse()
 
 = conntrackd =
 o resolve global variable "alarm" conflict with alarm() function in unistd.h.
@@ -83,7 +85,6 @@ o add buffer_destroy() to buffer.c
 o fix memory leaks in several error output paths
 o use size_t for buffer sizes
 o import only required C headers and put local headers on top to check
-o remove superfluous initialization
 o fix double free() bug in the error output path of mcast_create()
 
 version 0.9.5 (2007/07/29)
