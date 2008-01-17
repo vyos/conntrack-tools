@@ -41,6 +41,12 @@ struct buffer *buffer_create(unsigned int size)
 	return b;
 }
 
+void buffer_destroy(struct buffer *b)
+{
+	free(b->data);
+	free(b);
+}
+
 int buffer_add(struct buffer *b, void *data, unsigned int size)
 {
 	if (b->size - b->cur_size < size) {

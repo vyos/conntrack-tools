@@ -8,6 +8,8 @@ struct buffer {
 };
 
 struct buffer *buffer_create(unsigned int size);
+void buffer_destroy(struct buffer *b);
+
 int buffer_add(struct buffer *b, void *data, unsigned int size);
 void buffer_flush(struct buffer *b, 
 		  void (*cb)(void *buffer_data, 
