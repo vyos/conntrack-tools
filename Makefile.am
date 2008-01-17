@@ -10,7 +10,6 @@ EXTRA_DIST = $(man_MANS) Make_global.am ChangeLog TODO doc
 SUBDIRS   = extensions src
 DIST_SUBDIRS = include src extensions
 LIBS = @LIBNETFILTER_CONNTRACK_LIBS@
-AM_CFLAGS = -g
 
 $(OBJECTS): libtool
 libtool: $(LIBTOOL_DEPS)
