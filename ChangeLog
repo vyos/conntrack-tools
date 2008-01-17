@@ -53,6 +53,9 @@ o remove "-g" from Makefile.am, this should be specified by the user
 o enable C99 mode
 o use C99 integers (uint32_t instead of u_int32_t)
 
+= conntrack =
+o check for malloc() failure in merge_opts
+
 = conntrackd =
 o resolve global variable "alarm" conflict with alarm() function in unistd.h.
 o enable gcc warnings, including -Werror

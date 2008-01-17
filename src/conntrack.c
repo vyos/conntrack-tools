@@ -271,6 +271,9 @@ merge_options(struct option *oldopts, const struct option *newopts,
 	*option_offset = global_option_offset;
 
 	merge = malloc(sizeof(struct option) * (num_new + num_old + 1));
+	if (merge == NULL)
+		return NULL;
+
 	memcpy(merge, oldopts, num_old * sizeof(struct option));
 	for (i = 0; i < num_new; i++) {
 		merge[num_old + i] = newopts[i];
@@ -838,6 +841,8 @@ int main(int argc, char *argv[])
 					 ATTR_ORIG_L4PROTO, 
 					 h->protonum);
 			opts = merge_options(opts, h->opts, &h->option_offset);
+			if (opts == NULL)
+				exit_error(EXIT_FAILURE, "out of memory\n");
 			break;
 		case 't':
 			options |= CT_OPT_TIMEOUT;
