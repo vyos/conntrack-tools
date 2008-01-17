@@ -473,7 +473,7 @@ nat_parse(char *arg, int portok, struct nf_conntrack *obj, int type)
 			exit_error(PARAMETER_PROBLEM,
 				   "Need TCP or UDP with port specification");
 
-		port = atoi(colon+1);
+		port = (uint16_t)atoi(colon+1);
 		if (port == 0)
 			exit_error(PARAMETER_PROBLEM,
 				   "Port `%s' not valid\n", colon+1);
