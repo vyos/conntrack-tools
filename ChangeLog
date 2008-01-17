@@ -71,6 +71,10 @@ o add missing printf arguments
 o use timeradd() since manipulating tv_sec directly
 o fix lots of gcc warnings
 o don't call INIT_LIST_HEAD on list item when unneeded
+o always close stdin - even in non-daemon mode, it is of no use
+o chdir("/") to release the cwd inode
+o ignore setsid() failure, because there is only one possible and
+o fix harmless error condition
 
 version 0.9.5 (2007/07/29)
 ------------------------------

@@ -284,9 +284,12 @@ int main(int argc, char *argv[])
 		exit(EXIT_FAILURE);
 	}
 
+	chdir("/");
+	close(STDIN_FILENO);
+
 	/* Daemonize conntrackd */
 	if (type == DAEMON) {
-		pid_t pid, sid;
+		pid_t pid;
 
 		if ((pid = fork()) == -1) {
 			perror("fork has failed: ");
@@ -294,14 +297,8 @@ int main(int argc, char *argv[])
 		} else if (pid)
 			exit(EXIT_SUCCESS);
 		
-		sid = setsid();
+		setsid();
 
-		if (sid < 0) {
-			perror("setsid has failed: ");
-			exit(EXIT_FAILURE);
-		}
-
-		close(STDIN_FILENO);
 		close(STDOUT_FILENO);
 		close(STDERR_FILENO);
 
