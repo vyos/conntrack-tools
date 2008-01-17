@@ -20,7 +20,7 @@
 #include <errno.h>
 #include "buffer.h"
 
-struct buffer *buffer_create(unsigned int size)
+struct buffer *buffer_create(size_t size)
 {
 	struct buffer *b;
 
@@ -47,7 +47,7 @@ void buffer_destroy(struct buffer *b)
 	free(b);
 }
 
-int buffer_add(struct buffer *b, void *data, unsigned int size)
+int buffer_add(struct buffer *b, void *data, size_t size)
 {
 	if (b->size - b->cur_size < size) {
 		errno = ENOSPC;
@@ -68,7 +68,7 @@ void buffer_flush(struct buffer *b,
 	memset(b->data, 0, b->size);
 }
 
-unsigned int buffer_size(const struct buffer *b)
+size_t buffer_size(const struct buffer *b)
 {
 	return b->size;
 }

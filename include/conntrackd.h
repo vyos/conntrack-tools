@@ -95,7 +95,7 @@ struct ct_conf {
 	struct {
 		char logfile[FILENAME_MAXLEN];
 		int syslog_facility;
-		unsigned int buffer_size;
+		size_t buffer_size;
 	} stats;
 };
 
