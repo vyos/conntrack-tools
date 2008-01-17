@@ -197,7 +197,7 @@ int handle_netmsg(struct nethdr *net)
 	return 0;
 }
 
-int mcast_track_seq(u_int32_t seq, u_int32_t *exp_seq)
+int mcast_track_seq(uint32_t seq, uint32_t *exp_seq)
 {
 	static int local_seq_set = 0;
 	int ret = 1;

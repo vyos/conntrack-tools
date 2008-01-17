@@ -1,13 +1,15 @@
 #ifndef _STATE_HELPER_H_
 #define _STATE_HELPER_H_
 
+#include <stdint.h>
+
 enum {
 	ST_H_SKIP,
 	ST_H_REPLICATE
 };
 
 struct state_replication_helper {
-	u_int8_t 		proto;
+	uint8_t 		proto;
 	unsigned int		state;
 
 	int (*verdict)(const struct state_replication_helper *h,

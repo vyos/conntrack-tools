@@ -1,7 +1,8 @@
 #ifndef _CACHE_H_
 #define _CACHE_H_
 
-#include <sys/types.h>
+#include <stdint.h>
+#include <stddef.h>
 #include <time.h>
 
 /* cache features */
@@ -75,7 +76,7 @@ struct cache_extra {
 
 struct nf_conntrack;
 
-struct cache *cache_create(const char *name, unsigned int features, u_int8_t proto, struct cache_extra *extra);
+struct cache *cache_create(const char *name, unsigned int features, uint8_t proto, struct cache_extra *extra);
 void cache_destroy(struct cache *e);
 
 struct us_conntrack *cache_add(struct cache *c, struct nf_conntrack *ct);

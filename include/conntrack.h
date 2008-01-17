@@ -3,6 +3,7 @@
 
 #include "linux_list.h"
 #include <getopt.h>
+#include <stdint.h>
 #include <libnetfilter_conntrack/libnetfilter_conntrack.h>
 
 #define PROGNAME "conntrack"
@@ -149,7 +150,7 @@ struct ctproto_handler {
 	struct list_head 	head;
 
 	const char		*name;
-	u_int16_t 		protonum;
+	uint16_t 		protonum;
 	const char		*version;
 
 	enum ctattr_protoinfo	protoinfo_attr;

@@ -57,9 +57,9 @@ struct mcast_sock *mcast_server_create(struct mcast_conf *conf)
 
 	case AF_INET6:
 		memcpy(&mreq.ipv6.ipv6mr_multiaddr, &conf->in.inet_addr6,
-		       sizeof(u_int32_t) * 4);
+		       sizeof(uint32_t) * 4);
 		memcpy(&mreq.ipv6.ipv6mr_interface, &conf->ifa.interface_addr6,
-		       sizeof(u_int32_t) * 4);
+		       sizeof(uint32_t) * 4);
 
 		m->addr.ipv6.sin6_family = AF_INET6;
 		m->addr.ipv6.sin6_port = htons(conf->port);

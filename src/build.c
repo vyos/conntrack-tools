@@ -36,38 +36,38 @@ static void __build_u8(const struct nf_conntrack *ct,
 		       struct netpld *pld,
 		       int attr)
 {
-	u_int8_t data = nfct_get_attr_u8(ct, attr);
-	addattr(pld, attr, &data, sizeof(u_int8_t));
+	uint8_t data = nfct_get_attr_u8(ct, attr);
+	addattr(pld, attr, &data, sizeof(uint8_t));
 }
 
 static void __build_u16(const struct nf_conntrack *ct,
 			struct netpld *pld,
 			int attr)
 {
-	u_int16_t data = nfct_get_attr_u16(ct, attr);
+	uint16_t data = nfct_get_attr_u16(ct, attr);
 	data = htons(data);
-	addattr(pld, attr, &data, sizeof(u_int16_t));
+	addattr(pld, attr, &data, sizeof(uint16_t));
 }
 
 static void __build_u32(const struct nf_conntrack *ct, 
 			struct netpld *pld,
 			int attr)
 {
-	u_int32_t data = nfct_get_attr_u32(ct, attr);
+	uint32_t data = nfct_get_attr_u32(ct, attr);
 	data = htonl(data);
-	addattr(pld, attr, &data, sizeof(u_int32_t));
+	addattr(pld, attr, &data, sizeof(uint32_t));
 }
 
-static void __nat_build_u32(u_int32_t data, struct netpld *pld, int attr)
+static void __nat_build_u32(uint32_t data, struct netpld *pld, int attr)
 {
 	data = htonl(data);
-	addattr(pld, attr, &data, sizeof(u_int32_t));
+	addattr(pld, attr, &data, sizeof(uint32_t));
 }
 
-static void __nat_build_u16(u_int16_t data, struct netpld *pld, int attr)
+static void __nat_build_u16(uint16_t data, struct netpld *pld, int attr)
 {
 	data = htons(data);
-	addattr(pld, attr, &data, sizeof(u_int16_t));
+	addattr(pld, attr, &data, sizeof(uint16_t));
 }
 
 /* XXX: IPv6 and ICMP not supported */
@@ -84,7 +84,7 @@ void build_netpld(struct nf_conntrack *ct, struct netpld *pld, int query)
 	if (nfct_attr_is_set(ct, ATTR_PORT_DST))
 		__build_u16(ct, pld, ATTR_PORT_DST);
 	if (nfct_attr_is_set(ct, ATTR_L4PROTO)) {
-		u_int8_t proto;
+		uint8_t proto;
 
 		__build_u8(ct, pld, ATTR_L4PROTO);
 		proto = nfct_get_attr_u8(ct, ATTR_L4PROTO);
@@ -118,19 +118,19 @@ void build_netpld(struct nf_conntrack *ct, struct netpld *pld, int query)
 
 	/*  NAT */
 	if (nfct_getobjopt(ct, NFCT_GOPT_IS_SNAT)) {
-		u_int32_t data = nfct_get_attr_u32(ct, ATTR_REPL_IPV4_DST);
+		uint32_t data = nfct_get_attr_u32(ct, ATTR_REPL_IPV4_DST);
 		__nat_build_u32(data, pld, ATTR_SNAT_IPV4);
 	}
 	if (nfct_getobjopt(ct, NFCT_GOPT_IS_DNAT)) {
-		u_int32_t data = nfct_get_attr_u32(ct, ATTR_REPL_IPV4_SRC);
+		uint32_t data = nfct_get_attr_u32(ct, ATTR_REPL_IPV4_SRC);
 		__nat_build_u32(data, pld, ATTR_DNAT_IPV4);
 	}
 	if (nfct_getobjopt(ct, NFCT_GOPT_IS_SPAT)) {
-		u_int16_t data = nfct_get_attr_u16(ct, ATTR_REPL_PORT_DST);
+		uint16_t data = nfct_get_attr_u16(ct, ATTR_REPL_PORT_DST);
 		__nat_build_u16(data, pld, ATTR_SNAT_PORT);
 	}
 	if (nfct_getobjopt(ct, NFCT_GOPT_IS_DPAT)) {
-		u_int16_t data = nfct_get_attr_u16(ct, ATTR_REPL_PORT_SRC);
+		uint16_t data = nfct_get_attr_u16(ct, ATTR_REPL_PORT_SRC);
 		__nat_build_u16(data, pld, ATTR_DNAT_PORT);
 	}
 

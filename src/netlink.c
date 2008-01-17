@@ -202,11 +202,11 @@ int nl_dump_conntrack_table(void)
 /* This function modifies the conntrack passed as argument! */
 int nl_create_conntrack(struct nf_conntrack *ct)
 {
-	u_int8_t flags;
+	uint8_t flags;
 
 	/* XXX: related connections */
 	if (nfct_attr_is_set(ct, ATTR_STATUS)) {
-		u_int32_t status = nfct_get_attr_u32(ct, ATTR_STATUS);
+		uint32_t status = nfct_get_attr_u32(ct, ATTR_STATUS);
 		status &= ~IPS_EXPECTED;
 		nfct_set_attr_u32(ct, ATTR_STATUS, status);
 	}

@@ -4,6 +4,7 @@
 #include "mcast.h"
 #include "local.h"
 
+#include <stdint.h>
 #include <stdio.h>
 #include <libnetfilter_conntrack/libnetfilter_conntrack.h> 
 #include "cache.h"
@@ -63,9 +64,9 @@ enum {
 #endif
 
 union inet_address {
-	u_int32_t ipv4;
-	u_int32_t ipv6[4];
-	u_int32_t all[4];
+	uint32_t ipv4;
+	uint32_t ipv6[4];
+	uint32_t all[4];
 };
 
 #define CONFIG(x) conf.x
@@ -112,9 +113,9 @@ struct ct_general_state {
 	struct nfct_handle		*dump;		/* dump handler */
 
 	/* statistics */
-	u_int64_t			malformed;
-	u_int64_t 			bytes[NFCT_DIR_MAX];
-	u_int64_t 			packets[NFCT_DIR_MAX];
+	uint64_t			malformed;
+	uint64_t 			bytes[NFCT_DIR_MAX];
+	uint64_t 			packets[NFCT_DIR_MAX];
 };
 
 #define STATE_SYNC(x) state.sync->x
@@ -128,10 +129,10 @@ struct ct_sync_state {
 
 	struct sync_mode *sync;		/* sync mode */
 
-	u_int32_t last_seq_sent;	/* last sequence number sent */
-	u_int32_t last_seq_recv;	/* last sequence number recv */
-	u_int64_t packets_replayed;	/* number of replayed packets */
-	u_int64_t packets_lost;         /* lost packets: sequence tracking */
+	uint32_t last_seq_sent;	/* last sequence number sent */
+	uint32_t last_seq_recv;	/* last sequence number recv */
+	uint64_t packets_replayed;	/* number of replayed packets */
+	uint64_t packets_lost;         /* lost packets: sequence tracking */
 };
 
 #define STATE_STATS(x) state.stats->x

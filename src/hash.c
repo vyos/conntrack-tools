@@ -48,7 +48,7 @@ void hashtable_destroy_node(struct hashtable_node *h)
 
 struct hashtable *
 hashtable_create(int hashsize, int limit, int datasize,
-		 u_int32_t (*hash)(const void *data, struct hashtable *table),
+		 uint32_t (*hash)(const void *data, struct hashtable *table),
 		 int (*compare)(const void *data1, const void *data2))
 {
 	int i;
@@ -85,7 +85,7 @@ void *hashtable_add(struct hashtable *table, void *data)
 {
 	struct slist_head *e;
 	struct hashtable_node *n;
-	u_int32_t id;
+	uint32_t id;
 
 	/* hash table is full */
 	if (table->count >= table->limit) {
@@ -118,7 +118,7 @@ void *hashtable_add(struct hashtable *table, void *data)
 void *hashtable_test(struct hashtable *table, const void *data)
 {
 	struct slist_head *e;
-	u_int32_t id;
+	uint32_t id;
 	struct hashtable_node *n;
 
 	id = table->hash(data, table);
@@ -136,7 +136,7 @@ void *hashtable_test(struct hashtable *table, const void *data)
 int hashtable_del(struct hashtable *table, void *data)
 {
 	struct slist_head *e, *next, *prev;
-	u_int32_t id;
+	uint32_t id;
 	struct hashtable_node *n;
 
 	id = table->hash(data, table);
@@ -156,7 +156,7 @@ int hashtable_del(struct hashtable *table, void *data)
 
 int hashtable_flush(struct hashtable *table)
 {
-	u_int32_t i;
+	uint32_t i;
 	struct slist_head *e, *next, *prev;
 	struct hashtable_node *n;
 
@@ -175,7 +175,7 @@ int hashtable_flush(struct hashtable *table)
 int hashtable_iterate(struct hashtable *table, void *data,
 		      int (*iterate)(void *data1, void *data2))
 {
-	u_int32_t i;
+	uint32_t i;
 	struct slist_head *e, *next, *prev;
 	struct hashtable_node *n;
 

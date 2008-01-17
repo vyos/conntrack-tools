@@ -444,8 +444,8 @@ parse_inetaddr(const char *cp, struct addr_parse *parse)
 }
 
 union ct_address {
-	u_int32_t v4;
-	u_int32_t v6[4];
+	uint32_t v4;
+	uint32_t v6[4];
 };
 
 static int
@@ -472,7 +472,7 @@ nat_parse(char *arg, int portok, struct nf_conntrack *obj, int type)
 	colon = strchr(arg, ':');
 
 	if (colon) {
-		u_int16_t port;
+		uint16_t port;
 
 		if (!portok)
 			exit_error(PARAMETER_PROBLEM,

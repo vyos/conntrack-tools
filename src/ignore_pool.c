@@ -29,32 +29,32 @@
 #define IGNORE_POOL_SIZE 128
 #define IGNORE_POOL_LIMIT INT_MAX
 
-static u_int32_t hash(const void *data, struct hashtable *table)
+static uint32_t hash(const void *data, struct hashtable *table)
 {
-	const u_int32_t *ip = data;
+	const uint32_t *ip = data;
 
 	return jhash_1word(*ip, 0) % table->hashsize;
 }
 
-static u_int32_t hash6(const void *data, struct hashtable *table)
+static uint32_t hash6(const void *data, struct hashtable *table)
 {
-	return jhash(data, sizeof(u_int32_t)*4, 0) % table->hashsize;
+	return jhash(data, sizeof(uint32_t)*4, 0) % table->hashsize;
 }
 
 static int compare(const void *data1, const void *data2)
 {
-	const u_int32_t *ip1 = data1;
-	const u_int32_t *ip2 = data2;
+	const uint32_t *ip1 = data1;
+	const uint32_t *ip2 = data2;
 
 	return *ip1 == *ip2;
 }
 
 static int compare6(const void *data1, const void *data2)
 {
-	return memcmp(data1, data2, sizeof(u_int32_t)*4) == 0;
+	return memcmp(data1, data2, sizeof(uint32_t)*4) == 0;
 }
 
-struct ignore_pool *ignore_pool_create(u_int8_t proto)
+struct ignore_pool *ignore_pool_create(uint8_t proto)
 {
 	struct ignore_pool *ip;
 
@@ -67,14 +67,14 @@ struct ignore_pool *ignore_pool_create(u_int8_t proto)
 	case AF_INET:
 		ip->h = hashtable_create(IGNORE_POOL_SIZE,
 					 IGNORE_POOL_LIMIT,
-					 sizeof(u_int32_t),
+					 sizeof(uint32_t),
 					 hash,
 					 compare);
 		break;
 	case AF_INET6:
 		ip->h = hashtable_create(IGNORE_POOL_SIZE,
 					 IGNORE_POOL_LIMIT,
-					 sizeof(u_int32_t)*4,
+					 sizeof(uint32_t)*4,
 					 hash6,
 					 compare6);
 		break;

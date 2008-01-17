@@ -1,12 +1,12 @@
 #ifndef _NETWORK_H_
 #define _NETWORK_H_
 
-#include <sys/types.h>
+#include <stdint.h>
 
 struct nethdr {
-	u_int16_t flags;
-	u_int16_t len;
-	u_int32_t seq;
+	uint16_t flags;
+	uint16_t len;
+	uint32_t seq;
 };
 #define NETHDR_SIZ sizeof(struct nethdr)
 
@@ -14,11 +14,11 @@ struct nethdr {
 	(struct netpld *)(((char *)x) + sizeof(struct nethdr))
 
 struct nethdr_ack {
-	u_int16_t flags; 
-	u_int16_t len;
-	u_int32_t seq;
-	u_int32_t from;
-	u_int32_t to;
+	uint16_t flags; 
+	uint16_t len;
+	uint32_t seq;
+	uint32_t from;
+	uint32_t to;
 };
 #define NETHDR_ACK_SIZ sizeof(struct nethdr_ack)
 
@@ -55,7 +55,7 @@ int prepare_send_netmsg(struct mcast_sock *m, void *data);
 int mcast_send_netmsg(struct mcast_sock *m, void *data);
 int mcast_recv_netmsg(struct mcast_sock *m, void *data, int len);
 int handle_netmsg(struct nethdr *net);
-int mcast_track_seq(u_int32_t seq, u_int32_t *exp_seq);
+int mcast_track_seq(uint32_t seq, uint32_t *exp_seq);
 
 struct mcast_conf;
 
@@ -103,21 +103,21 @@ int mcast_buffered_pending_netmsg(struct mcast_sock *m);
  * and worry about wraparound (automatic with unsigned arithmetic).
  */
 
-static inline int before(__u32 seq1, __u32 seq2)
+static inline int before(uint32_t seq1, uint32_t seq2)
 {
-	return (__s32)(seq1-seq2) < 0;
+	return (int32_t)(seq1-seq2) < 0;
 }
 #define after(seq2, seq1)       before(seq1, seq2)
 
 /* is s2<=s1<=s3 ? */
-static inline int between(__u32 seq1, __u32 seq2, __u32 seq3)
+static inline int between(uint32_t seq1, uint32_t seq2, uint32_t seq3)
 {
 	return seq3 - seq2 >= seq1 - seq2;
 }
 
 struct netpld {
-	u_int16_t       len;
-	u_int16_t       query;
+	uint16_t       len;
+	uint16_t       query;
 };
 #define NETPLD_SIZ		sizeof(struct netpld)
 
@@ -134,8 +134,8 @@ struct netpld {
 })
 
 struct netattr {
-	u_int16_t nta_len;
-	u_int16_t nta_attr;
+	uint16_t nta_len;
+	uint16_t nta_attr;
 };
 
 #define ATTR_NETWORK2HOST(x)						 \

@@ -1,6 +1,7 @@
 #ifndef _MCAST_H_
 #define _MCAST_H_
 
+#include <stdint.h>
 #include <netinet/in.h>
 #include <net/if.h>
 
@@ -22,9 +23,9 @@ struct mcast_conf {
 };
 
 struct mcast_stats {
-	u_int64_t bytes;
-	u_int64_t messages;
-	u_int64_t error;
+	uint64_t bytes;
+	uint64_t messages;
+	uint64_t error;
 };
 
 struct mcast_sock {

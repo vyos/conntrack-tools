@@ -44,7 +44,7 @@ static struct queue *tx_queue;
 struct cache_ftfw {
 	struct list_head 	rs_list;
 	struct list_head	tx_list;
-	u_int32_t 		seq;
+	uint32_t 		seq;
 };
 
 static void cache_ftfw_add(struct us_conntrack *u, void *data)
@@ -73,7 +73,7 @@ static struct cache_extra cache_ftfw_extra = {
 	.destroy	= cache_ftfw_del
 };
 
-static void tx_queue_add_ctlmsg(u_int32_t flags, u_int32_t from, u_int32_t to)
+static void tx_queue_add_ctlmsg(uint32_t flags, uint32_t from, uint32_t to)
 {
 	struct nethdr_ack ack = {
 		.flags = flags,

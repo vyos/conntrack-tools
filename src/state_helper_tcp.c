@@ -22,7 +22,7 @@
 static int tcp_verdict(const struct state_replication_helper *h,
 		       const struct nf_conntrack *ct)
 {
-	u_int8_t t_state = nfct_get_attr_u8(ct, ATTR_TCP_STATE);
+	uint8_t t_state = nfct_get_attr_u8(ct, ATTR_TCP_STATE);
 	if (h->state & (1 << t_state))
 		return ST_H_REPLICATE;
 

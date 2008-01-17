@@ -2,21 +2,22 @@
 #define _NF_SET_HASH_H_
 
 #include <unistd.h>
-#include <sys/types.h>
 #include "slist.h"
 #include "linux_list.h"
+
+#include <stdint.h>
 
 struct hashtable;
 struct hashtable_node;
 
 struct hashtable {
-	u_int32_t hashsize;
-	u_int32_t limit;
-	u_int32_t count;
-	u_int32_t initval;
-	u_int32_t datasize;
+	uint32_t hashsize;
+	uint32_t limit;
+	uint32_t count;
+	uint32_t initval;
+	uint32_t datasize;
 	
-	u_int32_t	(*hash)(const void *data, struct hashtable *table);
+	uint32_t	(*hash)(const void *data, struct hashtable *table);
 	int		(*compare)(const void *data1, const void *data2);
 
 	struct slist_head 	members[0];
@@ -32,7 +33,7 @@ void hashtable_destroy_node(struct hashtable_node *h);
 
 struct hashtable *
 hashtable_create(int hashsize, int limit, int datasize,
-		 u_int32_t (*hash)(const void *data, struct hashtable *table),
+		 uint32_t (*hash)(const void *data, struct hashtable *table),
 		 int (*compare)(const void *data1, const void *data2));
 void hashtable_destroy(struct hashtable *h);
 

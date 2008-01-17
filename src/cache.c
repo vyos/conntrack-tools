@@ -25,17 +25,17 @@
 #include "cache.h"
 #include <stdlib.h>
 
-static u_int32_t hash(const void *data, struct hashtable *table)
+static uint32_t hash(const void *data, struct hashtable *table)
 {
 	unsigned int a, b;
 	const struct us_conntrack *u = data;
 	struct nf_conntrack *ct = u->ct;
 
-	a = jhash(nfct_get_attr(ct, ATTR_ORIG_IPV4_SRC), sizeof(u_int32_t),
+	a = jhash(nfct_get_attr(ct, ATTR_ORIG_IPV4_SRC), sizeof(uint32_t),
 		  ((nfct_get_attr_u8(ct, ATTR_ORIG_L3PROTO) << 16) |
 		   (nfct_get_attr_u8(ct, ATTR_ORIG_L4PROTO))));
 
-	b = jhash(nfct_get_attr(ct, ATTR_ORIG_IPV4_DST), sizeof(u_int32_t),
+	b = jhash(nfct_get_attr(ct, ATTR_ORIG_IPV4_DST), sizeof(uint32_t),
 		  ((nfct_get_attr_u16(ct, ATTR_ORIG_PORT_SRC) << 16) |
 		   (nfct_get_attr_u16(ct, ATTR_ORIG_PORT_DST))));
 
@@ -46,24 +46,24 @@ static u_int32_t hash(const void *data, struct hashtable *table)
 	 * but using a multiply, less expensive than a divide. See:
 	 * http://www.mail-archive.com/netdev@vger.kernel.org/msg56623.html
 	 */
-	return ((u_int64_t)jhash_2words(a, b, 0) * table->hashsize) >> 32;
+	return ((uint64_t)jhash_2words(a, b, 0) * table->hashsize) >> 32;
 }
 
-static u_int32_t hash6(const void *data, struct hashtable *table)
+static uint32_t hash6(const void *data, struct hashtable *table)
 {
 	unsigned int a, b;
 	const struct us_conntrack *u = data;
 	struct nf_conntrack *ct = u->ct;
 
-	a = jhash(nfct_get_attr(ct, ATTR_ORIG_IPV6_SRC), sizeof(u_int32_t)*4,
+	a = jhash(nfct_get_attr(ct, ATTR_ORIG_IPV6_SRC), sizeof(uint32_t)*4,
 		  ((nfct_get_attr_u8(ct, ATTR_ORIG_L3PROTO) << 16) |
 		   (nfct_get_attr_u8(ct, ATTR_ORIG_L4PROTO))));
 
-	b = jhash(nfct_get_attr(ct, ATTR_ORIG_IPV6_DST), sizeof(u_int32_t)*4,
+	b = jhash(nfct_get_attr(ct, ATTR_ORIG_IPV6_DST), sizeof(uint32_t)*4,
 		  ((nfct_get_attr_u16(ct, ATTR_ORIG_PORT_SRC) << 16) |
 		   (nfct_get_attr_u16(ct, ATTR_ORIG_PORT_DST))));
 
-	return ((u_int64_t)jhash_2words(a, b, 0) * table->hashsize) >> 32;
+	return ((uint64_t)jhash_2words(a, b, 0) * table->hashsize) >> 32;
 }
 
 static int __compare(const struct nf_conntrack *ct1, 
@@ -123,7 +123,7 @@ struct cache_feature *cache_feature[CACHE_MAX_FEATURE] = {
 
 struct cache *cache_create(const char *name, 
 			   unsigned int features, 
-			   u_int8_t proto,
+			   uint8_t proto,
 			   struct cache_extra *extra)
 {
 	size_t size = sizeof(struct us_conntrack);

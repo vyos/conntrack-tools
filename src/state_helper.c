@@ -23,7 +23,7 @@ static struct state_replication_helper *helper[IPPROTO_MAX];
 
 int state_helper_verdict(int type, struct nf_conntrack *ct) 
 {
-	u_int8_t l4proto;
+	uint8_t l4proto;
 
         if (type == NFCT_Q_DESTROY)
 		return ST_H_REPLICATE;

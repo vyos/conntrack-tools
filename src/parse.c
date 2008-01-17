@@ -22,19 +22,19 @@
 
 static void parse_u8(struct nf_conntrack *ct, int attr, void *data)
 {
-	u_int8_t *value = (u_int8_t *) data;
+	uint8_t *value = (uint8_t *) data;
 	nfct_set_attr_u8(ct, attr, *value);
 }
 
 static void parse_u16(struct nf_conntrack *ct, int attr, void *data)
 {
-	u_int16_t *value = (u_int16_t *) data;
+	uint16_t *value = (uint16_t *) data;
 	nfct_set_attr_u16(ct, attr, ntohs(*value));
 }
 
 static void parse_u32(struct nf_conntrack *ct, int attr, void *data)
 {
-	u_int32_t *value = (u_int32_t *) data;
+	uint32_t *value = (uint32_t *) data;
 	nfct_set_attr_u32(ct, attr, ntohl(*value));
 }
 

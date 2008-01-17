@@ -42,9 +42,9 @@ void dump_traffic_stats(int fd)
 {
 	char buf[512];
 	int size;
-	u_int64_t bytes = STATE(bytes)[NFCT_DIR_ORIGINAL] +
+	uint64_t bytes = STATE(bytes)[NFCT_DIR_ORIGINAL] +
 			  STATE(bytes)[NFCT_DIR_REPLY];
-	u_int64_t packets = STATE(packets)[NFCT_DIR_ORIGINAL] +
+	uint64_t packets = STATE(packets)[NFCT_DIR_ORIGINAL] +
 			    STATE(packets)[NFCT_DIR_REPLY];
 
 	size = sprintf(buf, "traffic processed:\n");
