@@ -8,6 +8,9 @@
  *      (at your option) any later version.
  *
  */
+
+#include "conntrack.h"
+
 #include <stdio.h>
 #include <getopt.h>
 #include <stdlib.h>
@@ -15,7 +18,6 @@
 #include <netinet/ip_icmp.h>
 #include <libnetfilter_conntrack/libnetfilter_conntrack.h>
 #include <libnetfilter_conntrack/libnetfilter_conntrack_icmp.h>
-#include "conntrack.h"
 
 static struct option opts[] = {
 	{"icmp-type", 1, 0, '1'},

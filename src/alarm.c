@@ -16,14 +16,7 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#include <stdlib.h>
-#include <sys/time.h>
-#include "linux_list.h"
-#include "conntrackd.h"
 #include "alarm.h"
-#include "jhash.h"
-#include <time.h>
-#include <errno.h>
 
 static LIST_HEAD(alarm_list);
 

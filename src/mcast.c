@@ -17,19 +17,17 @@
  *
  * Description: multicast socket library
  */
+
+#include "mcast.h"
+#include "debug.h"
+
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <arpa/inet.h>
-#include <fcntl.h>
-#include <errno.h>
-#include <sys/time.h>
 #include <unistd.h>
 #include <string.h>
 #include <sys/ioctl.h>
 #include <net/if.h>
-#include "mcast.h"
-#include "debug.h"
 
 struct mcast_sock *mcast_server_create(struct mcast_conf *conf)
 {

@@ -16,17 +16,17 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#include <stdlib.h>
 #include "conntrackd.h"
 #include "log.h"
+
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <sys/utsname.h>
 #include <linux/capability.h>
-#include <errno.h>
-#include "hash.h"
-#include "jhash.h"
+#include <string.h>
+#include <stdlib.h>
+#include <unistd.h>
 
 #undef _POSIX_SOURCE
 #include <sys/capability.h>

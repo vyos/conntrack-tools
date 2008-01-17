@@ -17,14 +17,15 @@
  */
 
 #include "cache.h"
-#include "jhash.h"
 #include "hash.h"
 #include "log.h"
 #include "conntrackd.h"
 #include "netlink.h"
+#include "us-conntrack.h"
+
 #include <libnetfilter_conntrack/libnetfilter_conntrack.h>
 #include <errno.h>
-#include "us-conntrack.h"
+#include <string.h>
 
 struct __dump_container {
 	int fd;

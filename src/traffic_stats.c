@@ -17,14 +17,7 @@
  */
 
 #include "traffic_stats.h"
-#include "cache.h"
-#include "hash.h"
 #include "conntrackd.h"
-#include <libnfnetlink/libnfnetlink.h>
-#include <libnetfilter_conntrack/libnetfilter_conntrack.h>
-#include <errno.h>
-#include "us-conntrack.h"
-#include <signal.h>
 
 void update_traffic_stats(struct nf_conntrack *ct)
 {

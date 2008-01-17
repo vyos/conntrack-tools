@@ -21,8 +21,11 @@
 #include "network.h"
 #include "us-conntrack.h"
 #include "alarm.h"
+#include "cache.h"
+#include "debug.h"
 
 #include <stdlib.h>
+#include <string.h>
 
 static void refresher(struct alarm_list *a, void *data)
 {

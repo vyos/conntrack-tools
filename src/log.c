@@ -19,16 +19,14 @@
  */
 
 #include "log.h"
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
+#include "buffer.h"
+#include "conntrackd.h"
+
 #include <time.h>
 #include <stdarg.h>
 #include <string.h>
 #include <errno.h>
 #include <unistd.h>
-#include "buffer.h"
-#include "conntrackd.h"
 
 int init_log(void)
 {

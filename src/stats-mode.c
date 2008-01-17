@@ -18,16 +18,15 @@
 
 #include "netlink.h"
 #include "traffic_stats.h"
-#include <stdlib.h>
+#include "buffer.h"
+#include "debug.h"
 #include "cache.h"
 #include "log.h"
 #include "conntrackd.h"
-#include <libnfnetlink/libnfnetlink.h>
-#include <libnetfilter_conntrack/libnetfilter_conntrack.h>
+
 #include <errno.h>
-#include "us-conntrack.h"
-#include <signal.h>
-#include <sys/select.h>
+#include <string.h>
+#include <stdlib.h>
 
 static int init_stats(void)
 {

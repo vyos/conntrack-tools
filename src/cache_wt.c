@@ -16,11 +16,11 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#include "netlink.h"
-#include <stdio.h>
-#include "conntrackd.h"
-#include "us-conntrack.h"
 #include "cache.h"
+#include "netlink.h"
+#include "us-conntrack.h"
+
+#include <string.h>
 
 static void add_update(struct us_conntrack *u)
 {

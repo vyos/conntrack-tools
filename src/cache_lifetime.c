@@ -17,10 +17,8 @@
  */
 
 #include <stdio.h>
-#include "conntrackd.h"
 #include "us-conntrack.h"
 #include "cache.h"
-#include "alarm.h"
 #include <sys/time.h>
 #include <time.h>
 

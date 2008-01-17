@@ -18,12 +18,13 @@
  * Description: UNIX sockets library
  */
 
+#include "local.h"
+
 #include <stdio.h>
 #include <unistd.h>
+#include <string.h>
 #include <arpa/inet.h>
-#include <errno.h>
-
-#include "local.h"
+#include <sys/un.h>
 
 int local_server_create(struct local_conf *conf)
 {

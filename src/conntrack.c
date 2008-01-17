@@ -33,9 +33,10 @@
  * 	Ported to the new libnetfilter_conntrack API
  *
  */
+
+#include "conntrack.h"
+
 #include <stdio.h>
-#include <sys/wait.h>
-#include <stdlib.h>
 #include <getopt.h>
 #include <stdlib.h>
 #include <stdarg.h>
@@ -43,22 +44,15 @@
 #include <unistd.h>
 #include <netinet/in.h>
 #include <sys/types.h>
-#include <sys/stat.h>
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <time.h>
 #ifdef HAVE_ARPA_INET_H
 #include <arpa/inet.h>
 #endif
-#include <fcntl.h>
-#include <dlfcn.h>
 #include <signal.h>
 #include <string.h>
-#include "linux_list.h"
-#include "conntrack.h"
 #include <libnetfilter_conntrack/libnetfilter_conntrack.h>
-#include <libnetfilter_conntrack/libnetfilter_conntrack_ipv4.h>
-#include <libnetfilter_conntrack/libnetfilter_conntrack_ipv6.h>
 
 static const char cmdflags[NUMBER_OF_CMD]
 = {'L','I','U','D','G','F','E','V','h','L','I','D','G','F','E'};

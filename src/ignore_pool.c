@@ -16,14 +16,15 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#include "ignore.h"
 #include "jhash.h"
 #include "hash.h"
 #include "conntrackd.h"
-#include "ignore.h"
 #include "log.h"
-#include <libnetfilter_conntrack/libnetfilter_conntrack.h>
 
+#include <libnetfilter_conntrack/libnetfilter_conntrack.h>
 #include <stdlib.h>
+#include <string.h>
 
 /* XXX: These should be configurable */
 #define IGNORE_POOL_SIZE 128

@@ -2,7 +2,6 @@
 #define _CONNTRACK_H
 
 #include "linux_list.h"
-#include <getopt.h>
 #include <stdint.h>
 #include <libnetfilter_conntrack/libnetfilter_conntrack.h>
 

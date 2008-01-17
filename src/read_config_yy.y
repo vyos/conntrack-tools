@@ -26,6 +26,7 @@
 #include "conntrackd.h"
 #include "ignore.h"
 #include <syslog.h>
+#include <libnetfilter_conntrack/libnetfilter_conntrack_tcp.h>
 
 extern struct state_replication_helper tcp_state_helper;
 

@@ -16,9 +16,9 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#include <string.h>
-#include <libnetfilter_conntrack/libnetfilter_conntrack.h>
 #include "network.h"
+
+#include <libnetfilter_conntrack/libnetfilter_conntrack.h>
 
 static void parse_u8(struct nf_conntrack *ct, int attr, void *data)
 {

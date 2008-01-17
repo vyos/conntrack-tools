@@ -6,14 +6,7 @@
 
 #include <stdint.h>
 #include <stdio.h>
-#include <libnetfilter_conntrack/libnetfilter_conntrack.h> 
-#include "cache.h"
-#include "buffer.h"
-#include "debug.h"
-#include <signal.h>
-#include "state_helper.h"
-#include "linux_list.h"
-#include <libnetfilter_conntrack/libnetfilter_conntrack_tcp.h>
+#include <libnetfilter_conntrack/libnetfilter_conntrack.h>
 #include <syslog.h>
 
 /* UNIX facilities */

@@ -3,6 +3,8 @@
 
 #include <stdint.h>
 
+struct nf_conntrack;
+
 struct ignore_pool {
 	struct hashtable *h;
 };

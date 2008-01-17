@@ -1,8 +1,6 @@
 #ifndef _LOCAL_SOCKET_H_
 #define _LOCAL_SOCKET_H_
 
-#include <sys/un.h>
-
 #ifndef UNIX_PATH_MAX
 #define UNIX_PATH_MAX   108
 #endif

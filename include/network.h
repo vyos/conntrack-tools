@@ -3,6 +3,8 @@
 
 #include <stdint.h>
 
+struct nf_conntrack;
+
 struct nethdr {
 	uint16_t flags;
 	uint16_t len;

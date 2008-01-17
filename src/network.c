@@ -18,11 +18,12 @@
 
 #include "conntrackd.h"
 #include "network.h"
-#include "us-conntrack.h"
-#include "sync.h"
 #include "log.h"
+#include "debug.h"
 
 #include <stdlib.h>
+#include <time.h>
+#include <string.h>
 
 static unsigned int seq_set, cur_seq;
 

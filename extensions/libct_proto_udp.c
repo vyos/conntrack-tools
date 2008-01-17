@@ -10,7 +10,6 @@
 #include <stdio.h>
 #include <getopt.h>
 #include <stdlib.h>
-#include <string.h>
 #include <netinet/in.h> /* For htons */
 #include <libnetfilter_conntrack/libnetfilter_conntrack.h>
 #include <libnetfilter_conntrack/libnetfilter_conntrack_udp.h>

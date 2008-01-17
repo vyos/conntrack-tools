@@ -16,18 +16,17 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#include <errno.h>
 #include "conntrackd.h"
 #include "sync.h"
-#include "linux_list.h"
 #include "us-conntrack.h"
 #include "queue.h"
 #include "debug.h"
 #include "network.h"
 #include "alarm.h"
 #include "log.h"
-#include <libnfnetlink/libnfnetlink.h>
-#include <libnetfilter_conntrack/libnetfilter_conntrack.h>
+#include "cache.h"
+
+#include <string.h>
 
 #if 0 
 #define dp printf

@@ -1,9 +1,6 @@
 #ifndef _QUEUE_H_
 #define _QUEUE_H_
 
-#include <stdlib.h>
-#include <errno.h>
-#include <string.h>
 #include "linux_list.h"
 
 struct queue {

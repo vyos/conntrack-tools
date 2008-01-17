@@ -20,7 +20,6 @@
  */
 
 #include "read_config_yy.h"
-#include "conntrackd.h"
 %}
 
 %option yylineno

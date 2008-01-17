@@ -21,13 +21,7 @@
 #include "traffic_stats.h"
 #include "ignore.h"
 #include "log.h"
-#include <libnfnetlink/libnfnetlink.h>
-#include <libnetfilter_conntrack/libnetfilter_conntrack.h>
-#include <errno.h>
-#include "us-conntrack.h"
-#include <signal.h>
-#include <stdlib.h>
-#include "network.h"
+#include "debug.h"
 
 int ignore_conntrack(struct nf_conntrack *ct)
 {

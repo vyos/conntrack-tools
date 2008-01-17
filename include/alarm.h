@@ -3,6 +3,8 @@
 
 #include "linux_list.h"
 
+#include <sys/time.h>
+
 struct alarm_list {
 	struct list_head	head;
 	struct timeval		tv;

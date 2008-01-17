@@ -23,16 +23,13 @@
 #include "ignore.h"
 #include "log.h"
 #include "alarm.h"
-#include <libnetfilter_conntrack/libnetfilter_conntrack.h>
+
 #include <errno.h>
-#include "us-conntrack.h"
 #include <signal.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <sys/types.h>
 #include <sys/wait.h>
-#include <sys/time.h>
-#include <time.h>
+#include <string.h>
 
 void killer(int foo)
 {

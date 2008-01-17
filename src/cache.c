@@ -16,14 +16,16 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#include "cache.h"
 #include "jhash.h"
 #include "hash.h"
+#include "us-conntrack.h"
 #include "conntrackd.h"
+
 #include <libnetfilter_conntrack/libnetfilter_conntrack.h>
 #include <errno.h>
-#include "us-conntrack.h"
-#include "cache.h"
 #include <stdlib.h>
+#include <string.h>
 
 static uint32_t hash(const void *data, struct hashtable *table)
 {

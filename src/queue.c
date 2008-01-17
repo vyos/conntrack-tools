@@ -18,6 +18,10 @@
 
 #include "queue.h"
 
+#include <errno.h>
+#include <stdlib.h>
+#include <string.h>
+
 struct queue *queue_create(size_t max_size)
 {
 	struct queue *b;

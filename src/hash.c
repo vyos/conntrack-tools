@@ -18,14 +18,12 @@
  * Description: generic hash table implementation
  */
 
-#include <stdio.h>
+#include "hash.h"
+#include "slist.h"
+
 #include <errno.h>
 #include <stdlib.h>
-#include <sys/types.h>
 #include <string.h>
-#include "slist.h"
-#include "hash.h"
-
 
 struct hashtable_node *hashtable_alloc_node(int datasize, void *data)
 {
