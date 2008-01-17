@@ -76,6 +76,7 @@ o chdir("/") to release the cwd inode
 o ignore setsid() failure, because there is only one possible and
 o fix harmless error condition
 o add buffer_destroy() to buffer.c
+o fix memory leaks in several error output paths
 
 version 0.9.5 (2007/07/29)
 ------------------------------

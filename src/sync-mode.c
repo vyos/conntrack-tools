@@ -180,11 +180,14 @@ static int init_sync(void)
 	STATE_SYNC(mcast_client) = mcast_client_create(&CONFIG(mcast));
 	if (STATE_SYNC(mcast_client) == NULL) {
 		dlog(STATE(log), LOG_ERR, "can't open client multicast socket");
+		mcast_server_destroy(STATE_SYNC(mcast_server));
 		return -1;
 	}
 
 	if (mcast_buffered_init(&CONFIG(mcast)) == -1) {
 		dlog(STATE(log), LOG_ERR, "can't init tx buffer!");
+		mcast_server_destroy(STATE_SYNC(mcast_server));
+		mcast_client_destroy(STATE_SYNC(mcast_client));
 		return -1;
 	}
 

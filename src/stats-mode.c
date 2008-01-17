@@ -41,6 +41,7 @@ static int init_stats(void)
 	STATE_STATS(buffer_log) = buffer_create(CONFIG(stats).buffer_size);
 	if (!STATE_STATS(buffer_log)) {
 		dlog(STATE(log), LOG_ERR, "can't allocate stats buffer");
+		free(state.stats);
 		return -1;
 	}
 
@@ -51,6 +52,8 @@ static int init_stats(void)
 	if (!STATE_STATS(cache)) {
 		dlog(STATE(log), LOG_ERR, "can't allocate memory for the "
 				 	  "external cache");
+		free(state.stats);
+		buffer_destroy(STATE_STATS(buffer_log));
 		return -1;
 	}
 

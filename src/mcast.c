@@ -80,6 +80,8 @@ struct mcast_sock *mcast_server_create(struct mcast_conf *conf)
 
 		if (ioctl(m->fd, SIOCGIFMTU, &ifr) == -1) {
 			debug("ioctl");
+			close(m->fd);
+			free(m);
 			return NULL;
 		}
 		conf->mtu = ifr.ifr_mtu;
@@ -201,6 +203,7 @@ struct mcast_sock *mcast_client_create(struct mcast_conf *conf)
 
 	if ((m->fd = socket(conf->ipproto, SOCK_DGRAM, 0)) == -1) {
 		debug("mcast_sock_client_create:socket");
+		free(m);
 		return NULL;
 	}
 
@@ -224,6 +227,7 @@ struct mcast_sock *mcast_client_create(struct mcast_conf *conf)
 	}
 
 	if (ret == -1) {
+		close(m->fd);
 		free(m);
 		m = NULL;
 	}
