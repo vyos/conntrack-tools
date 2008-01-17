@@ -55,6 +55,7 @@ o use C99 integers (uint32_t instead of u_int32_t)
 
 = conntrack =
 o check for malloc() failure in merge_opts
+o eliminate local variable by returning from the loop
 
 = conntrackd =
 o resolve global variable "alarm" conflict with alarm() function in unistd.h.

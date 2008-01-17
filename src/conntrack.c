@@ -156,19 +156,17 @@ void register_proto(struct ctproto_handler *h)
 
 static struct ctproto_handler *findproto(char *name)
 {
-	struct ctproto_handler *cur, *handler = NULL;
+	struct ctproto_handler *cur;
 
 	if (!name) 
-		return handler;
+		return NULL;
 
 	list_for_each_entry(cur, &proto_list, head) {
-		if (strcmp(cur->name, name) == 0) {
-			handler = cur;
-			break;
-		}
+		if (strcmp(cur->name, name) == 0)
+			return cur;
 	}
 
-	return handler;
+	return NULL;
 }
 
 static void
