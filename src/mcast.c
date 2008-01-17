@@ -191,7 +191,7 @@ __mcast_client_create_ipv6(struct mcast_sock *m, struct mcast_conf *conf)
 
 struct mcast_sock *mcast_client_create(struct mcast_conf *conf)
 {
-	int ret = 0;
+	int ret;
 	struct mcast_sock *m;
 
 	m = (struct mcast_sock *) malloc(sizeof(struct mcast_sock));
@@ -221,6 +221,7 @@ struct mcast_sock *mcast_client_create(struct mcast_conf *conf)
 			ret = __mcast_client_create_ipv6(m, conf);
 			break;
 		default:
+			ret = 0;
 			break;
 	}
 

@@ -156,7 +156,7 @@ void register_proto(struct ctproto_handler *h)
 
 static struct ctproto_handler *findproto(char *name)
 {
-	struct ctproto_handler *cur = NULL, *handler = NULL;
+	struct ctproto_handler *cur, *handler = NULL;
 
 	if (!name) 
 		return handler;
