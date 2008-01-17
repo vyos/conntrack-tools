@@ -50,6 +50,7 @@ Max Kellermann <max@duempel.org>:
 
 o fix shadow warnings by renaming variables or making them local
 o remove "-g" from Makefile.am, this should be specified by the user
+o enable C99 mode
 
 = conntrackd =
 o resolve global variable "alarm" conflict with alarm() function in unistd.h.
