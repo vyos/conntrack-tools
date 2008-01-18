@@ -87,6 +87,7 @@ o use size_t for buffer sizes
 o import only required C headers and put local headers on top to check
 o fix double free() bug in the error output path of mcast_create()
 o eliminate unsed cache_get_conntrack() in rs_list_to_tx()
+o remove capability code and rely on the error returned by the syscall
 
 version 0.9.5 (2007/07/29)
 ------------------------------

@@ -23,13 +23,9 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <sys/utsname.h>
-#include <linux/capability.h>
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
-
-#undef _POSIX_SOURCE
-#include <sys/capability.h>
 
 struct ct_general_state st;
 union ct_state state;
@@ -79,39 +75,6 @@ set_operation_mode(int *current, int want, char *argv[])
 	}
 }
 
-static int check_capabilities(void)
-{
-	int ret;
-	cap_user_header_t hcap;
-	cap_user_data_t dcap;
-
-	hcap = malloc(sizeof(cap_user_header_t));
-	if (!hcap)
-		return -1;
-
-	hcap->version = _LINUX_CAPABILITY_VERSION;
-	hcap->pid = getpid();
-
-	dcap = malloc(sizeof(cap_user_data_t));
-	if (!dcap) {
-		free(hcap);
-		return -1;
-	}
-
-	if (capget(hcap, dcap) == -1) {
-		free(hcap);
-		free(dcap);
-		return -1;
-	}
-
-	ret = dcap->permitted & (1 << CAP_NET_ADMIN);
-
-	free(hcap);
-	free(dcap);
-
-	return ret;
-}
-
 int main(int argc, char *argv[])
 {
 	int ret, i, config_set = 0, action = -1;
@@ -134,21 +97,6 @@ int main(int argc, char *argv[])
 	if (major == 6 && minor < 18) {
 		fprintf(stderr, "Linux kernel version must be >= 2.6.18\n");
 		exit(EXIT_FAILURE);
-	}
-
-	ret = check_capabilities();
-	switch (ret) {
-		case -1:
-			fprintf(stderr, "Can't get capabilities\n");
-			exit(EXIT_FAILURE);
-			break;
-		case 0:
-			fprintf(stderr, "You require CAP_NET_ADMIN in order "
-					"to run conntrackd\n");
-			exit(EXIT_FAILURE);
-			break;
-		default:
-			break;
 	}
 
 	for (i=1; i<argc; i++) {
