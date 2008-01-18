@@ -104,7 +104,7 @@ void dlog_buffered_ct_flush(void *buffer_data, void *data)
 {
 	FILE *fd = data;
 
-	fprintf(fd, "%s", (const char*)buffer_data);
+	fputs((const char*)buffer_data, fd);
 	fflush(fd);
 }
 
@@ -124,7 +124,7 @@ void dlog_buffered_ct(FILE *fd, struct buffer *b, struct nf_conntrack *ct)
 		snprintf(buf+strlen(buf), 1024-strlen(buf), "\n");
 		/* zero size buffer: force fflush */
 		if (buffer_size(b) == 0) {
-			fprintf(fd, "%s", buf);
+			fputs(buf, fd);
 			fflush(fd);
 		}
 
@@ -132,7 +132,7 @@ void dlog_buffered_ct(FILE *fd, struct buffer *b, struct nf_conntrack *ct)
 			buffer_flush(b, dlog_buffered_ct_flush, fd);
 			if (buffer_add(b, buf, strlen(buf)) == -1) {
 				/* buffer too small, catacrocket! */
-				fprintf(fd, "%s", buf);
+				fputs(buf, fd);
 				fflush(fd);
 			}
 		}
