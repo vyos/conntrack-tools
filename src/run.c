@@ -116,14 +116,16 @@ init(void)
 	}
 
 	if (nl_init_event_handler() == -1) {
-		dlog(LOG_ERR, "can't open netlink handler! "
-				 	  "no ctnetlink kernel support?");
+		dlog(STATE(log), LOG_ERR, "can't open netlink handler: %s",
+		     strerror(errno));
+		dlog(STATE(log), LOG_ERR, "no ctnetlink kernel support?");
 		return -1;
 	}
 
 	if (nl_init_dump_handler() == -1) {
-		dlog(LOG_ERR, "can't open netlink handler! "
-				 "no ctnetlink kernel support?");
+		dlog(STATE(log), LOG_ERR, "can't open netlink handler: %s",
+		     strerror(errno));
+		dlog(STATE(log), LOG_ERR, "no ctnetlink kernel support?");
 		return -1;
 	}
 

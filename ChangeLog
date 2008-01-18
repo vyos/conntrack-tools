@@ -87,6 +87,7 @@ o eliminate unsed cache_get_conntrack() in rs_list_to_tx()
 o remove capability code and rely on the error returned by the syscall
 o major simplification of the logging infrastructure
 o use fputs() instead of fprintf() in log.c
+o improve error message if netlink initialization fails
 
 version 0.9.5 (2007/07/29)
 ------------------------------
