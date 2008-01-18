@@ -42,6 +42,7 @@ void killer(int foo)
 	ignore_pool_destroy(STATE(ignore_pool));
 	local_server_destroy(STATE(local), CONFIG(local).path);
 	STATE(mode)->kill();
+	destroy_alarm_hash();
         unlink(CONFIG(lockfile));
 	dlog(LOG_NOTICE, "---- shutdown received ----");
 	close_log();
@@ -102,6 +103,11 @@ init(void)
 		STATE(mode) = &stats_mode;
 	}
 
+	if (init_alarm_hash() == -1) {
+		dlog(LOG_ERR, "can't initialize alarm hash");
+		return -1;
+	}
+
 	/* Initialization */
 	if (STATE(mode)->init() == -1) {
 		dlog(LOG_ERR, "initialization failed");
@@ -152,10 +158,15 @@ init(void)
 	return 0;
 }
 
-static int __run(struct timeval *next_alarm)
+static int __run(struct timeval *next_alarm, int *timeout)
 {
 	int max, ret;
 	fd_set readfds;
+	struct timeval *tmp = next_alarm;
+
+	/* No alarms, select must block */
+	if (*timeout == 0)
+		tmp = NULL;
 
 	FD_ZERO(&readfds);
 	FD_SET(STATE(local), &readfds);
@@ -166,7 +177,7 @@ static int __run(struct timeval *next_alarm)
 	if (STATE(mode)->add_fds_to_set)
 		max = MAX(max, STATE(mode)->add_fds_to_set(&readfds));
 
-	ret = select(max+1, &readfds, NULL, NULL, next_alarm);
+	ret = select(max+1, &readfds, NULL, NULL, tmp);
 	if (ret == -1) {
 		/* interrupted syscall, retry */
 		if (errno == EINTR)
@@ -178,7 +189,7 @@ static int __run(struct timeval *next_alarm)
 	}
 
 	/* timeout expired, run the alarm list */
-	if (ret == 0)
+	if (tmp != NULL && !timerisset(tmp))
 		return 1;
 
 	/* signals are racy */
@@ -224,6 +235,14 @@ static int __run(struct timeval *next_alarm)
 	if (STATE(mode)->run)
 		STATE(mode)->run(&readfds);
 
+	/* check if we have introduced any new alarms */
+	if (*timeout == 0 && alarm_counter > 0) {
+		*timeout = 1;
+		if (!get_next_alarm_run(next_alarm))
+			dlog(LOG_ERR, "Bug in alarm?");
+		return 0;
+	}
+
 	sigprocmask(SIG_UNBLOCK, &STATE(block), NULL);
 
 	return 0;
@@ -232,21 +251,16 @@ static int __run(struct timeval *next_alarm)
 void __attribute__((noreturn))
 run(void)
 {
-	struct timeval next_alarm;
-	struct timeval *next = &next_alarm;
-	struct timeval tv;
+	int timeout;
+	struct timeval next_alarm; 
 
-	/* initialization: get the first alarm available */
-	gettimeofday(&tv, NULL);
-	if (!get_next_alarm(&tv, next))
-		next = NULL;
+	/* initialization: get the next alarm available */
+	timeout = get_next_alarm_run(&next_alarm);
 
 	while(1) {
-		if (__run(next)) {
+		if (__run(&next_alarm, &timeout)) {
 			sigprocmask(SIG_BLOCK, &STATE(block), NULL);
-			next = &next_alarm;
-			if (!do_alarm_run(next))
-				next = NULL; /* no next alarms */
+			timeout = do_alarm_run(&next_alarm);
 			sigprocmask(SIG_UNBLOCK, &STATE(block), NULL);
 		}
 	}

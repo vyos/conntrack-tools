@@ -17,8 +17,14 @@
  */
 
 #include "alarm.h"
+#include "jhash.h"
+#include <stdlib.h>
+#include <limits.h>
 
-static LIST_HEAD(alarm_list);
+#define ALARM_HASH_SIZE		2048
+
+static struct list_head *alarm_hash;
+int alarm_counter;
 
 void init_alarm(struct alarm_list *t,
 		void *data,
@@ -35,14 +41,15 @@ static void
 __add_alarm(struct alarm_list *alarm)
 {
 	struct alarm_list *t;
+	int i = jhash(alarm, sizeof(alarm), 0) % ALARM_HASH_SIZE;
 
-	list_for_each_entry(t, &alarm_list, head) {
+	list_for_each_entry(t, &alarm_hash[i], head) {
 		if (timercmp(&alarm->tv, &t->tv, <)) {
 			list_add_tail(&alarm->head, &t->head);
 			return;
 		}
 	}
-	list_add_tail(&alarm->head, &alarm_list);
+	list_add_tail(&alarm->head, &alarm_hash[i]);
 }
 
 void add_alarm(struct alarm_list *alarm)
@@ -52,50 +59,143 @@ void add_alarm(struct alarm_list *alarm)
 	gettimeofday(&tv, NULL);
 	timeradd(&alarm->tv, &tv, &alarm->tv);
 	__add_alarm(alarm);
+	alarm_counter++;
 }
 
 void del_alarm(struct alarm_list *alarm)
 {
 	/* don't remove a non-inserted node */
-	if (!list_empty(&alarm->head))
+	if (!list_empty(&alarm->head)) {
 		list_del_init(&alarm->head);
+		alarm_counter--;
+	}
 }
 
 void mod_alarm(struct alarm_list *alarm, unsigned long sc, unsigned long usc)
 {
-	list_del(&alarm->head);
+	struct timeval tv;
+
 	set_alarm_expiration(alarm, sc, usc);
-	add_alarm(alarm);
+	gettimeofday(&tv, NULL);
+	timeradd(&alarm->tv, &tv, &alarm->tv);
+	list_del(&alarm->head);
+	__add_alarm(alarm);
 }
 
-int get_next_alarm(struct timeval *tv, struct timeval *next_alarm)
+static int 
+calculate_next_run(struct timeval *cand,
+		   struct timeval *tv, 
+		   struct timeval *next_run)
 {
-	struct alarm_list *t;
-
-	list_for_each_entry(t, &alarm_list, head) {
-		timersub(&t->tv, tv, next_alarm);
+	if (cand->tv_sec != LONG_MAX) {
+		if (timercmp(cand, tv, >))
+			timersub(cand, tv, next_run);
+		else {
+			/* loop again inmediately */
+			next_run->tv_sec = 0;
+			next_run->tv_usec = 0;
+		}
 		return 1;
 	}
 	return 0;
 }
 
-int do_alarm_run(struct timeval *next_alarm)
+int get_next_alarm_run(struct timeval *next_run)
 {
-	struct alarm_list *t, *tmp;
+	int i;
+	struct alarm_list *t;
 	struct timeval tv;
+	struct timeval cand = {
+		.tv_sec = LONG_MAX,
+		.tv_usec = LONG_MAX
+	};
 
 	gettimeofday(&tv, NULL);
 
-	list_for_each_entry_safe(t, tmp, &alarm_list, head) {
-		if (timercmp(&t->tv, &tv, >)) {
-			timersub(&t->tv, &tv, next_alarm);
-			return 1;
+	for (i=0; i<ALARM_HASH_SIZE; i++) {
+		if (!list_empty(&alarm_hash[i])) {
+			t = list_entry(alarm_hash[i].next, 
+				       struct alarm_list,
+				       head);
+			if (timercmp(&t->tv, &cand, <)) {
+				cand.tv_sec = t->tv.tv_sec;
+				cand.tv_usec = t->tv.tv_usec;
+			}
 		}
-
-		del_alarm(t);
-		t->function(t, t->data);
 	}
 
-	/* check for refreshed alarms to get the next one */
-	return get_next_alarm(&tv, next_alarm);
+	return calculate_next_run(&cand, &tv, next_run);
+}
+
+static inline int 
+tv_compare(struct alarm_list *a, struct timeval *cur, struct timeval *cand)
+{
+	if (timercmp(&a->tv, cur, >)) {
+		/* select the next alarm candidate */
+		if (timercmp(&a->tv, cand, <)) {
+			cand->tv_sec = a->tv.tv_sec;
+			cand->tv_usec = a->tv.tv_usec;
+		}
+		return 1;
+	}
+	return 0;
+}
+
+int do_alarm_run(struct timeval *next_run)
+{
+	int i;
+	struct alarm_list *t, *next, *prev;
+	struct timeval tv;
+	struct timeval cand = {
+		.tv_sec = LONG_MAX,
+		.tv_usec = LONG_MAX
+	};
+
+	gettimeofday(&tv, NULL);
+
+	for (i=0; i<ALARM_HASH_SIZE; i++) {
+		list_for_each_entry_safe(t, next, &alarm_hash[i], head) {
+			if (tv_compare(t, &tv, &cand))
+				break;
+
+			/* annotate previous alarm */
+			prev = list_entry(next->head.prev,
+					  struct alarm_list,
+					  head);
+
+			del_alarm(t);
+			t->function(t, t->data);
+
+			/* Special case: One deleted node is inserted 
+			 * again in the same place */
+			if (next->head.prev == &prev->head) {
+				t = list_entry(next->head.prev,
+					       struct alarm_list,
+					       head);
+				if (tv_compare(t, &tv, &cand))
+					break;
+			}
+		}
+	}
+
+	return calculate_next_run(&cand, &tv, next_run);
+}
+
+int init_alarm_hash(void)
+{
+	int i;
+
+	alarm_hash = malloc(sizeof(struct list_head) * ALARM_HASH_SIZE);
+	if (alarm_hash == NULL)
+		return -1;
+
+	for (i=0; i<ALARM_HASH_SIZE; i++)
+		INIT_LIST_HEAD(&alarm_hash[i]);
+
+	return 0;
+}
+
+void destroy_alarm_hash(void)
+{
+	free(alarm_hash);
 }

@@ -38,7 +38,7 @@ static void refresher(struct alarm_list *a, void *data)
 	init_alarm(a, u, refresher);
 	set_alarm_expiration(a, 
 			     random() % CONFIG(refresh) + 1,
-			     random() % 999999 + 1);
+			     ((random() % 5 + 1)  * 200000) - 1);
 
 	add_alarm(a);
 
@@ -54,7 +54,7 @@ static void cache_alarm_add(struct us_conntrack *u, void *data)
 	init_alarm(alarm, u, refresher);
 	set_alarm_expiration(alarm, 
 			     random() % CONFIG(refresh) + 1,
-			     random() % 999999 + 1);
+			     ((random() % 5 + 1)  * 200000) - 1);
 	add_alarm(alarm);
 }
 

@@ -340,8 +340,6 @@ static void ftfw_run(void)
 		u = cache_get_conntrack(STATE_SYNC(internal), cn);
 		tx_list_xmit(&cn->tx_list, u);
 	}
-
-	mod_alarm(&alive_alarm, 1, 0);
 }
 
 struct sync_mode sync_ftfw = {
