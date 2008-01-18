@@ -635,7 +635,7 @@ stat_syslog_facility : T_SYSLOG T_STRING
 
 buffer_size: T_STAT_BUFFER_SIZE T_NUMBER
 {
-	conf.stats.buffer_size = $2;
+	fprintf(stderr, "WARNING: LogFileBufferSize is deprecated.\n");
 };
 
 %%

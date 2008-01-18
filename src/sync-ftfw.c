@@ -98,13 +98,13 @@ static int ftfw_init(void)
 {
 	tx_queue = queue_create(CONFIG(resend_queue_size));
 	if (tx_queue == NULL) {
-		dlog(STATE(log), LOG_ERR, "cannot create tx queue");
+		dlog(LOG_ERR, "cannot create tx queue");
 		return -1;
 	}
 
 	rs_queue = queue_create(CONFIG(resend_queue_size));
 	if (rs_queue == NULL) {
-		dlog(STATE(log), LOG_ERR, "cannot create rs queue");
+		dlog(LOG_ERR, "cannot create rs queue");
 		return -1;
 	}
 
@@ -143,11 +143,11 @@ static int ftfw_local(int fd, int type, void *data)
 
 	switch(type) {
 	case REQUEST_DUMP:
-		dlog(STATE(log), LOG_NOTICE, "request resync");
+		dlog(LOG_NOTICE, "request resync");
 		tx_queue_add_ctlmsg(NET_F_RESYNC, 0, 0);
 		break;
 	case SEND_BULK:
-		dlog(STATE(log), LOG_NOTICE, "sending bulk update");
+		dlog(LOG_NOTICE, "sending bulk update");
 		cache_iterate(STATE_SYNC(internal), NULL, do_cache_to_tx);
 		break;
 	default:

@@ -31,7 +31,6 @@ o add support for related conntracks (requires Linux kernel >= 2.6.22)
 o show error and warning messages to stderr
 o hash lookup speedups based on comments from netdev's discussions
 o add support for connection logging to the statistics mode via Logfile
-o implement buffered connection logging to improve performance
 o minor irrelevant fixes for uncommon error paths and fix several typos
 o detach daemon from its terminal (Ben Lenitz <BLentz@channing-bete.com>)
 o obsolete `-S' option: Use information provided by the config file
@@ -81,13 +80,12 @@ o always close stdin - even in non-daemon mode, it is of no use
 o chdir("/") to release the cwd inode
 o ignore setsid() failure, because there is only one possible and
 o fix harmless error condition
-o add buffer_destroy() to buffer.c
 o fix memory leaks in several error output paths
-o use size_t for buffer sizes
 o import only required C headers and put local headers on top to check
 o fix double free() bug in the error output path of mcast_create()
 o eliminate unsed cache_get_conntrack() in rs_list_to_tx()
 o remove capability code and rely on the error returned by the syscall
+o major simplification of the logging infrastructure
 o use fputs() instead of fprintf() in log.c
 
 version 0.9.5 (2007/07/29)

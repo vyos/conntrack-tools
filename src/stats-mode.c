@@ -18,7 +18,6 @@
 
 #include "netlink.h"
 #include "traffic_stats.h"
-#include "buffer.h"
 #include "debug.h"
 #include "cache.h"
 #include "log.h"
@@ -32,27 +31,19 @@ static int init_stats(void)
 {
 	state.stats = malloc(sizeof(struct ct_stats_state));
 	if (!state.stats) {
-		dlog(STATE(log), LOG_ERR, "can't allocate memory for stats");
+		dlog(LOG_ERR, "can't allocate memory for stats");
 		return -1;
 	}
 	memset(state.stats, 0, sizeof(struct ct_stats_state));
-
-	STATE_STATS(buffer_log) = buffer_create(CONFIG(stats).buffer_size);
-	if (!STATE_STATS(buffer_log)) {
-		dlog(STATE(log), LOG_ERR, "can't allocate stats buffer");
-		free(state.stats);
-		return -1;
-	}
 
 	STATE_STATS(cache) = cache_create("stats",
 					  LIFETIME, 
 					  CONFIG(family),
 					  NULL); 
 	if (!STATE_STATS(cache)) {
-		dlog(STATE(log), LOG_ERR, "can't allocate memory for the "
-				 	  "external cache");
+		dlog(LOG_ERR, "can't allocate memory for the "
+			      "external cache");
 		free(state.stats);
-		buffer_destroy(STATE_STATS(buffer_log));
 		return -1;
 	}
 
@@ -62,11 +53,6 @@ static int init_stats(void)
 static void kill_stats(void)
 {
 	cache_destroy(STATE_STATS(cache));
-	/* flush the buffer before exiting */
-	if (STATE(stats_log) != NULL)
-		buffer_flush(STATE_STATS(buffer_log), 
-			     dlog_buffered_ct_flush, 
-			     STATE(stats_log));
 }
 
 /* handler for requests coming via UNIX socket */
@@ -82,7 +68,7 @@ static int local_handler_stats(int fd, int type, void *data)
 		cache_dump(STATE_STATS(cache), fd, NFCT_O_XML);
 		break;
 	case FLUSH_CACHE:
-		dlog(STATE(log), LOG_NOTICE, "flushing caches");
+		dlog(LOG_NOTICE, "flushing caches");
 		cache_flush(STATE_STATS(cache));
 		break;
 	case KILL:
@@ -138,7 +124,7 @@ static void overrun_stats(void)
 
 	h = nfct_open(CONNTRACK, 0);
 	if (!h) {
-		dlog(STATE(log), LOG_ERR, "can't open overrun handler");
+		dlog(LOG_ERR, "can't open overrun handler");
 		return;
 	}
 
@@ -148,7 +134,7 @@ static void overrun_stats(void)
 
 	ret = nfct_query(h, NFCT_Q_DUMP, &family);
 	if (ret == -1)
-		dlog(STATE(log), LOG_ERR, 
+		dlog(LOG_ERR, 
 		     "overrun query error %s", strerror(errno));
 
 	nfct_close(h);
@@ -162,7 +148,7 @@ static void event_new_stats(struct nf_conntrack *ct)
 		debug_ct(ct, "cache new");
 	} else {
 		if (errno != EEXIST) {
-			dlog(STATE(log), LOG_ERR, 
+			dlog(LOG_ERR, 
 			     "can't add to cache cache: %s\n", strerror(errno));
 			debug_ct(ct, "can't add");
 		}
@@ -186,7 +172,7 @@ static int event_destroy_stats(struct nf_conntrack *ct)
 
 	if (cache_del(STATE_STATS(cache), ct)) {
 		debug_ct(ct, "cache destroy");
-		dlog_buffered_ct(STATE(stats_log), STATE_STATS(buffer_log), ct);
+		dlog_ct(ct);
 		return 1;
 	} else {
 		debug_ct(ct, "can't destroy!");

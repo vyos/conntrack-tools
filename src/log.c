@@ -19,7 +19,6 @@
  */
 
 #include "log.h"
-#include "buffer.h"
 #include "conntrackd.h"
 
 #include <time.h>
@@ -38,6 +37,8 @@ int init_log(void)
 						strerror(errno));
 			return -1;
 		}
+
+		setlinebuf(STATE(log));
 	}
 
 	if (CONFIG(stats).logfile[0]) {
@@ -48,6 +49,8 @@ int init_log(void)
 						strerror(errno));
 			return -1;
 		}
+
+		setlinebuf(STATE(stats_log));
 	}
 
 	if (CONFIG(syslog_facility) != -1 || 
@@ -57,8 +60,9 @@ int init_log(void)
 	return 0;
 }
 
-void dlog(FILE *fd, int priority, const char *format, ...)
+void dlog(int priority, const char *format, ...)
  {
+	FILE *fd = STATE(log);
 	time_t t;
 	char *buf;
 	const char *prio;
@@ -100,16 +104,9 @@ void dlog(FILE *fd, int priority, const char *format, ...)
 	}
 }
 
-void dlog_buffered_ct_flush(void *buffer_data, void *data)
+void dlog_ct(struct nf_conntrack *ct)
 {
-	FILE *fd = data;
-
-	fputs((const char*)buffer_data, fd);
-	fflush(fd);
-}
-
-void dlog_buffered_ct(FILE *fd, struct buffer *b, struct nf_conntrack *ct)
-{
+	FILE *fd = STATE(stats_log);
 	time_t t;
 	char buf[1024];
 	char *tmp;
@@ -122,20 +119,7 @@ void dlog_buffered_ct(FILE *fd, struct buffer *b, struct nf_conntrack *ct)
 
 	if (fd) {
 		snprintf(buf+strlen(buf), 1024-strlen(buf), "\n");
-		/* zero size buffer: force fflush */
-		if (buffer_size(b) == 0) {
-			fputs(buf, fd);
-			fflush(fd);
-		}
-
-		if (buffer_add(b, buf, strlen(buf)) == -1) {
-			buffer_flush(b, dlog_buffered_ct_flush, fd);
-			if (buffer_add(b, buf, strlen(buf)) == -1) {
-				/* buffer too small, catacrocket! */
-				fputs(buf, fd);
-				fflush(fd);
-			}
-		}
+		fputs(buf, fd);
 	}
 
 	if (CONFIG(stats).syslog_facility != -1)

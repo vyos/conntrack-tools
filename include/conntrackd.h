@@ -132,7 +132,6 @@ struct ct_sync_state {
 
 struct ct_stats_state {
 	struct cache *cache;            /* internal events cache (netlink) */
-	struct buffer *buffer_log;
 };
 
 union ct_state {

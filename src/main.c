@@ -250,9 +250,9 @@ int main(int argc, char *argv[])
 		close(STDOUT_FILENO);
 		close(STDERR_FILENO);
 
-		dlog(STATE(log), LOG_NOTICE, "-- starting in daemon mode --");
+		dlog(LOG_NOTICE, "-- starting in daemon mode --");
 	} else
-		dlog(STATE(log), LOG_NOTICE, "-- starting in console mode --");
+		dlog(LOG_NOTICE, "-- starting in console mode --");
 
 	/*
 	 * run main process

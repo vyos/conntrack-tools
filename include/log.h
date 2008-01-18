@@ -3,13 +3,11 @@
 
 #include <stdio.h>
 
-struct buffer;
 struct nf_conntrack;
 
 int init_log(void);
-void dlog(FILE *fd, int priority, const char *format, ...);
-void dlog_buffered_ct(FILE *fd, struct buffer *b, struct nf_conntrack *ct);
-void dlog_buffered_ct_flush(void *buffer_data, void *data);
+void dlog(int priority, const char *format, ...);
+void dlog_ct(struct nf_conntrack *ct);
 void close_log(void);
 
 #endif

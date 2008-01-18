@@ -80,7 +80,7 @@ retry:
 			debug_ct(ct, "can't destroy");
 		break;
 	default:
-		dlog(STATE(log), LOG_ERR, "mcast unknown query %d\n", query);
+		dlog(LOG_ERR, "mcast unknown query %d\n", query);
 		break;
 	}
 }
@@ -100,7 +100,7 @@ static void mcast_handler(void)
 		struct nethdr *net = (struct nethdr *) ptr;
 
 		if (ntohs(net->len) > remain) {
-			dlog(STATE(log), LOG_ERR, "fragmented messages");
+			dlog(LOG_ERR, "fragmented messages");
 			break;
 		}
 
@@ -122,7 +122,7 @@ static int init_sync(void)
 {
 	state.sync = malloc(sizeof(struct ct_sync_state));
 	if (!state.sync) {
-		dlog(STATE(log), LOG_ERR, "can't allocate memory for sync");
+		dlog(LOG_ERR, "can't allocate memory for sync");
 		return -1;
 	}
 	memset(state.sync, 0, sizeof(struct ct_sync_state));
@@ -148,8 +148,8 @@ static int init_sync(void)
 			     STATE_SYNC(sync)->internal_cache_extra);
 
 	if (!STATE_SYNC(internal)) {
-		dlog(STATE(log), LOG_ERR, "can't allocate memory for "
-					  "the internal cache");
+		dlog(LOG_ERR, "can't allocate memory for "
+			      "the internal cache");
 		return -1;
 	}
 
@@ -164,28 +164,28 @@ static int init_sync(void)
 			     NULL);
 
 	if (!STATE_SYNC(external)) {
-		dlog(STATE(log), LOG_ERR, "can't allocate memory for the "
-					  "external cache");
+		dlog(LOG_ERR, "can't allocate memory for the "
+			      "external cache");
 		return -1;
 	}
 
 	/* multicast server to receive events from the wire */
 	STATE_SYNC(mcast_server) = mcast_server_create(&CONFIG(mcast));
 	if (STATE_SYNC(mcast_server) == NULL) {
-		dlog(STATE(log), LOG_ERR, "can't open multicast server!");
+		dlog(LOG_ERR, "can't open multicast server!");
 		return -1;
 	}
 
 	/* multicast client to send events on the wire */
 	STATE_SYNC(mcast_client) = mcast_client_create(&CONFIG(mcast));
 	if (STATE_SYNC(mcast_client) == NULL) {
-		dlog(STATE(log), LOG_ERR, "can't open client multicast socket");
+		dlog(LOG_ERR, "can't open client multicast socket");
 		mcast_server_destroy(STATE_SYNC(mcast_server));
 		return -1;
 	}
 
 	if (mcast_buffered_init(&CONFIG(mcast)) == -1) {
-		dlog(STATE(log), LOG_ERR, "can't init tx buffer!");
+		dlog(LOG_ERR, "can't init tx buffer!");
 		mcast_server_destroy(STATE_SYNC(mcast_server));
 		mcast_client_destroy(STATE_SYNC(mcast_client));
 		return -1;
@@ -282,14 +282,14 @@ static int local_handler_sync(int fd, int type, void *data)
 	case COMMIT:
 		ret = fork();
 		if (ret == 0) {
-			dlog(STATE(log), LOG_NOTICE, 
+			dlog(LOG_NOTICE, 
 			     "committing external cache");
 			cache_commit(STATE_SYNC(external));
 			exit(EXIT_SUCCESS);
 		}
 		break;
 	case FLUSH_CACHE:
-		dlog(STATE(log), LOG_NOTICE, "flushing caches");
+		dlog(LOG_NOTICE, "flushing caches");
 		cache_flush(STATE_SYNC(internal));
 		cache_flush(STATE_SYNC(external));
 		break;
@@ -416,7 +416,7 @@ static void overrun_sync(void)
 
 	h = nfct_open(CONNTRACK, 0);
 	if (!h) {
-		dlog(STATE(log), LOG_ERR, "can't open overrun handler");
+		dlog(LOG_ERR, "can't open overrun handler");
 		return;
 	}
 
@@ -424,7 +424,7 @@ static void overrun_sync(void)
 
 	ret = nfct_query(h, NFCT_Q_DUMP, &family);
 	if (ret == -1)
-		dlog(STATE(log), LOG_ERR, 
+		dlog(LOG_ERR, 
 		     "overrun query error %s", strerror(errno));
 
 	nfct_callback_unregister(h);
@@ -457,8 +457,8 @@ retry:
 			goto retry;
 		}
 
-		dlog(STATE(log), LOG_ERR, "can't add to internal cache: "
-				      	  "%s\n", strerror(errno));
+		dlog(LOG_ERR, "can't add to internal cache: "
+			      "%s\n", strerror(errno));
 		debug_ct(ct, "can't add");
 	}
 }

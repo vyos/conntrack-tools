@@ -73,7 +73,7 @@ static int event_handler(enum nf_conntrack_msg_type type,
 			update_traffic_stats(ct);
 		break;
 	default:
-		dlog(STATE(log), LOG_WARNING, "unknown msg from ctnetlink\n");
+		dlog(LOG_WARNING, "unknown msg from ctnetlink\n");
 		break;
 	}
 
@@ -134,7 +134,7 @@ static int dump_handler(enum nf_conntrack_msg_type type,
 		STATE(mode)->dump(ct);
 		break;
 	default:
-		dlog(STATE(log), LOG_WARNING, "unknown msg from ctnetlink");
+		dlog(LOG_WARNING, "unknown msg from ctnetlink");
 		break;
 	}
 	return NFCT_CB_CONTINUE;
@@ -167,15 +167,15 @@ void nl_resize_socket_buffer(struct nfct_handle *h)
 		return;
 
 	if (s > CONFIG(netlink_buffer_size_max_grown)) {
-		dlog(STATE(log), LOG_WARNING, 
-				 "maximum netlink socket buffer "
-				 "size has been reached. We are likely to "
-				 "be losing events, this may lead to "
-				 "unsynchronized replicas. Please, consider "
-				 "increasing netlink socket buffer size via "
-				 "SocketBufferSize and "
-				 "SocketBufferSizeMaxGrown clauses in "
-				 "conntrackd.conf");
+		dlog(LOG_WARNING, 
+		     "maximum netlink socket buffer "
+		     "size has been reached. We are likely to "
+		     "be losing events, this may lead to "
+		     "unsynchronized replicas. Please, consider "
+		     "increasing netlink socket buffer size via "
+		     "SocketBufferSize and "
+		     "SocketBufferSizeMaxGrown clauses in "
+		     "conntrackd.conf");
 		s = CONFIG(netlink_buffer_size_max_grown);
 		warned = 1;
 	}
@@ -183,9 +183,9 @@ void nl_resize_socket_buffer(struct nfct_handle *h)
 	CONFIG(netlink_buffer_size) = nfnl_rcvbufsiz(nfct_nfnlh(h), s);
 
 	/* notify the sysadmin */
-	dlog(STATE(log), LOG_NOTICE, "netlink socket buffer size "
-				     "has been set to %u bytes",
-				     CONFIG(netlink_buffer_size));
+	dlog(LOG_NOTICE, "netlink socket buffer size "
+			 "has been set to %u bytes",
+			 CONFIG(netlink_buffer_size));
 }
 
 int nl_dump_conntrack_table(void)

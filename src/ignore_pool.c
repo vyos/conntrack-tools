@@ -133,7 +133,7 @@ int ignore_pool_test(struct ignore_pool *ip, struct nf_conntrack *ct)
 		ret = __ignore_pool_test_ipv6(ip, ct);
 		break;
 	default:
-		dlog(STATE(log), LOG_WARNING, "unknown layer 3 protocol?");
+		dlog(LOG_WARNING, "unknown layer 3 protocol?");
 		break;
 	}
 
