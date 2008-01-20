@@ -88,6 +88,7 @@ o remove capability code and rely on the error returned by the syscall
 o major simplification of the logging infrastructure
 o use fputs() instead of fprintf() in log.c
 o improve error message if netlink initialization fails
+o merge mod_alarm() into add_alarm(), remove alarm_set_expiration()
 
 version 0.9.5 (2007/07/29)
 ------------------------------

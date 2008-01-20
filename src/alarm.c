@@ -52,10 +52,13 @@ __add_alarm(struct alarm_list *alarm)
 	list_add_tail(&alarm->head, &alarm_hash[i]);
 }
 
-void add_alarm(struct alarm_list *alarm)
+void add_alarm(struct alarm_list *alarm, unsigned long sc, unsigned long usc)
 {
 	struct timeval tv;
 
+	del_alarm(alarm);
+	alarm->tv.tv_sec = sc;
+	alarm->tv.tv_usec = usc;
 	gettimeofday(&tv, NULL);
 	timeradd(&alarm->tv, &tv, &alarm->tv);
 	__add_alarm(alarm);
@@ -69,17 +72,6 @@ void del_alarm(struct alarm_list *alarm)
 		list_del_init(&alarm->head);
 		alarm_counter--;
 	}
-}
-
-void mod_alarm(struct alarm_list *alarm, unsigned long sc, unsigned long usc)
-{
-	struct timeval tv;
-
-	set_alarm_expiration(alarm, sc, usc);
-	gettimeofday(&tv, NULL);
-	timeradd(&alarm->tv, &tv, &alarm->tv);
-	list_del(&alarm->head);
-	__add_alarm(alarm);
 }
 
 static int 
