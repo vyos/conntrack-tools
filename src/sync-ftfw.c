@@ -89,7 +89,6 @@ static void do_alive_alarm(struct alarm_list *a, void *data)
 {
 	tx_queue_add_ctlmsg(NET_F_ALIVE, 0, 0);
 
-	init_alarm(&alive_alarm, NULL, do_alive_alarm);
 	add_alarm(&alive_alarm, 1, 0);
 }
 

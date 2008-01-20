@@ -35,7 +35,6 @@ static void refresher(struct alarm_list *a, void *data)
 
 	debug_ct(u->ct, "persistence update");
 
-	init_alarm(a, u, refresher);
 	add_alarm(a, 
 		  random() % CONFIG(refresh) + 1,
 		  ((random() % 5 + 1)  * 200000) - 1);

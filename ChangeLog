@@ -89,6 +89,7 @@ o major simplification of the logging infrastructure
 o use fputs() instead of fprintf() in log.c
 o improve error message if netlink initialization fails
 o merge mod_alarm() into add_alarm(), remove alarm_set_expiration()
+o remove init_alarm() before add_alarm()
 
 version 0.9.5 (2007/07/29)
 ------------------------------
