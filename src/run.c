@@ -43,7 +43,7 @@ void killer(int foo)
 	local_server_destroy(STATE(local), CONFIG(local).path);
 	STATE(mode)->kill();
 	destroy_alarm_hash();
-        unlink(CONFIG(lockfile));
+	unlink(CONFIG(lockfile));
 	dlog(LOG_NOTICE, "---- shutdown received ----");
 	close_log();
 
@@ -73,7 +73,7 @@ void local_handler(int fd, void *data)
 	switch(type) {
 	case FLUSH_MASTER:
 		dlog(LOG_WARNING, "`conntrackd -F' is deprecated. "
-				 	      "Use conntrack -F instead.");
+				  "Use conntrack -F instead.");
 		if (fork() == 0) {
 			execlp("conntrack", "conntrack", "-F", NULL);
 			exit(EXIT_SUCCESS);
@@ -122,7 +122,8 @@ init(void)
 	}
 
 	if (nl_init_event_handler() == -1) {
-		dlog(LOG_ERR, "can't open netlink handler: %s", strerror(errno));
+		dlog(LOG_ERR, "can't open netlink handler: %s", 
+		     strerror(errno));
 		dlog(LOG_ERR, "no ctnetlink kernel support?");
 		return -1;
 	}
@@ -178,8 +179,7 @@ static void __run(struct timeval *next_alarm)
 		if (errno == EINTR)
 			return;
 
-		dlog(LOG_WARNING, 
-		     "select failed: %s", strerror(errno));
+		dlog(LOG_WARNING, "select failed: %s", strerror(errno));
 		return;
 	}
 
