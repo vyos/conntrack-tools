@@ -233,19 +233,16 @@ void __attribute__((noreturn))
 run(void)
 {
 	struct timeval next_alarm; 
-	struct timeval *next;
-
-	/* initialization: get the next alarm available */
-	next = get_next_alarm_run(&next_alarm);
+	struct timeval *next = NULL;
 
 	while(1) {
-		__run(next);
-
 		sigprocmask(SIG_BLOCK, &STATE(block), NULL);
 		if (next != NULL && !timerisset(next))
 			next = do_alarm_run(&next_alarm);
 		else
 			next = get_next_alarm_run(&next_alarm);
 		sigprocmask(SIG_UNBLOCK, &STATE(block), NULL);
+
+		__run(next);
 	}
 }
