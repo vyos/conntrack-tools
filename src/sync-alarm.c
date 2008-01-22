@@ -57,7 +57,9 @@ static void cache_alarm_add(struct us_conntrack *u, void *data)
 static void cache_alarm_update(struct us_conntrack *u, void *data)
 {
 	struct alarm_list *alarm = data;
-	add_alarm(alarm, random() % CONFIG(refresh) + 1, random() % 999999 + 1);
+	add_alarm(alarm, 
+		  random() % CONFIG(refresh) + 1,
+		  ((random() % 5 + 1)  * 200000) - 1);
 }
 
 static void cache_alarm_destroy(struct us_conntrack *u, void *data)
