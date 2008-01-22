@@ -158,15 +158,10 @@ init(void)
 	return 0;
 }
 
-static int __run(struct timeval *next_alarm, int *timeout)
+static void __run(struct timeval *next_alarm)
 {
 	int max, ret;
 	fd_set readfds;
-	struct timeval *tmp = next_alarm;
-
-	/* No alarms, select must block */
-	if (*timeout == 0)
-		tmp = NULL;
 
 	FD_ZERO(&readfds);
 	FD_SET(STATE(local), &readfds);
@@ -177,20 +172,16 @@ static int __run(struct timeval *next_alarm, int *timeout)
 	if (STATE(mode)->add_fds_to_set)
 		max = MAX(max, STATE(mode)->add_fds_to_set(&readfds));
 
-	ret = select(max+1, &readfds, NULL, NULL, tmp);
+	ret = select(max+1, &readfds, NULL, NULL, next_alarm);
 	if (ret == -1) {
 		/* interrupted syscall, retry */
 		if (errno == EINTR)
-			return 0;
+			return;
 
 		dlog(LOG_WARNING, 
 		     "select failed: %s", strerror(errno));
-		return 0;
+		return;
 	}
-
-	/* timeout expired, run the alarm list */
-	if (tmp != NULL && !timerisset(tmp))
-		return 1;
 
 	/* signals are racy */
 	sigprocmask(SIG_BLOCK, &STATE(block), NULL);		
@@ -235,33 +226,26 @@ static int __run(struct timeval *next_alarm, int *timeout)
 	if (STATE(mode)->run)
 		STATE(mode)->run(&readfds);
 
-	/* check if we have introduced any new alarms */
-	if (*timeout == 0 && alarm_counter > 0) {
-		*timeout = 1;
-		if (!get_next_alarm_run(next_alarm))
-			dlog(LOG_ERR, "Bug in alarm?");
-		return 0;
-	}
-
 	sigprocmask(SIG_UNBLOCK, &STATE(block), NULL);
-
-	return 0;
 }
 
 void __attribute__((noreturn))
 run(void)
 {
-	int timeout;
 	struct timeval next_alarm; 
+	struct timeval *next;
 
 	/* initialization: get the next alarm available */
-	timeout = get_next_alarm_run(&next_alarm);
+	next = get_next_alarm_run(&next_alarm);
 
 	while(1) {
-		if (__run(&next_alarm, &timeout)) {
-			sigprocmask(SIG_BLOCK, &STATE(block), NULL);
-			timeout = do_alarm_run(&next_alarm);
-			sigprocmask(SIG_UNBLOCK, &STATE(block), NULL);
-		}
+		__run(next);
+
+		sigprocmask(SIG_BLOCK, &STATE(block), NULL);
+		if (next != NULL && !timerisset(next))
+			next = do_alarm_run(&next_alarm);
+		else
+			next = get_next_alarm_run(&next_alarm);
+		sigprocmask(SIG_UNBLOCK, &STATE(block), NULL);
 	}
 }

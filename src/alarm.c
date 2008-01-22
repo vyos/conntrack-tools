@@ -74,7 +74,7 @@ void del_alarm(struct alarm_list *alarm)
 	}
 }
 
-static int 
+static struct timeval *
 calculate_next_run(struct timeval *cand,
 		   struct timeval *tv, 
 		   struct timeval *next_run)
@@ -87,12 +87,13 @@ calculate_next_run(struct timeval *cand,
 			next_run->tv_sec = 0;
 			next_run->tv_usec = 0;
 		}
-		return 1;
+		return next_run;
 	}
-	return 0;
+	return NULL;
 }
 
-int get_next_alarm_run(struct timeval *next_run)
+struct timeval *
+get_next_alarm_run(struct timeval *next_run)
 {
 	int i;
 	struct alarm_list *t;
@@ -133,7 +134,8 @@ tv_compare(struct alarm_list *a, struct timeval *cur, struct timeval *cand)
 	return 0;
 }
 
-int do_alarm_run(struct timeval *next_run)
+struct timeval *
+do_alarm_run(struct timeval *next_run)
 {
 	int i;
 	struct alarm_list *t, *next, *prev;
