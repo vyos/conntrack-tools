@@ -5,8 +5,6 @@
 
 #include <sys/time.h>
 
-extern int alarm_counter;
-
 struct alarm_list {
 	struct list_head	head;
 	struct timeval		tv;

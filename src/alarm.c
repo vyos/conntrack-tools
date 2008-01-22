@@ -24,7 +24,6 @@
 #define ALARM_HASH_SIZE		2048
 
 static struct list_head *alarm_hash;
-int alarm_counter;
 
 void init_alarm(struct alarm_list *t,
 		void *data,
@@ -62,16 +61,13 @@ void add_alarm(struct alarm_list *alarm, unsigned long sc, unsigned long usc)
 	gettimeofday(&tv, NULL);
 	timeradd(&alarm->tv, &tv, &alarm->tv);
 	__add_alarm(alarm);
-	alarm_counter++;
 }
 
 void del_alarm(struct alarm_list *alarm)
 {
 	/* don't remove a non-inserted node */
-	if (!list_empty(&alarm->head)) {
+	if (!list_empty(&alarm->head))
 		list_del_init(&alarm->head);
-		alarm_counter--;
-	}
 }
 
 static struct timeval *
