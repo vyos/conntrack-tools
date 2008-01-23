@@ -116,7 +116,7 @@ init(void)
 
 	/* local UNIX socket */
 	STATE(local) = local_server_create(&CONFIG(local));
-	if (!STATE(local)) {
+	if (STATE(local) == -1) {
 		dlog(LOG_ERR, "can't open unix socket!");
 		return -1;
 	}
