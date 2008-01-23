@@ -99,7 +99,7 @@ static void mcast_handler(void)
 	while (remain > 0) {
 		struct nethdr *net = (struct nethdr *) ptr;
 
-		if (remain < NETHDR_SIZ) {
+		if ((size_t)remain < NETHDR_SIZ) {
 			STATE(malformed)++;
 			break;
 		}
