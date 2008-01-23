@@ -55,7 +55,6 @@ struct mcast_sock;
 void build_netmsg(struct nf_conntrack *ct, int query, struct nethdr *net);
 int prepare_send_netmsg(struct mcast_sock *m, void *data);
 int mcast_send_netmsg(struct mcast_sock *m, void *data);
-int mcast_recv_netmsg(struct mcast_sock *m, void *data, int len);
 int handle_netmsg(struct nethdr *net);
 int mcast_track_seq(uint32_t seq, uint32_t *exp_seq);
 
