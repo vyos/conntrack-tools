@@ -89,7 +89,7 @@ retry:
 static void mcast_handler(void)
 {
 	ssize_t numbytes;
-	ssize_t remain;
+	size_t remain;
 	char __net[65536], *ptr = __net; /* XXX: maximum MTU for IPv4 */
 
 	numbytes = mcast_recv(STATE_SYNC(mcast_server), __net, sizeof(__net));
@@ -100,7 +100,7 @@ static void mcast_handler(void)
 	while (remain > 0) {
 		struct nethdr *net = (struct nethdr *) ptr;
 
-		if ((size_t)remain < NETHDR_SIZ) {
+		if (remain < NETHDR_SIZ) {
 			STATE(malformed)++;
 			break;
 		}
