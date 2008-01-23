@@ -93,6 +93,7 @@ o remove init_alarm() before add_alarm()
 o fix error checking of local_create_server()
 o added struct local_server, several cleanups in local socket infrastructure
 o remove unused prototypes in network.h
+o check if the received packet is large enough
 
 version 0.9.5 (2007/07/29)
 ------------------------------

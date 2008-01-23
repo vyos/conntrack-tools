@@ -99,6 +99,11 @@ static void mcast_handler(void)
 	while (remain > 0) {
 		struct nethdr *net = (struct nethdr *) ptr;
 
+		if (remain < NETHDR_SIZ) {
+			STATE(malformed)++;
+			break;
+		}
+
 		if (ntohs(net->len) > remain) {
 			dlog(LOG_ERR, "fragmented messages");
 			break;
