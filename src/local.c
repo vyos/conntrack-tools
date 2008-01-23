@@ -26,7 +26,7 @@
 #include <arpa/inet.h>
 #include <sys/un.h>
 
-int local_server_create(struct local_conf *conf)
+int local_server_create(struct local_server *server, struct local_conf *conf)
 {
 	int fd;
 	int len;
@@ -59,23 +59,27 @@ int local_server_create(struct local_conf *conf)
 		return -1;
 	}
 
-	return fd;
+	server->fd = fd;
+	strcpy(server->path, conf->path);
+
+	return 0;
 }
 
-void local_server_destroy(int fd, const char *path)
+void local_server_destroy(struct local_server *server)
 {
-	unlink(path);
-	close(fd);
+	unlink(server->path);
+	close(server->fd);
 }
 
-int do_local_server_step(int fd, void *data, 
+int do_local_server_step(struct local_server *server, void *data, 
 			 void (*process)(int fd, void *data))
 {
 	int rfd;
 	struct sockaddr_un local;
 	socklen_t sin_size = sizeof(struct sockaddr_un);
 	
-	if ((rfd = accept(fd, (struct sockaddr *)&local, &sin_size)) == -1)
+	rfd = accept(server->fd, (struct sockaddr *) &local, &sin_size);
+	if (rfd == -1)
 		return -1;
 
 	process(rfd, data);

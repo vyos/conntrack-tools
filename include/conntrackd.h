@@ -98,7 +98,7 @@ struct ct_general_state {
 	sigset_t 			block;
 	FILE 				*log;
 	FILE				*stats_log;
-	int 				local;
+	struct local_server		local;
 	struct ct_mode 			*mode;
 	struct ignore_pool		*ignore_pool;
 

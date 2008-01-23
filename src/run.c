@@ -40,7 +40,7 @@ void killer(int foo)
 	nfct_close(STATE(dump));
 
 	ignore_pool_destroy(STATE(ignore_pool));
-	local_server_destroy(STATE(local), CONFIG(local).path);
+	local_server_destroy(&STATE(local));
 	STATE(mode)->kill();
 	destroy_alarm_hash();
 	unlink(CONFIG(lockfile));
@@ -115,8 +115,7 @@ init(void)
 	}
 
 	/* local UNIX socket */
-	STATE(local) = local_server_create(&CONFIG(local));
-	if (STATE(local) == -1) {
+	if (local_server_create(&STATE(local), &CONFIG(local)) == -1) {
 		dlog(LOG_ERR, "can't open unix socket!");
 		return -1;
 	}
@@ -165,10 +164,10 @@ static void __run(struct timeval *next_alarm)
 	fd_set readfds;
 
 	FD_ZERO(&readfds);
-	FD_SET(STATE(local), &readfds);
+	FD_SET(STATE(local).fd, &readfds);
 	FD_SET(nfct_fd(STATE(event)), &readfds);
 
-	max = MAX(STATE(local), nfct_fd(STATE(event)));
+	max = MAX(STATE(local).fd, nfct_fd(STATE(event)));
 
 	if (STATE(mode)->add_fds_to_set)
 		max = MAX(max, STATE(mode)->add_fds_to_set(&readfds));
@@ -187,8 +186,8 @@ static void __run(struct timeval *next_alarm)
 	sigprocmask(SIG_BLOCK, &STATE(block), NULL);		
 
 	/* order received via UNIX socket */
-	if (FD_ISSET(STATE(local), &readfds))
-		do_local_server_step(STATE(local), NULL, local_handler);
+	if (FD_ISSET(STATE(local).fd, &readfds))
+		do_local_server_step(&STATE(local), NULL, local_handler);
 
 	/* conntrack event has happened */
 	if (FD_ISSET(nfct_fd(STATE(event)), &readfds)) {

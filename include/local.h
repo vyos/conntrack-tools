@@ -11,10 +11,15 @@ struct local_conf {
 	char path[UNIX_PATH_MAX];
 };
 
+struct local_server {
+	int fd;
+	char path[UNIX_PATH_MAX];
+};
+
 /* local server */
-int local_server_create(struct local_conf *conf);
-void local_server_destroy(int fd, const char *);
-int do_local_server_step(int fd, void *data, 
+int local_server_create(struct local_server *server, struct local_conf *conf);
+void local_server_destroy(struct local_server *server);
+int do_local_server_step(struct local_server *server, void *data, 
 			 void (*process)(int fd, void *data));
 
 /* local client */

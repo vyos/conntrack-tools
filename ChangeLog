@@ -91,6 +91,7 @@ o improve error message if netlink initialization fails
 o merge mod_alarm() into add_alarm(), remove alarm_set_expiration()
 o remove init_alarm() before add_alarm()
 o fix error checking of local_create_server()
+o added struct local_server, several cleanups in local socket infrastructure
 
 version 0.9.5 (2007/07/29)
 ------------------------------
