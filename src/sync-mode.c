@@ -108,6 +108,7 @@ static void mcast_handler(void)
 			ntohl(net->seq), ntohs(net->flags),
 			ntohs(net->len), remain);
 
+		/* sanity check and convert nethdr to host byte order */
 		if (handle_netmsg(net) == -1) {
 			STATE(malformed)++;
 			return;
