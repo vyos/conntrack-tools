@@ -2,6 +2,7 @@
 #define _NETWORK_H_
 
 #include <stdint.h>
+#include <sys/types.h>
 
 struct nf_conntrack;
 
@@ -53,7 +54,7 @@ struct us_conntrack;
 struct mcast_sock;
 
 void build_netmsg(struct nf_conntrack *ct, int query, struct nethdr *net);
-int prepare_send_netmsg(struct mcast_sock *m, void *data);
+size_t prepare_send_netmsg(struct mcast_sock *m, void *data);
 int mcast_send_netmsg(struct mcast_sock *m, void *data);
 int handle_netmsg(struct nethdr *net);
 int mcast_track_seq(uint32_t seq, uint32_t *exp_seq);
@@ -62,8 +63,8 @@ struct mcast_conf;
 
 int mcast_buffered_init(struct mcast_conf *conf);
 void mcast_buffered_destroy(void);
-int mcast_buffered_send_netmsg(struct mcast_sock *m, void *data, int len);
-int mcast_buffered_pending_netmsg(struct mcast_sock *m);
+int mcast_buffered_send_netmsg(struct mcast_sock *m, void *data, size_t len);
+ssize_t mcast_buffered_pending_netmsg(struct mcast_sock *m);
 
 #define IS_DATA(x)	((x->flags & ~NET_F_HELLO) == 0)
 #define IS_ACK(x)	(x->flags & NET_F_ACK)

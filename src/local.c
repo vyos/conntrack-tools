@@ -29,7 +29,7 @@
 int local_server_create(struct local_server *server, struct local_conf *conf)
 {
 	int fd;
-	int len;
+	socklen_t len;
 	struct sockaddr_un local;
 
 	if ((fd = socket(AF_UNIX, SOCK_STREAM, 0)) == -1)
@@ -90,7 +90,7 @@ int do_local_server_step(struct local_server *server, void *data,
 
 int local_client_create(struct local_conf *conf)
 {
-	int len;
+	socklen_t len;
 	struct sockaddr_un local;
 	int fd;
 

@@ -29,7 +29,7 @@
 
 static void refresher(struct alarm_list *a, void *data)
 {
-	int len;
+	size_t len;
 	struct nethdr *net;
 	struct us_conntrack *u = data;
 

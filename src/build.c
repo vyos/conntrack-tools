@@ -20,7 +20,7 @@
 #include <libnetfilter_conntrack/libnetfilter_conntrack.h>
 #include "network.h"
 
-static void addattr(struct netpld *pld, int attr, const void *data, int len)
+static void addattr(struct netpld *pld, int attr, const void *data, size_t len)
 {
 	struct netattr *nta;
 	int tlen = NTA_LENGTH(len);

@@ -95,6 +95,7 @@ o added struct local_server, several cleanups in local socket infrastructure
 o remove unused prototypes in network.h
 o check if the received packet is large enough
 o introduce alarm_pending()
+o cleanup: use size_t instead of integer
 
 version 0.9.5 (2007/07/29)
 ------------------------------

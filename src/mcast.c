@@ -238,9 +238,9 @@ void mcast_client_destroy(struct mcast_sock *m)
 	free(m);
 }
 
-int mcast_send(struct mcast_sock *m, void *data, int size)
+ssize_t mcast_send(struct mcast_sock *m, void *data, int size)
 {
-	int ret;
+	ssize_t ret;
 	
 	ret = sendto(m->fd, 
 		     data,
@@ -260,9 +260,9 @@ int mcast_send(struct mcast_sock *m, void *data, int size)
 	return ret;
 }
 
-int mcast_recv(struct mcast_sock *m, void *data, int size)
+ssize_t mcast_recv(struct mcast_sock *m, void *data, int size)
 {
-	int ret;
+	ssize_t ret;
 	socklen_t sin_size = sizeof(struct sockaddr_in);
 
         ret = recvfrom(m->fd,

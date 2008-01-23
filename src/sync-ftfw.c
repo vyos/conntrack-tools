@@ -285,7 +285,7 @@ static void ftfw_send(struct nethdr *net, struct us_conntrack *u)
 static int tx_queue_xmit(void *data1, const void *data2)
 {
 	struct nethdr *net = data1;
-	int len = prepare_send_netmsg(STATE_SYNC(mcast_client), net);
+	size_t len = prepare_send_netmsg(STATE_SYNC(mcast_client), net);
 
 	dp("tx_queue sq: %u fl:%u len:%u\n",
                ntohl(net->seq), ntohs(net->flags), ntohs(net->len));
@@ -307,7 +307,7 @@ static int tx_list_xmit(struct list_head *i, struct us_conntrack *u)
 {
 	int ret;
 	struct nethdr *net = BUILD_NETMSG(u->ct, NFCT_Q_UPDATE);
-	int len = prepare_send_netmsg(STATE_SYNC(mcast_client), net);
+	size_t len = prepare_send_netmsg(STATE_SYNC(mcast_client), net);
 
 	dp("tx_list sq: %u fl:%u len:%u\n",
                 ntohl(net->seq), ntohs(net->flags),

@@ -88,7 +88,8 @@ retry:
 /* handler for multicast messages received */
 static void mcast_handler(void)
 {
-	int numbytes, remain;
+	ssize_t numbytes;
+	ssize_t remain;
 	char __net[65536], *ptr = __net; /* XXX: maximum MTU for IPv4 */
 
 	numbytes = mcast_recv(STATE_SYNC(mcast_server), __net, sizeof(__net));
@@ -339,7 +340,7 @@ static void mcast_send_sync(struct us_conntrack *u,
 			    struct nf_conntrack *ct,
 			    int query)
 {
-	int len;
+	size_t len;
 	struct nethdr *net;
 
 	if (!state_helper_verdict(query, ct))
@@ -373,7 +374,7 @@ static int overrun_cb(enum nf_conntrack_msg_type type,
 
 	if (!cache_test(STATE_SYNC(internal), ct)) {
 		if ((u = cache_update_force(STATE_SYNC(internal), ct))) {
-			int len;
+			size_t len;
 
 			debug_ct(u->ct, "overrun resync");
 
@@ -397,7 +398,7 @@ static int overrun_purge_step(void *data1, void *data2)
 
 	ret = nfct_query(h, NFCT_Q_GET, u->ct);
 	if (ret == -1 && errno == ENOENT) {
-		int len;
+		size_t len;
 		struct nethdr *net = BUILD_NETMSG(u->ct, NFCT_Q_DESTROY);
 
 		debug_ct(u->ct, "overrun purge resync");

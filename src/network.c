@@ -27,7 +27,7 @@
 
 static unsigned int seq_set, cur_seq;
 
-static int __do_send(struct mcast_sock *m, void *data, int len)
+static size_t __do_send(struct mcast_sock *m, void *data, size_t len)
 {
 	struct nethdr *net = data;
 
@@ -50,7 +50,7 @@ static int __do_send(struct mcast_sock *m, void *data, int len)
 	return mcast_send(m, net, len);
 }
 
-static int __do_prepare(struct mcast_sock *m, void *data, int len)
+static size_t __do_prepare(struct mcast_sock *m, void *data, size_t len)
 {
 	struct nethdr *net = data;
 
@@ -66,12 +66,12 @@ static int __do_prepare(struct mcast_sock *m, void *data, int len)
 	return len;
 }
 
-static int __prepare_ctl(struct mcast_sock *m, void *data)
+static size_t __prepare_ctl(struct mcast_sock *m, void *data)
 {
 	return __do_prepare(m, data, NETHDR_ACK_SIZ);
 }
 
-static int __prepare_data(struct mcast_sock *m, void *data)
+static size_t __prepare_data(struct mcast_sock *m, void *data)
 {
 	struct nethdr *net = (struct nethdr *) data;
 	struct netpld *pld = NETHDR_DATA(net);
@@ -79,7 +79,7 @@ static int __prepare_data(struct mcast_sock *m, void *data)
 	return __do_prepare(m, data, ntohs(pld->len) + NETPLD_SIZ + NETHDR_SIZ);
 }
 
-int prepare_send_netmsg(struct mcast_sock *m, void *data)
+size_t prepare_send_netmsg(struct mcast_sock *m, void *data)
 {
 	int ret = 0;
 	struct nethdr *net = (struct nethdr *) data;
@@ -92,8 +92,8 @@ int prepare_send_netmsg(struct mcast_sock *m, void *data)
 	return ret;
 }
 
-static int tx_buflenmax;
-static int tx_buflen = 0;
+static size_t tx_buflenmax;
+static size_t tx_buflen = 0;
 static char *tx_buf;
 
 #define HEADERSIZ 28 /* IP header (20 bytes) + UDP header 8 (bytes) */
@@ -121,7 +121,7 @@ void mcast_buffered_destroy(void)
 }
 
 /* return 0 if it is not sent, otherwise return 1 */
-int mcast_buffered_send_netmsg(struct mcast_sock *m, void *data, int len)
+int mcast_buffered_send_netmsg(struct mcast_sock *m, void *data, size_t len)
 {
 	int ret = 0;
 	struct nethdr *net = data;
@@ -140,9 +140,9 @@ retry:
 	return ret;
 }
 
-int mcast_buffered_pending_netmsg(struct mcast_sock *m)
+ssize_t mcast_buffered_pending_netmsg(struct mcast_sock *m)
 {
-	int ret;
+	ssize_t ret;
 
 	if (tx_buflen == 0)
 		return 0;
@@ -156,7 +156,7 @@ int mcast_buffered_pending_netmsg(struct mcast_sock *m)
 int mcast_send_netmsg(struct mcast_sock *m, void *data)
 {
 	int ret;
-	int len = prepare_send_netmsg(m, data);
+	size_t len = prepare_send_netmsg(m, data);
 
 	ret = mcast_buffered_send_netmsg(m, data, len);
 	mcast_buffered_pending_netmsg(m);
