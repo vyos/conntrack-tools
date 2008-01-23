@@ -24,6 +24,8 @@ void add_alarm(struct alarm_list *alarm, unsigned long sc, unsigned long usc);
 
 void del_alarm(struct alarm_list *alarm);
 
+int alarm_pending(struct alarm_list *alarm);
+
 struct timeval *
 get_next_alarm_run(struct timeval *next_alarm);
 

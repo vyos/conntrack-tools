@@ -70,6 +70,14 @@ void del_alarm(struct alarm_list *alarm)
 		list_del_init(&alarm->head);
 }
 
+int alarm_pending(struct alarm_list *alarm)
+{
+	if (list_empty(&alarm->head))
+		return 0;
+
+	return 1;
+}
+
 static struct timeval *
 calculate_next_run(struct timeval *cand,
 		   struct timeval *tv, 

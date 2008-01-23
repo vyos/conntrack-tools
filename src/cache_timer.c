@@ -60,6 +60,9 @@ static int timer_dump(struct us_conntrack *u, void *data, char *buf, int type)
 	if (type == NFCT_O_XML)
 		return 0;
 
+	if (!alarm_pending(alarm))
+		return 0;
+
 	gettimeofday(&tv, NULL);
 	timersub(&tv, &alarm->tv, &tmp);
 	return sprintf(buf, " [expires in %lds]", tmp.tv_sec);
