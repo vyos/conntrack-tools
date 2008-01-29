@@ -24,7 +24,7 @@
 
 #include <stdio.h>
 
-static void timeout(struct alarm_list *a, void *data)
+static void timeout(struct alarm_block *a, void *data)
 {
 	struct us_conntrack *u = data;
 
@@ -34,7 +34,7 @@ static void timeout(struct alarm_list *a, void *data)
 
 static void timer_add(struct us_conntrack *u, void *data)
 {
-	struct alarm_list *alarm = data;
+	struct alarm_block *alarm = data;
 
 	init_alarm(alarm, u, timeout);
 	add_alarm(alarm, CONFIG(cache_timeout), 0);
@@ -42,20 +42,20 @@ static void timer_add(struct us_conntrack *u, void *data)
 
 static void timer_update(struct us_conntrack *u, void *data)
 {
-	struct alarm_list *alarm = data;
+	struct alarm_block *alarm = data;
 	add_alarm(alarm, CONFIG(cache_timeout), 0);
 }
 
 static void timer_destroy(struct us_conntrack *u, void *data)
 {
-	struct alarm_list *alarm = data;
+	struct alarm_block *alarm = data;
 	del_alarm(alarm);
 }
 
 static int timer_dump(struct us_conntrack *u, void *data, char *buf, int type)
 {
 	struct timeval tv, tmp;
- 	struct alarm_list *alarm = data;
+ 	struct alarm_block *alarm = data;
 
 	if (type == NFCT_O_XML)
 		return 0;
@@ -69,7 +69,7 @@ static int timer_dump(struct us_conntrack *u, void *data, char *buf, int type)
 }
 
 struct cache_feature timer_feature = {
-	.size		= sizeof(struct alarm_list),
+	.size		= sizeof(struct alarm_block),
 	.add		= timer_add,
 	.update		= timer_update,
 	.destroy	= timer_destroy,

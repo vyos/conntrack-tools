@@ -83,9 +83,9 @@ static void tx_queue_add_ctlmsg(uint32_t flags, uint32_t from, uint32_t to)
 	queue_add(tx_queue, &ack, NETHDR_ACK_SIZ);
 }
 
-static struct alarm_list alive_alarm;
+static struct alarm_block alive_alarm;
 
-static void do_alive_alarm(struct alarm_list *a, void *data)
+static void do_alive_alarm(struct alarm_block *a, void *data)
 {
 	tx_queue_add_ctlmsg(NET_F_ALIVE, 0, 0);
 

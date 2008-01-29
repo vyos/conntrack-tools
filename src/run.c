@@ -42,7 +42,6 @@ void killer(int foo)
 	ignore_pool_destroy(STATE(ignore_pool));
 	local_server_destroy(&STATE(local));
 	STATE(mode)->kill();
-	destroy_alarm_hash();
 	unlink(CONFIG(lockfile));
 	dlog(LOG_NOTICE, "---- shutdown received ----");
 	close_log();
@@ -101,11 +100,6 @@ init(void)
 				"Defaulting to statistics mode.\n");
 		CONFIG(flags) |= CTD_STATS_MODE;
 		STATE(mode) = &stats_mode;
-	}
-
-	if (init_alarm_hash() == -1) {
-		dlog(LOG_ERR, "can't initialize alarm hash");
-		return -1;
 	}
 
 	/* Initialization */

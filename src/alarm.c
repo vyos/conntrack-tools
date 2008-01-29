@@ -1,5 +1,5 @@
 /*
- * (C) 2006 by Pablo Neira Ayuso <pablo@netfilter.org>
+ * (C) 2006-2008 by Pablo Neira Ayuso <pablo@netfilter.org>
  * 
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,41 +17,45 @@
  */
 
 #include "alarm.h"
-#include "jhash.h"
 #include <stdlib.h>
 #include <limits.h>
 
-#define ALARM_HASH_SIZE		2048
+static struct rb_root alarm_root = RB_ROOT;
+static LIST_HEAD(alarm_run_queue);
 
-static struct list_head *alarm_hash;
-
-void init_alarm(struct alarm_list *t,
+void init_alarm(struct alarm_block *t,
 		void *data,
-		void (*fcn)(struct alarm_list *a, void *data))
+		void (*fcn)(struct alarm_block *a, void *data))
 {
 	/* initialize the head to check whether a node is inserted */
-	INIT_LIST_HEAD(&t->head);
+	RB_CLEAR_NODE(&t->node);
 	timerclear(&t->tv);
 	t->data = data;
 	t->function = fcn;
 }
 
-static void
-__add_alarm(struct alarm_list *alarm)
+static void __add_alarm(struct alarm_block *alarm)
 {
-	struct alarm_list *t;
-	int i = jhash(alarm, sizeof(alarm), 0) % ALARM_HASH_SIZE;
+	struct rb_node **new = &(alarm_root.rb_node);
+	struct rb_node *parent = NULL;
 
-	list_for_each_entry(t, &alarm_hash[i], head) {
-		if (timercmp(&alarm->tv, &t->tv, <)) {
-			list_add_tail(&alarm->head, &t->head);
-			return;
-		}
+	while (*new) {
+		struct alarm_block *this;
+
+		this = container_of(*new, struct alarm_block, node);
+
+		parent = *new;
+		if (timercmp(&alarm->tv, &this->tv, <))
+			new = &((*new)->rb_left);
+		else
+			new = &((*new)->rb_right);
 	}
-	list_add_tail(&alarm->head, &alarm_hash[i]);
+
+	rb_link_node(&alarm->node, parent, new);
+	rb_insert_color(&alarm->node, &alarm_root);
 }
 
-void add_alarm(struct alarm_list *alarm, unsigned long sc, unsigned long usc)
+void add_alarm(struct alarm_block *alarm, unsigned long sc, unsigned long usc)
 {
 	struct timeval tv;
 
@@ -63,16 +67,18 @@ void add_alarm(struct alarm_list *alarm, unsigned long sc, unsigned long usc)
 	__add_alarm(alarm);
 }
 
-void del_alarm(struct alarm_list *alarm)
+void del_alarm(struct alarm_block *alarm)
 {
 	/* don't remove a non-inserted node */
-	if (!list_empty(&alarm->head))
-		list_del_init(&alarm->head);
+	if (!RB_EMPTY_NODE(&alarm->node)) {
+		rb_erase(&alarm->node, &alarm_root);
+		RB_CLEAR_NODE(&alarm->node);
+	}
 }
 
-int alarm_pending(struct alarm_list *alarm)
+int alarm_pending(struct alarm_block *alarm)
 {
-	if (list_empty(&alarm->head))
+	if (RB_EMPTY_NODE(&alarm->node))
 		return 0;
 
 	return 1;
@@ -99,101 +105,47 @@ calculate_next_run(struct timeval *cand,
 struct timeval *
 get_next_alarm_run(struct timeval *next_run)
 {
-	int i;
-	struct alarm_list *t;
+	struct rb_node *node = alarm_root.rb_node;
 	struct timeval tv;
-	struct timeval cand = {
-		.tv_sec = LONG_MAX,
-		.tv_usec = LONG_MAX
-	};
 
 	gettimeofday(&tv, NULL);
 
-	for (i=0; i<ALARM_HASH_SIZE; i++) {
-		if (!list_empty(&alarm_hash[i])) {
-			t = list_entry(alarm_hash[i].next, 
-				       struct alarm_list,
-				       head);
-			if (timercmp(&t->tv, &cand, <)) {
-				cand.tv_sec = t->tv.tv_sec;
-				cand.tv_usec = t->tv.tv_usec;
-			}
-		}
+	node = rb_first(&alarm_root);
+	if (node) {
+		struct alarm_block *this;
+		this = container_of(node, struct alarm_block, node);
+		return calculate_next_run(&this->tv, &tv, next_run);
 	}
-
-	return calculate_next_run(&cand, &tv, next_run);
-}
-
-static inline int 
-tv_compare(struct alarm_list *a, struct timeval *cur, struct timeval *cand)
-{
-	if (timercmp(&a->tv, cur, >)) {
-		/* select the next alarm candidate */
-		if (timercmp(&a->tv, cand, <)) {
-			cand->tv_sec = a->tv.tv_sec;
-			cand->tv_usec = a->tv.tv_usec;
-		}
-		return 1;
-	}
-	return 0;
+	return NULL;
 }
 
 struct timeval *
 do_alarm_run(struct timeval *next_run)
 {
-	int i;
-	struct alarm_list *t, *next, *prev;
+	struct rb_node *node = alarm_root.rb_node;
+	struct alarm_block *this, *tmp;
 	struct timeval tv;
-	struct timeval cand = {
-		.tv_sec = LONG_MAX,
-		.tv_usec = LONG_MAX
-	};
 
 	gettimeofday(&tv, NULL);
 
-	for (i=0; i<ALARM_HASH_SIZE; i++) {
-		list_for_each_entry_safe(t, next, &alarm_hash[i], head) {
-			if (tv_compare(t, &tv, &cand))
-				break;
+	node = rb_first(&alarm_root);
+	while (node) {
+		this = container_of(node, struct alarm_block, node);
 
-			/* annotate previous alarm */
-			prev = list_entry(next->head.prev,
-					  struct alarm_list,
-					  head);
+		if (timercmp(&this->tv, &tv, >))
+			break;
 
-			del_alarm(t);
-			t->function(t, t->data);
+		node = rb_next(node);
 
-			/* Special case: One deleted node is inserted 
-			 * again in the same place */
-			if (next->head.prev == &prev->head) {
-				t = list_entry(next->head.prev,
-					       struct alarm_list,
-					       head);
-				if (tv_compare(t, &tv, &cand))
-					break;
-			}
-		}
+		list_add(&this->list, &alarm_run_queue);
 	}
 
-	return calculate_next_run(&cand, &tv, next_run);
-}
+	list_for_each_entry_safe(this, tmp, &alarm_run_queue, list) {
+		list_del(&this->list);
+		rb_erase(&this->node, &alarm_root);
+		RB_CLEAR_NODE(&this->node);
+		this->function(this, this->data);
+	}
 
-int init_alarm_hash(void)
-{
-	int i;
-
-	alarm_hash = malloc(sizeof(struct list_head) * ALARM_HASH_SIZE);
-	if (alarm_hash == NULL)
-		return -1;
-
-	for (i=0; i<ALARM_HASH_SIZE; i++)
-		INIT_LIST_HEAD(&alarm_hash[i]);
-
-	return 0;
-}
-
-void destroy_alarm_hash(void)
-{
-	free(alarm_hash);
+	return get_next_alarm_run(next_run);
 }

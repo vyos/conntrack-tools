@@ -27,7 +27,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-static void refresher(struct alarm_list *a, void *data)
+static void refresher(struct alarm_block *a, void *data)
 {
 	size_t len;
 	struct nethdr *net;
@@ -46,7 +46,7 @@ static void refresher(struct alarm_list *a, void *data)
 
 static void cache_alarm_add(struct us_conntrack *u, void *data)
 {
-	struct alarm_list *alarm = data;
+	struct alarm_block *alarm = data;
 
 	init_alarm(alarm, u, refresher);
 	add_alarm(alarm,
@@ -56,7 +56,7 @@ static void cache_alarm_add(struct us_conntrack *u, void *data)
 
 static void cache_alarm_update(struct us_conntrack *u, void *data)
 {
-	struct alarm_list *alarm = data;
+	struct alarm_block *alarm = data;
 	add_alarm(alarm, 
 		  random() % CONFIG(refresh) + 1,
 		  ((random() % 5 + 1)  * 200000) - 1);
@@ -64,12 +64,12 @@ static void cache_alarm_update(struct us_conntrack *u, void *data)
 
 static void cache_alarm_destroy(struct us_conntrack *u, void *data)
 {
-	struct alarm_list *alarm = data;
+	struct alarm_block *alarm = data;
 	del_alarm(alarm);
 }
 
 static struct cache_extra cache_alarm_extra = {
-	.size 		= sizeof(struct alarm_list),
+	.size 		= sizeof(struct alarm_block),
 	.add		= cache_alarm_add,
 	.update		= cache_alarm_update,
 	.destroy	= cache_alarm_destroy
