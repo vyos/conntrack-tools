@@ -38,7 +38,6 @@ static int init_stats(void)
 
 	STATE_STATS(cache) = cache_create("stats",
 					  LIFETIME, 
-					  CONFIG(family),
 					  NULL); 
 	if (!STATE_STATS(cache)) {
 		dlog(LOG_ERR, "can't allocate memory for the "

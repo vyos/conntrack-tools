@@ -51,17 +51,20 @@ struct mcast_sock *mcast_server_create(struct mcast_conf *conf)
 	        m->addr.ipv4.sin_family = AF_INET;
 	        m->addr.ipv4.sin_port = htons(conf->port);
 	        m->addr.ipv4.sin_addr.s_addr = htonl(INADDR_ANY);
+
+		m->sockaddr_len = sizeof(struct sockaddr_in); 
 		break;
 
 	case AF_INET6:
 		memcpy(&mreq.ipv6.ipv6mr_multiaddr, &conf->in.inet_addr6,
 		       sizeof(uint32_t) * 4);
-		memcpy(&mreq.ipv6.ipv6mr_interface, &conf->ifa.interface_addr6,
-		       sizeof(uint32_t) * 4);
+		mreq.ipv6.ipv6mr_interface = conf->ifa.interface_index6;
 
 		m->addr.ipv6.sin6_family = AF_INET6;
 		m->addr.ipv6.sin6_port = htons(conf->port);
 		m->addr.ipv6.sin6_addr = in6addr_any;
+
+		m->sockaddr_len = sizeof(struct sockaddr_in6);
 		break;
 	}
 
@@ -93,8 +96,7 @@ struct mcast_sock *mcast_server_create(struct mcast_conf *conf)
 		return NULL;
 	}
 
-	if (bind(m->fd, (struct sockaddr *) &m->addr, 
-			 sizeof(struct sockaddr)) == -1) {
+	if (bind(m->fd, (struct sockaddr *) &m->addr, m->sockaddr_len) == -1) {
 		debug("mcast_sock_server_create:bind");
 		close(m->fd);
 		free(m);
@@ -139,6 +141,7 @@ __mcast_client_create_ipv4(struct mcast_sock *m, struct mcast_conf *conf)
 	m->addr.ipv4.sin_family = AF_INET;
 	m->addr.ipv4.sin_port = htons(conf->port);
 	m->addr.ipv4.sin_addr = conf->in.inet_addr;
+	m->sockaddr_len = sizeof(struct sockaddr_in); 
 
 	if (setsockopt(m->fd, IPPROTO_IP, IP_MULTICAST_LOOP, &no,
 		       sizeof(int)) < 0) {
@@ -168,6 +171,7 @@ __mcast_client_create_ipv6(struct mcast_sock *m, struct mcast_conf *conf)
 	memcpy(&m->addr.ipv6.sin6_addr,
 	       &conf->in.inet_addr6,
 	       sizeof(struct in6_addr));
+	m->sockaddr_len = sizeof(struct sockaddr_in6); 
 
 	if (setsockopt(m->fd, IPPROTO_IPV6, IPV6_MULTICAST_LOOP, &no,
 		       sizeof(int)) < 0) {
@@ -177,8 +181,8 @@ __mcast_client_create_ipv6(struct mcast_sock *m, struct mcast_conf *conf)
 	}
 
 	if (setsockopt(m->fd, IPPROTO_IPV6, IPV6_MULTICAST_IF,
-		       &conf->ifa.interface_addr,
-		       sizeof(struct in_addr)) == -1) {
+		       &conf->ifa.interface_index6,
+		       sizeof(unsigned int)) == -1) {
 		debug("mcast_sock_client_create:setsockopt3");
 		close(m->fd);
 		return -1;
@@ -247,7 +251,7 @@ ssize_t mcast_send(struct mcast_sock *m, void *data, int size)
 		     size,
 		     0,
 		     (struct sockaddr *) &m->addr,
-		     sizeof(struct sockaddr));
+		     m->sockaddr_len);
 	if (ret == -1) {
 		debug("mcast_sock_send");
 		m->stats.error++;

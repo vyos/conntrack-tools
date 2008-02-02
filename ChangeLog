@@ -16,6 +16,7 @@ o cleanup error message
 o add support for -E -o xml,timestamp
 
 = conntrackd =
+o Add IPv6 support
 o Remove window tracking disabling limitation (requires Linux kernel >= 2.6.22)
 o syslog support (based on patch from Simon Lodal)
 o add CacheWriteThrough clause: external cache write through policy

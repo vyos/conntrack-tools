@@ -151,7 +151,6 @@ static int init_sync(void)
 	STATE_SYNC(internal) =
 		cache_create("internal", 
 			     STATE_SYNC(sync)->internal_cache_flags,
-			     CONFIG(family),
 			     STATE_SYNC(sync)->internal_cache_extra);
 
 	if (!STATE_SYNC(internal)) {
@@ -167,7 +166,6 @@ static int init_sync(void)
 	STATE_SYNC(external) = 
 		cache_create("external",
 			     STATE_SYNC(sync)->external_cache_flags,
-			     CONFIG(family),
 			     NULL);
 
 	if (!STATE_SYNC(external)) {

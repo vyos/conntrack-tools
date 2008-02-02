@@ -19,6 +19,7 @@
 #include "cache.h"
 #include "jhash.h"
 #include "hash.h"
+#include "log.h"
 #include "us-conntrack.h"
 #include "conntrackd.h"
 
@@ -27,11 +28,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-static uint32_t hash(const void *data, struct hashtable *table)
+static uint32_t __hash4(const struct nf_conntrack *ct, struct hashtable *table)
 {
 	unsigned int a, b;
-	const struct us_conntrack *u = data;
-	struct nf_conntrack *ct = u->ct;
 
 	a = jhash(nfct_get_attr(ct, ATTR_ORIG_IPV4_SRC), sizeof(uint32_t),
 		  ((nfct_get_attr_u8(ct, ATTR_ORIG_L3PROTO) << 16) |
@@ -51,11 +50,9 @@ static uint32_t hash(const void *data, struct hashtable *table)
 	return ((uint64_t)jhash_2words(a, b, 0) * table->hashsize) >> 32;
 }
 
-static uint32_t hash6(const void *data, struct hashtable *table)
+static uint32_t __hash6(const struct nf_conntrack *ct, struct hashtable *table)
 {
 	unsigned int a, b;
-	const struct us_conntrack *u = data;
-	struct nf_conntrack *ct = u->ct;
 
 	a = jhash(nfct_get_attr(ct, ATTR_ORIG_IPV6_SRC), sizeof(uint32_t)*4,
 		  ((nfct_get_attr_u8(ct, ATTR_ORIG_L3PROTO) << 16) |
@@ -68,12 +65,30 @@ static uint32_t hash6(const void *data, struct hashtable *table)
 	return ((uint64_t)jhash_2words(a, b, 0) * table->hashsize) >> 32;
 }
 
+static uint32_t hash(const void *data, struct hashtable *table)
+{
+	int ret = 0;
+	const struct us_conntrack *u = data;
+
+	switch(nfct_get_attr_u8(u->ct, ATTR_L3PROTO)) {
+		case AF_INET:
+			ret = __hash4(u->ct, table);
+			break;
+		case AF_INET6:
+			ret = __hash6(u->ct, table);
+			break;
+		default:
+			dlog(LOG_ERR, "unknown layer 3 proto in hash");
+			break;
+	}
+
+	return ret;
+}
+
 static int __compare(const struct nf_conntrack *ct1, 
 		     const struct nf_conntrack *ct2)
 {
-	return ((nfct_get_attr_u8(ct1, ATTR_ORIG_L3PROTO) ==
-	  	 nfct_get_attr_u8(ct2, ATTR_ORIG_L3PROTO)) &&
-		(nfct_get_attr_u8(ct1, ATTR_ORIG_L4PROTO) ==
+	return ((nfct_get_attr_u8(ct1, ATTR_ORIG_L4PROTO) ==
 		 nfct_get_attr_u8(ct2, ATTR_ORIG_L4PROTO)) && 
 		(nfct_get_attr_u16(ct1, ATTR_ORIG_PORT_SRC) ==
 		 nfct_get_attr_u16(ct2, ATTR_ORIG_PORT_SRC)) &&
@@ -85,11 +100,9 @@ static int __compare(const struct nf_conntrack *ct1,
 	 	 nfct_get_attr_u16(ct2, ATTR_REPL_PORT_DST)));
 }
 
-static int compare(const void *data1, const void *data2)
+static int 
+__compare4(const struct us_conntrack *u1, const struct us_conntrack *u2)
 {
-	const struct us_conntrack *u1 = data1;
-	const struct us_conntrack *u2 = data2;
-
 	return ((nfct_get_attr_u32(u1->ct, ATTR_ORIG_IPV4_SRC) ==
 	         nfct_get_attr_u32(u2->ct, ATTR_ORIG_IPV4_SRC)) &&
 	 	(nfct_get_attr_u32(u1->ct, ATTR_ORIG_IPV4_DST) ==
@@ -101,20 +114,46 @@ static int compare(const void *data1, const void *data2)
 		 __compare(u1->ct, u2->ct));
 }
 
-static int compare6(const void *data1, const void *data2)
+static int 
+__compare6(const struct us_conntrack *u1, const struct us_conntrack *u2)
 {
+	return ((memcmp(nfct_get_attr(u1->ct, ATTR_ORIG_IPV6_SRC),
+		        nfct_get_attr(u2->ct, ATTR_ORIG_IPV6_SRC),
+		        sizeof(uint32_t)*4) == 0) &&
+		(memcmp(nfct_get_attr(u1->ct, ATTR_ORIG_IPV6_DST),
+		        nfct_get_attr(u2->ct, ATTR_ORIG_IPV6_DST),
+		        sizeof(uint32_t)*4) == 0) &&
+		(memcmp(nfct_get_attr(u1->ct, ATTR_REPL_IPV6_SRC),
+		        nfct_get_attr(u2->ct, ATTR_REPL_IPV6_SRC),
+		        sizeof(uint32_t)*4) == 0) &&
+		(memcmp(nfct_get_attr(u1->ct, ATTR_REPL_IPV6_DST),
+		        nfct_get_attr(u2->ct, ATTR_REPL_IPV6_DST),
+		        sizeof(uint32_t)*4) == 0) &&
+		__compare(u1->ct, u2->ct));
+}
+
+static int compare(const void *data1, const void *data2)
+{
+	int ret = 0;
 	const struct us_conntrack *u1 = data1;
 	const struct us_conntrack *u2 = data2;
 
-	return ((nfct_get_attr_u32(u1->ct, ATTR_ORIG_IPV6_SRC) ==
-	         nfct_get_attr_u32(u2->ct, ATTR_ORIG_IPV6_SRC)) &&
-	 	(nfct_get_attr_u32(u1->ct, ATTR_ORIG_IPV6_DST) ==
-		 nfct_get_attr_u32(u2->ct, ATTR_ORIG_IPV6_DST)) &&
-		(nfct_get_attr_u32(u1->ct, ATTR_REPL_IPV6_SRC) ==
-		 nfct_get_attr_u32(u2->ct, ATTR_REPL_IPV6_SRC)) &&
-		(nfct_get_attr_u32(u1->ct, ATTR_REPL_IPV6_DST) ==
-		 nfct_get_attr_u32(u2->ct, ATTR_REPL_IPV6_DST)) &&
-		 __compare(u1->ct, u2->ct));
+	if (nfct_get_attr_u8(u1->ct, ATTR_L3PROTO) !=
+	    nfct_get_attr_u8(u2->ct, ATTR_L3PROTO))
+		return ret;
+
+	switch(nfct_get_attr_u8(u1->ct, ATTR_L3PROTO)) {
+		case AF_INET:
+			ret = __compare4(u1, u2);
+			break;
+		case AF_INET6:
+			ret = __compare6(u1, u2);
+			break;
+		default:
+			dlog(LOG_ERR, "unknown layer 3 in compare");
+			break;
+	}
+	return ret;
 }
 
 struct cache_feature *cache_feature[CACHE_MAX_FEATURE] = {
@@ -125,7 +164,6 @@ struct cache_feature *cache_feature[CACHE_MAX_FEATURE] = {
 
 struct cache *cache_create(const char *name, 
 			   unsigned int features, 
-			   uint8_t proto,
 			   struct cache_extra *extra)
 {
 	size_t size = sizeof(struct us_conntrack);
@@ -175,22 +213,11 @@ struct cache *cache_create(const char *name,
 	}
 	memcpy(c->feature_offset, feature_offset, sizeof(unsigned int) * j);
 
-	switch(proto) {
-	case AF_INET:
-		c->h = hashtable_create(CONFIG(hashsize),
-					CONFIG(limit),
-					size,
-					hash,
-					compare);
-		break;
-	case AF_INET6:
-		c->h = hashtable_create(CONFIG(hashsize),
-					CONFIG(limit),
-					size,
-					hash6,
-					compare6);
-		break;
-	}
+	c->h = hashtable_create(CONFIG(hashsize),
+				CONFIG(limit),
+				size,
+				hash,
+				compare);
 
 	if (!c->h) {
 		free(c->features);

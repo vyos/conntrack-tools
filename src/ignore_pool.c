@@ -26,7 +26,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-/* XXX: These should be configurable */
+/* XXX: These should be configurable, better use a rb-tree */
 #define IGNORE_POOL_SIZE 128
 #define IGNORE_POOL_LIMIT INT_MAX
 
@@ -55,7 +55,7 @@ static int compare6(const void *data1, const void *data2)
 	return memcmp(data1, data2, sizeof(uint32_t)*4) == 0;
 }
 
-struct ignore_pool *ignore_pool_create(uint8_t proto)
+struct ignore_pool *ignore_pool_create(void)
 {
 	struct ignore_pool *ip;
 
@@ -64,24 +64,23 @@ struct ignore_pool *ignore_pool_create(uint8_t proto)
 		return NULL;
 	memset(ip, 0, sizeof(struct ignore_pool));
 
-	switch(proto) {
-	case AF_INET:
-		ip->h = hashtable_create(IGNORE_POOL_SIZE,
-					 IGNORE_POOL_LIMIT,
-					 sizeof(uint32_t),
-					 hash,
-					 compare);
-		break;
-	case AF_INET6:
-		ip->h = hashtable_create(IGNORE_POOL_SIZE,
-					 IGNORE_POOL_LIMIT,
-					 sizeof(uint32_t)*4,
-					 hash6,
-					 compare6);
-		break;
+	ip->h = hashtable_create(IGNORE_POOL_SIZE,
+				 IGNORE_POOL_LIMIT,
+				 sizeof(uint32_t),
+				 hash,
+				 compare);
+	if (!ip->h) {
+		free(ip);
+		return NULL;
 	}
 
-	if (!ip->h) {
+	ip->h6 = hashtable_create(IGNORE_POOL_SIZE,
+				  IGNORE_POOL_LIMIT,
+				  sizeof(uint32_t)*4,
+				  hash6,
+				  compare6);
+	if (!ip->h6) {
+		free(ip->h);
 		free(ip);
 		return NULL;
 	}
@@ -92,20 +91,31 @@ struct ignore_pool *ignore_pool_create(uint8_t proto)
 void ignore_pool_destroy(struct ignore_pool *ip)
 {
 	hashtable_destroy(ip->h);
+	hashtable_destroy(ip->h6);
 	free(ip);
 }
 
-int ignore_pool_add(struct ignore_pool *ip, void *data)
+int ignore_pool_add(struct ignore_pool *ip, void *data, uint8_t family)
 {
-	if (!hashtable_add(ip->h, data))
-		return 0;
-
+	switch(family) {
+		case AF_INET:
+			if (!hashtable_add(ip->h, data))
+				return 0;
+			break;
+		case AF_INET6:
+			if (!hashtable_add(ip->h6, data))
+				return 0;
+			break;
+	}
 	return 1;
 }
 
 static int
 __ignore_pool_test_ipv4(struct ignore_pool *ip, struct nf_conntrack *ct)
 {
+	if (!ip->h)
+		return 0;
+
 	return (hashtable_test(ip->h, nfct_get_attr(ct, ATTR_ORIG_IPV4_SRC)) ||
 		hashtable_test(ip->h, nfct_get_attr(ct, ATTR_ORIG_IPV4_DST)) ||
 		hashtable_test(ip->h, nfct_get_attr(ct, ATTR_REPL_IPV4_SRC)) ||
@@ -115,10 +125,13 @@ __ignore_pool_test_ipv4(struct ignore_pool *ip, struct nf_conntrack *ct)
 static int
 __ignore_pool_test_ipv6(struct ignore_pool *ip, struct nf_conntrack *ct)
 {
-	return (hashtable_test(ip->h, nfct_get_attr(ct, ATTR_ORIG_IPV6_SRC)) ||
-	        hashtable_test(ip->h, nfct_get_attr(ct, ATTR_ORIG_IPV6_DST)) ||
-	        hashtable_test(ip->h, nfct_get_attr(ct, ATTR_REPL_IPV6_SRC)) ||
-	        hashtable_test(ip->h, nfct_get_attr(ct, ATTR_REPL_IPV6_DST)));
+	if (!ip->h6)
+		return 0;
+
+	return (hashtable_test(ip->h6, nfct_get_attr(ct, ATTR_ORIG_IPV6_SRC)) ||
+	        hashtable_test(ip->h6, nfct_get_attr(ct, ATTR_ORIG_IPV6_DST)) ||
+	        hashtable_test(ip->h6, nfct_get_attr(ct, ATTR_REPL_IPV6_SRC)) ||
+	        hashtable_test(ip->h6, nfct_get_attr(ct, ATTR_REPL_IPV6_DST)));
 }
 
 int ignore_pool_test(struct ignore_pool *ip, struct nf_conntrack *ct)

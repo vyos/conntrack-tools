@@ -177,37 +177,63 @@ ignore_traffic_options :
 ignore_traffic_option : T_IPV4_ADDR T_IP
 {
 	union inet_address ip;
-	int family = 0;
 
 	memset(&ip, 0, sizeof(union inet_address));
 
-	if (inet_aton($2, &ip.ipv4))
-		family = AF_INET;
-#ifdef HAVE_INET_PTON_IPV6
-	else if (inet_pton(AF_INET6, $2, &ip.ipv6) > 0)
-		family = AF_INET6;
-#endif
-
-	if (!family) {
-		fprintf(stderr, "%s is not a valid IP, ignoring", $2);
+	if (!inet_aton($2, &ip.ipv4)) {
+		fprintf(stderr, "%s is not a valid IPv4, ignoring", $2);
 		break;
 	}
 
 	if (!STATE(ignore_pool)) {
-		STATE(ignore_pool) = ignore_pool_create(family);
+		STATE(ignore_pool) = ignore_pool_create();
 		if (!STATE(ignore_pool)) {
 			fprintf(stderr, "Can't create ignore pool!\n");
 			exit(EXIT_FAILURE);
 		}
 	}
 
-	if (!ignore_pool_add(STATE(ignore_pool), &ip)) {
+	if (!ignore_pool_add(STATE(ignore_pool), &ip, AF_INET)) {
 		if (errno == EEXIST)
 			fprintf(stderr, "IP %s is repeated "
 					"in the ignore pool\n", $2);
 		if (errno == ENOSPC)
 			fprintf(stderr, "Too many IP in the ignore pool!\n");
 	}
+};
+
+ignore_traffic_option : T_IPV6_ADDR T_IP
+{
+	union inet_address ip;
+
+	memset(&ip, 0, sizeof(union inet_address));
+
+#ifdef HAVE_INET_PTON_IPV6
+	if (inet_pton(AF_INET6, $2, &ip.ipv6) <= 0) {
+		fprintf(stderr, "%s is not a valid IPv6, ignoring", $2);
+		break;
+	}
+#else
+	fprintf(stderr, "Cannot find inet_pton(), IPv6 unsupported!");
+	break;
+#endif
+
+	if (!STATE(ignore_pool)) {
+		STATE(ignore_pool) = ignore_pool_create();
+		if (!STATE(ignore_pool)) {
+			fprintf(stderr, "Can't create ignore pool!\n");
+			exit(EXIT_FAILURE);
+		}
+	}
+
+	if (!ignore_pool_add(STATE(ignore_pool), &ip, AF_INET6)) {
+		if (errno == EEXIST)
+			fprintf(stderr, "IP %s is repeated "
+					"in the ignore pool\n", $2);
+		if (errno == ENOSPC)
+			fprintf(stderr, "Too many IP in the ignore pool!\n");
+	}
+
 };
 
 multicast_line : T_MULTICAST '{' multicast_options '}';
@@ -235,8 +261,13 @@ multicast_option : T_IPV4_ADDR T_IP
 multicast_option : T_IPV6_ADDR T_IP
 {
 #ifdef HAVE_INET_PTON_IPV6
-	if (inet_pton(AF_INET6, $2, &conf.mcast.in) <= 0)
+	if (inet_pton(AF_INET6, $2, &conf.mcast.in) <= 0) {
 		fprintf(stderr, "%s is not a valid IPv6 address\n", $2);
+		break;
+	}
+#else
+	fprintf(stderr, "Cannot find inet_pton(), IPv6 unsupported!");
+	break;
 #endif
 
 	if (conf.mcast.ipproto == AF_INET) {
@@ -247,6 +278,19 @@ multicast_option : T_IPV6_ADDR T_IP
 	}
 
 	conf.mcast.ipproto = AF_INET6;
+
+	if (conf.mcast.iface[0] && !conf.mcast.ifa.interface_index6) {
+		unsigned int idx;
+
+		idx = if_nametoindex($2);
+		if (!idx) {
+			fprintf(stderr, "%s is an invalid interface.\n", $2);
+			break;
+		}
+
+		conf.mcast.ifa.interface_index6 = idx;
+		conf.mcast.ipproto = AF_INET6;
+	}
 };
 
 multicast_option : T_IPV4_IFACE T_IP
@@ -268,24 +312,25 @@ multicast_option : T_IPV4_IFACE T_IP
 
 multicast_option : T_IPV6_IFACE T_IP
 {
-#ifdef HAVE_INET_PTON_IPV6
-	if (inet_pton(AF_INET6, $2, &conf.mcast.ifa) <= 0)
-		fprintf(stderr, "%s is not a valid IPv6 address\n", $2);
-#endif
-
-	if (conf.mcast.ipproto == AF_INET) {
-		fprintf(stderr, "Your multicast interface is IPv6 but "
-				"is binded to an IPv4 interface? Surely "
-				"this is not what you want\n");
-		break;
-	}
-
-	conf.mcast.ipproto = AF_INET6;
-};
+	fprintf(stderr, "IPv6_interface not required for IPv6, ignoring.\n");
+}
 
 multicast_option : T_IFACE T_STRING
 {
 	strncpy(conf.mcast.iface, $2, IFNAMSIZ);
+
+	if (conf.mcast.ipproto == AF_INET6) {
+		unsigned int idx;
+
+		idx = if_nametoindex($2);
+		if (!idx) {
+			fprintf(stderr, "%s is an invalid interface.\n", $2);
+			break;
+		}
+
+		conf.mcast.ifa.interface_index6 = idx;
+		conf.mcast.ipproto = AF_INET6;
+	}
 };
 
 multicast_option : T_BACKLOG T_NUMBER
@@ -690,7 +735,7 @@ init_config(char *filename)
 
 	/* create empty pool */
 	if (!STATE(ignore_pool)) {
-		STATE(ignore_pool) = ignore_pool_create(CONFIG(family));
+		STATE(ignore_pool) = ignore_pool_create();
 		if (!STATE(ignore_pool)) {
 			fprintf(stderr, "Can't create ignore pool!\n");
 			exit(EXIT_FAILURE);

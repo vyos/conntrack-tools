@@ -18,7 +18,7 @@ by dificulty levels:
 
 = Requires some work =
  [ ] study better keepalived transitions
- [ ] test/fix ipv6 support
+ [X] fix ipv6 support
  [X] add support setup related conntracks
  [ ] NAT sequence adjustment support
 
