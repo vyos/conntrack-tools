@@ -45,6 +45,8 @@ o constify queue_iterate()
 o use list_del_init() and list_empty() to check if a node is in the list
 o remove unix socket file on exit
 o use umask() to set up file permissions
+o add support for NAT sequence adjustment (requires Linux kernel >= 2.6.25)
+o remove TODO file from release tarballs
 
 Max Kellermann <max@duempel.org>:
 

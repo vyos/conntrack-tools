@@ -5,7 +5,7 @@ include Make_global.am
 AUTOMAKE_OPTIONS = foreign dist-bzip2 1.6
 
 man_MANS = conntrack.8 conntrackd.8
-EXTRA_DIST = $(man_MANS) Make_global.am ChangeLog TODO doc
+EXTRA_DIST = $(man_MANS) Make_global.am ChangeLog doc
 
 SUBDIRS   = extensions src
 DIST_SUBDIRS = include src extensions

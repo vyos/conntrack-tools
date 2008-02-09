@@ -20,7 +20,7 @@ by dificulty levels:
  [ ] study better keepalived transitions
  [X] fix ipv6 support
  [X] add support setup related conntracks
- [ ] NAT sequence adjustment support
+ [X] NAT sequence adjustment support
 
 = Open issues that won't be ever resolved =
  * unsupported stateful iptables matches:

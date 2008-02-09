@@ -38,11 +38,18 @@ static void parse_u32(struct nf_conntrack *ct, int attr, void *data)
 	nfct_set_attr_u32(ct, attr, ntohl(*value));
 }
 
+static void parse_pointer_be(struct nf_conntrack *ct, int attr, void *data)
+{
+	nfct_set_attr(ct, attr, data);
+}
+
 typedef void (*parse)(struct nf_conntrack *ct, int attr, void *data);
 
 static parse h[ATTR_MAX] = {
-	[ATTR_IPV4_SRC]		= parse_u32,
-	[ATTR_IPV4_DST]		= parse_u32,
+	[ATTR_IPV4_SRC]		= parse_pointer_be,
+	[ATTR_IPV4_DST]		= parse_pointer_be,
+	[ATTR_IPV6_SRC]		= parse_pointer_be,
+	[ATTR_IPV6_DST]		= parse_pointer_be,
 	[ATTR_L3PROTO]		= parse_u8,
 	[ATTR_PORT_SRC]		= parse_u16,
 	[ATTR_PORT_DST]		= parse_u16,
@@ -61,7 +68,13 @@ static parse h[ATTR_MAX] = {
 	[ATTR_MASTER_L3PROTO]   = parse_u8,
 	[ATTR_MASTER_PORT_SRC]  = parse_u16,
 	[ATTR_MASTER_PORT_DST]  = parse_u16,
-	[ATTR_MASTER_L4PROTO]   = parse_u8
+	[ATTR_MASTER_L4PROTO]   = parse_u8,
+	[ATTR_ORIG_NAT_SEQ_CORRECTION_POS]	= parse_u32,
+	[ATTR_ORIG_NAT_SEQ_OFFSET_BEFORE]	= parse_u32,
+	[ATTR_ORIG_NAT_SEQ_OFFSET_AFTER]	= parse_u32,
+	[ATTR_REPL_NAT_SEQ_CORRECTION_POS]	= parse_u32,
+	[ATTR_REPL_NAT_SEQ_OFFSET_BEFORE]	= parse_u32,
+	[ATTR_REPL_NAT_SEQ_OFFSET_AFTER]	= parse_u32,
 };
 
 void parse_netpld(struct nf_conntrack *ct, struct netpld *pld, int *query)

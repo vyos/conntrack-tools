@@ -58,6 +58,14 @@ static void __build_u32(const struct nf_conntrack *ct,
 	addattr(pld, attr, &data, sizeof(uint32_t));
 }
 
+static void __build_pointer_be(const struct nf_conntrack *ct, 
+			       struct netpld *pld,
+			       int attr,
+			       size_t size)
+{
+	addattr(pld, attr, nfct_get_attr(ct, attr), size);
+}
+
 static void __nat_build_u32(uint32_t data, struct netpld *pld, int attr)
 {
 	data = htonl(data);
@@ -70,13 +78,17 @@ static void __nat_build_u16(uint16_t data, struct netpld *pld, int attr)
 	addattr(pld, attr, &data, sizeof(uint16_t));
 }
 
-/* XXX: IPv6 and ICMP not supported */
+/* XXX: ICMP not supported */
 void build_netpld(struct nf_conntrack *ct, struct netpld *pld, int query)
 {
 	if (nfct_attr_is_set(ct, ATTR_IPV4_SRC))
-		__build_u32(ct, pld, ATTR_IPV4_SRC);
+		__build_pointer_be(ct, pld, ATTR_IPV4_SRC, sizeof(uint32_t));
 	if (nfct_attr_is_set(ct, ATTR_IPV4_DST))
-		__build_u32(ct, pld, ATTR_IPV4_DST);
+		__build_pointer_be(ct, pld, ATTR_IPV4_DST, sizeof(uint32_t));
+	if (nfct_attr_is_set(ct, ATTR_IPV6_SRC))
+		__build_pointer_be(ct, pld, ATTR_IPV6_SRC, sizeof(uint32_t)*4);
+	if (nfct_attr_is_set(ct, ATTR_IPV6_DST))
+		__build_pointer_be(ct, pld, ATTR_IPV6_DST, sizeof(uint32_t)*4);
 	if (nfct_attr_is_set(ct, ATTR_L3PROTO))
 		__build_u8(ct, pld, ATTR_L3PROTO);
 	if (nfct_attr_is_set(ct, ATTR_PORT_SRC))
