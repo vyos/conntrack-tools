@@ -146,6 +146,20 @@ void build_netpld(struct nf_conntrack *ct, struct netpld *pld, int query)
 		__nat_build_u16(data, pld, ATTR_DNAT_PORT);
 	}
 
+	/* NAT sequence adjustment */
+	if (nfct_attr_is_set(ct, ATTR_ORIG_NAT_SEQ_CORRECTION_POS))
+		__build_u32(ct, pld, ATTR_ORIG_NAT_SEQ_CORRECTION_POS);
+	if (nfct_attr_is_set(ct, ATTR_ORIG_NAT_SEQ_OFFSET_BEFORE))
+		__build_u32(ct, pld, ATTR_ORIG_NAT_SEQ_OFFSET_BEFORE);
+	if (nfct_attr_is_set(ct, ATTR_ORIG_NAT_SEQ_OFFSET_AFTER))
+		__build_u32(ct, pld, ATTR_ORIG_NAT_SEQ_OFFSET_AFTER);
+	if (nfct_attr_is_set(ct, ATTR_REPL_NAT_SEQ_CORRECTION_POS))
+		__build_u32(ct, pld, ATTR_REPL_NAT_SEQ_CORRECTION_POS);
+	if (nfct_attr_is_set(ct, ATTR_REPL_NAT_SEQ_OFFSET_BEFORE))
+		__build_u32(ct, pld, ATTR_REPL_NAT_SEQ_OFFSET_BEFORE);
+	if (nfct_attr_is_set(ct, ATTR_REPL_NAT_SEQ_OFFSET_AFTER))
+		__build_u32(ct, pld, ATTR_REPL_NAT_SEQ_OFFSET_AFTER);
+
 	pld->query = query;
 
 	PLD_HOST2NETWORK(pld);
