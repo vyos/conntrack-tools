@@ -105,7 +105,7 @@ calculate_next_run(struct timeval *cand,
 struct timeval *
 get_next_alarm_run(struct timeval *next_run)
 {
-	struct rb_node *node = alarm_root.rb_node;
+	struct rb_node *node;
 	struct timeval tv;
 
 	gettimeofday(&tv, NULL);
@@ -122,7 +122,7 @@ get_next_alarm_run(struct timeval *next_run)
 struct timeval *
 do_alarm_run(struct timeval *next_run)
 {
-	struct rb_node *node = alarm_root.rb_node;
+	struct rb_node *node;
 	struct alarm_block *this, *tmp;
 	struct timeval tv;
 
