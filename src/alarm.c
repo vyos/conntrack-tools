@@ -21,7 +21,6 @@
 #include <limits.h>
 
 static struct rb_root alarm_root = RB_ROOT;
-static LIST_HEAD(alarm_run_queue);
 
 void init_alarm(struct alarm_block *t,
 		void *data,
@@ -122,12 +121,14 @@ get_next_alarm_run(struct timeval *next_run)
 struct timeval *
 do_alarm_run(struct timeval *next_run)
 {
+	struct list_head alarm_run_queue;
 	struct rb_node *node;
 	struct alarm_block *this, *tmp;
 	struct timeval tv;
 
 	gettimeofday(&tv, NULL);
 
+	INIT_LIST_HEAD(&alarm_run_queue);
 	for (node = rb_first(&alarm_root); node; node = rb_next(node)) {
 		this = container_of(node, struct alarm_block, node);
 
