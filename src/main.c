@@ -1,6 +1,6 @@
 /*
  * (C) 2006-2007 by Pablo Neira Ayuso <pablo@netfilter.org>
- * 
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
@@ -34,7 +34,7 @@ static const char usage_daemon_commands[] =
 	"Daemon mode commands:\n"
 	"  -d [options]\t\tRun in daemon mode\n";
 
-static const char usage_client_commands[] = 
+static const char usage_client_commands[] =
 	"Client mode commands:\n"
 	"  -c, commit external cache to conntrack table\n"
 	"  -f, flush internal and external cache\n"
@@ -244,7 +244,7 @@ int main(int argc, char *argv[])
 			exit(EXIT_FAILURE);
 		} else if (pid)
 			exit(EXIT_SUCCESS);
-		
+
 		setsid();
 
 		close(STDOUT_FILENO);

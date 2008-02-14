@@ -100,6 +100,7 @@ o check if the received packet is large enough
 o introduce alarm_pending()
 o cleanup: use size_t instead of integer
 o several cleanups in the rbtree-based alarm
+o whitespace cleanups
 
 version 0.9.5 (2007/07/29)
 ------------------------------

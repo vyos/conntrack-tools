@@ -48,7 +48,7 @@ void killer(int foo)
 
 	sigprocmask(SIG_UNBLOCK, &STATE(block), NULL);
 
-	exit(0);			
+	exit(0);
 }
 
 static void child(int foo)
@@ -115,7 +115,7 @@ init(void)
 	}
 
 	if (nl_init_event_handler() == -1) {
-		dlog(LOG_ERR, "can't open netlink handler: %s", 
+		dlog(LOG_ERR, "can't open netlink handler: %s",
 		     strerror(errno));
 		dlog(LOG_ERR, "no ctnetlink kernel support?");
 		return -1;
@@ -128,7 +128,7 @@ init(void)
 		return -1;
 	}
 
-        /* Signals handling */
+	/* Signals handling */
 	sigemptyset(&STATE(block));
 	sigaddset(&STATE(block), SIGTERM);
 	sigaddset(&STATE(block), SIGINT);
@@ -177,7 +177,7 @@ static void __run(struct timeval *next_alarm)
 	}
 
 	/* signals are racy */
-	sigprocmask(SIG_BLOCK, &STATE(block), NULL);		
+	sigprocmask(SIG_BLOCK, &STATE(block), NULL);
 
 	/* order received via UNIX socket */
 	if (FD_ISSET(STATE(local).fd, &readfds))
@@ -189,8 +189,8 @@ static void __run(struct timeval *next_alarm)
 		if (ret == -1) {
 			switch(errno) {
 			case ENOBUFS:
-                		/*
-		 		 * It seems that ctnetlink can't back off,
+				/*
+				 * It seems that ctnetlink can't back off,
 				 * it's likely that we're losing events.
 				 * Solution: duplicate the socket buffer
 				 * size and resync with master conntrack table.

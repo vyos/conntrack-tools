@@ -1,6 +1,6 @@
 /*
  * (C) 2006 by Pablo Neira Ayuso <pablo@netfilter.org>
- * 
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
@@ -35,7 +35,7 @@ int ignore_conntrack(struct nf_conntrack *ct)
 		return 0;
 	}
 
-        /* Accept SNAT'ed traffic: not really coming to the local machine */
+	/* Accept SNAT'ed traffic: not really coming to the local machine */
 	if (nfct_getobjopt(ct, NFCT_GOPT_IS_SNAT)) {
 		debug_ct(ct, "SNAT");
 		return 0;
@@ -54,7 +54,7 @@ static int event_handler(enum nf_conntrack_msg_type type,
 			 struct nf_conntrack *ct,
 			 void *data)
 {
-	/* 
+	/*
 	 * Ignore this conntrack: it talks about a
 	 * connection that is not interesting for us.
 	 */
@@ -94,7 +94,7 @@ int nl_init_event_handler(void)
 
 	/* set up socket buffer size */
 	if (CONFIG(netlink_buffer_size))
-		nfnl_rcvbufsiz(nfct_nfnlh(STATE(event)), 
+		nfnl_rcvbufsiz(nfct_nfnlh(STATE(event)),
 			       CONFIG(netlink_buffer_size));
 	else {
 		socklen_t socklen = sizeof(unsigned int);
@@ -109,7 +109,7 @@ int nl_init_event_handler(void)
 
 	/* ensure that maximum grown size is >= than maximum size */
 	if (CONFIG(netlink_buffer_size_max_grown) < CONFIG(netlink_buffer_size))
-		CONFIG(netlink_buffer_size_max_grown) = 
+		CONFIG(netlink_buffer_size_max_grown) =
 					CONFIG(netlink_buffer_size);
 
 	/* register callback for events */
@@ -122,7 +122,7 @@ static int dump_handler(enum nf_conntrack_msg_type type,
 			struct nf_conntrack *ct,
 			void *data)
 {
-	/* 
+	/*
 	 * Ignore this conntrack: it talks about a
 	 * connection that is not interesting for us.
 	 */
@@ -167,7 +167,7 @@ void nl_resize_socket_buffer(struct nfct_handle *h)
 		return;
 
 	if (s > CONFIG(netlink_buffer_size_max_grown)) {
-		dlog(LOG_WARNING, 
+		dlog(LOG_WARNING,
 		     "maximum netlink socket buffer "
 		     "size has been reached. We are likely to "
 		     "be losing events, this may lead to "
