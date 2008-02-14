@@ -128,14 +128,11 @@ do_alarm_run(struct timeval *next_run)
 
 	gettimeofday(&tv, NULL);
 
-	node = rb_first(&alarm_root);
-	while (node) {
+	for (node = rb_first(&alarm_root); node; node = rb_next(node)) {
 		this = container_of(node, struct alarm_block, node);
 
 		if (timercmp(&this->tv, &tv, >))
 			break;
-
-		node = rb_next(node);
 
 		list_add(&this->list, &alarm_run_queue);
 	}

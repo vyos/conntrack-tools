@@ -99,7 +99,7 @@ o remove unused prototypes in network.h
 o check if the received packet is large enough
 o introduce alarm_pending()
 o cleanup: use size_t instead of integer
-o cleanup: remove unrequired initialization in the rbtree-based alarm
+o several cleanups in the rbtree-based alarm
 
 version 0.9.5 (2007/07/29)
 ------------------------------
