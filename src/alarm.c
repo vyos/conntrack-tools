@@ -123,7 +123,7 @@ do_alarm_run(struct timeval *next_run)
 {
 	struct list_head alarm_run_queue;
 	struct rb_node *node;
-	struct alarm_block *this, *tmp;
+	struct alarm_block *this;
 	struct timeval tv;
 
 	gettimeofday(&tv, NULL);
@@ -138,8 +138,7 @@ do_alarm_run(struct timeval *next_run)
 		list_add(&this->list, &alarm_run_queue);
 	}
 
-	list_for_each_entry_safe(this, tmp, &alarm_run_queue, list) {
-		list_del(&this->list);
+	list_for_each_entry(this, &alarm_run_queue, list) {
 		rb_erase(&this->node, &alarm_root);
 		RB_CLEAR_NODE(&this->node);
 		this->function(this, this->data);
