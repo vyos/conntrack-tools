@@ -25,6 +25,7 @@
 #include "conntrackd.h"
 #include "us-conntrack.h"
 #include "network.h"
+#include "fds.h"
 #include "debug.h"
 
 #include <errno.h>
@@ -202,11 +203,9 @@ static int init_sync(void)
 	return 0;
 }
 
-static int add_fds_to_set_sync(fd_set *readfds) 
+static int register_fds_sync(struct fds *fds) 
 {
-	FD_SET(STATE_SYNC(mcast_server->fd), readfds);
-
-	return STATE_SYNC(mcast_server->fd);
+	return register_fd(STATE_SYNC(mcast_server->fd), fds);
 }
 
 static void run_sync(fd_set *readfds)
@@ -500,7 +499,7 @@ static int event_destroy_sync(struct nf_conntrack *ct)
 
 struct ct_mode sync_mode = {
 	.init 			= init_sync,
-	.add_fds_to_set 	= add_fds_to_set_sync,
+	.register_fds		= register_fds_sync,
 	.run			= run_sync,
 	.local			= local_handler_sync,
 	.kill			= kill_sync,

@@ -23,6 +23,7 @@
 #include "ignore.h"
 #include "log.h"
 #include "alarm.h"
+#include "fds.h"
 
 #include <errno.h>
 #include <signal.h>
@@ -128,6 +129,21 @@ init(void)
 		return -1;
 	}
 
+	STATE(fds) = create_fds();
+	if (STATE(fds) == NULL) {
+		dlog(LOG_ERR, "can't create file descriptor pool");
+		return -1;
+	}
+
+	register_fd(STATE(local).fd, STATE(fds));
+	register_fd(nfct_fd(STATE(event)), STATE(fds));
+
+	if (STATE(mode)->register_fds &&
+	    STATE(mode)->register_fds(STATE(fds)) == -1) {
+		dlog(LOG_ERR, "fds registration failed");
+		return -1;
+	}
+
 	/* Signals handling */
 	sigemptyset(&STATE(block));
 	sigaddset(&STATE(block), SIGTERM);
@@ -154,19 +170,10 @@ init(void)
 
 static void __run(struct timeval *next_alarm)
 {
-	int max, ret;
-	fd_set readfds;
+	int ret;
+	fd_set readfds = STATE(fds)->readfds;
 
-	FD_ZERO(&readfds);
-	FD_SET(STATE(local).fd, &readfds);
-	FD_SET(nfct_fd(STATE(event)), &readfds);
-
-	max = MAX(STATE(local).fd, nfct_fd(STATE(event)));
-
-	if (STATE(mode)->add_fds_to_set)
-		max = MAX(max, STATE(mode)->add_fds_to_set(&readfds));
-
-	ret = select(max+1, &readfds, NULL, NULL, next_alarm);
+	ret = select(STATE(fds)->maxfd + 1, &readfds, NULL, NULL, next_alarm);
 	if (ret == -1) {
 		/* interrupted syscall, retry */
 		if (errno == EINTR)

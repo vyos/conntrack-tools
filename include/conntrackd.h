@@ -105,6 +105,8 @@ struct ct_general_state {
 	struct nfct_handle		*event;         /* event handler */
 	struct nfct_handle		*dump;		/* dump handler */
 
+	struct fds			*fds;
+
 	/* statistics */
 	uint64_t			malformed;
 	uint64_t 			bytes[NFCT_DIR_MAX];
@@ -151,7 +153,7 @@ extern struct ct_general_state st;
 
 struct ct_mode {
 	int (*init)(void);
-	int (*add_fds_to_set)(fd_set *readfds);
+	int (*register_fds)(struct fds *fds);
 	void (*run)(fd_set *readfds);
 	int (*local)(int fd, int type, void *data);
 	void (*kill)(void);
