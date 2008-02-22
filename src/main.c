@@ -77,8 +77,8 @@ set_operation_mode(int *current, int want, char *argv[])
 
 int main(int argc, char *argv[])
 {
-	int ret, i, config_set = 0, action = -1;
-	char config_file[PATH_MAX];
+	int ret, i, action = -1;
+	char config_file[PATH_MAX] = {};
 	int type = 0;
 	struct utsname u;
 	int version, major, minor;
@@ -126,7 +126,6 @@ int main(int argc, char *argv[])
 							"down to %d characters",
 							PATH_MAX);
 				}
-				config_set = 1;
 				break;
 			}
 			show_usage(argv[0]);
@@ -184,7 +183,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if (config_set == 0)
+	if (!config_file[0])
 		strcpy(config_file, DEFAULT_CONFIGFILE);
 
 	umask(0177);

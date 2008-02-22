@@ -48,6 +48,7 @@ o use umask() to set up file permissions
 o add support for NAT sequence adjustment (requires Linux kernel >= 2.6.25)
 o remove TODO file from release tarballs
 o compose the file descriptor set at initialization stage to save some cycles
+o cleanup: remove config_set from main(), use config_file variable instead
 
 Max Kellermann <max@duempel.org>:
 
