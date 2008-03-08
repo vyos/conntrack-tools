@@ -1,4 +1,4 @@
-conntrack (1:0.9.5-1) UNRELEASED; urgency=low
+conntrack (1:0.9.6-1) UNRELEASED; urgency=low
 
   * new upstream release
   * added package "conntrackd"
@@ -10,7 +10,7 @@ conntrack (1:0.9.5-1) UNRELEASED; urgency=low
   * install upstream changelog
   * added Homepage header to debian/control
 
- -- Max Kellermann <max@duempel.org>  Tue,  6 Nov 2007 08:15:26 +0100
+ -- Max Kellermann <max@duempel.org>  Sat,  8 Mar 2008 14:33:30 +0100
 
 conntrack (1.00~beta2-1) unstable; urgency=low
 
