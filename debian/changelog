@@ -10,6 +10,8 @@ conntrack (1:0.9.6-1) UNRELEASED; urgency=low
   * bumped Standards-Version to 3.7.3
   * install upstream changelog
   * added Homepage header to debian/control
+  * call dh_install with -X.svn because upstream accidently distributed
+    the .svn directories
 
  -- Max Kellermann <max@duempel.org>  Sat,  8 Mar 2008 14:33:30 +0100
 
