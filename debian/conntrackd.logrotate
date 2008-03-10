@@ -1,4 +1,4 @@
-/var/log/conntrackd.log {
+/var/log/conntrackd-stats.log {
     weekly
     rotate 2
     missingok
