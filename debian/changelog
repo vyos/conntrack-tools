@@ -4,6 +4,7 @@ conntrack (1:0.9.6-1) UNRELEASED; urgency=low
   * added package "conntrackd"
   * updated watchfile for new upstream name "conntrack-tools" (Closes:
     #449899)
+  * removed "-Wall" from CFLAGS override
   * moved DH_COMPAT to debian/compat
   * don't ignore "make distclean" errors
   * bumped Standards-Version to 3.7.3
