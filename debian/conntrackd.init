@@ -23,7 +23,6 @@ DAEMON=/usr/sbin/conntrackd
 test -x $DAEMON || exit 0
 
 CONFIG=/etc/conntrackd.conf
-MODE="-S"
 OPTIONS=""
 
 test -f /etc/default/conntrackd && source /etc/default/conntrackd
@@ -38,7 +37,6 @@ case "$1" in
             -- \
             -d \
             -C "$CONFIG" \
-            "$MODE" \
             $OPTIONS
         log_end_msg $?
         ;;
