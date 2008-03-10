@@ -1,4 +1,4 @@
 debian/tmp/usr/sbin/conntrackd
 debian/tmp/usr/share/man/man8/conntrackd.8
-doc/stats/conntrackd.conf etc
+debian/conntrackd.conf etc
 doc/stats doc/sync usr/share/doc/conntrackd/examples
