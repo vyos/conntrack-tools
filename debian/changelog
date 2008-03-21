@@ -1,5 +1,6 @@
-conntrack (1:0.9.6-1) UNRELEASED; urgency=low
+conntrack (1:0.9.6-1) unstable; urgency=low
 
+  [ Max Kellermann ]
   * new upstream release
   * added package "conntrackd"
   * updated watchfile for new upstream name "conntrack-tools" (Closes:
@@ -13,7 +14,7 @@ conntrack (1:0.9.6-1) UNRELEASED; urgency=low
   * call dh_install with -X.svn because upstream accidently distributed
     the .svn directories
 
- -- Max Kellermann <max@duempel.org>  Sat,  8 Mar 2008 14:33:30 +0100
+ -- Alexander Wirt <formorer@debian.org>  Fri, 21 Mar 2008 22:46:22 +0100
 
 conntrack (1.00~beta2-1) unstable; urgency=low
 
