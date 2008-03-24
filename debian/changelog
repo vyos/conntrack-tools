@@ -1,3 +1,9 @@
+conntrack (1:0.9.6-3) UNRELEASED; urgency=low
+
+  * 
+
+ -- Max Kellermann <max@duempel.org>  Mon, 24 Mar 2008 13:09:23 +0100
+
 conntrack (1:0.9.6-2) unstable; urgency=low
 
   * Build depend on bison (Closes: #472442) 
