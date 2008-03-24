@@ -1,3 +1,9 @@
+conntrack (1:0.9.6-2) unstable; urgency=low
+
+  * Build depend on bison (Closes: #472442) 
+
+ -- Alexander Wirt <formorer@debian.org>  Mon, 24 Mar 2008 12:35:44 +0100
+
 conntrack (1:0.9.6-1) unstable; urgency=low
 
   [ Max Kellermann ]
