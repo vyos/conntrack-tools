@@ -188,5 +188,6 @@ extern void register_proto(struct ctproto_handler *h);
 extern void register_tcp(void);
 extern void register_udp(void);
 extern void register_icmp(void);
+extern void register_icmpv6(void);
 
 #endif

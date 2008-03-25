@@ -6,6 +6,8 @@ o remove .svn directory from make distcheck tarballs (reported by B.Benjamini)
 
 Krzysztof Oledzki <ole@ans.pl>:
 o fix minor compilation warning
+o add ICMPv6 (-p icmpv6) support
+o add possibility to distinguish between invalid (unknown) and empty proto
 
 version 0.9.6 (2008/03/08)
 ------------------------------
@@ -161,7 +163,7 @@ o fork when internal/external dump and commit requests are received
 o lots of cleanups
 
 = conntrack =
-o fix segfault with conntrack --output (Krzysztof Oledzky)
+o fix segfault with conntrack --output (Krzysztof Oledzki)
 o use NFCT_SOPT_SETUP_* facilities: nfct_setobjopt
 o remove bogus option to get a conntrack in test.sh example file
 o add aliases --sport and --dport to make it more iptables-like

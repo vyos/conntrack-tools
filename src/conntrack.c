@@ -684,6 +684,7 @@ int main(int argc, char *argv[])
 	register_tcp();
 	register_udp();
 	register_icmp();
+	register_icmpv6();
 
 	while ((c = getopt_long(argc, argv, "L::I::U::D::G::E::F::hVs:d:r:q:"
 					    "p:t:u:e:a:z[:]:{:}:m:i::f:o:n::"
@@ -819,10 +820,13 @@ int main(int argc, char *argv[])
 			nfct_set_attr_u8(obj, ATTR_REPL_L3PROTO, l3protonum);
 			break;
 		case 'p':
+			if (!optarg || !*optarg)
+				exit_error(PARAMETER_PROBLEM, "proto needed\n");
+
 			options |= CT_OPT_PROTO;
 			h = findproto(optarg);
 			if (!h)
-				exit_error(PARAMETER_PROBLEM, "proto needed\n");
+				exit_error(PARAMETER_PROBLEM, "unknown proto\n");
 
 			nfct_set_attr_u8(obj, ATTR_ORIG_L4PROTO, h->protonum);
 			nfct_set_attr_u8(obj, ATTR_REPL_L4PROTO, h->protonum);
