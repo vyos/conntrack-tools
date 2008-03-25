@@ -17,6 +17,6 @@ struct state_replication_helper {
 };
 
 int state_helper_verdict(int type, struct nf_conntrack *ct);
-void state_helper_register(struct state_replication_helper *h, int state);
+void state_helper_register(struct state_replication_helper *h, int h_state);
 
 #endif
