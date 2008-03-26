@@ -299,7 +299,7 @@ err2str(int err, enum action command)
 	    { CT_CREATE, ETIME, "conntrack has expired" },
 	    { EXP_CREATE, ENOENT, "master conntrack not found" },
 	    { EXP_CREATE, EINVAL, "invalid parameters" },
-	    { ~0UL, EPERM, "sorry, you must be root or get "
+	    { ~0U, EPERM, "sorry, you must be root or get "
 		    	   "CAP_NET_ADMIN capability to do this"}
 	  };
 
