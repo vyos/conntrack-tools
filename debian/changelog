@@ -1,6 +1,6 @@
 conntrack (1:0.9.6-3) UNRELEASED; urgency=low
 
-  * 
+  * fix gcc 4.3 compilation error (Closes: #472812)
 
  -- Max Kellermann <max@duempel.org>  Mon, 24 Mar 2008 13:09:23 +0100
 

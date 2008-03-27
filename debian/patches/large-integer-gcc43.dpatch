@@ -1,0 +1,15 @@
+#! /bin/sh /usr/share/dpatch/dpatch-run
+## DP: Fix Debian bug #472812: "conntrack.c:302: error: large integer
+## DP: implicitly truncated to unsigned type"
+
+--- conntrack/src/conntrack.c
++++ conntrack/src/conntrack.c
+@@ -299,7 +299,7 @@
+ 	    { CT_CREATE, ETIME, "conntrack has expired" },
+ 	    { EXP_CREATE, ENOENT, "master conntrack not found" },
+ 	    { EXP_CREATE, EINVAL, "invalid parameters" },
+-	    { ~0UL, EPERM, "sorry, you must be root or get "
++	    { ~0U, EPERM, "sorry, you must be root or get "
+ 		    	   "CAP_NET_ADMIN capability to do this"}
+ 	  };
+ 
