@@ -22,7 +22,7 @@ DPATCH_STAMPFN = debian/stamp-patch
 include /usr/share/dpatch/dpatch.make
 
 build: build-stamp
-build-stamp: patch-stamp
+build-stamp: $(DPATCH_STAMPFN)
 	dh_testdir
 
 	# ./configure
