@@ -21,8 +21,8 @@ CFLAGS += -DYY_NO_INPUT
 DPATCH_STAMPFN = debian/stamp-patch
 include /usr/share/dpatch/dpatch.make
 
-build: build-stamp
-build-stamp: $(DPATCH_STAMPFN)
+build: debian/stamp-build
+debian/stamp-build: $(DPATCH_STAMPFN)
 	dh_testdir
 
 	# ./configure
@@ -33,19 +33,19 @@ build-stamp: $(DPATCH_STAMPFN)
 	# Build libnetfilter-conntrack
 	$(MAKE)
 
-	touch build-stamp
+	touch $@
 
 clean: unpatch
 	dh_testdir
 	dh_testroot
-	rm -f build-stamp install*-stamp
+	rm -f debian/stamp-*
 
 	[ ! -f Makefile ] || $(MAKE) distclean
 
 	dh_clean
 
-install: install-stamp
-install-stamp: build-stamp
+install: debian/stamp-install
+debian/stamp-install: debian/stamp-build
 	dh_testdir
 	dh_testroot
 	dh_clean -k
@@ -53,7 +53,7 @@ install-stamp: build-stamp
 
 	$(MAKE) DESTDIR=`pwd`/debian/tmp install
 
-	touch install-stamp
+	touch $@
 
 # Build architecture-independent files here.
 binary-indep: build install
