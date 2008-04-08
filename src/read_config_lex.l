@@ -23,6 +23,7 @@
 %}
 
 %option yylineno
+%option noinput
 %option nounput
 
 ws		[ \t]+
