@@ -4,7 +4,7 @@ conntrack (1:0.9.6-3) UNRELEASED; urgency=low
     - "large integer implicitly truncated to unsigned type" (Closes: #472812)
     - "'input' defined but not used" (Closes: #474768)
 
- -- Max Kellermann <max@duempel.org>  Mon, 24 Mar 2008 13:09:23 +0100
+ -- Max Kellermann <mk@cm4all.com>  Tue, 08 Apr 2008 07:25:29 +0200
 
 conntrack (1:0.9.6-2) unstable; urgency=low
 
