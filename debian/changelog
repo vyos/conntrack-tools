@@ -2,6 +2,7 @@ conntrack (1:0.9.6-3) UNRELEASED; urgency=low
 
   * fix gcc 4.3 compilation errors:
     - "large integer implicitly truncated to unsigned type" (Closes: #472812)
+    - "'input' defined but not used" (Closes: #474768)
 
  -- Max Kellermann <max@duempel.org>  Mon, 24 Mar 2008 13:09:23 +0100
 

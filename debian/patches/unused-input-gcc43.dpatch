@@ -1,0 +1,14 @@
+#! /bin/sh /usr/share/dpatch/dpatch-run
+## DP: Fix Debian bug #474768: "read_config_lex.c:4451: error: 'input'
+## DP: defined but not used" (patch by Thiemo Seufer)
+
+--- conntrack-0.9.6.original/src/read_config_lex.l      2008-03-08 11:25:30.000000000 +0000
++++ conntrack-0.9.6/src/read_config_lex.l       2008-04-07 17:47:53.000000000 +0100
+@@ -23,6 +23,7 @@
+ %}
+   
+ %option yylineno
++%option noinput
+ %option nounput
+
+ ws             [ \t]+
