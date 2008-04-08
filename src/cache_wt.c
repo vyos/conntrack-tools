@@ -16,30 +16,58 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#include "conntrackd.h"
 #include "cache.h"
 #include "netlink.h"
 #include "us-conntrack.h"
+#include "log.h"
 
 #include <string.h>
+#include <errno.h>
 
-static void add_update(struct us_conntrack *u)
+static void add_wt(struct us_conntrack *u)
+{
+	int ret;
+	char __ct[nfct_maxsize()];
+	struct nf_conntrack *ct = (struct nf_conntrack *)(void*) __ct;
+
+	ret = nl_exist_conntrack(u->ct);
+	switch (ret) {
+	case -1:
+		dlog(LOG_ERR, "cache_wt problem: %s", strerror(errno));
+		break;
+	case 0:
+		memcpy(ct, u->ct, nfct_maxsize());
+		if (nl_create_conntrack(ct) == -1)
+			dlog(LOG_ERR, "cache_wt create: %s", strerror(errno));
+		break;
+	case 1:
+		memcpy(ct, u->ct, nfct_maxsize());
+		if (nl_update_conntrack(ct) == -1)
+			dlog(LOG_ERR, "cache_wt crt-upd: %s", strerror(errno));
+		break;
+	}
+}
+
+static void upd_wt(struct us_conntrack *u)
 {
 	char __ct[nfct_maxsize()];
 	struct nf_conntrack *ct = (struct nf_conntrack *)(void*) __ct;
 
 	memcpy(ct, u->ct, nfct_maxsize());
 
-	nl_create_conntrack(ct);
+	if (nl_update_conntrack(ct) == -1)
+		dlog(LOG_ERR, "cache_wt update:%s", strerror(errno));
 }
 
 static void writethrough_add(struct us_conntrack *u, void *data)
 {
-	add_update(u);
+	add_wt(u);
 }
 
 static void writethrough_update(struct us_conntrack *u, void *data)
 {
-	add_update(u);
+	upd_wt(u);
 }
 
 static void writethrough_destroy(struct us_conntrack *u, void *data)

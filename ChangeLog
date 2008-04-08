@@ -4,6 +4,7 @@ version 0.9.7 (yet unreleased)
 Pablo Neira Ayuso <pablo@netfilter.org>:
 o remove .svn directory from make distcheck tarballs (reported by B.Benjamini)
 o fix minor compilation issue in amd64 with gcc4.3 (reported by Daniel Schepler)
+o fix asymmetric path support (reported by Gary Richards)
 
 Krzysztof Oledzki <ole@ans.pl>:
 o fix minor compilation warning

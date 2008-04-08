@@ -23,6 +23,8 @@
 #include "log.h"
 #include "debug.h"
 
+#include <errno.h>
+
 int ignore_conntrack(struct nf_conntrack *ct)
 {
 	/* ignore a certain protocol */
@@ -193,6 +195,17 @@ int nl_dump_conntrack_table(void)
 	return nfct_query(STATE(dump), NFCT_Q_DUMP, &CONFIG(family));
 }
 
+int nl_exist_conntrack(struct nf_conntrack *ct)
+{
+	int ret;
+
+	ret = nfct_query(STATE(dump), NFCT_Q_GET, ct);
+	if (ret == -1)
+		return errno == ENOENT ? 0 : -1;
+
+	return 1;
+}
+
 /* This function modifies the conntrack passed as argument! */
 int nl_create_conntrack(struct nf_conntrack *ct)
 {
@@ -217,6 +230,24 @@ int nl_create_conntrack(struct nf_conntrack *ct)
 	nfct_set_attr_u8(ct, ATTR_TCP_MASK_REPL, flags);
 
 	return nfct_query(STATE(dump), NFCT_Q_CREATE_UPDATE, ct);
+}
+
+/* This function modifies the conntrack passed as argument! */
+int nl_update_conntrack(struct nf_conntrack *ct)
+{
+	/* unset NAT info, otherwise we hit error */
+	nfct_attr_unset(ct, ATTR_SNAT_IPV4);
+	nfct_attr_unset(ct, ATTR_DNAT_IPV4);
+	nfct_attr_unset(ct, ATTR_SNAT_PORT);
+	nfct_attr_unset(ct, ATTR_DNAT_PORT);
+
+	if (nfct_attr_is_set(ct, ATTR_STATUS)) {
+		uint32_t status = nfct_get_attr_u32(ct, ATTR_STATUS);
+		status &= ~IPS_NAT_MASK;
+		nfct_set_attr_u32(ct, ATTR_STATUS, status);
+	}
+
+	return nl_create_conntrack(ct);
 }
 
 int nl_destroy_conntrack(struct nf_conntrack *ct)
