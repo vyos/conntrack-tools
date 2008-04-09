@@ -1,8 +1,8 @@
 conntrack (1:0.9.6-4) UNRELEASED; urgency=low
 
-  * 
+  * fix compilation on SPARC (printf argument mismatch)
 
- -- Max Kellermann <mk@cm4all.com>  Wed, 09 Apr 2008 08:51:44 +0200
+ -- Max Kellermann <max@duempel.org>  Wed, 09 Apr 2008 08:56:08 +0200
 
 conntrack (1:0.9.6-3) unstable; urgency=low
 
