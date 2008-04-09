@@ -1,3 +1,9 @@
+conntrack (1:0.9.6-4) UNRELEASED; urgency=low
+
+  * 
+
+ -- Max Kellermann <mk@cm4all.com>  Wed, 09 Apr 2008 08:51:44 +0200
+
 conntrack (1:0.9.6-3) unstable; urgency=low
 
   [ Max Kellermann ]
