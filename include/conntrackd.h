@@ -3,6 +3,7 @@
 
 #include "mcast.h"
 #include "local.h"
+#include "alarm.h"
 
 #include <stdint.h>
 #include <stdio.h>
@@ -104,6 +105,8 @@ struct ct_general_state {
 
 	struct nfct_handle		*event;         /* event handler */
 	struct nfct_handle		*dump;		/* dump handler */
+	struct nfct_handle		*overrun;	/* overrun handler */
+	struct alarm_block		overrun_alarm;
 
 	struct fds			*fds;
 
@@ -158,7 +161,10 @@ struct ct_mode {
 	int (*local)(int fd, int type, void *data);
 	void (*kill)(void);
 	void (*dump)(struct nf_conntrack *ct);
-	void (*overrun)(void);
+	int (*overrun)(enum nf_conntrack_msg_type type,
+		       struct nf_conntrack *ct,
+		       void *data);
+	int (*purge)(void);
 	void (*event_new)(struct nf_conntrack *ct);
 	void (*event_upd)(struct nf_conntrack *ct);
 	int (*event_dst)(struct nf_conntrack *ct);

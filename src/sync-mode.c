@@ -350,9 +350,40 @@ static void mcast_send_sync(struct us_conntrack *u,
 		STATE_SYNC(sync)->send(net, u);
 }
 
-static int overrun_cb(enum nf_conntrack_msg_type type,
-		      struct nf_conntrack *ct,
-		      void *data)
+static int purge_step(void *data1, void *data2)
+{
+	int ret;
+	struct nfct_handle *h = STATE(dump);
+	struct us_conntrack *u = data2;
+
+	ret = nfct_query(h, NFCT_Q_GET, u->ct);
+	if (ret == -1 && errno == ENOENT) {
+		size_t len;
+		struct nethdr *net = BUILD_NETMSG(u->ct, NFCT_Q_DESTROY);
+
+		debug_ct(u->ct, "overrun purge resync");
+
+	        len = prepare_send_netmsg(STATE_SYNC(mcast_client), net);
+	        mcast_buffered_send_netmsg(STATE_SYNC(mcast_client), net, len);
+		if (STATE_SYNC(sync)->send)
+			STATE_SYNC(sync)->send(net, u);
+
+		cache_del(STATE_SYNC(internal), u->ct);
+	}
+
+	return 0;
+}
+
+static int purge_sync(void)
+{
+	cache_iterate(STATE_SYNC(internal), NULL, purge_step);
+
+	return 0;
+}
+
+static int overrun_sync(enum nf_conntrack_msg_type type,
+			struct nf_conntrack *ct,
+			void *data)
 {
 	struct us_conntrack *u;
 
@@ -385,57 +416,6 @@ static int overrun_cb(enum nf_conntrack_msg_type type,
 	}
 
 	return NFCT_CB_CONTINUE;
-}
-
-static int overrun_purge_step(void *data1, void *data2)
-{
-	int ret;
-	struct nfct_handle *h = data1;
-	struct us_conntrack *u = data2;
-
-	ret = nfct_query(h, NFCT_Q_GET, u->ct);
-	if (ret == -1 && errno == ENOENT) {
-		size_t len;
-		struct nethdr *net = BUILD_NETMSG(u->ct, NFCT_Q_DESTROY);
-
-		debug_ct(u->ct, "overrun purge resync");
-
-	        len = prepare_send_netmsg(STATE_SYNC(mcast_client), net);
-	        mcast_buffered_send_netmsg(STATE_SYNC(mcast_client), net, len);
-		if (STATE_SYNC(sync)->send)
-			STATE_SYNC(sync)->send(net, u);
-
-		cache_del(STATE_SYNC(internal), u->ct);
-	}
-
-	return 0;
-}
-
-/* it's likely that we're losing events, just try to do our best here */
-static void overrun_sync(void)
-{
-	int ret;
-	struct nfct_handle *h;
-	int family = CONFIG(family);
-
-	h = nfct_open(CONNTRACK, 0);
-	if (!h) {
-		dlog(LOG_ERR, "can't open overrun handler");
-		return;
-	}
-
-	nfct_callback_register(h, NFCT_T_ALL, overrun_cb, NULL);
-
-	ret = nfct_query(h, NFCT_Q_DUMP, &family);
-	if (ret == -1)
-		dlog(LOG_ERR, 
-		     "overrun query error %s", strerror(errno));
-
-	nfct_callback_unregister(h);
-
-	cache_iterate(STATE_SYNC(internal), h, overrun_purge_step);
-
-	nfct_close(h);
 }
 
 static void event_new_sync(struct nf_conntrack *ct)
@@ -505,6 +485,7 @@ struct ct_mode sync_mode = {
 	.kill			= kill_sync,
 	.dump			= dump_sync,
 	.overrun		= overrun_sync,
+	.purge			= purge_sync,
 	.event_new		= event_new_sync,
 	.event_upd		= event_update_sync,
 	.event_dst		= event_destroy_sync

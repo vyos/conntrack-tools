@@ -158,6 +158,21 @@ int nl_init_dump_handler(void)
 	return 0;
 }
 
+int nl_init_overrun_handler(void)
+{
+	STATE(overrun) = nfct_open(CONNTRACK, 0);
+	if (!STATE(overrun))
+		return -1;
+
+	fcntl(nfct_fd(STATE(overrun)), F_SETFL, O_NONBLOCK);
+
+	nfct_callback_register(STATE(overrun), 
+			       NFCT_T_ALL, 
+			       STATE(mode)->overrun, 
+			       NULL);
+	return 0;
+}
+
 static int warned = 0;
 
 void nl_resize_socket_buffer(struct nfct_handle *h)
@@ -193,6 +208,12 @@ void nl_resize_socket_buffer(struct nfct_handle *h)
 int nl_dump_conntrack_table(void)
 {
 	return nfct_query(STATE(dump), NFCT_Q_DUMP, &CONFIG(family));
+}
+
+int nl_overrun_request_resync(void)
+{
+	int family = CONFIG(family);
+	return nfct_send(STATE(overrun), NFCT_Q_DUMP, &family);
 }
 
 int nl_exist_conntrack(struct nf_conntrack *ct)

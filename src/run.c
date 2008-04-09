@@ -89,6 +89,12 @@ void local_handler(int fd, void *data)
 		dlog(LOG_WARNING, "unknown local request %d", type);
 }
 
+static void do_overrun_alarm(struct alarm_block *a, void *data)
+{
+	nl_overrun_request_resync();
+	add_alarm(&STATE(overrun_alarm), 2, 0);
+}
+
 int
 init(void)
 {
@@ -129,6 +135,15 @@ init(void)
 		return -1;
 	}
 
+	if (nl_init_overrun_handler() == -1) {
+		dlog(LOG_ERR, "can't open netlink handler: %s",
+		     strerror(errno));
+		dlog(LOG_ERR, "no ctnetlink kernel support?");
+		return -1;
+	}
+
+	init_alarm(&STATE(overrun_alarm), NULL, do_overrun_alarm);
+
 	STATE(fds) = create_fds();
 	if (STATE(fds) == NULL) {
 		dlog(LOG_ERR, "can't create file descriptor pool");
@@ -137,6 +152,7 @@ init(void)
 
 	register_fd(STATE(local).fd, STATE(fds));
 	register_fd(nfct_fd(STATE(event)), STATE(fds));
+	register_fd(nfct_fd(STATE(overrun)), STATE(fds));
 
 	if (STATE(mode)->register_fds &&
 	    STATE(mode)->register_fds(STATE(fds)) == -1) {
@@ -203,8 +219,8 @@ static void __run(struct timeval *next_alarm)
 				 * size and resync with master conntrack table.
 				 */
 				nl_resize_socket_buffer(STATE(event));
-				/* XXX: schedule overrun call via alarm */
-				STATE(mode)->overrun();
+				nl_overrun_request_resync();
+				add_alarm(&STATE(overrun_alarm), 2, 0);
 				break;
 			case ENOENT:
 				/*
@@ -221,6 +237,13 @@ static void __run(struct timeval *next_alarm)
 				break;
 			}
 		}
+	}
+
+	if (FD_ISSET(nfct_fd(STATE(overrun)), &readfds)) {
+		del_alarm(&STATE(overrun_alarm));
+		nfct_catch(STATE(overrun));
+		if (STATE(mode)->purge)
+			STATE(mode)->purge();
 	}
 
 	if (STATE(mode)->run)

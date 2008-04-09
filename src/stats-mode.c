@@ -22,10 +22,12 @@
 #include "cache.h"
 #include "log.h"
 #include "conntrackd.h"
+#include "us-conntrack.h"
 
 #include <errno.h>
 #include <string.h>
 #include <stdlib.h>
+#include <libnetfilter_conntrack/libnetfilter_conntrack.h>
 
 static int init_stats(void)
 {
@@ -93,9 +95,9 @@ static void dump_stats(struct nf_conntrack *ct)
 		debug_ct(ct, "resync entry");
 }
 
-static int overrun_cb(enum nf_conntrack_msg_type type,
-		      struct nf_conntrack *ct,
-		      void *data)
+static int overrun_stats(enum nf_conntrack_msg_type type,
+			 struct nf_conntrack *ct,
+			 void *data)
 {
 	if (ignore_conntrack(ct))
 		return NFCT_CB_CONTINUE;
@@ -115,28 +117,25 @@ static int overrun_cb(enum nf_conntrack_msg_type type,
 	return NFCT_CB_CONTINUE;
 }
 
-static void overrun_stats(void)
+static int purge_step(void *data1, void *data2)
 {
 	int ret;
-	struct nfct_handle *h;
-	int family = CONFIG(family);
+	struct us_conntrack *u = data2;
 
-	h = nfct_open(CONNTRACK, 0);
-	if (!h) {
-		dlog(LOG_ERR, "can't open overrun handler");
-		return;
+	ret = nfct_query(STATE(dump), NFCT_Q_GET, u->ct);
+	if (ret == -1 && errno == ENOENT) {
+		debug_ct(u->ct, "overrun purge stats");
+		cache_del(STATE_STATS(cache), u->ct);
 	}
 
-	nfct_callback_register(h, NFCT_T_ALL, overrun_cb, NULL);
+	return 0;
+}
 
-	cache_flush(STATE_STATS(cache));
+static int purge_stats(void)
+{
+	cache_iterate(STATE_STATS(cache), NULL, purge_step);
 
-	ret = nfct_query(h, NFCT_Q_DUMP, &family);
-	if (ret == -1)
-		dlog(LOG_ERR, 
-		     "overrun query error %s", strerror(errno));
-
-	nfct_close(h);
+	return 0;
 }
 
 static void event_new_stats(struct nf_conntrack *ct)
@@ -187,6 +186,7 @@ struct ct_mode stats_mode = {
 	.kill			= kill_stats,
 	.dump			= dump_stats,
 	.overrun		= overrun_stats,
+	.purge			= purge_stats,
 	.event_new		= event_new_stats,
 	.event_upd		= event_update_stats,
 	.event_dst		= event_destroy_stats
