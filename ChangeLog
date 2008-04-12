@@ -7,6 +7,9 @@ o fix minor compilation issue in amd64 with gcc4.3 (reported by Daniel Schepler)
 o fix asymmetric path support (reported by Gary Richards)
 o improve netlink overrun handling
 o update manpages with the new URL: http://conntrack-tools.netfilter.org
+o simplify parameter-handling code
+o check for missing source/address IP/ports
+o minor cleanups
 
 Krzysztof Oledzki <ole@ans.pl>:
 o fix minor compilation warning

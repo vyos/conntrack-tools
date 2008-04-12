@@ -54,10 +54,10 @@ static char udp_commands_v_options[NUMBER_OF_CMD][UDP_NUMBER_OF_OPT] =
 {
 		/* 1 2 3 4 5 6 7 8 */
 /*CT_LIST*/	  {2,2,2,2,0,0,0,0},
-/*CT_CREATE*/     {1,1,1,1,0,0,0,0},
-/*CT_UPDATE*/     {1,1,1,1,0,0,0,0},
-/*CT_DELETE*/     {1,1,1,1,0,0,0,0},
-/*CT_GET*/        {1,1,1,1,0,0,0,0},
+/*CT_CREATE*/     {2,2,2,2,0,0,0,0},
+/*CT_UPDATE*/     {2,2,2,2,0,0,0,0},
+/*CT_DELETE*/     {2,2,2,2,0,0,0,0},
+/*CT_GET*/        {2,2,2,2,0,0,0,0},
 /*CT_FLUSH*/      {0,0,0,0,0,0,0,0},
 /*CT_EVENT*/      {2,2,2,2,0,0,0,0},
 /*CT_VERSION*/    {0,0,0,0,0,0,0,0},
@@ -165,27 +165,10 @@ static void final_check(unsigned int flags,
 		        unsigned int cmd,
 		        struct nf_conntrack *ct)
 {
-	if ((flags & (UDP_ORIG_SPORT|UDP_ORIG_DPORT)) 
-	    && !(flags & (UDP_REPL_SPORT|UDP_REPL_DPORT))) {
-	    	nfct_set_attr_u16(ct,
-				  ATTR_REPL_PORT_SRC, 
-				  nfct_get_attr_u16(ct, ATTR_ORIG_PORT_DST));
-		nfct_set_attr_u16(ct,
-				  ATTR_REPL_PORT_DST,
-				  nfct_get_attr_u16(ct, ATTR_ORIG_PORT_SRC));
-		flags |= UDP_REPL_SPORT;
-		flags |= UDP_REPL_DPORT;
-	} else if (!(flags & (UDP_ORIG_SPORT|UDP_ORIG_DPORT))
-	            && (flags & (UDP_REPL_SPORT|UDP_REPL_DPORT))) {
-	    	nfct_set_attr_u16(ct,
-				  ATTR_ORIG_PORT_SRC, 
-				  nfct_get_attr_u16(ct, ATTR_REPL_PORT_DST));
-		nfct_set_attr_u16(ct,
-				  ATTR_ORIG_PORT_DST,
-				  nfct_get_attr_u16(ct, ATTR_REPL_PORT_SRC));
-		flags |= UDP_ORIG_SPORT;
-		flags |= UDP_ORIG_DPORT;
-	}
+	if ((1 << cmd) & (CT_CREATE|CT_UPDATE|CT_DELETE|CT_GET) &&
+	    !((flags & UDP_ORIG_SPORT && flags & UDP_ORIG_DPORT) ||
+	      (flags & UDP_REPL_SPORT && flags & UDP_REPL_DPORT)))
+		exit_error(PARAMETER_PROBLEM, "missing ports");
 
 	generic_opt_check(flags, 
 			  UDP_NUMBER_OF_OPT,

@@ -200,6 +200,7 @@ exit_error(enum exittype status, const char *msg, ...)
 	va_start(args, msg);
 	fprintf(stderr,"%s v%s: ", PROGNAME, VERSION);
 	vfprintf(stderr, msg, args);
+	fprintf(stderr, "\n");
 	va_end(args);
 	if (status == PARAMETER_PROBLEM)
 		exit_tryhelp(status);
@@ -211,7 +212,7 @@ generic_cmd_check(int command, int local_options)
 {
 	if (cmd_need_param[command] == 0 && !local_options)
 		exit_error(PARAMETER_PROBLEM,
-			   "You need to supply parameters to `-%c'\n",
+			   "You need to supply parameters to `-%c'",
 			   cmdflags[command]);
 }
 
@@ -239,12 +240,12 @@ void generic_opt_check(int local_options,
 				exit_error(PARAMETER_PROBLEM, 
 					   "You need to supply the "
 					   "`--%s' option for this "
-					   "command\n", optflg[i]);
+					   "command", optflg[i]);
 		} else {
 			if (optset[i] == 0)
 				exit_error(PARAMETER_PROBLEM, "Illegal "
 					   "option `--%s' with this "
-					   "command\n", optflg[i]);
+					   "command", optflg[i]);
 		}
 	}
 }
@@ -377,9 +378,9 @@ parse_parameter(const char *arg, unsigned int *status, int parse_type)
 }
 
 static void
-add_command(unsigned int *cmd, const int newcmd, const int othercmds)
+add_command(unsigned int *cmd, const int newcmd)
 {
-	if (*cmd & (~othercmds))
+	if (*cmd)
 		exit_error(PARAMETER_PROBLEM, "Invalid commands combination\n");
 	*cmd |= newcmd;
 }
@@ -406,7 +407,7 @@ check_type(int argc, char *argv[])
 	else if (strncmp("conntrack", table, 9) == 0)
 		return 0;
 	else
-		exit_error(PARAMETER_PROBLEM, "unknown type `%s'\n", table);
+		exit_error(PARAMETER_PROBLEM, "unknown type `%s'", table);
 
 	return 0;
 }
@@ -416,7 +417,7 @@ static void set_family(int *family, int new)
 	if (*family == AF_UNSPEC)
 		*family = new;
 	else if (*family != new)
-		exit_error(PARAMETER_PROBLEM, "mismatched address family\n");
+		exit_error(PARAMETER_PROBLEM, "mismatched address family");
 }
 
 struct addr_parse {
@@ -435,7 +436,7 @@ parse_inetaddr(const char *cp, struct addr_parse *parse)
 		return AF_INET6;
 #endif
 
-	exit_error(PARAMETER_PROBLEM, "Invalid IP address `%s'.", cp);
+	exit_error(PARAMETER_PROBLEM, "Invalid IP address `%s'", cp);
 }
 
 union ct_address {
@@ -476,12 +477,12 @@ nat_parse(char *arg, int portok, struct nf_conntrack *obj, int type)
 		port = (uint16_t)atoi(colon+1);
 		if (port == 0)
 			exit_error(PARAMETER_PROBLEM,
-				   "Port `%s' not valid\n", colon+1);
+				   "Port `%s' not valid", colon+1);
 
 		error = strchr(colon+1, ':');
 		if (error)
 			exit_error(PARAMETER_PROBLEM,
-				   "Invalid port:port syntax\n");
+				   "Invalid port:port syntax");
 
 		if (type == CT_OPT_SRC_NAT)
 			nfct_set_attr_u16(obj, ATTR_SNAT_PORT, port);
@@ -658,6 +659,51 @@ static int dump_exp_cb(enum nf_conntrack_msg_type type,
 
 static struct ctproto_handler *h;
 
+static const int cmd2type[][2] = {
+	['L']	= { CT_LIST, 	EXP_LIST },
+	['I']	= { CT_CREATE,	EXP_CREATE },
+	['D']	= { CT_DELETE,	EXP_DELETE },
+	['G']	= { CT_GET,	EXP_GET },
+	['F']	= { CT_FLUSH,	EXP_FLUSH },
+	['V']	= { CT_VERSION,	CT_VERSION },
+	['h']	= { CT_HELP,	CT_HELP },
+};
+
+static const int opt2type[] = {
+	['s']	= CT_OPT_ORIG_SRC,
+	['d']	= CT_OPT_ORIG_DST,
+	['r']	= CT_OPT_REPL_SRC,
+	['q']	= CT_OPT_REPL_DST,
+	['{']	= CT_OPT_MASK_SRC,
+	['}']	= CT_OPT_MASK_DST,
+	['[']	= CT_OPT_EXP_SRC,
+	[']']	= CT_OPT_EXP_DST,
+	['n']	= CT_OPT_SRC_NAT,
+	['g']	= CT_OPT_DST_NAT,
+	['m']	= CT_OPT_MARK,
+	['c']	= CT_OPT_SECMARK,
+};
+
+static const int opt2family_attr[][2] = {
+	['s']	= { ATTR_ORIG_IPV4_SRC,	ATTR_ORIG_IPV6_SRC },
+	['d']	= { ATTR_ORIG_IPV4_DST,	ATTR_ORIG_IPV6_DST },
+	['r']	= { ATTR_REPL_IPV4_SRC, ATTR_REPL_IPV6_SRC },
+	['q']	= { ATTR_REPL_IPV4_DST, ATTR_REPL_IPV6_DST },
+	['{']	= { ATTR_ORIG_IPV4_SRC,	ATTR_ORIG_IPV6_SRC },
+	['}']	= { ATTR_ORIG_IPV4_DST,	ATTR_ORIG_IPV6_DST },
+	['[']	= { ATTR_ORIG_IPV4_SRC, ATTR_ORIG_IPV6_SRC },
+	[']']	= { ATTR_ORIG_IPV4_DST, ATTR_ORIG_IPV6_DST },
+};
+
+static const int opt2attr[] = {
+	['s']	= ATTR_ORIG_L3PROTO,
+	['d']	= ATTR_ORIG_L3PROTO,
+	['r']	= ATTR_REPL_L3PROTO,
+	['q']	= ATTR_REPL_L3PROTO,
+	['m']	= ATTR_MARK,
+	['c']	= ATTR_SECMARK,
+};
+
 int main(int argc, char *argv[])
 {
 	int c, cmd;
@@ -691,142 +737,83 @@ int main(int argc, char *argv[])
 					    "g::c:", 
 					    opts, NULL)) != -1) {
 	switch(c) {
+		/* commands */
 		case 'L':
-			type = check_type(argc, argv);
-			if (type == 0)
-				add_command(&command, CT_LIST, CT_NONE);
-			else if (type == 1)
-				add_command(&command, EXP_LIST, CT_NONE);
-			break;
 		case 'I':
+		case 'D':
+		case 'G':
+		case 'F':
+		case 'E':
+		case 'V':
+		case 'h':
 			type = check_type(argc, argv);
-			if (type == 0)
-				add_command(&command, CT_CREATE, CT_NONE);
-			else if (type == 1)
-				add_command(&command, EXP_CREATE, CT_NONE);
+			add_command(&command, cmd2type[c][type]);
 			break;
 		case 'U':
 			type = check_type(argc, argv);
 			if (type == 0)
-				add_command(&command, CT_UPDATE, CT_NONE);
+				add_command(&command, CT_UPDATE);
 			else
-				exit_error(PARAMETER_PROBLEM, "Can't update "
-					   "expectations");
+				exit_error(PARAMETER_PROBLEM, 
+					   "Can't update expectations");
 			break;
-		case 'D':
-			type = check_type(argc, argv);
-			if (type == 0)
-				add_command(&command, CT_DELETE, CT_NONE);
-			else if (type == 1)
-				add_command(&command, EXP_DELETE, CT_NONE);
-			break;
-		case 'G':
-			type = check_type(argc, argv);
-			if (type == 0)
-				add_command(&command, CT_GET, CT_NONE);
-			else if (type == 1)
-				add_command(&command, EXP_GET, CT_NONE);
-			break;
-		case 'F':
-			type = check_type(argc, argv);
-			if (type == 0)
-				add_command(&command, CT_FLUSH, CT_NONE);
-			else if (type == 1)
-				add_command(&command, EXP_FLUSH, CT_NONE);
-			break;
-		case 'E':
-			type = check_type(argc, argv);
-			if (type == 0)
-				add_command(&command, CT_EVENT, CT_NONE);
-			else if (type == 1)
-				add_command(&command, EXP_EVENT, CT_NONE);
-			break;
-		case 'V':
-			add_command(&command, CT_VERSION, CT_NONE);
-			break;
-		case 'h':
-			add_command(&command, CT_HELP, CT_NONE);
-			break;
+		/* options */
 		case 's':
-			options |= CT_OPT_ORIG_SRC;
-			if (!optarg)
-				break;
-
-			l3protonum = parse_addr(optarg, &ad);
-			set_family(&family, l3protonum);
-			if (l3protonum == AF_INET) {
-				nfct_set_attr_u32(obj, 
-						  ATTR_ORIG_IPV4_SRC, 
-						  ad.v4);
-			} else if (l3protonum == AF_INET6) {
-				nfct_set_attr(obj,
-					      ATTR_ORIG_IPV6_SRC, 
-					      &ad.v6);
-			}
-			nfct_set_attr_u8(obj, ATTR_ORIG_L3PROTO, l3protonum);
-			break;
 		case 'd':
-			options |= CT_OPT_ORIG_DST;
-			if (!optarg)
-				break;
-
-			l3protonum = parse_addr(optarg, &ad);
-			set_family(&family, l3protonum);
-			if (l3protonum == AF_INET) {
-				nfct_set_attr_u32(obj, 
-						  ATTR_ORIG_IPV4_DST,
-						  ad.v4);
-			} else if (l3protonum == AF_INET6) {
-				nfct_set_attr(obj,
-					      ATTR_ORIG_IPV6_DST,
-					      &ad.v6);
-			}
-			nfct_set_attr_u8(obj, ATTR_ORIG_L3PROTO, l3protonum);
-			break;
 		case 'r':
-			options |= CT_OPT_REPL_SRC;
-			if (!optarg)
-				break;
-
-			l3protonum = parse_addr(optarg, &ad);
-			set_family(&family, l3protonum);
-			if (l3protonum == AF_INET) {
-				nfct_set_attr_u32(obj,
-						  ATTR_REPL_IPV4_SRC, 
-						  ad.v4);
-			} else if (l3protonum == AF_INET6) {
-				nfct_set_attr(obj,
-					      ATTR_REPL_IPV6_SRC,
-					      &ad.v6);
-			}
-			nfct_set_attr_u8(obj, ATTR_REPL_L3PROTO, l3protonum);
-			break;
 		case 'q':
-			options |= CT_OPT_REPL_DST;
 			if (!optarg)
-				break;
+				exit_error(PARAMETER_PROBLEM, 
+					   "-%c requires an IP", c);
+
+			options |= opt2type[c];
 
 			l3protonum = parse_addr(optarg, &ad);
 			set_family(&family, l3protonum);
 			if (l3protonum == AF_INET) {
 				nfct_set_attr_u32(obj,
-						  ATTR_REPL_IPV4_DST,
+						  opt2family_attr[c][0],
 						  ad.v4);
 			} else if (l3protonum == AF_INET6) {
 				nfct_set_attr(obj,
-					      ATTR_REPL_IPV6_DST,
+					      opt2family_attr[c][1],
 					      &ad.v6);
 			}
-			nfct_set_attr_u8(obj, ATTR_REPL_L3PROTO, l3protonum);
+			nfct_set_attr_u8(obj, opt2attr[c], l3protonum);
+			break;
+		case '{':
+		case '}':
+		case '[':
+		case ']':
+			if (!optarg)
+				exit_error(PARAMETER_PROBLEM, 
+					   "-%c requires an IP", c);
+
+			options |= opt2type[c];
+			l3protonum = parse_addr(optarg, &ad);
+			set_family(&family, l3protonum);
+			if (l3protonum == AF_INET) {
+				nfct_set_attr_u32(mask, 
+						  opt2family_attr[c][0],
+						  ad.v4);
+			} else if (l3protonum == AF_INET6) {
+				nfct_set_attr(mask,
+					      opt2family_attr[c][1],
+					      &ad.v6);
+			}
+			nfct_set_attr_u8(mask, ATTR_ORIG_L3PROTO, l3protonum);
 			break;
 		case 'p':
 			if (!optarg || !*optarg)
-				exit_error(PARAMETER_PROBLEM, "proto needed\n");
+				exit_error(PARAMETER_PROBLEM, 
+					   "-%c requires a valid protocol", c);
 
 			options |= CT_OPT_PROTO;
 			h = findproto(optarg);
 			if (!h)
-				exit_error(PARAMETER_PROBLEM, "unknown proto\n");
+				exit_error(PARAMETER_PROBLEM,
+					   "`%s' unsupported protocol",
+					   optarg);
 
 			nfct_set_attr_u8(obj, ATTR_ORIG_L4PROTO, h->protonum);
 			nfct_set_attr_u8(obj, ATTR_REPL_L4PROTO, h->protonum);
@@ -838,140 +825,72 @@ int main(int argc, char *argv[])
 					 h->protonum);
 			opts = merge_options(opts, h->opts, &h->option_offset);
 			if (opts == NULL)
-				exit_error(EXIT_FAILURE, "out of memory\n");
+				exit_error(OTHER_PROBLEM, "out of memory");
 			break;
 		case 't':
-			options |= CT_OPT_TIMEOUT;
 			if (!optarg)
-				continue;
+				exit_error(PARAMETER_PROBLEM, 
+					   "-%c requires value", c);
 
+			options |= CT_OPT_TIMEOUT;
 			nfct_set_attr_u32(obj, ATTR_TIMEOUT, atol(optarg));
 			nfexp_set_attr_u32(exp, ATTR_EXP_TIMEOUT, atol(optarg));
 			break;
-		case 'u': {
+		case 'u':
 			if (!optarg)
-				continue;
+				exit_error(PARAMETER_PROBLEM,
+					   "-%c requires type", c);
 
 			options |= CT_OPT_STATUS;
 			parse_parameter(optarg, &status, PARSE_STATUS);
 			nfct_set_attr_u32(obj, ATTR_STATUS, status);
 			break;
-		}
 		case 'e':
+			if (!optarg)
+				exit_error(PARAMETER_PROBLEM,
+					   "-%c requires type", c);
+
 			options |= CT_OPT_EVENT_MASK;
 			parse_parameter(optarg, &event_mask, PARSE_EVENT);
 			break;
+		case 'o':
+			if (!optarg)
+				exit_error(PARAMETER_PROBLEM,
+					   "-%c requires type", c);
+
+			options |= CT_OPT_OUTPUT;
+			parse_parameter(optarg, &output_mask, PARSE_OUTPUT);
+			break;
 		case 'z':
+			if (optarg)
+				exit_error(PARAMETER_PROBLEM,
+					   "-%c does not require parameters",c);
+
 			options |= CT_OPT_ZERO;
 			break;
-		case '{':
-			options |= CT_OPT_MASK_SRC;
-			if (!optarg)
-				break;
-
-			l3protonum = parse_addr(optarg, &ad);
-			set_family(&family, l3protonum);
-			if (l3protonum == AF_INET) {
-				nfct_set_attr_u32(mask, 
-						  ATTR_ORIG_IPV4_SRC,
-						  ad.v4);
-			} else if (l3protonum == AF_INET6) {
-				nfct_set_attr(mask,
-					      ATTR_ORIG_IPV6_SRC,
-					      &ad.v6);
-			}
-			nfct_set_attr_u8(mask, ATTR_ORIG_L3PROTO, l3protonum);
-			break;
-		case '}':
-			options |= CT_OPT_MASK_DST;
-			if (!optarg)
-				break;
-
-			l3protonum = parse_addr(optarg, &ad);
-			set_family(&family, l3protonum);
-			if (l3protonum == AF_INET) {
-				nfct_set_attr_u32(mask, 
-						  ATTR_ORIG_IPV4_DST,
-						  ad.v4);
-			} else if (l3protonum == AF_INET6) {
-				nfct_set_attr(mask,
-					      ATTR_ORIG_IPV6_DST,
-					      &ad.v6);
-			}
-			nfct_set_attr_u8(mask, ATTR_ORIG_L3PROTO, l3protonum);
-			break;
-		case '[':
-			options |= CT_OPT_EXP_SRC;
-			if (!optarg)
-				break;
-
-			l3protonum = parse_addr(optarg, &ad);
-			set_family(&family, l3protonum);
-			if (l3protonum == AF_INET) {
-				nfct_set_attr_u32(exptuple, 
-						  ATTR_ORIG_IPV4_SRC,
-						  ad.v4);
-			} else if (l3protonum == AF_INET6) {
-				nfct_set_attr(exptuple,
-					      ATTR_ORIG_IPV6_SRC,
-					      &ad.v6);
-			}
-			nfct_set_attr_u8(exptuple, 
-					 ATTR_ORIG_L3PROTO, 
-					 l3protonum);
-			break;
-		case ']':
-			options |= CT_OPT_EXP_DST;
-			if (!optarg)
-				break;
-
-			l3protonum = parse_addr(optarg, &ad);
-			set_family(&family, l3protonum);
-			if (l3protonum == AF_INET) {
-				nfct_set_attr_u32(exptuple, 
-						  ATTR_ORIG_IPV4_DST,
-						  ad.v4);
-			} else if (l3protonum == AF_INET6) {
-				nfct_set_attr(exptuple,
-					      ATTR_ORIG_IPV6_DST,
-					      &ad.v6);
-			}
-			nfct_set_attr_u8(exptuple, 
-					 ATTR_ORIG_L3PROTO, 
-					 l3protonum);
-			break;
-		case 'a':
-			fprintf(stderr, "warning: ignoring --nat-range, "
-			        "use --src-nat or --dst-nat instead.\n");
-			break;
 		case 'n':
-			options |= CT_OPT_SRC_NAT;
-			if (!optarg)
-				break;
-			set_family(&family, AF_INET);
-			nat_parse(optarg, 1, obj, CT_OPT_SRC_NAT);
-			break;
 		case 'g':
-			options |= CT_OPT_DST_NAT;
 			if (!optarg)
-				break;
+				exit_error(PARAMETER_PROBLEM, 
+					   "-%c requires an IP", c);
+
+			options |= opt2type[c];
 			set_family(&family, AF_INET);
-			nat_parse(optarg, 1, obj, CT_OPT_DST_NAT);
-		case 'm':
-			options |= CT_OPT_MARK;
-			if (!optarg)
-				continue;
-			nfct_set_attr_u32(obj, ATTR_MARK, atol(optarg));
+			nat_parse(optarg, 1, obj, opt2type[c]);
 			break;
+		case 'm':
 		case 'c':
-			options |= CT_OPT_SECMARK;
+			options |= opt2type[c];
 			if (!optarg)
-				continue;
-			nfct_set_attr_u32(obj, ATTR_SECMARK, atol(optarg));
+				exit_error(PARAMETER_PROBLEM, 
+					   "-%c requires value", c);
+
+			nfct_set_attr_u32(obj, opt2attr[c], atol(optarg));
 			break;
 		case 'i':
-			fprintf(stderr, 
-				"warning: ignoring --id. deprecated option.\n");
+		case 'a':
+			fprintf(stderr, "WARNING: ignoring -%c, "
+					"deprecated option.\n", c);
 			break;
 		case 'f':
 			options |= CT_OPT_FAMILY;
@@ -980,24 +899,21 @@ int main(int argc, char *argv[])
 			else if (strncmp(optarg, "ipv6", strlen("ipv6")) == 0)
 				set_family(&family, AF_INET6);
 			else
-				exit_error(PARAMETER_PROBLEM, "Unknown "
-					   "protocol family\n");
-			break;
-		case 'o':
-			options |= CT_OPT_OUTPUT;
-			parse_parameter(optarg, &output_mask, PARSE_OUTPUT);
+				exit_error(PARAMETER_PROBLEM,
+					   "`%s' unsupported protocol",
+					   optarg);
 			break;
 		default:
 			if (h && h->parse_opts 
 			    &&!h->parse_opts(c - h->option_offset, obj,
 			    		     exptuple, mask, &l4flags))
-				exit_error(PARAMETER_PROBLEM, "parse error\n");
+				exit_error(PARAMETER_PROBLEM, "parse error");
 
 			/* Unknown argument... */
 			if (!h) {
 				usage(argv[0]);
-				exit_error(PARAMETER_PROBLEM, "Missing "
-					   "arguments...\n");
+				exit_error(PARAMETER_PROBLEM,
+					   "Missing arguments...");
 			}
 			break;
 		}
@@ -1013,6 +929,11 @@ int main(int argc, char *argv[])
 			  NUMBER_OF_OPT,
 			  commands_v_options[cmd],
 			  optflags);
+
+	if (command & (CT_CREATE|CT_UPDATE|CT_DELETE|CT_GET) &&
+	    !((options & CT_OPT_ORIG_SRC && options & CT_OPT_ORIG_DST) ||
+	      (options & CT_OPT_REPL_SRC && options & CT_OPT_REPL_DST)))
+	      exit_error(PARAMETER_PROBLEM, "missing IP address");
 
 	if (!(command & CT_HELP) && h && h->final_check)
 		h->final_check(l4flags, cmd, obj);
