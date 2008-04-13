@@ -74,6 +74,9 @@ static int parse(char c,
 			nfct_set_attr_u8(ct, 
 					 ATTR_ICMP_TYPE,
 					 atoi(optarg));
+
+			nfct_set_attr_u8(ct, ATTR_L4PROTO, IPPROTO_ICMP);
+
 			*flags |= ICMP_TYPE;
 			break;
 		case '2':
@@ -83,6 +86,9 @@ static int parse(char c,
 			nfct_set_attr_u8(ct, 
 					 ATTR_ICMP_CODE,
 					 atoi(optarg));
+
+			nfct_set_attr_u8(ct, ATTR_L4PROTO, IPPROTO_ICMP);
+
 			*flags |= ICMP_CODE;
 			break;
 		case '3':
@@ -92,6 +98,9 @@ static int parse(char c,
 			nfct_set_attr_u16(ct,
 					  ATTR_ICMP_ID,
 					  htons(atoi(optarg)));
+
+			nfct_set_attr_u8(ct, ATTR_L4PROTO, IPPROTO_ICMP);
+
 			*flags |= ICMP_ID;
 			break;
 	}

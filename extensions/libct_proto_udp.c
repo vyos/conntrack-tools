@@ -85,6 +85,8 @@ static int parse_options(char c,
 					  ATTR_ORIG_PORT_SRC, 
 					  htons(atoi(optarg)));
 
+			nfct_set_attr_u8(ct, ATTR_ORIG_L4PROTO, IPPROTO_UDP);
+
 			*flags |= UDP_ORIG_SPORT;
 			break;
 		case '2':
@@ -94,6 +96,8 @@ static int parse_options(char c,
 			nfct_set_attr_u16(ct, 
 					  ATTR_ORIG_PORT_DST, 
 					  htons(atoi(optarg)));
+
+			nfct_set_attr_u8(ct, ATTR_ORIG_L4PROTO, IPPROTO_UDP);
 
 			*flags |= UDP_ORIG_DPORT;
 			break;
@@ -105,6 +109,8 @@ static int parse_options(char c,
 					  ATTR_REPL_PORT_SRC, 
 					  htons(atoi(optarg)));
 
+			nfct_set_attr_u8(ct, ATTR_REPL_L4PROTO, IPPROTO_UDP);
+
 			*flags |= UDP_REPL_SPORT;
 			break;
 		case '4':
@@ -114,6 +120,8 @@ static int parse_options(char c,
 			nfct_set_attr_u16(ct, 
 					  ATTR_REPL_PORT_DST, 
 					  htons(atoi(optarg)));
+
+			nfct_set_attr_u8(ct, ATTR_REPL_L4PROTO, IPPROTO_UDP);
 
 			*flags |= UDP_REPL_DPORT;
 			break;
@@ -125,6 +133,8 @@ static int parse_options(char c,
 					  ATTR_ORIG_PORT_SRC,
 					  htons(atoi(optarg)));
 
+			nfct_set_attr_u8(mask, ATTR_ORIG_L4PROTO, IPPROTO_UDP);
+
 			*flags |= UDP_MASK_SPORT;
 			break;
 		case '6':
@@ -134,6 +144,8 @@ static int parse_options(char c,
 			nfct_set_attr_u16(mask, 
 					  ATTR_ORIG_PORT_DST, 
 					  htons(atoi(optarg)));
+
+			nfct_set_attr_u8(mask, ATTR_ORIG_L4PROTO, IPPROTO_UDP);
 
 			*flags |= UDP_MASK_DPORT;
 			break;
@@ -145,6 +157,10 @@ static int parse_options(char c,
 					  ATTR_ORIG_PORT_SRC, 
 					  htons(atoi(optarg)));
 
+			nfct_set_attr_u8(exptuple,
+					 ATTR_ORIG_L4PROTO,
+					 IPPROTO_UDP);
+
 			*flags |= UDP_EXPTUPLE_SPORT;
 			break;
 		case '8':
@@ -154,6 +170,10 @@ static int parse_options(char c,
 			nfct_set_attr_u16(exptuple, 
 					  ATTR_ORIG_PORT_DST, 
 					  htons(atoi(optarg)));
+
+			nfct_set_attr_u8(exptuple,
+					 ATTR_ORIG_L4PROTO,
+					 IPPROTO_UDP);
 
 			*flags |= UDP_EXPTUPLE_DPORT;
 			break;

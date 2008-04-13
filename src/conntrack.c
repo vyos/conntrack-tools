@@ -737,9 +737,9 @@ static int update_cb(enum nf_conntrack_msg_type type,
 	if (ignore_nat(tmp, ct))
 		return NFCT_CB_CONTINUE;
 
-	if (options & CT_OPT_ORIG && !nfct_cmp(tmp, ct, NFCT_CMP_ORIG))
+	if (options & CT_OPT_TUPLE_ORIG && !nfct_cmp(tmp, ct, NFCT_CMP_ORIG))
 		return NFCT_CB_CONTINUE;
-	if (options & CT_OPT_REPL && !nfct_cmp(tmp, ct, NFCT_CMP_REPL))
+	if (options & CT_OPT_TUPLE_REPL && !nfct_cmp(tmp, ct, NFCT_CMP_REPL))
 		return NFCT_CB_CONTINUE;
 
 	nfct_copy(tmp, ct, NFCT_CP_ORIG);
@@ -935,14 +935,6 @@ int main(int argc, char *argv[])
 					   "`%s' unsupported protocol",
 					   optarg);
 
-			nfct_set_attr_u8(obj, ATTR_ORIG_L4PROTO, h->protonum);
-			nfct_set_attr_u8(obj, ATTR_REPL_L4PROTO, h->protonum);
-			nfct_set_attr_u8(exptuple, 
-					 ATTR_ORIG_L4PROTO, 
-					 h->protonum);
-			nfct_set_attr_u8(mask, 
-					 ATTR_ORIG_L4PROTO, 
-					 h->protonum);
 			opts = merge_options(opts, h->opts, &h->option_offset);
 			if (opts == NULL)
 				exit_error(OTHER_PROBLEM, "out of memory");
@@ -1051,6 +1043,11 @@ int main(int argc, char *argv[])
 	/* default family */
 	if (family == AF_UNSPEC)
 		family = AF_INET;
+
+	/* set the protocol number if we have seen -p with no parameters */
+	if (h && !nfct_attr_is_set(obj, ATTR_ORIG_L4PROTO) &&
+	    !nfct_attr_is_set(obj, ATTR_REPL_L4PROTO))
+		nfct_set_attr_u8(obj, ATTR_L4PROTO, h->protonum);
 
 	cmd = bit2cmd(command);
 	generic_cmd_check(cmd, options);
