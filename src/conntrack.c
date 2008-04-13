@@ -1,5 +1,5 @@
 /*
- * (C) 2005-2007 by Pablo Neira Ayuso <pablo@netfilter.org>
+ * (C) 2005-2008 by Pablo Neira Ayuso <pablo@netfilter.org>
  *
  *      This program is free software; you can redistribute it and/or modify
  *      it under the terms of the GNU General Public License as published by
@@ -31,7 +31,8 @@
  * 	Remove remaints of "-A"
  * 2007-04-22 Pablo Neira Ayuso <pablo@netfilter.org>:
  * 	Ported to the new libnetfilter_conntrack API
- *
+ * 2008-04-13 Pablo Neira Ayuso <pablo@netfilter.org>:
+ *	Way more flexible update and delete operations
  */
 
 #include "conntrack.h"
@@ -103,7 +104,7 @@ static struct option original_opts[] = {
 
 #define OPTION_OFFSET 256
 
-static struct nfct_handle *cth;
+static struct nfct_handle *cth, *ith;
 static struct option *opts = original_opts;
 static unsigned int global_option_offset = 0;
 
@@ -122,8 +123,8 @@ static char commands_v_options[NUMBER_OF_CMD][NUMBER_OF_OPT] =
           /*   s d r q p t u z e [ ] { } a m i f n g o c */
 /*CT_LIST*/   {2,2,2,2,2,0,0,2,0,0,0,0,0,0,2,2,2,2,2,2,2},
 /*CT_CREATE*/ {2,2,2,2,1,1,1,0,0,0,0,0,0,2,2,0,0,2,2,0,2},
-/*CT_UPDATE*/ {2,2,2,2,1,2,2,0,0,0,0,0,0,0,2,2,0,0,0,0,2},
-/*CT_DELETE*/ {2,2,2,2,2,0,0,0,0,0,0,0,0,0,0,2,0,0,0,0,0},
+/*CT_UPDATE*/ {2,2,2,2,2,2,2,0,0,0,0,0,0,0,2,2,2,2,2,2,2},
+/*CT_DELETE*/ {2,2,2,2,2,2,2,0,0,0,0,0,0,0,2,2,2,2,2,2,2},
 /*CT_GET*/    {2,2,2,2,1,0,0,0,0,0,0,0,0,0,0,2,0,0,0,2,0},
 /*CT_FLUSH*/  {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
 /*CT_EVENT*/  {2,2,2,2,2,0,0,0,2,0,0,0,0,0,2,0,0,2,2,2,2},
@@ -499,14 +500,6 @@ nat_parse(char *arg, int portok, struct nf_conntrack *obj, int type)
 		nfct_set_attr_u32(obj, ATTR_DNAT_IPV4, parse.v4);
 }
 
-static void __attribute__((noreturn))
-event_sighandler(int s)
-{
-	fprintf(stdout, "Now closing conntrack event dumping...\n");
-	nfct_close(cth);
-	exit(0);
-}
-
 static const char usage_commands[] =
 	"Commands:\n"
 	"  -L [table] [options]\t\tList conntrack or expectation table\n"
@@ -566,49 +559,99 @@ usage(char *prog)
 
 static unsigned int output_mask;
 
+static int ignore_nat(const struct nf_conntrack *obj,
+		      const struct nf_conntrack *ct)
+{
+	uint32_t ip;
+
+	if (options & CT_OPT_SRC_NAT && options & CT_OPT_DST_NAT) {
+		if (!nfct_getobjopt(ct, NFCT_GOPT_IS_SNAT) &&
+		    !nfct_getobjopt(ct, NFCT_GOPT_IS_DNAT))
+			return 1;
+
+		if (nfct_attr_is_set(obj, ATTR_SNAT_IPV4)) {
+			ip = nfct_get_attr_u32(obj, ATTR_SNAT_IPV4);
+			if (ip != nfct_get_attr_u32(ct, ATTR_REPL_IPV4_DST))
+				return 1;
+		}
+
+		if (nfct_attr_is_set(obj, ATTR_DNAT_IPV4)) {
+			ip = nfct_get_attr_u32(obj, ATTR_DNAT_IPV4);
+			if (ip != nfct_get_attr_u32(ct, ATTR_REPL_IPV4_SRC))
+				return 1;
+		}
+	} else if (options & CT_OPT_SRC_NAT) {
+		if (!nfct_getobjopt(ct, NFCT_GOPT_IS_SNAT))
+		  	return 1;
+
+		if (nfct_attr_is_set(obj, ATTR_SNAT_IPV4)) {
+			ip = nfct_get_attr_u32(obj, ATTR_SNAT_IPV4);
+			if (ip != nfct_get_attr_u32(ct, ATTR_REPL_IPV4_DST))
+				return 1;
+		}
+	} else if (options & CT_OPT_DST_NAT) {
+		if (!nfct_getobjopt(ct, NFCT_GOPT_IS_DNAT))
+			return 1;
+
+		if (nfct_attr_is_set(obj, ATTR_DNAT_IPV4)) {
+			ip = nfct_get_attr_u32(obj, ATTR_DNAT_IPV4);
+			if (ip != nfct_get_attr_u32(ct, ATTR_REPL_IPV4_SRC))
+				return 1;
+		}
+	}
+
+	return 0;
+}
+
+static int events_counter;
+
+static void __attribute__((noreturn))
+event_sighandler(int s)
+{
+	fprintf(stderr, "%s v%s: ", PROGNAME, VERSION);
+	fprintf(stderr, "%d flow events has been shown.\n", events_counter);
+	nfct_close(cth);
+	exit(0);
+}
+
 static int event_cb(enum nf_conntrack_msg_type type,
 		    struct nf_conntrack *ct,
 		    void *data)
 {
 	char buf[1024];
 	struct nf_conntrack *obj = data;
-	unsigned int output_type = NFCT_O_DEFAULT;
-	unsigned int output_flags = 0;
+	unsigned int op_type = NFCT_O_DEFAULT;
+	unsigned int op_flags = 0;
 
-	if (options & CT_OPT_SRC_NAT && options & CT_OPT_DST_NAT) {
-		if (!nfct_getobjopt(ct, NFCT_GOPT_IS_SNAT) &&
-		    !nfct_getobjopt(ct, NFCT_GOPT_IS_DNAT))
-			return NFCT_CB_CONTINUE;
-	} else if (options & CT_OPT_SRC_NAT && 
-		   !nfct_getobjopt(ct, NFCT_GOPT_IS_SNAT)) {
-	 	return NFCT_CB_CONTINUE;
-	} else if (options & CT_OPT_DST_NAT &&
-		   !nfct_getobjopt(ct, NFCT_GOPT_IS_DNAT)) {
+	if (ignore_nat(obj, ct))
 		return NFCT_CB_CONTINUE;
-	}
 
-	if (options & CT_COMPARISON && !nfct_compare(obj, ct))
+	if (options & CT_COMPARISON && !nfct_cmp(obj, ct, NFCT_CMP_ALL))
 		return NFCT_CB_CONTINUE;
 
 	if (output_mask & _O_XML)
-		output_type = NFCT_O_XML;
+		op_type = NFCT_O_XML;
 	if (output_mask & _O_EXT)
-		output_flags = NFCT_OF_SHOW_LAYER3;
+		op_flags = NFCT_OF_SHOW_LAYER3;
 	if (output_mask & _O_TMS) {
 		if (!(output_mask & _O_XML)) {
 			struct timeval tv;
 			gettimeofday(&tv, NULL);
 			printf("[%-8ld.%-6ld]\t", tv.tv_sec, tv.tv_usec);
 		} else
-			output_flags |= NFCT_OF_TIME;
+			op_flags |= NFCT_OF_TIME;
 	}	
 
-	nfct_snprintf(buf, 1024, ct, type, output_type, output_flags);
+	nfct_snprintf(buf, 1024, ct, type, op_type, op_flags);
 	printf("%s\n", buf);
 	fflush(stdout);
 
+	events_counter++;
+
 	return NFCT_CB_CONTINUE;
 }
+
+static int list_counter;
 
 static int dump_cb(enum nf_conntrack_msg_type type,
 		   struct nf_conntrack *ct,
@@ -616,31 +659,106 @@ static int dump_cb(enum nf_conntrack_msg_type type,
 {
 	char buf[1024];
 	struct nf_conntrack *obj = data;
-	unsigned int output_type = NFCT_O_DEFAULT;
-	unsigned int output_flags = 0;
+	unsigned int op_type = NFCT_O_DEFAULT;
+	unsigned int op_flags = 0;
 
-	if (options & CT_OPT_SRC_NAT && options & CT_OPT_DST_NAT) {
-		if (!nfct_getobjopt(ct, NFCT_GOPT_IS_SNAT) &&
-		    !nfct_getobjopt(ct, NFCT_GOPT_IS_DNAT))
-			return NFCT_CB_CONTINUE;
-	} else if (options & CT_OPT_SRC_NAT && 
-		   !nfct_getobjopt(ct, NFCT_GOPT_IS_SNAT)) {
-	 	return NFCT_CB_CONTINUE;
-	} else if (options & CT_OPT_DST_NAT &&
-		   !nfct_getobjopt(ct, NFCT_GOPT_IS_DNAT)) {
+	if (ignore_nat(obj, ct))
 		return NFCT_CB_CONTINUE;
-	}
 
-	if (options & CT_COMPARISON && !nfct_compare(obj, ct))
+	if (options & CT_COMPARISON && !nfct_cmp(obj, ct, NFCT_CMP_ALL))
 		return NFCT_CB_CONTINUE;
 
 	if (output_mask & _O_XML)
-		output_type = NFCT_O_XML;
+		op_type = NFCT_O_XML;
 	if (output_mask & _O_EXT)
-		output_flags = NFCT_OF_SHOW_LAYER3;
+		op_flags = NFCT_OF_SHOW_LAYER3;
 
-	nfct_snprintf(buf, 1024, ct, NFCT_T_UNKNOWN, output_type, output_flags);
+	nfct_snprintf(buf, 1024, ct, NFCT_T_UNKNOWN, op_type, op_flags);
 	printf("%s\n", buf);
+
+	list_counter++;
+
+	return NFCT_CB_CONTINUE;
+}
+
+static int delete_counter;
+
+static int delete_cb(enum nf_conntrack_msg_type type,
+		     struct nf_conntrack *ct,
+		     void *data)
+{
+	int res;
+	char buf[1024];
+	struct nf_conntrack *obj = data;
+	unsigned int op_type = NFCT_O_DEFAULT;
+	unsigned int op_flags = 0;
+
+	if (ignore_nat(obj, ct))
+		return NFCT_CB_CONTINUE;
+
+	if (options & CT_COMPARISON && !nfct_cmp(obj, ct, NFCT_CMP_ALL))
+		return NFCT_CB_CONTINUE;
+
+	res = nfct_query(ith, NFCT_Q_DESTROY, ct);
+	if (res < 0)
+		exit_error(OTHER_PROBLEM,
+			   "Operation failed: %s",
+			   err2str(errno, CT_DELETE));
+
+	if (output_mask & _O_XML)
+		op_type = NFCT_O_XML;
+	if (output_mask & _O_EXT)
+		op_flags = NFCT_OF_SHOW_LAYER3;
+
+	nfct_snprintf(buf, 1024, ct, NFCT_T_UNKNOWN, op_type, op_flags);
+	printf("%s\n", buf);
+
+	delete_counter++;
+
+	return NFCT_CB_CONTINUE;
+}
+
+static int update_counter;
+
+static int update_cb(enum nf_conntrack_msg_type type,
+		     struct nf_conntrack *ct,
+		     void *data)
+{
+	int res;
+	char buf[1024];
+	struct nf_conntrack *obj = data;
+	char __tmp[nfct_maxsize()];
+	struct nf_conntrack *tmp = (struct nf_conntrack *) (void *)__tmp;
+	unsigned int op_type = NFCT_O_DEFAULT;
+	unsigned int op_flags = 0;
+
+	memcpy(tmp, obj, sizeof(__tmp));
+
+	if (ignore_nat(tmp, ct))
+		return NFCT_CB_CONTINUE;
+
+	if (options & CT_OPT_ORIG && !nfct_cmp(tmp, ct, NFCT_CMP_ORIG))
+		return NFCT_CB_CONTINUE;
+	if (options & CT_OPT_REPL && !nfct_cmp(tmp, ct, NFCT_CMP_REPL))
+		return NFCT_CB_CONTINUE;
+
+	nfct_copy(tmp, ct, NFCT_CP_ORIG);
+
+	res = nfct_query(ith, NFCT_Q_UPDATE, tmp);
+	if (res < 0)
+		exit_error(OTHER_PROBLEM,
+			   "Operation failed: %s",
+			   err2str(errno, CT_UPDATE));
+
+	if (output_mask & _O_XML)
+		op_type = NFCT_O_XML;
+	if (output_mask & _O_EXT)
+		op_flags = NFCT_OF_SHOW_LAYER3;
+
+	nfct_snprintf(buf, 1024, ct, NFCT_T_UNKNOWN, op_type, op_flags);
+	printf("%s\n", buf);
+
+	update_counter++;
 
 	return NFCT_CB_CONTINUE;
 }
@@ -665,6 +783,7 @@ static const int cmd2type[][2] = {
 	['D']	= { CT_DELETE,	EXP_DELETE },
 	['G']	= { CT_GET,	EXP_GET },
 	['F']	= { CT_FLUSH,	EXP_FLUSH },
+	['E']	= { CT_EVENT,	EXP_EVENT },
 	['V']	= { CT_VERSION,	CT_VERSION },
 	['h']	= { CT_HELP,	CT_HELP },
 };
@@ -714,7 +833,8 @@ int main(int argc, char *argv[])
 	char __exptuple[nfct_maxsize()];
 	char __mask[nfct_maxsize()];
 	struct nf_conntrack *obj = (struct nf_conntrack *)(void*) __obj;
-	struct nf_conntrack *exptuple = (struct nf_conntrack *)(void*) __exptuple;
+	struct nf_conntrack *exptuple = 
+		(struct nf_conntrack *)(void*) __exptuple;
 	struct nf_conntrack *mask = (struct nf_conntrack *)(void*) __mask;
 	char __exp[nfexp_maxsize()];
 	struct nf_expect *exp = (struct nf_expect *)(void*) __exp;
@@ -869,15 +989,24 @@ int main(int argc, char *argv[])
 			options |= CT_OPT_ZERO;
 			break;
 		case 'n':
-		case 'g':
-			if (!optarg)
-				exit_error(PARAMETER_PROBLEM, 
-					   "-%c requires an IP", c);
+		case 'g': {
+			char *tmp = NULL;
 
 			options |= opt2type[c];
+
+			if (optarg)
+				continue;
+			else if (optind < argc && argv[optind][0] != '-'
+				 && argv[optind][0] != '!')
+				tmp = argv[optind++];
+
+			if (tmp == NULL)
+				continue;
+
 			set_family(&family, AF_INET);
-			nat_parse(optarg, 1, obj, opt2type[c]);
+			nat_parse(tmp, 1, obj, opt2type[c]);
 			break;
+		}
 		case 'm':
 		case 'c':
 			options |= opt2type[c];
@@ -930,7 +1059,7 @@ int main(int argc, char *argv[])
 			  commands_v_options[cmd],
 			  optflags);
 
-	if (command & (CT_CREATE|CT_UPDATE|CT_DELETE|CT_GET) &&
+	if (command & (CT_CREATE|CT_GET) &&
 	    !((options & CT_OPT_ORIG_SRC && options & CT_OPT_ORIG_DST) ||
 	      (options & CT_OPT_REPL_SRC && options & CT_OPT_REPL_DST)))
 	      exit_error(PARAMETER_PROBLEM, "missing IP address");
@@ -958,6 +1087,10 @@ int main(int argc, char *argv[])
 			res = nfct_query(cth, NFCT_Q_DUMP, &family);
 
 		nfct_close(cth);
+
+		fprintf(stderr, "%s v%s: ", PROGNAME, VERSION);
+		fprintf(stderr, "%d flow entries has been shown.\n",
+			list_counter);
 		break;
 
 	case EXP_LIST:
@@ -982,6 +1115,9 @@ int main(int argc, char *argv[])
 
 		res = nfct_query(cth, NFCT_Q_CREATE, obj);
 		nfct_close(cth);
+		fprintf(stderr, "%s v%s: ", PROGNAME, VERSION);
+		fprintf(stderr, "%d flow entry has been created.\n",
+			res == -1 ? 0 : 1);
 		break;
 
 	case EXP_CREATE:
@@ -998,29 +1134,38 @@ int main(int argc, char *argv[])
 		break;
 
 	case CT_UPDATE:
-		if ((options & CT_OPT_ORIG) && !(options & CT_OPT_REPL))
-		    	nfct_setobjopt(obj, NFCT_SOPT_SETUP_REPLY);
-		else if (!(options & CT_OPT_ORIG) && (options & CT_OPT_REPL))
-			nfct_setobjopt(obj, NFCT_SOPT_SETUP_ORIGINAL);
-
 		cth = nfct_open(CONNTRACK, 0);
-		if (!cth)
+		/* internal handler for delete_cb, otherwise we hit EILSEQ */
+		ith = nfct_open(CONNTRACK, 0);
+		if (!cth || !ith)
 			exit_error(OTHER_PROBLEM, "Can't open handler");
 
-		res = nfct_query(cth, NFCT_Q_UPDATE, obj);
+		nfct_callback_register(cth, NFCT_T_ALL, update_cb, obj);
+
+		res = nfct_query(cth, NFCT_Q_DUMP, &family);
+		nfct_close(ith);
 		nfct_close(cth);
+
+		fprintf(stderr, "%s v%s: ", PROGNAME, VERSION);
+		fprintf(stderr, "%d flow entries has been updated.\n",
+			update_counter);
 		break;
 		
 	case CT_DELETE:
-		if (!(options & CT_OPT_ORIG) && !(options & CT_OPT_REPL))
-			exit_error(PARAMETER_PROBLEM, "Can't kill conntracks "
-						      "just by its ID");
 		cth = nfct_open(CONNTRACK, 0);
-		if (!cth)
+		ith = nfct_open(CONNTRACK, 0);
+		if (!cth || !ith)
 			exit_error(OTHER_PROBLEM, "Can't open handler");
 
-		res = nfct_query(cth, NFCT_Q_DESTROY, obj);
+		nfct_callback_register(cth, NFCT_T_ALL, delete_cb, obj);
+
+		res = nfct_query(cth, NFCT_Q_DUMP, &family);
+		nfct_close(ith);
 		nfct_close(cth);
+
+		fprintf(stderr, "%s v%s: ", PROGNAME, VERSION);
+		fprintf(stderr, "%d flow entries has been deleted.\n", 
+			delete_counter);
 		break;
 
 	case EXP_DELETE:
@@ -1042,6 +1187,9 @@ int main(int argc, char *argv[])
 		nfct_callback_register(cth, NFCT_T_ALL, dump_cb, obj);
 		res = nfct_query(cth, NFCT_Q_GET, obj);
 		nfct_close(cth);
+		fprintf(stderr, "%s v%s: ", PROGNAME, VERSION);
+		fprintf(stderr, "%d flow entry has been shown.\n",
+			res == -1 ? 0 : 1);
 		break;
 
 	case EXP_GET:
@@ -1062,6 +1210,8 @@ int main(int argc, char *argv[])
 			exit_error(OTHER_PROBLEM, "Can't open handler");
 		res = nfct_query(cth, NFCT_Q_FLUSH, &family);
 		nfct_close(cth);
+		fprintf(stderr, "%s v%s: ", PROGNAME, VERSION);
+		fprintf(stderr,"connection tracking table has been emptied.\n");
 		break;
 
 	case EXP_FLUSH:
@@ -1081,6 +1231,7 @@ int main(int argc, char *argv[])
 		if (!cth)
 			exit_error(OTHER_PROBLEM, "Can't open handler");
 		signal(SIGINT, event_sighandler);
+		signal(SIGTERM, event_sighandler);
 		nfct_callback_register(cth, NFCT_T_ALL, event_cb, obj);
 		res = nfct_catch(cth);
 		nfct_close(cth);
@@ -1091,6 +1242,7 @@ int main(int argc, char *argv[])
 		if (!cth)
 			exit_error(OTHER_PROBLEM, "Can't open handler");
 		signal(SIGINT, event_sighandler);
+		signal(SIGTERM, event_sighandler);
 		nfexp_callback_register(cth, NFCT_T_ALL, dump_exp_cb, NULL);
 		res = nfexp_catch(cth);
 		nfct_close(cth);
@@ -1115,10 +1267,9 @@ int main(int argc, char *argv[])
 		global_option_offset = 0;
 	}
 
-	if (res < 0) {
-		fprintf(stderr, "Operation failed: %s\n", err2str(errno, command));
-		exit(OTHER_PROBLEM);
-	}
+	if (res < 0)
+		exit_error(OTHER_PROBLEM, "Operation failed: %s",
+			   err2str(errno, command));
 
 	return 0;
 }
