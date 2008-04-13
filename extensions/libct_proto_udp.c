@@ -165,7 +165,7 @@ static void final_check(unsigned int flags,
 		        unsigned int cmd,
 		        struct nf_conntrack *ct)
 {
-	if ((1 << cmd) & (CT_CREATE|CT_UPDATE|CT_DELETE|CT_GET) &&
+	if ((1 << cmd) & (CT_CREATE|CT_GET) &&
 	    !((flags & UDP_ORIG_SPORT && flags & UDP_ORIG_DPORT) ||
 	      (flags & UDP_REPL_SPORT && flags & UDP_REPL_DPORT)))
 		exit_error(PARAMETER_PROBLEM, "missing ports");

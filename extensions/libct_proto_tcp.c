@@ -200,7 +200,7 @@ static void final_check(unsigned int flags,
 			unsigned int cmd,
 			struct nf_conntrack *ct)
 {
-	if ((1 << cmd) & (CT_CREATE|CT_UPDATE|CT_DELETE|CT_GET) &&
+	if ((1 << cmd) & (CT_CREATE|CT_GET) &&
 	    !((flags & TCP_ORIG_SPORT && flags & TCP_ORIG_DPORT) ||
 	      (flags & TCP_REPL_SPORT && flags & TCP_REPL_DPORT)))
 	      	exit_error(PARAMETER_PROBLEM, "missing ports");
