@@ -170,7 +170,7 @@ static int event_destroy_stats(struct nf_conntrack *ct)
 
 	if (cache_del(STATE_STATS(cache), ct)) {
 		debug_ct(ct, "cache destroy");
-		dlog_ct(ct);
+		dlog_ct(STATE(stats_log), ct, NFCT_O_PLAIN);
 		return 1;
 	} else {
 		debug_ct(ct, "can't destroy!");

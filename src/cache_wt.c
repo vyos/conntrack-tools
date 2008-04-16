@@ -35,16 +35,21 @@ static void add_wt(struct us_conntrack *u)
 	switch (ret) {
 	case -1:
 		dlog(LOG_ERR, "cache_wt problem: %s", strerror(errno));
+		dlog_ct(STATE(log), u->ct, NFCT_O_PLAIN);
 		break;
 	case 0:
 		memcpy(ct, u->ct, nfct_maxsize());
-		if (nl_create_conntrack(ct) == -1)
+		if (nl_create_conntrack(ct) == -1) {
 			dlog(LOG_ERR, "cache_wt create: %s", strerror(errno));
+			dlog_ct(STATE(log), u->ct, NFCT_O_PLAIN);
+		}
 		break;
 	case 1:
 		memcpy(ct, u->ct, nfct_maxsize());
-		if (nl_update_conntrack(ct) == -1)
+		if (nl_update_conntrack(ct) == -1) {
 			dlog(LOG_ERR, "cache_wt crt-upd: %s", strerror(errno));
+			dlog_ct(STATE(log), u->ct, NFCT_O_PLAIN);
+		}
 		break;
 	}
 }
@@ -56,8 +61,10 @@ static void upd_wt(struct us_conntrack *u)
 
 	memcpy(ct, u->ct, nfct_maxsize());
 
-	if (nl_update_conntrack(ct) == -1)
+	if (nl_update_conntrack(ct) == -1) {
 		dlog(LOG_ERR, "cache_wt update:%s", strerror(errno));
+		dlog_ct(STATE(log), u->ct, NFCT_O_PLAIN);
+	}
 }
 
 static void writethrough_add(struct us_conntrack *u, void *data)

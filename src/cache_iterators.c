@@ -98,6 +98,8 @@ static int do_commit(void *data1, void *data2)
 				c->commit_exist++;
 				break;
 			default:
+				dlog(LOG_ERR, "commit: %s", strerror(errno));
+				dlog_ct(STATE(log), u->ct, NFCT_O_PLAIN);
 				c->commit_fail++;
 				break;
 		}

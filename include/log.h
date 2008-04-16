@@ -7,7 +7,7 @@ struct nf_conntrack;
 
 int init_log(void);
 void dlog(int priority, const char *format, ...);
-void dlog_ct(struct nf_conntrack *ct);
+void dlog_ct(FILE *fd, struct nf_conntrack *ct, unsigned int type);
 void close_log(void);
 
 #endif

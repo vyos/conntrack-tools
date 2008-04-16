@@ -104,18 +104,30 @@ void dlog(int priority, const char *format, ...)
 	}
 }
 
-void dlog_ct(struct nf_conntrack *ct)
+void dlog_ct(FILE *fd, struct nf_conntrack *ct, unsigned int type)
 {
-	FILE *fd = STATE(stats_log);
 	time_t t;
 	char buf[1024];
 	char *tmp;
-		
-	t = time(NULL);
-	ctime_r(&t, buf);
-	tmp = buf + strlen(buf);
-	buf[strlen(buf)-1]='\t';
-	nfct_snprintf(buf+strlen(buf), 1024-strlen(buf), ct, 0, 0, 0);
+	unsigned int flags = 0;
+
+	buf[0]='\0';
+
+	switch(type) {
+	case NFCT_O_PLAIN:
+		t = time(NULL);
+		ctime_r(&t, buf);
+		tmp = buf + strlen(buf);
+		buf[strlen(buf)-1]='\t';
+		break;
+	case NFCT_O_XML:
+		tmp = buf;
+		flags |= NFCT_OF_TIME;
+		break;
+	default:
+		return;
+	}
+	nfct_snprintf(buf+strlen(buf), 1024-strlen(buf), ct, 0, type, flags);
 
 	if (fd) {
 		snprintf(buf+strlen(buf), 1024-strlen(buf), "\n");
