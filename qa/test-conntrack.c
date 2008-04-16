@@ -21,7 +21,7 @@
 
 int main()
 {
-	int ret, ok = 0, bad = 0;
+	int ret, ok = 0, bad = 0, line;
 	FILE *fp;
 	DIR *d;
 	char buf[1024];
@@ -34,6 +34,8 @@ int main()
 
 		sprintf(file, "testsuite/%s", dent->d_name);
 
+		line = 0;
+
 		fp = fopen(file, "r");
 		if (fp == NULL) {
 			perror("cannot find testsuite file");
@@ -44,15 +46,22 @@ int main()
 			char tmp[1024] = CT_PROG, *res;
 			tmp[strlen(CT_PROG)] = ' ';
 
+			line++;
+
 			if (buf[0] == '#' || buf[0] == ' ')
 				continue;
 
 			res = strchr(buf, ';');
+			if (!res) {
+				printf("malformed file %s at line %d\n", 
+					dent->d_name, line);
+				exit(EXIT_FAILURE);
+			}
 			*res = '\0';
 			res+=2;
 
 			strcpy(tmp + strlen(CT_PROG) + 1, buf);
-			printf("Executing: %s\n", tmp);
+			printf("(%d) Executing: %s\n", line, tmp);
 
 			ret = system(tmp);
 
@@ -75,10 +84,11 @@ int main()
 					printf("^----- BAD\n");
 				}
 			}
+			printf("=====\n");
 		}
+		fclose(fp);
 	}
+	closedir(d);
 
 	fprintf(stdout, "OK: %d BAD: %d\n", ok, bad);
-
-	fclose(fp);
 }

@@ -14,7 +14,10 @@ o simplify parameter-handling code
 o check for missing source/address IP/ports in creation and get operations
 o way more flexible conntrack updates and deletions
 o fix NAT filtering via --src-nat and --dst-nat (reported by K.Oledzki)
+o recover the ID support
 o show display counters to stderr
+o enable filtering by status and ID
+o update manpage
 o minor cleanups
 
 = conntrackd =

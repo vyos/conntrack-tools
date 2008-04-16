@@ -138,14 +138,10 @@ enum options {
 #define NUMBER_OF_OPT	CT_OPT_MAX+1
 
 enum {
-	_O_XML_BIT		= 0,
-	_O_XML			= (1 << _O_XML_BIT),
-
-	_O_EXT_BIT		= 1,
-	_O_EXT			= (1 << _O_EXT_BIT),
-
-	_O_TMS_BIT		= 2,
-	_O_TMS			= (1 << _O_TMS_BIT),
+	_O_XML			= (1 << 0),
+	_O_EXT			= (1 << 1),
+	_O_TMS			= (1 << 2),
+	_O_ID			= (1 << 3),
 };
 
 struct ctproto_handler {

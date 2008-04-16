@@ -121,7 +121,7 @@ static char commands_v_options[NUMBER_OF_CMD][NUMBER_OF_OPT] =
 /* Well, it's better than "Re: Linux vs FreeBSD" */
 {
           /*   s d r q p t u z e [ ] { } a m i f n g o c */
-/*CT_LIST*/   {2,2,2,2,2,0,0,2,0,0,0,0,0,0,2,2,2,2,2,2,2},
+/*CT_LIST*/   {2,2,2,2,2,0,2,2,0,0,0,0,0,0,2,0,2,2,2,2,2},
 /*CT_CREATE*/ {2,2,2,2,1,1,1,0,0,0,0,0,0,2,2,0,0,2,2,0,2},
 /*CT_UPDATE*/ {2,2,2,2,2,2,2,0,0,0,0,0,0,0,2,2,2,2,2,2,2},
 /*CT_DELETE*/ {2,2,2,2,2,2,2,0,0,0,0,0,0,0,2,2,2,2,2,2,2},
@@ -130,7 +130,7 @@ static char commands_v_options[NUMBER_OF_CMD][NUMBER_OF_OPT] =
 /*CT_EVENT*/  {2,2,2,2,2,0,0,0,2,0,0,0,0,0,2,0,0,2,2,2,2},
 /*VERSION*/   {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
 /*HELP*/      {0,0,0,0,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-/*EXP_LIST*/  {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,2,0,0,0,0},
+/*EXP_LIST*/  {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,0,0,0,0},
 /*EXP_CREATE*/{1,1,2,2,1,1,2,0,0,1,1,1,1,0,0,0,0,0,0,0,0},
 /*EXP_DELETE*/{1,1,2,2,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
 /*EXP_GET*/   {1,1,2,2,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
@@ -143,7 +143,7 @@ static LIST_HEAD(proto_list);
 static unsigned int options;
 
 #define CT_COMPARISON (CT_OPT_PROTO | CT_OPT_ORIG | CT_OPT_REPL | CT_OPT_MARK |\
-		       CT_OPT_SECMARK)
+		       CT_OPT_SECMARK |  CT_OPT_STATUS | CT_OPT_ID)
 
 void register_proto(struct ctproto_handler *h)
 {
@@ -328,8 +328,8 @@ static struct parse_parameter {
 	{ {"ALL", "NEW", "UPDATES", "DESTROY"}, 4,
 	  {~0U, NF_NETLINK_CONNTRACK_NEW, NF_NETLINK_CONNTRACK_UPDATE, 
 	   NF_NETLINK_CONNTRACK_DESTROY} },
-	{ {"xml", "extended", "timestamp" }, 3, 
-	  { _O_XML, _O_EXT, _O_TMS },
+	{ {"xml", "extended", "timestamp", "id" }, 4, 
+	  { _O_XML, _O_EXT, _O_TMS, _O_ID },
 	},
 };
 
@@ -603,13 +603,13 @@ static int ignore_nat(const struct nf_conntrack *obj,
 	return 0;
 }
 
-static int events_counter;
+static int counter;
 
 static void __attribute__((noreturn))
 event_sighandler(int s)
 {
 	fprintf(stderr, "%s v%s: ", PROGNAME, VERSION);
-	fprintf(stderr, "%d flow events has been shown.\n", events_counter);
+	fprintf(stderr, "%d flow events has been shown.\n", counter);
 	nfct_close(cth);
 	exit(0);
 }
@@ -640,18 +640,18 @@ static int event_cb(enum nf_conntrack_msg_type type,
 			printf("[%-8ld.%-6ld]\t", tv.tv_sec, tv.tv_usec);
 		} else
 			op_flags |= NFCT_OF_TIME;
-	}	
+	}
+	if (output_mask & _O_ID)
+		op_flags |= NFCT_OF_ID;
 
 	nfct_snprintf(buf, 1024, ct, type, op_type, op_flags);
 	printf("%s\n", buf);
 	fflush(stdout);
 
-	events_counter++;
+	counter++;
 
 	return NFCT_CB_CONTINUE;
 }
-
-static int list_counter;
 
 static int dump_cb(enum nf_conntrack_msg_type type,
 		   struct nf_conntrack *ct,
@@ -672,16 +672,16 @@ static int dump_cb(enum nf_conntrack_msg_type type,
 		op_type = NFCT_O_XML;
 	if (output_mask & _O_EXT)
 		op_flags = NFCT_OF_SHOW_LAYER3;
+	if (output_mask & _O_ID)
+		op_flags |= NFCT_OF_ID;
 
 	nfct_snprintf(buf, 1024, ct, NFCT_T_UNKNOWN, op_type, op_flags);
 	printf("%s\n", buf);
 
-	list_counter++;
+	counter++;
 
 	return NFCT_CB_CONTINUE;
 }
-
-static int delete_counter;
 
 static int delete_cb(enum nf_conntrack_msg_type type,
 		     struct nf_conntrack *ct,
@@ -709,16 +709,16 @@ static int delete_cb(enum nf_conntrack_msg_type type,
 		op_type = NFCT_O_XML;
 	if (output_mask & _O_EXT)
 		op_flags = NFCT_OF_SHOW_LAYER3;
+	if (output_mask & _O_ID)
+		op_flags |= NFCT_OF_ID;
 
 	nfct_snprintf(buf, 1024, ct, NFCT_T_UNKNOWN, op_type, op_flags);
 	printf("%s\n", buf);
 
-	delete_counter++;
+	counter++;
 
 	return NFCT_CB_CONTINUE;
 }
-
-static int update_counter;
 
 static int update_cb(enum nf_conntrack_msg_type type,
 		     struct nf_conntrack *ct,
@@ -737,6 +737,10 @@ static int update_cb(enum nf_conntrack_msg_type type,
 	if (ignore_nat(tmp, ct))
 		return NFCT_CB_CONTINUE;
 
+	if (nfct_attr_is_set(obj, ATTR_ID) && nfct_attr_is_set(ct, ATTR_ID) &&
+	    nfct_get_attr_u32(obj, ATTR_ID) != nfct_get_attr_u32(ct, ATTR_ID))
+	    	return NFCT_CB_CONTINUE;
+
 	if (options & CT_OPT_TUPLE_ORIG && !nfct_cmp(tmp, ct, NFCT_CMP_ORIG))
 		return NFCT_CB_CONTINUE;
 	if (options & CT_OPT_TUPLE_REPL && !nfct_cmp(tmp, ct, NFCT_CMP_REPL))
@@ -754,11 +758,13 @@ static int update_cb(enum nf_conntrack_msg_type type,
 		op_type = NFCT_O_XML;
 	if (output_mask & _O_EXT)
 		op_flags = NFCT_OF_SHOW_LAYER3;
+	if (output_mask & _O_ID)
+		op_flags |= NFCT_OF_ID;
 
 	nfct_snprintf(buf, 1024, ct, NFCT_T_UNKNOWN, op_type, op_flags);
 	printf("%s\n", buf);
 
-	update_counter++;
+	counter++;
 
 	return NFCT_CB_CONTINUE;
 }
@@ -801,6 +807,7 @@ static const int opt2type[] = {
 	['g']	= CT_OPT_DST_NAT,
 	['m']	= CT_OPT_MARK,
 	['c']	= CT_OPT_SECMARK,
+	['i']	= CT_OPT_ID,
 };
 
 static const int opt2family_attr[][2] = {
@@ -821,6 +828,18 @@ static const int opt2attr[] = {
 	['q']	= ATTR_REPL_L3PROTO,
 	['m']	= ATTR_MARK,
 	['c']	= ATTR_SECMARK,
+	['i']	= ATTR_ID,
+};
+
+static char exit_msg[][64] = {
+	[CT_LIST_BIT] 		= "%d flow entries has been shown.\n",
+	[CT_CREATE_BIT]		= "%d flow entries has been created.\n",
+	[CT_UPDATE_BIT]		= "%d flow entries has been updated.\n",
+	[CT_DELETE_BIT]		= "%d flow entries has been deleted.\n",
+	[CT_GET_BIT] 		= "%d flow entries has been shown.\n",
+	[CT_EVENT_BIT]		= "%d flow events has been shown.\n",
+	[EXP_LIST_BIT]		= "%d expectations has been shown.\n",
+	[EXP_DELETE_BIT]	= "%d expectations has been shown.\n",
 };
 
 int main(int argc, char *argv[])
@@ -853,7 +872,7 @@ int main(int argc, char *argv[])
 	register_icmpv6();
 
 	while ((c = getopt_long(argc, argv, "L::I::U::D::G::E::F::hVs:d:r:q:"
-					    "p:t:u:e:a:z[:]:{:}:m:i::f:o:n::"
+					    "p:t:u:e:a:z[:]:{:}:m:i:f:o:n::"
 					    "g::c:", 
 					    opts, NULL)) != -1) {
 	switch(c) {
@@ -999,6 +1018,7 @@ int main(int argc, char *argv[])
 			nat_parse(tmp, 1, obj, opt2type[c]);
 			break;
 		}
+		case 'i':
 		case 'm':
 		case 'c':
 			options |= opt2type[c];
@@ -1006,9 +1026,10 @@ int main(int argc, char *argv[])
 				exit_error(PARAMETER_PROBLEM, 
 					   "-%c requires value", c);
 
-			nfct_set_attr_u32(obj, opt2attr[c], atol(optarg));
+			nfct_set_attr_u32(obj,
+					  opt2attr[c],
+					  strtoul(optarg, NULL, 0));
 			break;
-		case 'i':
 		case 'a':
 			fprintf(stderr, "WARNING: ignoring -%c, "
 					"deprecated option.\n", c);
@@ -1084,10 +1105,6 @@ int main(int argc, char *argv[])
 			res = nfct_query(cth, NFCT_Q_DUMP, &family);
 
 		nfct_close(cth);
-
-		fprintf(stderr, "%s v%s: ", PROGNAME, VERSION);
-		fprintf(stderr, "%d flow entries has been shown.\n",
-			list_counter);
 		break;
 
 	case EXP_LIST:
@@ -1111,10 +1128,9 @@ int main(int argc, char *argv[])
 			exit_error(OTHER_PROBLEM, "Can't open handler");
 
 		res = nfct_query(cth, NFCT_Q_CREATE, obj);
+		if (res != -1)
+			counter++;
 		nfct_close(cth);
-		fprintf(stderr, "%s v%s: ", PROGNAME, VERSION);
-		fprintf(stderr, "%d flow entry has been created.\n",
-			res == -1 ? 0 : 1);
 		break;
 
 	case EXP_CREATE:
@@ -1142,10 +1158,6 @@ int main(int argc, char *argv[])
 		res = nfct_query(cth, NFCT_Q_DUMP, &family);
 		nfct_close(ith);
 		nfct_close(cth);
-
-		fprintf(stderr, "%s v%s: ", PROGNAME, VERSION);
-		fprintf(stderr, "%d flow entries has been updated.\n",
-			update_counter);
 		break;
 		
 	case CT_DELETE:
@@ -1159,10 +1171,6 @@ int main(int argc, char *argv[])
 		res = nfct_query(cth, NFCT_Q_DUMP, &family);
 		nfct_close(ith);
 		nfct_close(cth);
-
-		fprintf(stderr, "%s v%s: ", PROGNAME, VERSION);
-		fprintf(stderr, "%d flow entries has been deleted.\n", 
-			delete_counter);
 		break;
 
 	case EXP_DELETE:
@@ -1184,9 +1192,6 @@ int main(int argc, char *argv[])
 		nfct_callback_register(cth, NFCT_T_ALL, dump_cb, obj);
 		res = nfct_query(cth, NFCT_Q_GET, obj);
 		nfct_close(cth);
-		fprintf(stderr, "%s v%s: ", PROGNAME, VERSION);
-		fprintf(stderr, "%d flow entry has been shown.\n",
-			res == -1 ? 0 : 1);
 		break;
 
 	case EXP_GET:
@@ -1268,5 +1273,12 @@ int main(int argc, char *argv[])
 		exit_error(OTHER_PROBLEM, "Operation failed: %s",
 			   err2str(errno, command));
 
-	return 0;
+	if (exit_msg[cmd][0]) {
+		fprintf(stderr, "%s v%s: ", PROGNAME, VERSION);
+		fprintf(stderr, exit_msg[cmd], counter);
+		if (counter == 0 && !(command & (CT_LIST | EXP_LIST)))
+			return EXIT_FAILURE;
+	}
+
+	return EXIT_SUCCESS;
 }
