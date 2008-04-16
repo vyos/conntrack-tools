@@ -204,15 +204,16 @@ Delete all flow whose source address is 1.2.3.4
 .B conntrack \-U \-s 1.2.3.4 \-m 1
 Set connmark to 1 of all the flows whose source address is 1.2.3.4
 .SH BUGS
-Bugs? What's this ;-)
+Please, report them to netfilter-devel@vger.kernel.org or file a bug in
+Netfilter's bugzilla (https://bugzilla.netfilter.org).
 .SH SEE ALSO
 .BR iptables (8)
 .br
 See
 .BR "http://conntrack-tools.netfilter.org"
 .SH AUTHORS
-Jay Schulist, Patrick McHardy, Harald Welte and Pablo Neira wrote the kernel-level "ctnetlink" interface that is used by the conntrack tool.
+Jay Schulist, Patrick McHardy, Harald Welte and Pablo Neira Ayuso wrote the kernel-level "ctnetlink" interface that is used by the conntrack tool.
 .PP
-Pablo Neira wrote the conntrack tool, Harald Welte added support for conntrack based accounting counters.
+Pablo Neira Ayuso wrote and maintain the conntrack tool, Harald Welte added support for conntrack based accounting counters.
 .PP
 Man page written by Harald Welte <laforge@netfilter.org> and Pablo Neira Ayuso <pablo@netfilter.org>.
