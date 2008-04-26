@@ -42,8 +42,18 @@ static void do_mcast_handler_step(struct nethdr *net)
 	struct nf_conntrack *ct = (struct nf_conntrack *)(void*) __ct;
 	struct us_conntrack *u;
 
-	if (STATE_SYNC(sync)->recv(net))
-		return;
+	switch (STATE_SYNC(sync)->recv(net)) {
+		case MSG_DATA:
+			break;
+		case MSG_DROP:
+		case MSG_CTL:
+			return;
+		case MSG_BAD:
+			STATE(malformed)++;
+			return;
+		default:
+			break;
+	}
 
 	memset(ct, 0, sizeof(__ct));
 
@@ -211,14 +221,15 @@ static int register_fds_sync(struct fds *fds)
 static void run_sync(fd_set *readfds)
 {
 	/* multicast packet has been received */
-	if (FD_ISSET(STATE_SYNC(mcast_server->fd), readfds))
+	if (FD_ISSET(STATE_SYNC(mcast_server->fd), readfds)) {
 		mcast_handler();
 
-	if (STATE_SYNC(sync)->run)
-		STATE_SYNC(sync)->run();
+		if (STATE_SYNC(sync)->run)
+			STATE_SYNC(sync)->run();
 
-	/* flush pending messages */
-	mcast_buffered_pending_netmsg(STATE_SYNC(mcast_client));
+		/* flush pending messages */
+		mcast_buffered_pending_netmsg(STATE_SYNC(mcast_client));
+	}
 }
 
 static void kill_sync(void)
@@ -358,16 +369,8 @@ static int purge_step(void *data1, void *data2)
 
 	ret = nfct_query(h, NFCT_Q_GET, u->ct);
 	if (ret == -1 && errno == ENOENT) {
-		size_t len;
-		struct nethdr *net = BUILD_NETMSG(u->ct, NFCT_Q_DESTROY);
-
 		debug_ct(u->ct, "overrun purge resync");
-
-	        len = prepare_send_netmsg(STATE_SYNC(mcast_client), net);
-	        mcast_buffered_send_netmsg(STATE_SYNC(mcast_client), net, len);
-		if (STATE_SYNC(sync)->send)
-			STATE_SYNC(sync)->send(net, u);
-
+		mcast_send_sync(u, u->ct, NFCT_Q_DESTROY);
 		cache_del(STATE_SYNC(internal), u->ct);
 	}
 
@@ -402,16 +405,8 @@ static int overrun_sync(enum nf_conntrack_msg_type type,
 
 	if (!cache_test(STATE_SYNC(internal), ct)) {
 		if ((u = cache_update_force(STATE_SYNC(internal), ct))) {
-			size_t len;
-
 			debug_ct(u->ct, "overrun resync");
-
-			struct nethdr *net = BUILD_NETMSG(u->ct, NFCT_Q_UPDATE);
-			len = prepare_send_netmsg(STATE_SYNC(mcast_client),net);
-			mcast_buffered_send_netmsg(STATE_SYNC(mcast_client), 
-						   net, len);
-			if (STATE_SYNC(sync)->send)
-				STATE_SYNC(sync)->send(net, u);
+			mcast_send_sync(u, u->ct, NFCT_Q_UPDATE);
 		}
 	}
 
@@ -437,7 +432,6 @@ retry:
 	} else {
 		if (errno == EEXIST) {
 			cache_del(STATE_SYNC(internal), ct);
-			mcast_send_sync(NULL, ct, NFCT_Q_DESTROY);
 			goto retry;
 		}
 

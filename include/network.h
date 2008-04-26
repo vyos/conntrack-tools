@@ -26,20 +26,18 @@ struct nethdr_ack {
 #define NETHDR_ACK_SIZ sizeof(struct nethdr_ack)
 
 enum {
-	NET_F_HELLO_BIT = 0,
-	NET_F_HELLO = (1 << NET_F_HELLO_BIT),
+	NET_F_UNUSED 	= (1 << 0),
+	NET_F_RESYNC 	= (1 << 1),
+	NET_F_NACK 	= (1 << 2),
+	NET_F_ACK 	= (1 << 3),
+	NET_F_ALIVE 	= (1 << 4),
+};
 
-	NET_F_RESYNC_BIT = 1,
-	NET_F_RESYNC = (1 << NET_F_RESYNC_BIT),
-
-	NET_F_NACK_BIT = 2,
-	NET_F_NACK = (1 << NET_F_NACK_BIT),
-
-	NET_F_ACK_BIT = 3,
-	NET_F_ACK = (1 << NET_F_ACK_BIT),
-
-	NET_F_ALIVE_BIT = 4,
-	NET_F_ALIVE = (1 << NET_F_ALIVE_BIT),
+enum {
+	MSG_DATA,
+	MSG_CTL,
+	MSG_DROP,
+	MSG_BAD,
 };
 
 #define BUILD_NETMSG(ct, query)					\
@@ -57,7 +55,18 @@ void build_netmsg(struct nf_conntrack *ct, int query, struct nethdr *net);
 size_t prepare_send_netmsg(struct mcast_sock *m, void *data);
 int mcast_send_netmsg(struct mcast_sock *m, void *data);
 int handle_netmsg(struct nethdr *net);
+
+enum {
+	SEQ_UNKNOWN,
+	SEQ_UNSET,
+	SEQ_IN_SYNC,
+	SEQ_AFTER,
+	SEQ_BEFORE,
+};
+
 int mcast_track_seq(uint32_t seq, uint32_t *exp_seq);
+void mcast_track_update_seq(uint32_t seq);
+int mcast_track_is_seq_set(void);
 
 struct mcast_conf;
 
@@ -66,13 +75,12 @@ void mcast_buffered_destroy(void);
 int mcast_buffered_send_netmsg(struct mcast_sock *m, void *data, size_t len);
 ssize_t mcast_buffered_pending_netmsg(struct mcast_sock *m);
 
-#define IS_DATA(x)	((x->flags & ~NET_F_HELLO) == 0)
+#define IS_DATA(x)	(x->flags == 0)
 #define IS_ACK(x)	(x->flags & NET_F_ACK)
 #define IS_NACK(x)	(x->flags & NET_F_NACK)
 #define IS_RESYNC(x)	(x->flags & NET_F_RESYNC)
 #define IS_ALIVE(x)	(x->flags & NET_F_ALIVE)
 #define IS_CTL(x)	IS_ACK(x) || IS_NACK(x) || IS_RESYNC(x) || IS_ALIVE(x)
-#define IS_HELLO(x)	(x->flags & NET_F_HELLO)
 
 #define HDR_NETWORK2HOST(x)						\
 ({									\

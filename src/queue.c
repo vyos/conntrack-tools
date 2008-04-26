@@ -93,7 +93,7 @@ retry:
 		goto err;
 	}
 
-	list_add(&n->head, &b->head);
+	list_add_tail(&n->head, &b->head);
 	b->cur_size += size;
 	b->num_elems++;
 

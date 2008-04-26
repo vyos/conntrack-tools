@@ -33,13 +33,14 @@ static size_t __do_send(struct mcast_sock *m, void *data, size_t len)
 
 #undef _TEST_DROP
 #ifdef _TEST_DROP
-	static int drop = 0;
 
-	if (++drop >= 10) {
+#define DROP_RATE .25
+
+	/* simulate message omission with a certain probability */
+	if ((random() & 0x7FFFFFFF) < 0x80000000 * DROP_RATE) {
 		printf("drop sq: %u fl:%u len:%u\n",
 			ntohl(net->seq), ntohs(net->flags),
 			ntohs(net->len));
-		drop = 0;
 		return 0;
 	}
 #endif
@@ -57,7 +58,6 @@ static size_t __do_prepare(struct mcast_sock *m, void *data, size_t len)
 	if (!seq_set) {
 		seq_set = 1;
 		cur_seq = time(NULL);
-		net->flags |= NET_F_HELLO;
 	}
 	net->len = len;
 	net->seq = cur_seq++;
@@ -181,9 +181,6 @@ int handle_netmsg(struct nethdr *net)
 
 	HDR_NETWORK2HOST(net);
 
-	if (IS_HELLO(net))
-		STATE_SYNC(last_seq_recv) = net->seq - 1;
-
 	if (IS_CTL(net))
 		return 0;
 
@@ -198,37 +195,51 @@ int handle_netmsg(struct nethdr *net)
 	return 0;
 }
 
+static int local_seq_set = 0;
+
+/* this function only tracks, it does not update the last sequence received */
 int mcast_track_seq(uint32_t seq, uint32_t *exp_seq)
 {
-	static int local_seq_set = 0;
-	int ret = 1;
+	int ret = SEQ_UNKNOWN;
 
 	/* netlink sequence tracking initialization */
 	if (!local_seq_set) {
-		local_seq_set = 1;
+		ret = SEQ_UNSET;
 		goto out;
 	}
 
 	/* fast path: we received the correct sequence */
-	if (seq == STATE_SYNC(last_seq_recv)+1)
+	if (seq == STATE_SYNC(last_seq_recv)+1) {
+		ret = SEQ_IN_SYNC;
 		goto out;
+	}
 
 	/* out of sequence: some messages got lost */
 	if (after(seq, STATE_SYNC(last_seq_recv)+1)) {
 		STATE_SYNC(packets_lost) += seq-STATE_SYNC(last_seq_recv)+1;
-		ret = 0;
+		ret = SEQ_AFTER;
 		goto out;
 	}
 
 	/* out of sequence: replayed/delayed packet? */
 	if (before(seq, STATE_SYNC(last_seq_recv)+1))
-		dlog(LOG_WARNING, "delayed packet? exp=%u rcv=%u",
-		     STATE_SYNC(last_seq_recv)+1, seq);
+		ret = SEQ_BEFORE;
 
 out:
 	*exp_seq = STATE_SYNC(last_seq_recv)+1;
-	/* update expected sequence */
-	STATE_SYNC(last_seq_recv) = seq;
 
 	return ret;
+}
+
+void mcast_track_update_seq(uint32_t seq)
+{
+	if (!local_seq_set)
+		local_seq_set = 1;
+
+	STATE_SYNC(last_seq_recv) = seq;
+}
+
+int mcast_track_is_seq_set()
+{
+	return local_seq_set;
 }
