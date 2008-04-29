@@ -53,7 +53,13 @@ static int lifetime_dump(struct us_conntrack *u,
 
 	gettimeofday(&tv, NULL);
 
-	return sprintf(buf, " [active since %lds]", tv.tv_sec - *lifetime);
+	if (alarm_pending(&u->alarm))
+		return sprintf(buf, " [active since %lds] [expires in %lds]",
+			       tv.tv_sec - *lifetime, 
+			       u->alarm.tv.tv_sec - tv.tv_sec);
+	else
+		return sprintf(buf, " [active since %lds]", 
+			       tv.tv_sec - *lifetime);
 }
 
 struct cache_feature lifetime_feature = {

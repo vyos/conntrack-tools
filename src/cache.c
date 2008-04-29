@@ -237,6 +237,8 @@ void cache_destroy(struct cache *c)
 	free(c);
 }
 
+static void __del_timeout(struct alarm_block *a, void *data);
+
 static struct us_conntrack *__add(struct cache *c, struct nf_conntrack *ct)
 {
 	unsigned i;
@@ -257,6 +259,8 @@ static struct us_conntrack *__add(struct cache *c, struct nf_conntrack *ct)
 	u = hashtable_add(c->h, u);
 	if (u) {
 		char *data = u->data;
+
+		init_alarm(&u->alarm, u, __del_timeout);
 
         	for (i = 0; i < c->num_features; i++) {
 			c->features[i]->add(u, data);
@@ -324,8 +328,7 @@ static struct us_conntrack *__update(struct cache *c, struct nf_conntrack *ct)
 	return NULL;
 }
 
-static struct us_conntrack *
-__cache_update(struct cache *c, struct nf_conntrack *ct)
+struct us_conntrack *cache_update(struct cache *c, struct nf_conntrack *ct)
 {
 	struct us_conntrack *u;
 
@@ -337,15 +340,6 @@ __cache_update(struct cache *c, struct nf_conntrack *ct)
 	c->upd_fail++;
 	
 	return NULL;
-}
-
-struct us_conntrack *cache_update(struct cache *c, struct nf_conntrack *ct)
-{
-	struct us_conntrack *u;
-
-	u = __cache_update(c, ct);
-
-	return u;
 }
 
 struct us_conntrack *cache_update_force(struct cache *c,
@@ -379,6 +373,24 @@ int cache_test(struct cache *c, struct nf_conntrack *ct)
 	return ret != NULL;
 }
 
+static void __del2(struct cache *c, struct us_conntrack *u)
+{
+	unsigned i;
+	char *data = u->data;
+	struct nf_conntrack *p = u->ct;
+
+	for (i = 0; i < c->num_features; i++) {
+		c->features[i]->destroy(u, data);
+		data += c->features[i]->size;
+	}
+
+	if (c->extra && c->extra->destroy)
+		c->extra->destroy(u, ((char *) u) + c->extra_offset);
+
+	hashtable_del(c->h, u);
+	free(p);
+}
+
 static int __del(struct cache *c, struct nf_conntrack *ct)
 {
 	size_t size = c->h->datasize;
@@ -389,20 +401,8 @@ static int __del(struct cache *c, struct nf_conntrack *ct)
 
 	u = (struct us_conntrack *) hashtable_test(c->h, u);
 	if (u) {
-		unsigned i;
-		char *data = u->data;
-		struct nf_conntrack *p = u->ct;
-
-		for (i = 0; i < c->num_features; i++) {
-			c->features[i]->destroy(u, data);
-			data += c->features[i]->size;
-		}
-
-		if (c->extra && c->extra->destroy)
-			c->extra->destroy(u, ((char *) u) + c->extra_offset);
-
-		hashtable_del(c->h, u);
-		free(p);
+		del_alarm(&u->alarm);
+		__del2(c, u);
 		return 1;
 	}
 	return 0;
@@ -417,6 +417,37 @@ int cache_del(struct cache *c, struct nf_conntrack *ct)
 	c->del_fail++;
 
 	return 0;
+}
+
+static void __del_timeout(struct alarm_block *a, void *data)
+{
+	struct us_conntrack *u = (struct us_conntrack *) data;
+	struct cache *c = u->cache;
+
+	__del2(u->cache, u);
+	c->del_ok++;
+}
+
+struct us_conntrack *
+cache_del_timeout(struct cache *c, struct nf_conntrack *ct, int timeout)
+{
+	size_t size = c->h->datasize;
+	char buf[size];
+	struct us_conntrack *u = (struct us_conntrack *) buf;
+
+	if (timeout <= 0)
+		cache_del(c, ct);
+
+	u->ct = ct;
+
+	u = (struct us_conntrack *) hashtable_test(c->h, u);
+	if (u) {
+		if (!alarm_pending(&u->alarm)) {
+			add_alarm(&u->alarm, timeout, 0);
+			return u;
+		}
+	}
+	return NULL;
 }
 
 struct us_conntrack *cache_get_conntrack(struct cache *c, void *data)

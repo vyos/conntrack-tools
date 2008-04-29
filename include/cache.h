@@ -82,6 +82,7 @@ struct us_conntrack *cache_add(struct cache *c, struct nf_conntrack *ct);
 struct us_conntrack *cache_update(struct cache *c, struct nf_conntrack *ct);
 struct us_conntrack *cache_update_force(struct cache *c, struct nf_conntrack *ct);
 int cache_del(struct cache *c, struct nf_conntrack *ct);
+struct us_conntrack *cache_del_timeout(struct cache *c, struct nf_conntrack *ct, int timeout);
 int cache_test(struct cache *c, struct nf_conntrack *ct);
 void cache_stats(const struct cache *c, int fd);
 struct us_conntrack *cache_get_conntrack(struct cache *, void *);

@@ -344,17 +344,15 @@ static void dump_sync(struct nf_conntrack *ct)
 		debug_ct(ct, "resync");
 }
 
-static void mcast_send_sync(struct us_conntrack *u,
-			    struct nf_conntrack *ct,
-			    int query)
+static void mcast_send_sync(struct us_conntrack *u, int query)
 {
 	size_t len;
 	struct nethdr *net;
 
-	if (!state_helper_verdict(query, ct))
+	if (!state_helper_verdict(query, u->ct))
 		return;
 
-	net = BUILD_NETMSG(ct, query);
+	net = BUILD_NETMSG(u->ct, query);
 	len = prepare_send_netmsg(STATE_SYNC(mcast_client), net);
 	mcast_buffered_send_netmsg(STATE_SYNC(mcast_client), net, len);
 	if (STATE_SYNC(sync)->send)
@@ -370,8 +368,10 @@ static int purge_step(void *data1, void *data2)
 	ret = nfct_query(h, NFCT_Q_GET, u->ct);
 	if (ret == -1 && errno == ENOENT) {
 		debug_ct(u->ct, "overrun purge resync");
-		mcast_send_sync(u, u->ct, NFCT_Q_DESTROY);
-		cache_del(STATE_SYNC(internal), u->ct);
+		if (cache_del_timeout(STATE_SYNC(internal),
+				      u->ct, 
+				      CONFIG(del_timeout)))
+			mcast_send_sync(u, NFCT_Q_DESTROY);
 	}
 
 	return 0;
@@ -406,7 +406,7 @@ static int overrun_sync(enum nf_conntrack_msg_type type,
 	if (!cache_test(STATE_SYNC(internal), ct)) {
 		if ((u = cache_update_force(STATE_SYNC(internal), ct))) {
 			debug_ct(u->ct, "overrun resync");
-			mcast_send_sync(u, u->ct, NFCT_Q_UPDATE);
+			mcast_send_sync(u, NFCT_Q_UPDATE);
 		}
 	}
 
@@ -427,7 +427,7 @@ static void event_new_sync(struct nf_conntrack *ct)
 	nfct_attr_unset(ct, ATTR_REPL_COUNTER_PACKETS);
 retry:
 	if ((u = cache_add(STATE_SYNC(internal), ct))) {
-		mcast_send_sync(u, ct, NFCT_Q_CREATE);
+		mcast_send_sync(u, NFCT_Q_CREATE);
 		debug_ct(u->ct, "internal new");
 	} else {
 		if (errno == EEXIST) {
@@ -453,16 +453,19 @@ static void event_update_sync(struct nf_conntrack *ct)
 		return;
 	}
 	debug_ct(u->ct, "internal update");
-	mcast_send_sync(u, ct, NFCT_Q_UPDATE);
+	mcast_send_sync(u, NFCT_Q_UPDATE);
 }
 
 static int event_destroy_sync(struct nf_conntrack *ct)
 {
+	struct us_conntrack *u;
+
 	if (!CONFIG(cache_write_through))
 		nfct_attr_unset(ct, ATTR_TIMEOUT);
 
-	if (cache_del(STATE_SYNC(internal), ct)) {
-		mcast_send_sync(NULL, ct, NFCT_Q_DESTROY);
+	u = cache_del_timeout(STATE_SYNC(internal), ct, CONFIG(del_timeout));
+	if (u != NULL) {
+		mcast_send_sync(u, NFCT_Q_DESTROY);
 		debug_ct(ct, "internal destroy");
 		return 1;
 	} else {

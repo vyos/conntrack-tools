@@ -76,6 +76,7 @@ struct ct_conf {
 	int refresh;
 	int cache_timeout;		/* cache entries timeout */
 	int commit_timeout;		/* committed entries timeout */
+	int del_timeout;
 	unsigned int netlink_buffer_size;
 	unsigned int netlink_buffer_size_max_grown;
 	unsigned char ignore_protocol[IPPROTO_MAX];

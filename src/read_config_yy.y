@@ -52,7 +52,7 @@ struct ct_conf conf;
 %token T_REPLICATE T_FOR T_IFACE 
 %token T_ESTABLISHED T_SYN_SENT T_SYN_RECV T_FIN_WAIT 
 %token T_CLOSE_WAIT T_LAST_ACK T_TIME_WAIT T_CLOSE T_LISTEN
-%token T_SYSLOG T_WRITE_THROUGH T_STAT_BUFFER_SIZE
+%token T_SYSLOG T_WRITE_THROUGH T_STAT_BUFFER_SIZE T_DESTROY_TIMEOUT
 
 
 %token <string> T_IP T_PATH_VAL
@@ -429,6 +429,7 @@ sync_line: refreshtime
 	 | listen_to
 	 | state_replication
 	 | cache_writethrough
+	 | destroy_timeout
 	 ;
 
 sync_mode_alarm: T_SYNC_MODE T_ALARM '{' sync_mode_alarm_list '}'
@@ -467,6 +468,11 @@ resend_queue_size: T_RESEND_BUFFER_SIZE T_NUMBER
 window_size: T_WINDOWSIZE T_NUMBER
 {
 	conf.window_size = $2;
+};
+
+destroy_timeout: T_DESTROY_TIMEOUT T_NUMBER
+{
+	conf.del_timeout = $2;
 };
 
 relax_transitions: T_RELAX_TRANSITIONS
@@ -745,6 +751,10 @@ init_config(char *filename)
 	/* default to a window size of 20 packets */
 	if (CONFIG(window_size) == 0)
 		CONFIG(window_size) = 20;
+
+	/* double of 120 seconds which is common timeout of a final state */
+	if (conf.flags & CTD_SYNC_FTFW && CONFIG(del_timeout) == 0)
+		CONFIG(del_timeout) = 240;
 
 	return 0;
 }

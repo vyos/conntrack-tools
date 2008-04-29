@@ -390,6 +390,7 @@ static void ftfw_send(struct nethdr *net, struct us_conntrack *u)
 	switch(ntohs(pld->query)) {
 	case NFCT_Q_CREATE:
 	case NFCT_Q_UPDATE:
+	case NFCT_Q_DESTROY:
 		cn = (struct cache_ftfw *) 
 			cache_get_extra(STATE_SYNC(internal), u);
 
@@ -401,9 +402,6 @@ static void ftfw_send(struct nethdr *net, struct us_conntrack *u)
 		cn->seq = net->seq;
 		list_add_tail(&cn->rs_list, &rs_list);
 		rs_list_len++;
-		break;
-	case NFCT_Q_DESTROY:
-		queue_add(rs_queue, net, net->len);
 		break;
 	}
 }
@@ -429,10 +427,10 @@ static int tx_queue_xmit(void *data1, const void *data2)
 	return 0;
 }
 
-static int tx_list_xmit(struct list_head *i, struct us_conntrack *u)
+static int tx_list_xmit(struct list_head *i, struct us_conntrack *u, int type)
 {
 	int ret;
-	struct nethdr *net = BUILD_NETMSG(u->ct, NFCT_Q_UPDATE);
+	struct nethdr *net = BUILD_NETMSG(u->ct, type);
 	size_t len = prepare_send_netmsg(STATE_SYNC(mcast_client), net);
 
 	dp("tx_list sq: %u fl:%u len:%u\n",
@@ -460,7 +458,10 @@ static void ftfw_run(void)
 		struct us_conntrack *u;
 
 		u = cache_get_conntrack(STATE_SYNC(internal), cn);
-		tx_list_xmit(&cn->tx_list, u);
+		if (alarm_pending(&u->alarm))
+			tx_list_xmit(&cn->tx_list, u, NFCT_Q_DESTROY);
+		else
+			tx_list_xmit(&cn->tx_list, u, NFCT_Q_UPDATE);
 	}
 
 	/* reset alive alarm */

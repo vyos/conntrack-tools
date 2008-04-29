@@ -103,6 +103,7 @@ ftfw		[F|f][T|t][F|f][W|w]
 "CLOSE"				{ return T_CLOSE; }
 "LISTEN"			{ return T_LISTEN; }
 "LogFileBufferSize"		{ return T_STAT_BUFFER_SIZE; }
+"DestroyTimeout"		{ return T_DESTROY_TIMEOUT; }
 
 {is_on}			{ return T_ON; }
 {is_off}		{ return T_OFF; }
