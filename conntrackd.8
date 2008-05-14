@@ -59,7 +59,7 @@ Dumps the states held in the internal cache, i.e. those handled by this firewall
 Dumps the states held in the external cache, i.e. those handled by other replica firewalls
 .TP
 .B conntrackd \-c
-Commits the internal cache into the kernel connection tracking system. This is used to inject the state so that the connections can be recovered during the failover.
+Commits the external cache into the kernel connection tracking system. This is used to inject the state so that the connections can be recovered during the failover.
 .SH DEPENDENCIES
 This daemon requires a Linux kernel version >= 2.6.18. TCP window tracking support requires >= 2.6.22, otherwise you have to disable it. Helpers are fully supported since >= 2.6.25, however, if you use any previous version, depending on the protocol helper and your setup (e.g. if you setup performs NAT sequence adjustments or not), your help connection may be successfully recovered.
 .TP

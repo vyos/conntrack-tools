@@ -25,6 +25,7 @@ o fix asymmetric path support (reported by Gary Richards)
 o improve netlink overrun handling
 o add more verbose error notification when we fail to inject a conntrack
 o rework of the FT-FW approach
+o minor fix of the manpage (Max Wilhelm)
 
 version 0.9.6 (2008/03/08)
 ------------------------------
