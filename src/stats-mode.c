@@ -89,7 +89,12 @@ static int local_handler_stats(int fd, int type, void *data)
 
 static void dump_stats(struct nf_conntrack *ct)
 {
+	nfct_attr_unset(ct, ATTR_ORIG_COUNTER_BYTES);
+	nfct_attr_unset(ct, ATTR_ORIG_COUNTER_PACKETS);
+	nfct_attr_unset(ct, ATTR_REPL_COUNTER_BYTES);
+	nfct_attr_unset(ct, ATTR_REPL_COUNTER_PACKETS);
 	nfct_attr_unset(ct, ATTR_TIMEOUT);
+	nfct_attr_unset(ct, ATTR_USE);
 
 	if (cache_update_force(STATE_STATS(cache), ct))
 		debug_ct(ct, "resync entry");
