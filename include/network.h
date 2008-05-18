@@ -54,7 +54,6 @@ struct mcast_sock;
 void build_netmsg(struct nf_conntrack *ct, int query, struct nethdr *net);
 size_t prepare_send_netmsg(struct mcast_sock *m, void *data);
 int mcast_send_netmsg(struct mcast_sock *m, void *data);
-int handle_netmsg(struct nethdr *net);
 
 enum {
 	SEQ_UNKNOWN,
@@ -175,6 +174,6 @@ struct netattr {
 
 void build_netpld(struct nf_conntrack *ct, struct netpld *pld, int query);
 
-void parse_netpld(struct nf_conntrack *ct, struct netpld *pld, int *query);
+int parse_netpld(struct nf_conntrack *ct, struct nethdr *net, int *query, size_t remain);
 
 #endif

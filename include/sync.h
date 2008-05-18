@@ -20,5 +20,6 @@ struct sync_mode {
 
 extern struct sync_mode sync_alarm;
 extern struct sync_mode sync_ftfw;
+extern struct sync_mode sync_notrack;
 
 #endif

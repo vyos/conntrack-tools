@@ -34,10 +34,9 @@
 #include <string.h>
 #include <stdlib.h>
 
-static void do_mcast_handler_step(struct nethdr *net)
+static void do_mcast_handler_step(struct nethdr *net, size_t remain)
 {
 	int query;
-	struct netpld *pld = NETHDR_DATA(net);
 	char __ct[nfct_maxsize()];
 	struct nf_conntrack *ct = (struct nf_conntrack *)(void*) __ct;
 	struct us_conntrack *u;
@@ -57,8 +56,11 @@ static void do_mcast_handler_step(struct nethdr *net)
 
 	memset(ct, 0, sizeof(__ct));
 
-	/* XXX: check for malformed */
-	parse_netpld(ct, pld, &query);
+	if (parse_netpld(ct, net, &query, remain) == -1) {
+		STATE(malformed)++;
+		dlog(LOG_ERR, "parsing failed: malformed message");
+		return;
+	}
 
 	switch(query) {
 	case NFCT_Q_CREATE:
@@ -91,6 +93,7 @@ retry:
 			debug_ct(ct, "can't destroy");
 		break;
 	default:
+		STATE(malformed)++;
 		dlog(LOG_ERR, "mcast unknown query %d\n", query);
 		break;
 	}
@@ -113,24 +116,40 @@ static void mcast_handler(void)
 
 		if (remain < NETHDR_SIZ) {
 			STATE(malformed)++;
+			dlog(LOG_WARNING, "no room for header");
 			break;
 		}
 
 		if (ntohs(net->len) > remain) {
-			dlog(LOG_ERR, "fragmented messages");
+			STATE(malformed)++;
+			dlog(LOG_WARNING, "fragmented message");
 			break;
+		}
+
+		if (IS_CTL(net)) {
+			if (remain < NETHDR_ACK_SIZ) {
+				STATE(malformed)++;
+				dlog(LOG_WARNING, "no room for ctl message");
+			}
+
+			if (ntohs(net->len) < NETHDR_ACK_SIZ) {
+				STATE(malformed)++;
+				dlog(LOG_WARNING, "ctl header too small");
+			}
+		} else {
+			if (ntohs(net->len) < NETHDR_SIZ) {
+				STATE(malformed)++;
+				dlog(LOG_WARNING, "header too small");
+			}
 		}
 
 		debug("recv sq: %u fl:%u len:%u (rem:%d)\n", 
 			ntohl(net->seq), ntohs(net->flags),
 			ntohs(net->len), remain);
 
-		/* sanity check and convert nethdr to host byte order */
-		if (handle_netmsg(net) == -1) {
-			STATE(malformed)++;
-			return;
-		}
-		do_mcast_handler_step(net);
+		HDR_NETWORK2HOST(net);
+
+		do_mcast_handler_step(net, remain);
 		ptr += net->len;
 		remain -= net->len;
 	}

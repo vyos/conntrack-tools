@@ -171,30 +171,6 @@ void build_netmsg(struct nf_conntrack *ct, int query, struct nethdr *net)
 	build_netpld(ct, pld, query);
 }
 
-int handle_netmsg(struct nethdr *net)
-{
-	struct netpld *pld = NETHDR_DATA(net);
-
-	/* message too small: no room for the header */
-	if (ntohs(net->len) < NETHDR_ACK_SIZ)
-		return -1;
-
-	HDR_NETWORK2HOST(net);
-
-	if (IS_CTL(net))
-		return 0;
-
-	/* information received is too small */
-	if (net->len < sizeof(struct netpld))
-		return -1;
-
-	/* size mismatch! */
-	if (net->len < ntohs(pld->len) + NETHDR_SIZ)
-		return -1;
-
-	return 0;
-}
-
 static int local_seq_set = 0;
 
 /* this function only tracks, it does not update the last sequence received */

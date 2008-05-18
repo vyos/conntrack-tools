@@ -20,6 +20,10 @@
 
 #include <libnetfilter_conntrack/libnetfilter_conntrack.h>
 
+#ifndef ssizeof
+#define ssizeof(x) (int)sizeof(x)
+#endif
+
 static void parse_u8(struct nf_conntrack *ct, int attr, void *data)
 {
 	uint8_t *value = (uint8_t *) data;
@@ -77,20 +81,40 @@ static parse h[ATTR_MAX] = {
 	[ATTR_REPL_NAT_SEQ_OFFSET_AFTER]	= parse_u32,
 };
 
-void parse_netpld(struct nf_conntrack *ct, struct netpld *pld, int *query)
+int
+parse_netpld(struct nf_conntrack *ct,
+	     struct nethdr *net,
+	     int *query,
+	     size_t remain)
 {
 	int len;
 	struct netattr *attr;
+	struct netpld *pld;
+
+	if (remain < NETHDR_SIZ + sizeof(struct netpld))
+		return -1;
+
+	pld = NETHDR_DATA(net);
+
+	if (remain < NETHDR_SIZ + sizeof(struct netpld) + ntohs(pld->len))
+		return -1;
+
+	if (net->len < NETHDR_SIZ + sizeof(struct netpld) + ntohs(pld->len))
+		return -1;
 
 	PLD_NETWORK2HOST(pld);
 	len = pld->len;
 	attr = PLD_DATA(pld);
 
-	while (len > 0) {
+	while (len > ssizeof(struct netattr)) {
 		ATTR_NETWORK2HOST(attr);
-		h[attr->nta_attr](ct, attr->nta_attr, NTA_DATA(attr));
+		if (attr->nta_len > len)
+			return -1;
+		if (h[attr->nta_attr])
+			h[attr->nta_attr](ct, attr->nta_attr, NTA_DATA(attr));
 		attr = NTA_NEXT(attr, len);
 	}
 
 	*query = pld->query;
+	return 0;
 }
