@@ -19,6 +19,8 @@ struct mcast_conf {
 		unsigned int interface_index6;
 	} ifa;
 	int mtu;
+	int sndbuf;
+	int rcvbuf;
 	char iface[IFNAMSIZ];
 };
 

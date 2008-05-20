@@ -28,6 +28,7 @@
 #include <string.h>
 #include <sys/ioctl.h>
 #include <net/if.h>
+#include <errno.h>
 
 struct mcast_sock *mcast_server_create(struct mcast_conf *conf)
 {
@@ -37,6 +38,7 @@ struct mcast_sock *mcast_server_create(struct mcast_conf *conf)
 		struct ipv6_mreq ipv6;
 	} mreq;
 	struct mcast_sock *m;
+	socklen_t socklen = sizeof(int);
 
 	m = (struct mcast_sock *) malloc(sizeof(struct mcast_sock));
 	if (!m)
@@ -95,6 +97,20 @@ struct mcast_sock *mcast_server_create(struct mcast_conf *conf)
 		free(m);
 		return NULL;
 	}
+
+	if (conf->rcvbuf &&
+	    setsockopt(m->fd, SOL_SOCKET, SO_RCVBUFFORCE, &conf->rcvbuf,
+				sizeof(int)) == -1) {
+		/* not supported in linux kernel < 2.6.14 */
+		if (errno != ENOPROTOOPT) {
+			debug("mcast_sock_server_create:setsockopt2");
+			close(m->fd);
+			free(m);
+			return NULL;
+		}
+	}
+
+	getsockopt(m->fd, SOL_SOCKET, SO_RCVBUF, &conf->rcvbuf, &socklen);
 
 	if (bind(m->fd, (struct sockaddr *) &m->addr, m->sockaddr_len) == -1) {
 		debug("mcast_sock_server_create:bind");
@@ -195,6 +211,7 @@ struct mcast_sock *mcast_client_create(struct mcast_conf *conf)
 {
 	int ret;
 	struct mcast_sock *m;
+	socklen_t socklen = sizeof(int);
 
 	m = (struct mcast_sock *) malloc(sizeof(struct mcast_sock));
 	if (!m)
@@ -214,6 +231,20 @@ struct mcast_sock *mcast_client_create(struct mcast_conf *conf)
 		free(m);
 		return NULL;
 	}
+
+	if (conf->sndbuf &&
+	    setsockopt(m->fd, SOL_SOCKET, SO_SNDBUFFORCE, &conf->sndbuf,
+				sizeof(int)) == -1) {
+		/* not supported in linux kernel < 2.6.14 */
+		if (errno != ENOPROTOOPT) {
+			debug("mcast_sock_server_create:setsockopt2");
+			close(m->fd);
+			free(m);
+			return NULL;
+		}
+	}
+
+	getsockopt(m->fd, SOL_SOCKET, SO_SNDBUF, &conf->sndbuf, &socklen);
 
 	switch(conf->ipproto) {
 		case AF_INET:

@@ -53,7 +53,7 @@ struct ct_conf conf;
 %token T_ESTABLISHED T_SYN_SENT T_SYN_RECV T_FIN_WAIT 
 %token T_CLOSE_WAIT T_LAST_ACK T_TIME_WAIT T_CLOSE T_LISTEN
 %token T_SYSLOG T_WRITE_THROUGH T_STAT_BUFFER_SIZE T_DESTROY_TIMEOUT
-
+%token T_MCAST_RCVBUFF T_MCAST_SNDBUFF
 
 %token <string> T_IP T_PATH_VAL
 %token <val> T_NUMBER
@@ -342,6 +342,16 @@ multicast_option : T_BACKLOG T_NUMBER
 multicast_option : T_GROUP T_NUMBER
 {
 	conf.mcast.port = $2;
+};
+
+multicast_option: T_MCAST_SNDBUFF T_NUMBER
+{
+	conf.mcast.sndbuf = $2;
+};
+
+multicast_option: T_MCAST_RCVBUFF T_NUMBER
+{
+	conf.mcast.rcvbuf = $2;
 };
 
 hashsize : T_HASHSIZE T_NUMBER

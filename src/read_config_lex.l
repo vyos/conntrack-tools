@@ -104,6 +104,8 @@ ftfw		[F|f][T|t][F|f][W|w]
 "LISTEN"			{ return T_LISTEN; }
 "LogFileBufferSize"		{ return T_STAT_BUFFER_SIZE; }
 "DestroyTimeout"		{ return T_DESTROY_TIMEOUT; }
+"McastSndSocketBuffer"		{ return T_MCAST_SNDBUFF; }
+"McastRcvSocketBuffer"		{ return T_MCAST_RCVBUFF; }
 
 {is_on}			{ return T_ON; }
 {is_off}		{ return T_OFF; }

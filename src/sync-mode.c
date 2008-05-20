@@ -211,6 +211,9 @@ static int init_sync(void)
 		return -1;
 	}
 
+	dlog(LOG_NOTICE, "multicast server socket receiver queue "
+			 "has been set to %d bytes", CONFIG(mcast).rcvbuf);
+
 	/* multicast client to send events on the wire */
 	STATE_SYNC(mcast_client) = mcast_client_create(&CONFIG(mcast));
 	if (STATE_SYNC(mcast_client) == NULL) {
@@ -218,6 +221,9 @@ static int init_sync(void)
 		mcast_server_destroy(STATE_SYNC(mcast_server));
 		return -1;
 	}
+
+	dlog(LOG_NOTICE, "multicast client socket sender queue "
+			 "has been set to %d bytes", CONFIG(mcast).sndbuf);
 
 	if (mcast_buffered_init(&CONFIG(mcast)) == -1) {
 		dlog(LOG_ERR, "can't init tx buffer!");
