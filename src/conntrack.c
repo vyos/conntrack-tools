@@ -720,17 +720,35 @@ static int delete_cb(enum nf_conntrack_msg_type type,
 	return NFCT_CB_CONTINUE;
 }
 
+static int print_cb(enum nf_conntrack_msg_type type,
+		    struct nf_conntrack *ct,
+		    void *data)
+{
+	char buf[1024];
+	unsigned int op_type = NFCT_O_DEFAULT;
+	unsigned int op_flags = 0;
+
+	if (output_mask & _O_XML)
+		op_type = NFCT_O_XML;
+	if (output_mask & _O_EXT)
+		op_flags = NFCT_OF_SHOW_LAYER3;
+	if (output_mask & _O_ID)
+		op_flags |= NFCT_OF_ID;
+
+	nfct_snprintf(buf, 1024, ct, NFCT_T_UNKNOWN, op_type, op_flags);
+	printf("%s\n", buf);
+
+	return NFCT_CB_CONTINUE;
+}
+
 static int update_cb(enum nf_conntrack_msg_type type,
 		     struct nf_conntrack *ct,
 		     void *data)
 {
 	int res;
-	char buf[1024];
 	struct nf_conntrack *obj = data;
 	char __tmp[nfct_maxsize()];
 	struct nf_conntrack *tmp = (struct nf_conntrack *) (void *)__tmp;
-	unsigned int op_type = NFCT_O_DEFAULT;
-	unsigned int op_flags = 0;
 
 	memcpy(tmp, obj, sizeof(__tmp));
 
@@ -754,15 +772,22 @@ static int update_cb(enum nf_conntrack_msg_type type,
 			   "Operation failed: %s",
 			   err2str(errno, CT_UPDATE));
 
-	if (output_mask & _O_XML)
-		op_type = NFCT_O_XML;
-	if (output_mask & _O_EXT)
-		op_flags = NFCT_OF_SHOW_LAYER3;
-	if (output_mask & _O_ID)
-		op_flags |= NFCT_OF_ID;
+	nfct_callback_register(ith, NFCT_T_ALL, print_cb, NULL);
 
-	nfct_snprintf(buf, 1024, ct, NFCT_T_UNKNOWN, op_type, op_flags);
-	printf("%s\n", buf);
+	res = nfct_query(ith, NFCT_Q_GET, tmp);
+	if (res < 0) {
+		/* the entry has vanish in middle of the update */
+		if (errno == ENOENT) {
+			nfct_callback_unregister(ith);
+			return NFCT_CB_CONTINUE;
+		}
+
+		exit_error(OTHER_PROBLEM,
+			   "Operation failed: %s",
+			   err2str(errno, CT_UPDATE));
+	}
+
+	nfct_callback_unregister(ith);
 
 	counter++;
 
