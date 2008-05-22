@@ -5,6 +5,7 @@ o remove .svn directory from make distcheck tarballs (reported by B.Benjamini)
 o fix minor compilation issue in amd64 with gcc4.3 (reported by Daniel Schepler)
 o update manpages with the new URL: http://conntrack-tools.netfilter.org
 o check for pkg-config at configure stage
+o add flex version warning (better with >= 2.5.33)
 
 = conntrack =
 o fix minor compilation warning (Krzysztof Oledzki)
