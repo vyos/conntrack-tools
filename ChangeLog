@@ -15,6 +15,7 @@ o check for missing source/address IP/ports in creation and get operations
 o way more flexible conntrack updates and deletions
 o fix NAT filtering via --src-nat and --dst-nat (reported by K.Oledzki)
 o recover the ID support
+o only allow the use of --secmark for listing (filtering)
 o show display counters to stderr
 o enable filtering by status and ID
 o update manpage
@@ -31,6 +32,7 @@ o use generic nfct_copy() from libnetfilter_conntrack to update objects
 o use generic nfct_cmp() to compare objects
 o improve network message sanity checkings
 o add Mcast[Snd|Rcv]SocketBuffer clauses to tune multicast socket buffers
+o add missing string.h required by strdup in config parsing
 
 version 0.9.6 (2008/03/08)
 ------------------------------

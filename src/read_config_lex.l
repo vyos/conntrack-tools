@@ -19,6 +19,8 @@
  * Description: configuration file syntax
  */
 
+#include <string.h>
+
 #include "read_config_yy.h"
 %}
 
