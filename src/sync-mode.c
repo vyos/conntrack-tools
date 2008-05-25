@@ -169,6 +169,8 @@ static int init_sync(void)
 		STATE_SYNC(sync) = &sync_ftfw;
 	else if (CONFIG(flags) & CTD_SYNC_ALARM)
 		STATE_SYNC(sync) = &sync_alarm;
+	else if (CONFIG(flags) & CTD_SYNC_NOTRACK)
+		STATE_SYNC(sync) = &sync_notrack;
 	else {
 		fprintf(stderr, "WARNING: No synchronization mode specified. "
 				"Defaulting to FT-FW mode.\n");

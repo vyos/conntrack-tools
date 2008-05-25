@@ -53,7 +53,7 @@ struct ct_conf conf;
 %token T_ESTABLISHED T_SYN_SENT T_SYN_RECV T_FIN_WAIT 
 %token T_CLOSE_WAIT T_LAST_ACK T_TIME_WAIT T_CLOSE T_LISTEN
 %token T_SYSLOG T_WRITE_THROUGH T_STAT_BUFFER_SIZE T_DESTROY_TIMEOUT
-%token T_MCAST_RCVBUFF T_MCAST_SNDBUFF
+%token T_MCAST_RCVBUFF T_MCAST_SNDBUFF T_NOTRACK
 
 %token <string> T_IP T_PATH_VAL
 %token <val> T_NUMBER
@@ -436,6 +436,7 @@ sync_line: refreshtime
 	 | delay_destroy_msgs
 	 | sync_mode_alarm
 	 | sync_mode_ftfw
+	 | sync_mode_notrack
 	 | listen_to
 	 | state_replication
 	 | cache_writethrough
@@ -450,6 +451,11 @@ sync_mode_alarm: T_SYNC_MODE T_ALARM '{' sync_mode_alarm_list '}'
 sync_mode_ftfw: T_SYNC_MODE T_FTFW '{' sync_mode_ftfw_list '}'
 {
 	conf.flags |= CTD_SYNC_FTFW;
+};
+
+sync_mode_notrack: T_SYNC_MODE T_NOTRACK '{' sync_mode_notrack_list '}'
+{
+	conf.flags |= CTD_SYNC_NOTRACK;
 };
 
 sync_mode_alarm_list:
@@ -469,6 +475,13 @@ sync_mode_ftfw_line: resend_queue_size
 		   | timeout
 		   | window_size
 		   ;
+
+sync_mode_notrack_list:
+	      | sync_mode_notrack_list sync_mode_notrack_line;
+
+sync_mode_notrack_line: timeout
+		   ;
+
 
 resend_queue_size: T_RESEND_BUFFER_SIZE T_NUMBER
 {

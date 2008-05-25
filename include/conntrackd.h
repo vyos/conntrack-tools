@@ -51,6 +51,7 @@ enum {
 #define CTD_STATS_MODE		(1UL << 1)
 #define CTD_SYNC_FTFW		(1UL << 2)
 #define CTD_SYNC_ALARM		(1UL << 3)
+#define CTD_SYNC_NOTRACK	(1UL << 4)
 
 /* FILENAME_MAX is 4096 on my system, perhaps too much? */
 #ifndef FILENAME_MAXLEN

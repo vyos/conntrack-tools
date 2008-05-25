@@ -49,6 +49,7 @@ persistent	[P|p][E|e][R|r][S|s][I|i][S|s][T|t][E|e][N|n][T|T]
 nack		[N|n][A|a][C|c][K|k]
 alarm		[A|a][L|l][A|a][R|r][M|m]
 ftfw		[F|f][T|t][F|f][W|w]
+notrack		[N|n][O|o][T|t][R|r][A|a][C|c][K|k]
 
 %%
 "UNIX"				{ return T_UNIX; }
@@ -125,6 +126,7 @@ ftfw		[F|f][T|t][F|f][W|w]
 				  "is called `ftfw'. Please, update "
 				  "your conntrackd.conf file.\n");
 			  return T_FTFW; }
+{notrack}		{ return T_NOTRACK; }
 {string}		{ yylval.string = strdup(yytext); return T_STRING; }
 
 {comment}	;
