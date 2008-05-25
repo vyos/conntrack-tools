@@ -25,6 +25,7 @@
 #include "alarm.h"
 #include "log.h"
 #include "cache.h"
+#include "event.h"
 
 #include <string.h>
 
@@ -97,6 +98,7 @@ static void tx_queue_add_ctlmsg(uint32_t flags, uint32_t from, uint32_t to)
 	};
 
 	queue_add(tx_queue, &ack, NETHDR_ACK_SIZ);
+	write_evfd(STATE_SYNC(evfd));
 }
 
 static void ftfw_run(void);
@@ -191,6 +193,7 @@ static int do_cache_to_tx(void *data1, void *data2)
 	/* add to tx list */
 	list_add_tail(&cn->tx_list, &tx_list);
 	tx_list_len++;
+	write_evfd(STATE_SYNC(evfd));
 
 	return 0;
 }
@@ -225,6 +228,7 @@ static int rs_queue_to_tx(void *data1, const void *data2)
 		dp("rs_queue_to_tx sq: %u fl:%u len:%u\n",
 			net->seq, net->flags, net->len);
 		queue_add(tx_queue, net, net->len);
+		write_evfd(STATE_SYNC(evfd));
 		queue_del(rs_queue, net);
 	}
 	return 0;
@@ -256,6 +260,7 @@ static void rs_list_to_tx(struct cache *c, unsigned int from, unsigned int to)
 			rs_list_len--;
 			list_add_tail(&cn->tx_list, &tx_list);
 			tx_list_len++;
+			write_evfd(STATE_SYNC(evfd));
 		}
 	} 
 }
