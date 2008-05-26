@@ -52,6 +52,7 @@ static uint32_t window;
 static uint32_t ack_from;
 static int ack_from_set = 0;
 static struct alarm_block alive_alarm;
+static int hello_state = SAY_HELLO;
 
 /* XXX: alive message expiration configurable */
 #define ALIVE_INT 1
@@ -96,6 +97,16 @@ static void tx_queue_add_ctlmsg(uint32_t flags, uint32_t from, uint32_t to)
 		.from  = from,
 		.to    = to,
 	};
+
+	switch(hello_state) {
+	case SAY_HELLO:
+		ack.flags |= NET_F_HELLO;
+		break;
+	case HELLO_BACK:
+		ack.flags |= NET_F_HELLO_BACK;
+		hello_state = HELLO_DONE;
+		break;
+	}
 
 	queue_add(tx_queue, &ack, NETHDR_ACK_SIZ);
 	write_evfd(STATE_SYNC(evfd));
@@ -315,9 +326,28 @@ static int digest_msg(const struct nethdr *net)
 	return MSG_BAD;
 }
 
+static int digest_hello(const struct nethdr *net)
+{
+	int ret = 0;
+
+	if (IS_HELLO(net)) {
+		dlog(LOG_NOTICE, "The other node says HELLO");
+		hello_state = HELLO_BACK;
+		ret = 1;
+	} else if (IS_HELLO_BACK(net)) {
+		dlog(LOG_NOTICE, "The other node says HELLO BACK");
+		hello_state = HELLO_DONE;
+	}
+
+	return ret;
+}
+
 static int ftfw_recv(const struct nethdr *net)
 {
 	int ret = MSG_DATA;
+
+	if (digest_hello(net))
+		goto bypass;
 
 	switch (mcast_track_seq(net->seq, &exp_seq)) {
 	case SEQ_AFTER:
@@ -348,14 +378,12 @@ static int ftfw_recv(const struct nethdr *net)
 		/* we don't accept delayed packets */
 		dlog(LOG_WARNING, "Received seq=%u before expected seq=%u",
 				   net->seq, exp_seq);
-		dlog(LOG_WARNING, "Probably the other node has come back"
-				  "to life but you forgot to add "
-				  "conntrackd -r to your scripts");
 		ret = MSG_DROP;
 		break;
 
 	case SEQ_UNSET:
 	case SEQ_IN_SYNC:
+bypass:
 		ret = digest_msg(net);
 		if (ret == MSG_BAD) {
 			ret = MSG_BAD;
@@ -390,8 +418,6 @@ static void ftfw_send(struct nethdr *net, struct us_conntrack *u)
 	struct netpld *pld = NETHDR_DATA(net);
 	struct cache_ftfw *cn;
 
-	HDR_NETWORK2HOST(net);
-
 	switch(ntohs(pld->query)) {
 	case NFCT_Q_CREATE:
 	case NFCT_Q_UPDATE:
@@ -404,7 +430,19 @@ static void ftfw_send(struct nethdr *net, struct us_conntrack *u)
 			rs_list_len--;
 		}
 
-		cn->seq = net->seq;
+		switch(hello_state) {
+		case SAY_HELLO:
+			net->flags = ntohs(net->flags) | NET_F_HELLO;
+			net->flags = htons(net->flags);
+			break;
+		case HELLO_BACK:
+			net->flags = ntohs(net->flags) | NET_F_HELLO_BACK;
+			net->flags = htons(net->flags);
+			hello_state = HELLO_DONE;
+			break;
+		}
+
+		cn->seq = ntohl(net->seq);
 		list_add_tail(&cn->rs_list, &rs_list);
 		rs_list_len++;
 		break;

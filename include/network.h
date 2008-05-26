@@ -31,6 +31,8 @@ enum {
 	NET_F_NACK 	= (1 << 2),
 	NET_F_ACK 	= (1 << 3),
 	NET_F_ALIVE 	= (1 << 4),
+	NET_F_HELLO	= (1 << 5),
+	NET_F_HELLO_BACK= (1 << 6),
 };
 
 enum {
@@ -63,6 +65,12 @@ enum {
 	SEQ_BEFORE,
 };
 
+enum {
+	SAY_HELLO,
+	HELLO_BACK,
+	HELLO_DONE,
+};
+
 int mcast_track_seq(uint32_t seq, uint32_t *exp_seq);
 void mcast_track_update_seq(uint32_t seq);
 int mcast_track_is_seq_set(void);
@@ -74,12 +82,14 @@ void mcast_buffered_destroy(void);
 int mcast_buffered_send_netmsg(struct mcast_sock *m, void *data, size_t len);
 ssize_t mcast_buffered_pending_netmsg(struct mcast_sock *m);
 
-#define IS_DATA(x)	(x->flags == 0)
+#define IS_DATA(x)	((x->flags & ~(NET_F_HELLO | NET_F_HELLO_BACK)) == 0)
 #define IS_ACK(x)	(x->flags & NET_F_ACK)
 #define IS_NACK(x)	(x->flags & NET_F_NACK)
 #define IS_RESYNC(x)	(x->flags & NET_F_RESYNC)
 #define IS_ALIVE(x)	(x->flags & NET_F_ALIVE)
 #define IS_CTL(x)	IS_ACK(x) || IS_NACK(x) || IS_RESYNC(x) || IS_ALIVE(x)
+#define IS_HELLO(x)	(x->flags & NET_F_HELLO)
+#define IS_HELLO_BACK(x)(x->flags & NET_F_HELLO_BACK)
 
 #define HDR_NETWORK2HOST(x)						\
 ({									\

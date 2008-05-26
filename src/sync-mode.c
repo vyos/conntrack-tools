@@ -395,9 +395,11 @@ static void mcast_send_sync(struct us_conntrack *u, int query)
 
 	net = BUILD_NETMSG(u->ct, query);
 	len = prepare_send_netmsg(STATE_SYNC(mcast_client), net);
-	mcast_buffered_send_netmsg(STATE_SYNC(mcast_client), net, len);
+
 	if (STATE_SYNC(sync)->send)
 		STATE_SYNC(sync)->send(net, u);
+
+	mcast_buffered_send_netmsg(STATE_SYNC(mcast_client), net, len);
 }
 
 static int purge_step(void *data1, void *data2)
