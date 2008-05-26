@@ -176,6 +176,7 @@ struct cache *cache_create(const char *name,
 
 void cache_destroy(struct cache *c)
 {
+	cache_flush(c);
 	hashtable_destroy(c->h);
 	free(c->features);
 	free(c->feature_offset);
