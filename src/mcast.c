@@ -98,6 +98,10 @@ struct mcast_sock *mcast_server_create(struct mcast_conf *conf)
 		return NULL;
 	}
 
+#ifndef SO_RCVBUFFORCE
+#define SO_RCVBUFFORCE 33
+#endif
+
 	if (conf->rcvbuf &&
 	    setsockopt(m->fd, SOL_SOCKET, SO_RCVBUFFORCE, &conf->rcvbuf,
 				sizeof(int)) == -1) {
@@ -231,6 +235,10 @@ struct mcast_sock *mcast_client_create(struct mcast_conf *conf)
 		free(m);
 		return NULL;
 	}
+
+#ifndef SO_SNDBUFFORCE
+#define SO_SNDBUFFORCE 32
+#endif
 
 	if (conf->sndbuf &&
 	    setsockopt(m->fd, SOL_SOCKET, SO_SNDBUFFORCE, &conf->sndbuf,
