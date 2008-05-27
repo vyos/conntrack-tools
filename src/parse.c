@@ -66,7 +66,6 @@ static parse h[ATTR_MAX] = {
 	[ATTR_TIMEOUT]		= parse_u32,
 	[ATTR_MARK]		= parse_u32,
 	[ATTR_STATUS]		= parse_u32,
-	[ATTR_SECMARK]		= parse_u32,
 	[ATTR_MASTER_IPV4_SRC]  = parse_u32,
 	[ATTR_MASTER_IPV4_DST]  = parse_u32,
 	[ATTR_MASTER_L3PROTO]   = parse_u8,
