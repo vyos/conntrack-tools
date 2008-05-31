@@ -360,10 +360,8 @@ int cache_del(struct cache *c, struct nf_conntrack *ct)
 static void __del_timeout(struct alarm_block *a, void *data)
 {
 	struct us_conntrack *u = (struct us_conntrack *) data;
-	struct cache *c = u->cache;
 
 	__del2(u->cache, u);
-	c->del_ok++;
 }
 
 struct us_conntrack *
@@ -382,6 +380,13 @@ cache_del_timeout(struct cache *c, struct nf_conntrack *ct, int timeout)
 	if (u) {
 		if (!alarm_pending(&u->alarm)) {
 			add_alarm(&u->alarm, timeout, 0);
+			/*
+			 * increase stats even if this entry was not really
+			 * removed yet. We do not want to make people think
+			 * that the replication protocol does not work 
+			 * properly.
+			 */
+			c->del_ok++;
 			return u;
 		}
 	}
