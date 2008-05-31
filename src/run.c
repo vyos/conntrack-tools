@@ -38,11 +38,13 @@ void killer(int foo)
 	sigprocmask(SIG_BLOCK, &STATE(block), NULL);
 
 	nfct_close(STATE(event));
-	nfct_close(STATE(dump));
 
 	ignore_pool_destroy(STATE(ignore_pool));
 	local_server_destroy(&STATE(local));
 	STATE(mode)->kill();
+
+	nfct_close(STATE(dump));	/* cache_wt needs this here */
+
 	unlink(CONFIG(lockfile));
 	dlog(LOG_NOTICE, "---- shutdown received ----");
 	close_log();

@@ -38,6 +38,7 @@ o add eventfd emulation to communicate receiver -> sender
 o add best effort replication protocol (aka NOTRACK)
 o rework the HELLO logic inside FT-FW
 o fix leak in cache_destroy(): release objects before destroying the cache
+o delay the closure of the dump descriptor to fix assertion with cache_wt
 
 version 0.9.6 (2008/03/08)
 ------------------------------
