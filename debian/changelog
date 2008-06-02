@@ -2,6 +2,7 @@ conntrack (1:0.9.7-1) UNRELEASED; urgency=low
 
   * new upstream release
     - dropped all patches because they have been merged by upstream
+    - depend on libnfnetlink 0.0.33, libnetfilter-conntrack 0.0.94
 
  -- Max Kellermann <max@duempel.org>  Mon, 02 Jun 2008 16:26:41 +0200
 
