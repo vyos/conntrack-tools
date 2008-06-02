@@ -18,11 +18,8 @@ endif
 # fix "read_config_lex.c:4451: error: 'input' defined but not used"
 CFLAGS += -DYY_NO_INPUT
 
-DPATCH_STAMPFN = debian/stamp-patch
-include /usr/share/dpatch/dpatch.make
-
 build: debian/stamp-build
-debian/stamp-build: $(DPATCH_STAMPFN)
+debian/stamp-build:
 	dh_testdir
 
 	# ./configure
@@ -35,7 +32,7 @@ debian/stamp-build: $(DPATCH_STAMPFN)
 
 	touch $@
 
-clean: unpatch
+clean:
 	dh_testdir
 	dh_testroot
 	rm -f debian/stamp-*
