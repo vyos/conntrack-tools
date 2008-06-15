@@ -25,6 +25,7 @@
 #include <libnetfilter_conntrack/libnetfilter_conntrack.h>
 #include <stdlib.h>
 #include <string.h>
+#include <limits.h>
 
 /* XXX: These should be configurable, better use a rb-tree */
 #define IGNORE_POOL_SIZE 128

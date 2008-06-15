@@ -132,7 +132,7 @@ int do_local_client_step(int fd, void (*process)(char *buf))
 
 void local_step(char *buf)
 {
-	printf(buf);
+	printf("%s", buf);
 }
 
 int do_local_request(int request,
