@@ -91,20 +91,29 @@ static int do_commit(void *data1, void *data2)
 	 */
 	nfct_set_attr_u32(ct, ATTR_TIMEOUT, CONFIG(commit_timeout));
 
-	ret = nl_create_conntrack(ct);
-	if (ret == -1) {
-		switch(errno) {
-			case EEXIST:
-				c->commit_exist++;
-				break;
-			default:
-				dlog(LOG_ERR, "commit: %s", strerror(errno));
-				dlog_ct(STATE(log), u->ct, NFCT_O_PLAIN);
-				c->commit_fail++;
-				break;
-		}
-	} else {
-		c->commit_ok++;
+	ret = nl_exist_conntrack(ct);
+	switch (ret) {
+	case -1:
+		dlog(LOG_ERR, "commit-exist: %s", strerror(errno));
+		dlog_ct(STATE(log), ct, NFCT_O_PLAIN);
+		break;
+	case 0:
+		if (nl_create_conntrack(ct) == -1) {
+			dlog(LOG_ERR, "commit-create: %s", strerror(errno));
+			dlog_ct(STATE(log), ct, NFCT_O_PLAIN);
+			c->commit_fail++;
+		} else
+			c->commit_ok++;
+		break;
+	case 1:
+		c->commit_exist++;
+		if (nl_update_conntrack(ct) == -1) {
+			dlog(LOG_ERR, "commit-update: %s", strerror(errno));
+			dlog_ct(STATE(log), ct, NFCT_O_PLAIN);
+			c->commit_fail++;
+		} else
+			c->commit_ok++;
+		break;
 	}
 
 	/* keep iterating even if we have found errors */
@@ -128,7 +137,7 @@ void cache_commit(struct cache *c)
 	dlog(LOG_NOTICE, "Committed %u new entries", commit_ok);
 
 	if (commit_exist)
-		dlog(LOG_NOTICE, "%u entries ignored, "
+		dlog(LOG_NOTICE, "%u entries updated, "
 				 "already exist", commit_exist);
 	if (commit_fail)
 		dlog(LOG_NOTICE, "%u entries can't be "
