@@ -23,6 +23,7 @@
 #include "log.h"
 #include "debug.h"
 
+#include <string.h>
 #include <errno.h>
 
 int ignore_conntrack(struct nf_conntrack *ct)
@@ -219,8 +220,15 @@ int nl_overrun_request_resync(void)
 int nl_exist_conntrack(struct nf_conntrack *ct)
 {
 	int ret;
+	char __tmp[nfct_maxsize()];
+	struct nf_conntrack *tmp = (struct nf_conntrack *) (void *)__tmp;
 
-	ret = nfct_query(STATE(dump), NFCT_Q_GET, ct);
+	memset(__tmp, 0, sizeof(__tmp));
+
+	/* use the original tuple to check if it is there */
+	nfct_copy(tmp, ct, NFCT_CP_ORIG);
+
+	ret = nfct_query(STATE(dump), NFCT_Q_GET, tmp);
 	if (ret == -1)
 		return errno == ENOENT ? 0 : -1;
 
