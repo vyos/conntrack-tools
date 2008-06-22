@@ -604,10 +604,16 @@ static int ignore_nat(const struct nf_conntrack *obj,
 }
 
 static int counter;
+static int dump_xml_header_done = 1;
 
 static void __attribute__((noreturn))
 event_sighandler(int s)
 {
+	if (dump_xml_header_done == 0) {
+		printf("</conntrack>\n");
+		fflush(stdout);
+	}
+
 	fprintf(stderr, "%s v%s: ", PROGNAME, VERSION);
 	fprintf(stderr, "%d flow events has been shown.\n", counter);
 	nfct_close(cth);
@@ -619,6 +625,7 @@ static int event_cb(enum nf_conntrack_msg_type type,
 		    void *data)
 {
 	char buf[1024];
+	int ret, offset = 0, len = sizeof(buf);
 	struct nf_conntrack *obj = data;
 	unsigned int op_type = NFCT_O_DEFAULT;
 	unsigned int op_flags = 0;
@@ -629,8 +636,21 @@ static int event_cb(enum nf_conntrack_msg_type type,
 	if (options & CT_COMPARISON && !nfct_cmp(obj, ct, NFCT_CMP_ALL))
 		return NFCT_CB_CONTINUE;
 
-	if (output_mask & _O_XML)
+	if (output_mask & _O_XML) {
 		op_type = NFCT_O_XML;
+		if (dump_xml_header_done) {
+			dump_xml_header_done = 0;
+			ret = snprintf(buf, len, "<?xml version=\"1.0\" "
+						 "encoding=\"utf-8\"?>\n"
+						 "<conntrack>\n");
+			if (ret == -1) {
+				fprintf(stderr, "evil! snprintf fails\n");
+				return NFCT_CB_CONTINUE;
+			}
+
+			BUFFER_SIZE(ret, len, offset);
+		}
+	} 
 	if (output_mask & _O_EXT)
 		op_flags = NFCT_OF_SHOW_LAYER3;
 	if (output_mask & _O_TMS) {
@@ -644,7 +664,8 @@ static int event_cb(enum nf_conntrack_msg_type type,
 	if (output_mask & _O_ID)
 		op_flags |= NFCT_OF_ID;
 
-	nfct_snprintf(buf, 1024, ct, type, op_type, op_flags);
+	nfct_snprintf(buf+offset, len, ct, type, op_type, op_flags);
+
 	printf("%s\n", buf);
 	fflush(stdout);
 
@@ -658,6 +679,7 @@ static int dump_cb(enum nf_conntrack_msg_type type,
 		   void *data)
 {
 	char buf[1024];
+	int ret, offset = 0, len = sizeof(buf);
 	struct nf_conntrack *obj = data;
 	unsigned int op_type = NFCT_O_DEFAULT;
 	unsigned int op_flags = 0;
@@ -668,14 +690,27 @@ static int dump_cb(enum nf_conntrack_msg_type type,
 	if (options & CT_COMPARISON && !nfct_cmp(obj, ct, NFCT_CMP_ALL))
 		return NFCT_CB_CONTINUE;
 
-	if (output_mask & _O_XML)
+	if (output_mask & _O_XML) {
 		op_type = NFCT_O_XML;
+		if (dump_xml_header_done) {
+			dump_xml_header_done = 0;
+			ret = snprintf(buf, len, "<?xml version=\"1.0\" "
+						 "encoding=\"utf-8\"?>\n"
+						 "<conntrack>\n");
+			if (ret == -1) {
+				fprintf(stderr, "evil! snprintf fails\n");
+				return NFCT_CB_CONTINUE;
+			}
+
+			BUFFER_SIZE(ret, len, offset);
+		}
+	}
 	if (output_mask & _O_EXT)
 		op_flags = NFCT_OF_SHOW_LAYER3;
 	if (output_mask & _O_ID)
 		op_flags |= NFCT_OF_ID;
 
-	nfct_snprintf(buf, 1024, ct, NFCT_T_UNKNOWN, op_type, op_flags);
+	nfct_snprintf(buf+offset, len, ct, NFCT_T_UNKNOWN, op_type, op_flags);
 	printf("%s\n", buf);
 
 	counter++;
@@ -1128,6 +1163,11 @@ int main(int argc, char *argv[])
 			res = nfct_query(cth, NFCT_Q_DUMP_RESET, &family);
 		else
 			res = nfct_query(cth, NFCT_Q_DUMP, &family);
+
+		if (dump_xml_header_done == 0) {
+			printf("</conntrack>\n");
+			fflush(stdout);
+		}
 
 		nfct_close(cth);
 		break;
