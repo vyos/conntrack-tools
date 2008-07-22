@@ -20,7 +20,7 @@
 
 #include "conntrackd.h"
 #include "netlink.h"
-#include "ignore.h"
+#include "filter.h"
 #include "log.h"
 #include "alarm.h"
 #include "fds.h"
@@ -39,7 +39,7 @@ void killer(int foo)
 
 	nfct_close(STATE(event));
 
-	ignore_pool_destroy(STATE(ignore_pool));
+	ct_filter_destroy(STATE(us_filter));
 	local_server_destroy(&STATE(local));
 	STATE(mode)->kill();
 

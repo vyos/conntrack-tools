@@ -20,7 +20,6 @@
 #include "netlink.h"
 #include "traffic_stats.h"
 #include "log.h"
-#include "state_helper.h"
 #include "cache.h"
 #include "conntrackd.h"
 #include "us-conntrack.h"
@@ -389,9 +388,6 @@ static void mcast_send_sync(struct us_conntrack *u, int query)
 {
 	size_t len;
 	struct nethdr *net;
-
-	if (!state_helper_verdict(query, u->ct))
-		return;
 
 	net = BUILD_NETMSG(u->ct, query);
 	len = prepare_send_netmsg(STATE_SYNC(mcast_client), net);

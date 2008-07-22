@@ -68,11 +68,6 @@ notrack		[N|n][O|o][T|t][R|r][A|a][C|c][K|k]
 "HashLimit"			{ return T_HASHLIMIT; }
 "Path"				{ return T_PATH; }
 "IgnoreProtocol"		{ return T_IGNORE_PROTOCOL; }
-"UDP"				{ return T_UDP; }
-"ICMP"				{ return T_ICMP; }
-"VRRP"				{ return T_VRRP; }
-"IGMP"				{ return T_IGMP; }
-"TCP"				{ return T_TCP; }
 "IgnoreTrafficFor"		{ return T_IGNORE_TRAFFIC; }
 "StripNAT"			{ return T_STRIP_NAT; }
 "Backlog"			{ return T_BACKLOG; }
@@ -103,12 +98,19 @@ notrack		[N|n][O|o][T|t][R|r][A|a][C|c][K|k]
 "CLOSE_WAIT"			{ return T_CLOSE_WAIT; }
 "LAST_ACK"			{ return T_LAST_ACK; }
 "TIME_WAIT"			{ return T_TIME_WAIT; }
-"CLOSE"				{ return T_CLOSE; }
+"CLOSE"				{ return T_CLOSE; /* alias of CLOSED */ }
+"CLOSED"			{ return T_CLOSE; }
 "LISTEN"			{ return T_LISTEN; }
 "LogFileBufferSize"		{ return T_STAT_BUFFER_SIZE; }
 "DestroyTimeout"		{ return T_DESTROY_TIMEOUT; }
 "McastSndSocketBuffer"		{ return T_MCAST_SNDBUFF; }
 "McastRcvSocketBuffer"		{ return T_MCAST_RCVBUFF; }
+"Filter"			{ return T_FILTER; }
+"Protocol"			{ return T_PROTOCOL; }
+"Address"			{ return T_ADDRESS; }
+"State"				{ return T_STATE; }
+"Accept"			{ return T_ACCEPT; }
+"Ignore"			{ return T_IGNORE; }
 
 {is_on}			{ return T_ON; }
 {is_off}		{ return T_OFF; }

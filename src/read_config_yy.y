@@ -22,13 +22,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <netdb.h>
 #include <errno.h>
 #include "conntrackd.h"
-#include "ignore.h"
+#include "bitops.h"
 #include <syslog.h>
 #include <libnetfilter_conntrack/libnetfilter_conntrack_tcp.h>
-
-extern struct state_replication_helper tcp_state_helper;
 
 extern char *yytext;
 extern int   yylineno;
@@ -44,7 +43,7 @@ struct ct_conf conf;
 %token T_IPV4_ADDR T_IPV4_IFACE T_PORT T_HASHSIZE T_HASHLIMIT T_MULTICAST
 %token T_PATH T_UNIX T_REFRESH T_IPV6_ADDR T_IPV6_IFACE
 %token T_IGNORE_UDP T_IGNORE_ICMP T_IGNORE_TRAFFIC T_BACKLOG T_GROUP
-%token T_LOG T_UDP T_ICMP T_IGMP T_VRRP T_TCP T_IGNORE_PROTOCOL
+%token T_LOG T_UDP T_ICMP T_IGMP T_VRRP T_IGNORE_PROTOCOL
 %token T_LOCK T_STRIP_NAT T_BUFFER_SIZE_MAX_GROWN T_EXPIRE T_TIMEOUT
 %token T_GENERAL T_SYNC T_STATS T_RELAX_TRANSITIONS T_BUFFER_SIZE T_DELAY
 %token T_SYNC_MODE T_LISTEN_TO T_FAMILY T_RESEND_BUFFER_SIZE
@@ -54,6 +53,7 @@ struct ct_conf conf;
 %token T_CLOSE_WAIT T_LAST_ACK T_TIME_WAIT T_CLOSE T_LISTEN
 %token T_SYSLOG T_WRITE_THROUGH T_STAT_BUFFER_SIZE T_DESTROY_TIMEOUT
 %token T_MCAST_RCVBUFF T_MCAST_SNDBUFF T_NOTRACK
+%token T_FILTER T_ADDRESS T_PROTOCOL T_STATE T_ACCEPT T_IGNORE
 
 %token <string> T_IP T_PATH_VAL
 %token <val> T_NUMBER
@@ -169,7 +169,15 @@ checksum: T_CHECKSUM T_OFF
 	conf.mcast.checksum = 1;
 };
 
-ignore_traffic : T_IGNORE_TRAFFIC '{' ignore_traffic_options '}';
+ignore_traffic : T_IGNORE_TRAFFIC '{' ignore_traffic_options '}'
+{
+	ct_filter_set_logic(STATE(us_filter),
+			    CT_FILTER_ADDRESS,
+			    CT_FILTER_NEGATIVE);
+
+	fprintf(stderr, "WARNING: The clause `IgnoreTrafficFor' is obsolete. "
+			"Use `Filter' instead.\n");
+};
 
 ignore_traffic_options :
 		       | ignore_traffic_options ignore_traffic_option;
@@ -185,15 +193,7 @@ ignore_traffic_option : T_IPV4_ADDR T_IP
 		break;
 	}
 
-	if (!STATE(ignore_pool)) {
-		STATE(ignore_pool) = ignore_pool_create();
-		if (!STATE(ignore_pool)) {
-			fprintf(stderr, "Can't create ignore pool!\n");
-			exit(EXIT_FAILURE);
-		}
-	}
-
-	if (!ignore_pool_add(STATE(ignore_pool), &ip, AF_INET)) {
+	if (!ct_filter_add_ip(STATE(us_filter), &ip, AF_INET)) {
 		if (errno == EEXIST)
 			fprintf(stderr, "IP %s is repeated "
 					"in the ignore pool\n", $2);
@@ -218,15 +218,7 @@ ignore_traffic_option : T_IPV6_ADDR T_IP
 	break;
 #endif
 
-	if (!STATE(ignore_pool)) {
-		STATE(ignore_pool) = ignore_pool_create();
-		if (!STATE(ignore_pool)) {
-			fprintf(stderr, "Can't create ignore pool!\n");
-			exit(EXIT_FAILURE);
-		}
-	}
-
-	if (!ignore_pool_add(STATE(ignore_pool), &ip, AF_INET6)) {
+	if (!ct_filter_add_ip(STATE(us_filter), &ip, AF_INET6)) {
 		if (errno == EEXIST)
 			fprintf(stderr, "IP %s is repeated "
 					"in the ignore pool\n", $2);
@@ -380,7 +372,15 @@ unix_option : T_BACKLOG T_NUMBER
 	conf.local.backlog = $2;
 };
 
-ignore_protocol: T_IGNORE_PROTOCOL '{' ignore_proto_list '}';
+ignore_protocol: T_IGNORE_PROTOCOL '{' ignore_proto_list '}'
+{
+	ct_filter_set_logic(STATE(us_filter),
+			    CT_FILTER_L4PROTO,
+			    CT_FILTER_NEGATIVE);
+
+	fprintf(stderr, "WARNING: The clause `IgnoreProtocol' is obsolete. "
+			"Use `Filter' instead.\n");
+};
 
 ignore_proto_list:
 		 | ignore_proto_list ignore_proto
@@ -389,29 +389,22 @@ ignore_proto_list:
 ignore_proto: T_NUMBER
 {
 	if ($1 < IPPROTO_MAX)
-		conf.ignore_protocol[$1] = 1;
+		ct_filter_add_proto(STATE(us_filter), $1);
 	else
 		fprintf(stderr, "Protocol number `%d' is freak\n", $1);
 };
 
-ignore_proto: T_UDP
+ignore_proto: T_STRING
 {
-	conf.ignore_protocol[IPPROTO_UDP] = 1;
-};
+	struct protoent *pent;
 
-ignore_proto: T_ICMP
-{
-	conf.ignore_protocol[IPPROTO_ICMP] = 1;
-};
-
-ignore_proto: T_VRRP
-{
-	conf.ignore_protocol[IPPROTO_VRRP] = 1;
-};
-
-ignore_proto: T_IGMP
-{
-	conf.ignore_protocol[IPPROTO_IGMP] = 1;
+	pent = getprotobyname($1);
+	if (pent == NULL) {
+		fprintf(stderr, "getprotobyname() cannot find "
+				"protocol `%s' in /etc/protocols.\n", $1);
+		break;
+	}
+	ct_filter_add_proto(STATE(us_filter), pent->p_proto);
 };
 
 sync: T_SYNC '{' sync_list '}'
@@ -538,49 +531,81 @@ listen_to: T_LISTEN_TO T_IP
 	}
 };
 
-state_replication: T_REPLICATE states T_FOR state_proto;
+state_replication: T_REPLICATE states T_FOR state_proto
+{
+	ct_filter_set_logic(STATE(us_filter),
+			    CT_FILTER_STATE,
+			    CT_FILTER_POSITIVE);
+
+	fprintf(stderr, "WARNING: The clause `Replicate' is obsolete. "
+			"Use `Filter' instead.\n");
+};
 
 states:
       | states state;
 
-state_proto: T_TCP;
+state_proto: T_STRING
+{
+	if (strncmp($1, "TCP", strlen("TCP")) != 0) {
+		fprintf(stderr, "Unsupported protocol `%s' in line %d.\n",
+				$1, yylineno);
+	}
+};
 state: tcp_state;
 
 tcp_state: T_SYN_SENT
 {
-	state_helper_register(&tcp_state_helper, TCP_CONNTRACK_SYN_SENT);
+	ct_filter_add_state(STATE(us_filter),
+			    IPPROTO_TCP,
+			    TCP_CONNTRACK_SYN_SENT);
 };
 tcp_state: T_SYN_RECV
 {
-	state_helper_register(&tcp_state_helper, TCP_CONNTRACK_SYN_RECV);
+	ct_filter_add_state(STATE(us_filter),
+			    IPPROTO_TCP,
+			    TCP_CONNTRACK_SYN_RECV);
 };
 tcp_state: T_ESTABLISHED
 {
-	state_helper_register(&tcp_state_helper, TCP_CONNTRACK_ESTABLISHED);
+	ct_filter_add_state(STATE(us_filter),
+			    IPPROTO_TCP,
+			    TCP_CONNTRACK_ESTABLISHED);
 };
 tcp_state: T_FIN_WAIT
 {
-	state_helper_register(&tcp_state_helper, TCP_CONNTRACK_FIN_WAIT);
+	ct_filter_add_state(STATE(us_filter),
+			    IPPROTO_TCP,
+			    TCP_CONNTRACK_FIN_WAIT);
 };
 tcp_state: T_CLOSE_WAIT
 {
-	state_helper_register(&tcp_state_helper, TCP_CONNTRACK_CLOSE_WAIT);
+	ct_filter_add_state(STATE(us_filter),
+			    IPPROTO_TCP,
+			    TCP_CONNTRACK_CLOSE_WAIT);
 };
 tcp_state: T_LAST_ACK
 {
-	state_helper_register(&tcp_state_helper, TCP_CONNTRACK_LAST_ACK);
+	ct_filter_add_state(STATE(us_filter),
+			    IPPROTO_TCP,
+			    TCP_CONNTRACK_LAST_ACK);
 };
 tcp_state: T_TIME_WAIT
 {
-	state_helper_register(&tcp_state_helper, TCP_CONNTRACK_TIME_WAIT);
+	ct_filter_add_state(STATE(us_filter),
+			    IPPROTO_TCP,
+			    TCP_CONNTRACK_TIME_WAIT);
 };
 tcp_state: T_CLOSE
 {
-	state_helper_register(&tcp_state_helper, TCP_CONNTRACK_CLOSE);
+	ct_filter_add_state(STATE(us_filter),
+			    IPPROTO_TCP,
+			    TCP_CONNTRACK_CLOSE);
 };
 tcp_state: T_LISTEN
 {
-	state_helper_register(&tcp_state_helper, TCP_CONNTRACK_LISTEN);
+	ct_filter_add_state(STATE(us_filter),
+			    IPPROTO_TCP,
+			    TCP_CONNTRACK_LISTEN);
 };
 
 cache_writethrough: T_WRITE_THROUGH T_ON
@@ -610,6 +635,7 @@ general_line: hashsize
 	    | netlink_buffer_size
 	    | netlink_buffer_size_max_grown
 	    | family
+	    | filter
 	    ;
 
 netlink_buffer_size: T_BUFFER_SIZE T_NUMBER
@@ -629,6 +655,122 @@ family : T_FAMILY T_STRING
 	else
 		conf.family = AF_INET;
 };
+
+filter : T_FILTER '{' filter_list '}';
+
+filter_list : 
+	    | filter_list filter_item;
+
+filter_item : T_PROTOCOL T_ACCEPT '{' filter_protocol_list '}'
+{
+	ct_filter_set_logic(STATE(us_filter),
+			    CT_FILTER_L4PROTO,
+			    CT_FILTER_POSITIVE);
+};
+
+filter_item : T_PROTOCOL T_IGNORE '{' filter_protocol_list '}'
+{
+	ct_filter_set_logic(STATE(us_filter),
+			    CT_FILTER_L4PROTO,
+			    CT_FILTER_NEGATIVE);
+};
+
+filter_protocol_list :
+		     | filter_protocol_list filter_protocol_item;
+
+filter_protocol_item : T_STRING
+{
+	struct protoent *pent;
+
+	pent = getprotobyname($1);
+	if (pent == NULL) {
+		fprintf(stderr, "getprotobyname() cannot find "
+				"protocol `%s' in /etc/protocols.\n", $1);
+		break;
+	}
+	ct_filter_add_proto(STATE(us_filter), pent->p_proto);
+};
+
+filter_item : T_ADDRESS T_ACCEPT '{' filter_address_list '}'
+{
+	ct_filter_set_logic(STATE(us_filter),
+			    CT_FILTER_ADDRESS,
+			    CT_FILTER_POSITIVE);
+};
+
+filter_item : T_ADDRESS T_IGNORE '{' filter_address_list '}'
+{
+	ct_filter_set_logic(STATE(us_filter),
+			    CT_FILTER_ADDRESS,
+			    CT_FILTER_NEGATIVE);
+};
+
+filter_address_list :
+		    | filter_address_list filter_address_item;
+
+filter_address_item : T_IPV4_ADDR T_IP
+{
+	union inet_address ip;
+
+	memset(&ip, 0, sizeof(union inet_address));
+
+	if (!inet_aton($2, &ip.ipv4)) {
+		fprintf(stderr, "%s is not a valid IPv4, ignoring", $2);
+		break;
+	}
+
+	if (!ct_filter_add_ip(STATE(us_filter), &ip, AF_INET)) {
+		if (errno == EEXIST)
+			fprintf(stderr, "IP %s is repeated "
+					"in the ignore pool\n", $2);
+		if (errno == ENOSPC)
+			fprintf(stderr, "Too many IP in the ignore pool!\n");
+	}
+};
+
+filter_address_item : T_IPV6_ADDR T_IP
+{
+	union inet_address ip;
+
+	memset(&ip, 0, sizeof(union inet_address));
+
+#ifdef HAVE_INET_PTON_IPV6
+	if (inet_pton(AF_INET6, $2, &ip.ipv6) <= 0) {
+		fprintf(stderr, "%s is not a valid IPv6, ignoring", $2);
+		break;
+	}
+#else
+	fprintf(stderr, "Cannot find inet_pton(), IPv6 unsupported!");
+	break;
+#endif
+
+	if (!ct_filter_add_ip(STATE(us_filter), &ip, AF_INET6)) {
+		if (errno == EEXIST)
+			fprintf(stderr, "IP %s is repeated "
+					"in the ignore pool\n", $2);
+		if (errno == ENOSPC)
+			fprintf(stderr, "Too many IP in the ignore pool!\n");
+	}
+};
+
+filter_item : T_STATE T_ACCEPT '{' filter_state_list '}'
+{
+	ct_filter_set_logic(STATE(us_filter),
+			    CT_FILTER_STATE,
+			    CT_FILTER_POSITIVE);
+};
+
+filter_item : T_STATE T_IGNORE '{' filter_state_list '}'
+{
+	ct_filter_set_logic(STATE(us_filter),
+			    CT_FILTER_STATE,
+			    CT_FILTER_NEGATIVE);
+};
+
+filter_state_list :
+		  | filter_state_list filter_state_item;
+
+filter_state_item : states T_FOR state_proto ;
 
 stats: T_STATS '{' stats_list '}'
 {
@@ -761,15 +903,6 @@ init_config(char *filename)
 
 	if (CONFIG(resend_queue_size) == 0)
 		CONFIG(resend_queue_size) = 262144;
-
-	/* create empty pool */
-	if (!STATE(ignore_pool)) {
-		STATE(ignore_pool) = ignore_pool_create();
-		if (!STATE(ignore_pool)) {
-			fprintf(stderr, "Can't create ignore pool!\n");
-			exit(EXIT_FAILURE);
-		}
-	}
 
 	/* default to a window size of 20 packets */
 	if (CONFIG(window_size) == 0)

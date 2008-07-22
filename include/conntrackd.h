@@ -4,6 +4,7 @@
 #include "mcast.h"
 #include "local.h"
 #include "alarm.h"
+#include "filter.h"
 
 #include <stdint.h>
 #include <stdio.h>
@@ -80,7 +81,6 @@ struct ct_conf {
 	int del_timeout;
 	unsigned int netlink_buffer_size;
 	unsigned int netlink_buffer_size_max_grown;
-	unsigned char ignore_protocol[IPPROTO_MAX];
 	union inet_address *listen_to;
 	unsigned int listen_to_len;
 	unsigned int flags;
@@ -103,7 +103,7 @@ struct ct_general_state {
 	FILE				*stats_log;
 	struct local_server		local;
 	struct ct_mode 			*mode;
-	struct ignore_pool		*ignore_pool;
+	struct ct_filter		*us_filter;
 
 	struct nfct_handle		*event;         /* event handler */
 	struct nfct_handle		*dump;		/* dump handler */

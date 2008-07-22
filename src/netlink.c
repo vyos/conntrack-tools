@@ -19,7 +19,7 @@
 #include "netlink.h"
 #include "conntrackd.h"
 #include "traffic_stats.h"
-#include "ignore.h"
+#include "filter.h"
 #include "log.h"
 #include "debug.h"
 
@@ -28,10 +28,6 @@
 
 int ignore_conntrack(struct nf_conntrack *ct)
 {
-	/* ignore a certain protocol */
-	if (CONFIG(ignore_protocol)[nfct_get_attr_u8(ct, ATTR_ORIG_L4PROTO)])
-		return 1;
-
 	/* Accept DNAT'ed traffic: not really coming to the local machine */
 	if (nfct_getobjopt(ct, NFCT_GOPT_IS_DNAT)) {
 		debug_ct(ct, "DNAT");
@@ -45,7 +41,7 @@ int ignore_conntrack(struct nf_conntrack *ct)
 	}
 
 	/* Ignore traffic */
-	if (ignore_pool_test(STATE(ignore_pool), ct)) {
+	if (!ct_filter_check(STATE(us_filter), ct)) {
 		debug_ct(ct, "ignore traffic");
 		return 1;
 	}
@@ -57,10 +53,6 @@ static int event_handler(enum nf_conntrack_msg_type type,
 			 struct nf_conntrack *ct,
 			 void *data)
 {
-	/*
-	 * Ignore this conntrack: it talks about a
-	 * connection that is not interesting for us.
-	 */
 	if (ignore_conntrack(ct))
 		return NFCT_CB_STOP;
 
@@ -125,10 +117,6 @@ static int dump_handler(enum nf_conntrack_msg_type type,
 			struct nf_conntrack *ct,
 			void *data)
 {
-	/*
-	 * Ignore this conntrack: it talks about a
-	 * connection that is not interesting for us.
-	 */
 	if (ignore_conntrack(ct))
 		return NFCT_CB_CONTINUE;
 
