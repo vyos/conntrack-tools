@@ -1,4 +1,4 @@
-conntrack (1:0.9.7-1) UNRELEASED; urgency=low
+conntrack (1:0.9.7-1) unstable; urgency=low
 
   [ Max Kellermann ]
   * new upstream release
@@ -8,7 +8,7 @@ conntrack (1:0.9.7-1) UNRELEASED; urgency=low
   [ Alexander Wirt ]
   * Bump standards version (No changes) 
 
- -- Alexander Wirt <formorer@debian.org>  Tue, 22 Jul 2008 23:27:51 +0200
+ -- Alexander Wirt <formorer@debian.org>  Tue, 22 Jul 2008 23:33:30 +0200
 
 conntrack (1:0.9.6-4) unstable; urgency=low
 
