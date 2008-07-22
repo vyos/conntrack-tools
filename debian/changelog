@@ -1,10 +1,14 @@
 conntrack (1:0.9.7-1) UNRELEASED; urgency=low
 
+  [ Max Kellermann ]
   * new upstream release
     - dropped all patches because they have been merged by upstream
     - depend on libnfnetlink 0.0.33, libnetfilter-conntrack 0.0.94
 
- -- Max Kellermann <max@duempel.org>  Mon, 02 Jun 2008 16:26:41 +0200
+  [ Alexander Wirt ]
+  * Bump standards version (No changes) 
+
+ -- Alexander Wirt <formorer@debian.org>  Tue, 22 Jul 2008 23:27:51 +0200
 
 conntrack (1:0.9.6-4) unstable; urgency=low
 
