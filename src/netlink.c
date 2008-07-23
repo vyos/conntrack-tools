@@ -85,6 +85,20 @@ int nl_init_event_handler(void)
 	if (!STATE(event))
 		return -1;
 
+	if (STATE(filter)) {
+		if (nfct_filter_attach(nfct_fd(STATE(event)),
+				       STATE(filter)) == -1) {
+			dlog(LOG_NOTICE, "cannot set netlink kernel-space "
+					 "event filtering, defaulting to "
+					 "user-space. We suggest you to "
+					 "upgrade your Linux kernel to "
+					 ">= 2.6.26. Operation returns: %s", 
+					 strerror(errno));
+			/* don't fail here, old kernels don't support this */
+		}
+		nfct_filter_destroy(STATE(filter));
+	}
+
 	fcntl(nfct_fd(STATE(event)), F_SETFL, O_NONBLOCK);
 
 	/* set up socket buffer size */

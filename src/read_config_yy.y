@@ -27,12 +27,16 @@
 #include "conntrackd.h"
 #include "bitops.h"
 #include <syslog.h>
+#include <libnetfilter_conntrack/libnetfilter_conntrack.h>
 #include <libnetfilter_conntrack/libnetfilter_conntrack_tcp.h>
 
 extern char *yytext;
 extern int   yylineno;
 
 struct ct_conf conf;
+
+static void __kernel_filter_start(void);
+static void __kernel_filter_add_state(int value);
 %}
 
 %union {
@@ -558,54 +562,72 @@ tcp_state: T_SYN_SENT
 	ct_filter_add_state(STATE(us_filter),
 			    IPPROTO_TCP,
 			    TCP_CONNTRACK_SYN_SENT);
+
+	__kernel_filter_add_state(TCP_CONNTRACK_SYN_SENT);
 };
 tcp_state: T_SYN_RECV
 {
 	ct_filter_add_state(STATE(us_filter),
 			    IPPROTO_TCP,
 			    TCP_CONNTRACK_SYN_RECV);
+
+	__kernel_filter_add_state(TCP_CONNTRACK_SYN_RECV);
 };
 tcp_state: T_ESTABLISHED
 {
 	ct_filter_add_state(STATE(us_filter),
 			    IPPROTO_TCP,
 			    TCP_CONNTRACK_ESTABLISHED);
+
+	__kernel_filter_add_state(TCP_CONNTRACK_ESTABLISHED);
 };
 tcp_state: T_FIN_WAIT
 {
 	ct_filter_add_state(STATE(us_filter),
 			    IPPROTO_TCP,
 			    TCP_CONNTRACK_FIN_WAIT);
+
+	__kernel_filter_add_state(TCP_CONNTRACK_FIN_WAIT);
 };
 tcp_state: T_CLOSE_WAIT
 {
 	ct_filter_add_state(STATE(us_filter),
 			    IPPROTO_TCP,
 			    TCP_CONNTRACK_CLOSE_WAIT);
+
+	__kernel_filter_add_state(TCP_CONNTRACK_CLOSE_WAIT);
 };
 tcp_state: T_LAST_ACK
 {
 	ct_filter_add_state(STATE(us_filter),
 			    IPPROTO_TCP,
 			    TCP_CONNTRACK_LAST_ACK);
+
+	__kernel_filter_add_state(TCP_CONNTRACK_LAST_ACK);
 };
 tcp_state: T_TIME_WAIT
 {
 	ct_filter_add_state(STATE(us_filter),
 			    IPPROTO_TCP,
 			    TCP_CONNTRACK_TIME_WAIT);
+
+	__kernel_filter_add_state(TCP_CONNTRACK_TIME_WAIT);
 };
 tcp_state: T_CLOSE
 {
 	ct_filter_add_state(STATE(us_filter),
 			    IPPROTO_TCP,
 			    TCP_CONNTRACK_CLOSE);
+
+	__kernel_filter_add_state(TCP_CONNTRACK_CLOSE);
 };
 tcp_state: T_LISTEN
 {
 	ct_filter_add_state(STATE(us_filter),
 			    IPPROTO_TCP,
 			    TCP_CONNTRACK_LISTEN);
+
+	__kernel_filter_add_state(TCP_CONNTRACK_LISTEN);
 };
 
 cache_writethrough: T_WRITE_THROUGH T_ON
@@ -666,6 +688,8 @@ filter_item : T_PROTOCOL T_ACCEPT '{' filter_protocol_list '}'
 	ct_filter_set_logic(STATE(us_filter),
 			    CT_FILTER_L4PROTO,
 			    CT_FILTER_POSITIVE);
+
+	__kernel_filter_start();
 };
 
 filter_item : T_PROTOCOL T_IGNORE '{' filter_protocol_list '}'
@@ -673,6 +697,12 @@ filter_item : T_PROTOCOL T_IGNORE '{' filter_protocol_list '}'
 	ct_filter_set_logic(STATE(us_filter),
 			    CT_FILTER_L4PROTO,
 			    CT_FILTER_NEGATIVE);
+
+	__kernel_filter_start();
+
+	nfct_filter_set_logic(STATE(filter),
+			      NFCT_FILTER_L4PROTO,
+			      NFCT_FILTER_LOGIC_NEGATIVE);
 };
 
 filter_protocol_list :
@@ -689,6 +719,12 @@ filter_protocol_item : T_STRING
 		break;
 	}
 	ct_filter_add_proto(STATE(us_filter), pent->p_proto);
+
+	__kernel_filter_start();
+
+	nfct_filter_add_attr_u32(STATE(filter),
+				 NFCT_FILTER_L4PROTO,
+				 pent->p_proto);
 };
 
 filter_item : T_ADDRESS T_ACCEPT '{' filter_address_list '}'
@@ -696,6 +732,8 @@ filter_item : T_ADDRESS T_ACCEPT '{' filter_address_list '}'
 	ct_filter_set_logic(STATE(us_filter),
 			    CT_FILTER_ADDRESS,
 			    CT_FILTER_POSITIVE);
+
+	__kernel_filter_start();
 };
 
 filter_item : T_ADDRESS T_IGNORE '{' filter_address_list '}'
@@ -703,6 +741,15 @@ filter_item : T_ADDRESS T_IGNORE '{' filter_address_list '}'
 	ct_filter_set_logic(STATE(us_filter),
 			    CT_FILTER_ADDRESS,
 			    CT_FILTER_NEGATIVE);
+
+	__kernel_filter_start();
+
+	nfct_filter_set_logic(STATE(filter),
+			      NFCT_FILTER_SRC_IPV4,
+			      NFCT_FILTER_LOGIC_NEGATIVE);
+	nfct_filter_set_logic(STATE(filter),
+			      NFCT_FILTER_DST_IPV4,
+			      NFCT_FILTER_LOGIC_NEGATIVE);
 };
 
 filter_address_list :
@@ -726,6 +773,16 @@ filter_address_item : T_IPV4_ADDR T_IP
 		if (errno == ENOSPC)
 			fprintf(stderr, "Too many IP in the ignore pool!\n");
 	}
+
+	__kernel_filter_start();
+
+	struct nfct_filter_ipv4 filter_ipv4 = {
+		.addr = htonl(ip.ipv4),
+		.mask = 0xffffffff,
+	};
+
+	nfct_filter_add_attr(STATE(filter), NFCT_FILTER_SRC_IPV4, &filter_ipv4);
+	nfct_filter_add_attr(STATE(filter), NFCT_FILTER_DST_IPV4, &filter_ipv4);
 };
 
 filter_address_item : T_IPV6_ADDR T_IP
@@ -758,6 +815,8 @@ filter_item : T_STATE T_ACCEPT '{' filter_state_list '}'
 	ct_filter_set_logic(STATE(us_filter),
 			    CT_FILTER_STATE,
 			    CT_FILTER_POSITIVE);
+
+	__kernel_filter_start();
 };
 
 filter_item : T_STATE T_IGNORE '{' filter_state_list '}'
@@ -765,6 +824,13 @@ filter_item : T_STATE T_IGNORE '{' filter_state_list '}'
 	ct_filter_set_logic(STATE(us_filter),
 			    CT_FILTER_STATE,
 			    CT_FILTER_NEGATIVE);
+
+
+	__kernel_filter_start();
+
+	nfct_filter_set_logic(STATE(filter),
+			      NFCT_FILTER_L4PROTO_STATE,
+			      NFCT_FILTER_LOGIC_NEGATIVE);
 };
 
 filter_state_list :
@@ -862,6 +928,30 @@ yyerror(char *msg)
 	fprintf(stderr, "Error parsing config file: ");
 	fprintf(stderr, "line (%d), symbol '%s': %s\n", yylineno, yytext, msg);
 	exit(EXIT_FAILURE);
+}
+
+static void __kernel_filter_start(void)
+{
+	if (!STATE(filter)) {
+		STATE(filter) = nfct_filter_create();
+		if (!STATE(filter)) {
+			fprintf(stderr, "Can't create ignore pool!\n");
+			exit(EXIT_FAILURE);
+		}
+	}
+}
+
+static void __kernel_filter_add_state(int value)
+{
+	__kernel_filter_start();
+
+	struct nfct_filter_proto filter_proto = {
+		.proto = IPPROTO_TCP,
+		.state = value
+	};
+	nfct_filter_add_attr(STATE(filter),
+			     NFCT_FILTER_L4PROTO_STATE,
+			     &filter_proto);
 }
 
 int

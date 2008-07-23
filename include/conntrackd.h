@@ -106,6 +106,8 @@ struct ct_general_state {
 	struct ct_filter		*us_filter;
 
 	struct nfct_handle		*event;         /* event handler */
+	struct nfct_filter		*filter;	/* event filter */
+
 	struct nfct_handle		*dump;		/* dump handler */
 	struct nfct_handle		*overrun;	/* overrun handler */
 	struct alarm_block		overrun_alarm;
