@@ -134,8 +134,15 @@ void dlog_ct(FILE *fd, struct nf_conntrack *ct, unsigned int type)
 		fputs(buf, fd);
 	}
 
-	if (CONFIG(stats).syslog_facility != -1)
-		syslog(LOG_INFO, "%s", tmp);
+	if (fd == STATE(log)) {
+		/* error reporting */
+		if (CONFIG(syslog_facility) != -1)
+			syslog(LOG_ERR, "%s", tmp);
+	} else if (fd == STATE(stats_log)) {
+		/* connection logging */
+		if (CONFIG(stats).syslog_facility != -1)
+			syslog(LOG_INFO, "%s", tmp);
+	}
 }
 
 void close_log(void)
