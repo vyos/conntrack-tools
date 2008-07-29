@@ -64,7 +64,7 @@ static const char cmd_need_param[NUMBER_OF_CMD]
 static const char *optflags[NUMBER_OF_OPT] = {
 "src","dst","reply-src","reply-dst","protonum","timeout","status","zero",
 "event-mask","tuple-src","tuple-dst","mask-src","mask-dst","nat-range","mark",
-"id","family","src-nat","dst-nat","output","secmark"};
+"id","family","src-nat","dst-nat","output","secmark","buffersize"};
 
 static struct option original_opts[] = {
 	{"dump", 2, 0, 'L'},
@@ -99,6 +99,7 @@ static struct option original_opts[] = {
 	{"src-nat", 2, 0, 'n'},
 	{"dst-nat", 2, 0, 'g'},
 	{"output", 1, 0, 'o'},
+	{"buffer-size", 1, 0, 'b'},
 	{0, 0, 0, 0}
 };
 
@@ -120,22 +121,22 @@ static unsigned int global_option_offset = 0;
 static char commands_v_options[NUMBER_OF_CMD][NUMBER_OF_OPT] =
 /* Well, it's better than "Re: Linux vs FreeBSD" */
 {
-          /*   s d r q p t u z e [ ] { } a m i f n g o c */
-/*CT_LIST*/   {2,2,2,2,2,0,2,2,0,0,0,0,0,0,2,0,2,2,2,2,2},
-/*CT_CREATE*/ {2,2,2,2,1,1,1,0,0,0,0,0,0,2,2,0,0,2,2,0,0},
-/*CT_UPDATE*/ {2,2,2,2,2,2,2,0,0,0,0,0,0,0,2,2,2,2,2,2,0},
-/*CT_DELETE*/ {2,2,2,2,2,2,2,0,0,0,0,0,0,0,2,2,2,2,2,2,0},
-/*CT_GET*/    {2,2,2,2,1,0,0,0,0,0,0,0,0,0,0,2,0,0,0,2,0},
-/*CT_FLUSH*/  {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-/*CT_EVENT*/  {2,2,2,2,2,0,0,0,2,0,0,0,0,0,2,0,0,2,2,2,2},
-/*VERSION*/   {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-/*HELP*/      {0,0,0,0,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-/*EXP_LIST*/  {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,0,0,0,0},
-/*EXP_CREATE*/{1,1,2,2,1,1,2,0,0,1,1,1,1,0,0,0,0,0,0,0,0},
-/*EXP_DELETE*/{1,1,2,2,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-/*EXP_GET*/   {1,1,2,2,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-/*EXP_FLUSH*/ {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-/*EXP_EVENT*/ {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+          /*   s d r q p t u z e [ ] { } a m i f n g o c b*/
+/*CT_LIST*/   {2,2,2,2,2,0,2,2,0,0,0,0,0,0,2,0,2,2,2,2,2,0},
+/*CT_CREATE*/ {2,2,2,2,1,1,1,0,0,0,0,0,0,2,2,0,0,2,2,0,0,0},
+/*CT_UPDATE*/ {2,2,2,2,2,2,2,0,0,0,0,0,0,0,2,2,2,2,2,2,0,0},
+/*CT_DELETE*/ {2,2,2,2,2,2,2,0,0,0,0,0,0,0,2,2,2,2,2,2,0,0},
+/*CT_GET*/    {2,2,2,2,1,0,0,0,0,0,0,0,0,0,0,2,0,0,0,2,0,0},
+/*CT_FLUSH*/  {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+/*CT_EVENT*/  {2,2,2,2,2,0,0,0,2,0,0,0,0,0,2,0,0,2,2,2,2,2},
+/*VERSION*/   {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+/*HELP*/      {0,0,0,0,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+/*EXP_LIST*/  {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,0,0,0,0,0},
+/*EXP_CREATE*/{1,1,2,2,1,1,2,0,0,1,1,1,1,0,0,0,0,0,0,0,0,0},
+/*EXP_DELETE*/{1,1,2,2,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+/*EXP_GET*/   {1,1,2,2,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+/*EXP_FLUSH*/ {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+/*EXP_EVENT*/ {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
 };
 
 static LIST_HEAD(proto_list);
@@ -540,6 +541,7 @@ static const char usage_parameters[] =
 	"  -f, --family proto\t\tLayer 3 Protocol, eg. 'ipv6'\n"
 	"  -t, --timeout timeout\t\tSet timeout\n"
 	"  -u, --status status\t\tSet status, eg. ASSURED\n"
+	"  -b, --buffer-size\t\tNetlink socket buffer size\n"
 	;
   
 
@@ -907,6 +909,7 @@ int main(int argc, char *argv[])
 	int c, cmd;
 	unsigned int type = 0, event_mask = 0, l4flags = 0, status = 0;
 	int res = 0;
+	size_t socketbuffersize = 0;
 	int family = AF_UNSPEC;
 	char __obj[nfct_maxsize()];
 	char __exptuple[nfct_maxsize()];
@@ -933,7 +936,7 @@ int main(int argc, char *argv[])
 
 	while ((c = getopt_long(argc, argv, "L::I::U::D::G::E::F::hVs:d:r:q:"
 					    "p:t:u:e:a:z[:]:{:}:m:i:f:o:n::"
-					    "g::c:", 
+					    "g::c:b:", 
 					    opts, NULL)) != -1) {
 	switch(c) {
 		/* commands */
@@ -1104,6 +1107,10 @@ int main(int argc, char *argv[])
 				exit_error(PARAMETER_PROBLEM,
 					   "`%s' unsupported protocol",
 					   optarg);
+			break;
+		case 'b':
+			socketbuffersize = atol(optarg);
+			options |= CT_OPT_BUFFERSIZE;
 			break;
 		default:
 			if (h && h->parse_opts 
@@ -1297,10 +1304,28 @@ int main(int argc, char *argv[])
 
 		if (!cth)
 			exit_error(OTHER_PROBLEM, "Can't open handler");
+
+		if (options & CT_OPT_BUFFERSIZE) {
+			size_t ret;
+			ret = nfnl_rcvbufsiz(nfct_nfnlh(cth), socketbuffersize);
+			fprintf(stderr, "NOTICE: Netlink socket buffer size "
+					"has been set to %u bytes.\n", ret);
+		}
 		signal(SIGINT, event_sighandler);
 		signal(SIGTERM, event_sighandler);
 		nfct_callback_register(cth, NFCT_T_ALL, event_cb, obj);
 		res = nfct_catch(cth);
+		if (res == -1) {
+			if (errno == ENOBUFS) {
+				fprintf(stderr, 
+					"WARNING: We have hit ENOBUFS! We "
+					"are losing events.\nThis message "
+					"means that the current netlink "
+					"socket buffer size is too small.\n"
+					"Please, check --buffer-size in "
+					"conntrack(8) manpage.\n");
+			}
+		}
 		nfct_close(cth);
 		break;
 

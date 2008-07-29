@@ -82,6 +82,16 @@ event code.  Using this parameter, you can reduce the event messages generated
 by the kernel to those types to those that you are actually interested in.
 .
 This option can only be used in conjunction with "-E, --event".
+.BI "-b, --buffer-size " "value (in bytes)"
+Set the Netlink socket buffer size. This option is useful if the command line
+tool reports ENOBUFS errors. If you do not pass this option, the default value
+available at /proc/sys/net/core/rmem_default is used. The tool reports this
+problem if your process is too slow to handle all the event messages or, in 
+other words, if the amount of events are big enough to overrun the socket 
+buffer. Note that using a big buffer reduces the chances to hit ENOBUFS, 
+however, this results in more memory consumption.
+.
+This option can only be used in conjunction with "-E, --event".
 .SS FILTER PARAMETERS
 .TP
 .BI "-s, --orig-src " IP_ADDRESS
