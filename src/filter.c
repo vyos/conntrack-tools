@@ -192,6 +192,9 @@ static int __ct_filter_test_state(struct ct_filter *f, struct nf_conntrack *ct)
 
 	switch(protonum) {
 	case IPPROTO_TCP:
+		if (!nfct_attr_is_set(ct, ATTR_TCP_STATE))
+			return -1;
+
 		val = nfct_get_attr_u8(ct, ATTR_TCP_STATE);
 		break;
 	default:
