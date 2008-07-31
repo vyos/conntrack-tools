@@ -26,8 +26,46 @@
 #include <string.h>
 #include <errno.h>
 
+static int sanity_check(struct nf_conntrack *ct)
+{
+	if (!nfct_attr_is_set(ct, ATTR_L3PROTO)) {
+		dlog(LOG_ERR, "missing layer 3 protocol");
+		return 0;
+	}
+
+	switch(nfct_get_attr_u8(ct, ATTR_L3PROTO)) {
+	case AF_INET:
+		if (!nfct_attr_is_set(ct, ATTR_IPV4_SRC) ||
+		    !nfct_attr_is_set(ct, ATTR_IPV4_DST) ||
+		    !nfct_attr_is_set(ct, ATTR_REPL_IPV4_SRC) ||
+		    !nfct_attr_is_set(ct, ATTR_REPL_IPV4_DST)) {
+		    	dlog(LOG_ERR, "missing IPv4 address. "
+				      "You forgot to load "
+				      "nf_conntrack_ipv4?");
+			return 0;
+		}
+		break;
+	case AF_INET6:
+		if (!nfct_attr_is_set(ct, ATTR_IPV6_SRC) ||
+		    !nfct_attr_is_set(ct, ATTR_IPV6_DST) ||
+		    !nfct_attr_is_set(ct, ATTR_REPL_IPV6_SRC) ||
+		    !nfct_attr_is_set(ct, ATTR_REPL_IPV6_DST)) {
+		    	dlog(LOG_ERR, "missing IPv6 address. "
+				      "You forgot to load "
+				      "nf_conntrack_ipv6?");
+			return 0;
+		}
+		break;
+	}
+	return 1;
+}
+
 int ignore_conntrack(struct nf_conntrack *ct)
 {
+	/* missing mandatory attributes in object */
+	if (!sanity_check(ct))
+		return 1;
+
 	/* Accept DNAT'ed traffic: not really coming to the local machine */
 	if (nfct_getobjopt(ct, NFCT_GOPT_IS_DNAT)) {
 		debug_ct(ct, "DNAT");

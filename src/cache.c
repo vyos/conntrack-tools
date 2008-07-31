@@ -75,14 +75,6 @@ static uint32_t hash(const void *data, struct hashtable *table)
 			ret = __hash4(u->ct, table);
 			break;
 		case AF_INET6:
-			if (!nfct_attr_is_set(u->ct, ATTR_ORIG_IPV6_SRC) ||
-			    !nfct_attr_is_set(u->ct, ATTR_ORIG_IPV6_DST)) {
-				dlog(LOG_ERR, "missing IPv6 address. "
-					      "You forgot to load "
-					      "nf_conntrack_ipv6?");
-				return 0;
-			}
-
 			ret = __hash6(u->ct, table);
 			break;
 		default:
