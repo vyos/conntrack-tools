@@ -24,6 +24,7 @@
 #include "us-conntrack.h"
 
 #include <libnetfilter_conntrack/libnetfilter_conntrack.h>
+#include <sched.h>
 #include <errno.h>
 #include <string.h>
 
@@ -80,7 +81,7 @@ void cache_dump(struct cache *c, int fd, int type)
 /* no need to clone, called from child process */
 static int do_commit(void *data1, void *data2)
 {
-	int ret;
+	int ret, retry = 1;
 	struct cache *c = data1;
 	struct us_conntrack *u = data2;
 	struct nf_conntrack *ct = u->ct;
@@ -98,7 +99,15 @@ static int do_commit(void *data1, void *data2)
 		dlog_ct(STATE(log), ct, NFCT_O_PLAIN);
 		break;
 	case 0:
+try_again_create:
 		if (nl_create_conntrack(ct) == -1) {
+			if (errno == ENOMEM) {
+				if (retry) {
+					retry = 0;
+					sched_yield();
+					goto try_again_create;
+				}
+			}
 			dlog(LOG_ERR, "commit-create: %s", strerror(errno));
 			dlog_ct(STATE(log), ct, NFCT_O_PLAIN);
 			c->commit_fail++;
@@ -107,7 +116,15 @@ static int do_commit(void *data1, void *data2)
 		break;
 	case 1:
 		c->commit_exist++;
+try_again_update:
 		if (nl_update_conntrack(ct) == -1) {
+			if (errno == ENOMEM || errno == ETIME) {
+				if (retry) {
+					retry = 0;
+					sched_yield();
+					goto try_again_update;
+				}
+			}
 			dlog(LOG_ERR, "commit-update: %s", strerror(errno));
 			dlog_ct(STATE(log), ct, NFCT_O_PLAIN);
 			c->commit_fail++;
