@@ -64,7 +64,7 @@ static int timer_dump(struct us_conntrack *u, void *data, char *buf, int type)
 		return 0;
 
 	gettimeofday(&tv, NULL);
-	timersub(&tv, &alarm->tv, &tmp);
+	timersub(&alarm->tv, &tv, &tmp);
 	return sprintf(buf, " [expires in %lds]", tmp.tv_sec);
 }
 
