@@ -1309,7 +1309,7 @@ int main(int argc, char *argv[])
 			size_t ret;
 			ret = nfnl_rcvbufsiz(nfct_nfnlh(cth), socketbuffersize);
 			fprintf(stderr, "NOTICE: Netlink socket buffer size "
-					"has been set to %u bytes.\n", ret);
+					"has been set to %zu bytes.\n", ret);
 		}
 		signal(SIGINT, event_sighandler);
 		signal(SIGTERM, event_sighandler);
