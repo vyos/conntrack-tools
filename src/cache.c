@@ -208,6 +208,7 @@ static struct us_conntrack *__add(struct cache *c, struct nf_conntrack *ct)
 		if (c->extra && c->extra->add)
 			c->extra->add(u, ((char *) u) + c->extra_offset);
 
+		c->active++;
 		return u;
 	}
 	free(newct);
@@ -323,6 +324,15 @@ static void __del2(struct cache *c, struct us_conntrack *u)
 
 static void __cache_del(struct cache *c, struct us_conntrack *u)
 {
+	/*
+	 * Do not increase stats if we are trying to
+	 * kill an entry was previously deleted via
+	 * __cache_del_timer.
+	 */
+	if (!alarm_pending(&u->alarm)) {
+		c->del_ok++;
+		c->active--;
+	}
 	del_alarm(&u->alarm);
 	__del2(c, u);
 }
@@ -338,7 +348,6 @@ int cache_del(struct cache *c, struct nf_conntrack *ct)
 	u = (struct us_conntrack *) hashtable_test(c->h, u);
 	if (u) {
 		__cache_del(c, u);
-		c->del_ok++;
 		return 1;
 	}
 	c->del_fail++;
@@ -369,6 +378,7 @@ __cache_del_timer(struct cache *c, struct us_conntrack *u, int timeout)
 		 * properly.
 		 */
 		c->del_ok++;
+		c->active--;
 		return 1;
 	}
 	return 0;
@@ -406,7 +416,7 @@ void cache_stats(const struct cache *c, int fd)
 			    "connections updated:\t\t%12u\tfailed:\t%12u\n"
 			    "connections destroyed:\t\t%12u\tfailed:\t%12u\n\n",
 			    			 c->name,
-			    			 hashtable_counter(c->h),
+						 c->active,
 			    			 c->add_ok, 
 			    			 c->add_fail,
 						 c->upd_ok,

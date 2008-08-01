@@ -42,6 +42,19 @@ static int do_dump(void *data1, void *data2)
 	char *data = u->data;
 	unsigned i;
 
+	/*
+	 * XXX: Do not dump the entries that are scheduled to expire.
+	 * 	These entries talk about already destroyed connections
+	 * 	that we keep for some time just in case that we have to
+	 * 	resent some lost messages. We do not show them to the
+	 * 	user as he may think that the firewall replicas are not
+	 * 	in sync. The branch below is a hack as it is quite
+	 * 	specific and it breaks conntrackd modularity. Probably
+	 * 	there's a nicer way to do this but until I come up with it...
+	 */
+	if (CONFIG(flags) & CTD_SYNC_FTFW && alarm_pending(&u->alarm))
+		return 0;
+
 	memset(buf, 0, sizeof(buf));
 	size = nfct_snprintf(buf, 
 			     sizeof(buf), 

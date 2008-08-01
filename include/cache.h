@@ -50,6 +50,8 @@ struct cache {
 	unsigned int extra_offset;
 
         /* statistics */
+	unsigned int active;
+
 	unsigned int add_ok;
 	unsigned int del_ok;
 	unsigned int upd_ok;
