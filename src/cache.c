@@ -321,7 +321,13 @@ static void __del2(struct cache *c, struct us_conntrack *u)
 	free(p);
 }
 
-static int __del(struct cache *c, struct nf_conntrack *ct)
+static void __cache_del(struct cache *c, struct us_conntrack *u)
+{
+	del_alarm(&u->alarm);
+	__del2(c, u);
+}
+
+int cache_del(struct cache *c, struct nf_conntrack *ct)
 {
 	size_t size = c->h->datasize;
 	char buf[size];
@@ -331,16 +337,7 @@ static int __del(struct cache *c, struct nf_conntrack *ct)
 
 	u = (struct us_conntrack *) hashtable_test(c->h, u);
 	if (u) {
-		del_alarm(&u->alarm);
-		__del2(c, u);
-		return 1;
-	}
-	return 0;
-}
-
-int cache_del(struct cache *c, struct nf_conntrack *ct)
-{
-	if (__del(c, ct)) {
+		__cache_del(c, u);
 		c->del_ok++;
 		return 1;
 	}
@@ -356,33 +353,36 @@ static void __del_timeout(struct alarm_block *a, void *data)
 	__del2(u->cache, u);
 }
 
-struct us_conntrack *
-cache_del_timeout(struct cache *c, struct nf_conntrack *ct, int timeout)
+int
+__cache_del_timer(struct cache *c, struct us_conntrack *u, int timeout)
+{
+	if (timeout <= 0) {
+		__cache_del(c, u);
+		return 1;
+	}
+	if (!alarm_pending(&u->alarm)) {
+		add_alarm(&u->alarm, timeout, 0);
+		/*
+		 * increase stats even if this entry was not really
+		 * removed yet. We do not want to make people think
+		 * that the replication protocol does not work 
+		 * properly.
+		 */
+		c->del_ok++;
+		return 1;
+	}
+	return 0;
+}
+
+struct us_conntrack *cache_find(struct cache *c, struct nf_conntrack *ct)
 {
 	size_t size = c->h->datasize;
 	char buf[size];
 	struct us_conntrack *u = (struct us_conntrack *) buf;
 
-	if (timeout <= 0)
-		cache_del(c, ct);
-
 	u->ct = ct;
 
-	u = (struct us_conntrack *) hashtable_test(c->h, u);
-	if (u) {
-		if (!alarm_pending(&u->alarm)) {
-			add_alarm(&u->alarm, timeout, 0);
-			/*
-			 * increase stats even if this entry was not really
-			 * removed yet. We do not want to make people think
-			 * that the replication protocol does not work 
-			 * properly.
-			 */
-			c->del_ok++;
-			return u;
-		}
-	}
-	return NULL;
+	return ((struct us_conntrack *) hashtable_test(c->h, u));
 }
 
 struct us_conntrack *cache_get_conntrack(struct cache *c, void *data)

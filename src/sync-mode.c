@@ -407,10 +407,8 @@ static int purge_step(void *data1, void *data2)
 	ret = nfct_query(h, NFCT_Q_GET, u->ct);
 	if (ret == -1 && errno == ENOENT) {
 		debug_ct(u->ct, "overrun purge resync");
-		if (cache_del_timeout(STATE_SYNC(internal),
-				      u->ct, 
-				      CONFIG(del_timeout)))
-			mcast_send_sync(u, NFCT_Q_DESTROY);
+		mcast_send_sync(u, NFCT_Q_DESTROY);
+		__cache_del_timer(STATE_SYNC(internal), u, CONFIG(del_timeout));
 	}
 
 	return 0;
@@ -502,15 +500,16 @@ static int event_destroy_sync(struct nf_conntrack *ct)
 	if (!CONFIG(cache_write_through))
 		nfct_attr_unset(ct, ATTR_TIMEOUT);
 
-	u = cache_del_timeout(STATE_SYNC(internal), ct, CONFIG(del_timeout));
-	if (u != NULL) {
-		mcast_send_sync(u, NFCT_Q_DESTROY);
-		debug_ct(ct, "internal destroy");
-		return 1;
-	} else {
+	u = cache_find(STATE_SYNC(internal), ct);
+	if (u == NULL) {
 		debug_ct(ct, "can't destroy");
 		return 0;
 	}
+
+	mcast_send_sync(u, NFCT_Q_DESTROY);
+	__cache_del_timer(STATE_SYNC(internal), u, CONFIG(del_timeout));
+	debug_ct(ct, "internal destroy");
+	return 1;
 }
 
 struct ct_mode sync_mode = {
