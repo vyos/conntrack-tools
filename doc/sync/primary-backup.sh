@@ -22,7 +22,7 @@ CONNTRACKD_LOCK=/var/lock/conntrack.lock
 CONNTRACKD_CONFIG=/etc/conntrackd/conntrackd.conf
 
 case "$1" in
-  master)
+  primary)
     #
     # commit the external cache into the kernel table
     #
@@ -86,6 +86,7 @@ case "$1" in
     	logger "ERROR: failed to invoke conntrackd -n"
     ;;
   *)
+    logger "ERROR: unknown state transition"
     echo "Usage: primary-backup.sh {primary|backup}"
     exit 1
     ;;
