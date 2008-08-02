@@ -186,7 +186,6 @@ static int do_reset_timers(void *data1, void *data2)
 	ret = nl_exist_conntrack(ct);
 	switch (ret) {
 	case -1:
-	case 0:
 		/* the kernel table is not in sync with internal cache */
 		dlog(LOG_ERR, "reset-timers: %s", strerror(errno));
 		dlog_ct(STATE(log), ct, NFCT_O_PLAIN);
