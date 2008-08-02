@@ -24,6 +24,7 @@
 #define REQUEST_DUMP	23	/* request dump 			*/
 #define DUMP_INT_XML	24	/* dump internal cache in XML		*/
 #define DUMP_EXT_XML	25	/* dump external cache in XML		*/
+#define RESET_TIMERS	26	/* reset kernel timers			*/
 
 #define DEFAULT_CONFIGFILE	"/etc/conntrackd/conntrackd.conf"
 #define DEFAULT_LOCKFILE	"/var/lock/conntrackd.lock"

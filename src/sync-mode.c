@@ -343,6 +343,14 @@ static int local_handler_sync(int fd, int type, void *data)
 			exit(EXIT_SUCCESS);
 		}
 		break;
+	case RESET_TIMERS:
+		ret = fork();
+		if (ret == 0) {
+			dlog(LOG_NOTICE, "resetting timers");
+			cache_reset_timers(STATE_SYNC(internal));
+			exit(EXIT_SUCCESS);
+		}
+		break;
 	case FLUSH_CACHE:
 		dlog(LOG_NOTICE, "flushing caches");
 		cache_flush(STATE_SYNC(internal));

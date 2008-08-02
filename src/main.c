@@ -148,6 +148,10 @@ int main(int argc, char *argv[])
 			set_operation_mode(&type, REQUEST, argv);
 			action = SEND_BULK;
 			break;
+		case 't':
+			set_operation_mode(&type, REQUEST, argv);
+			action = RESET_TIMERS;
+			break;
 		case 'k':
 			set_operation_mode(&type, REQUEST, argv);
 			action = KILL;

@@ -174,6 +174,40 @@ void cache_commit(struct cache *c)
 				 "committed", commit_fail);
 }
 
+static int do_reset_timers(void *data1, void *data2)
+{
+	int ret;
+	struct us_conntrack *u = data2;
+	struct nf_conntrack *ct = u->ct;
+
+	/* this may increase timers but they will end up dying shortly anyway */
+	nfct_set_attr_u32(ct, ATTR_TIMEOUT, CONFIG(commit_timeout));
+
+	ret = nl_exist_conntrack(ct);
+	switch (ret) {
+	case -1:
+	case 0:
+		/* the kernel table is not in sync with internal cache */
+		dlog(LOG_ERR, "reset-timers: %s", strerror(errno));
+		dlog_ct(STATE(log), ct, NFCT_O_PLAIN);
+		break;
+	case 1:
+		if (nl_update_conntrack(ct) == -1) {
+			if (errno == ETIME || errno == ENOENT)
+				break;
+			dlog(LOG_ERR, "reset-timers-upd: %s", strerror(errno));
+			dlog_ct(STATE(log), ct, NFCT_O_PLAIN);
+		}
+		break;
+	}
+	return 0;
+}
+
+void cache_reset_timers(struct cache *c)
+{
+	hashtable_iterate(c->h, NULL, do_reset_timers);
+}
+
 static int do_flush(void *data1, void *data2)
 {
 	struct cache *c = data1;
