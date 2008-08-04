@@ -35,7 +35,7 @@ case "$1" in
     #
     # flush the internal and the external caches
     #
-    $CONNTRACKD_BIN -C $CONNTRACK_CONFIG -f
+    $CONNTRACKD_BIN -C $CONNTRACKD_CONFIG -f
     if [ $? -eq 1 ]
     then
     	logger "ERROR: failed to invoke conntrackd -f"
