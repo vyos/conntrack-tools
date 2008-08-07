@@ -1,6 +1,8 @@
 #ifndef _NETLINK_H_
 #define _NETLINK_H_
 
+#include <libnetfilter_conntrack/libnetfilter_conntrack.h>
+
 struct nf_conntrack;
 struct nfct_handle;
 
@@ -29,5 +31,17 @@ int nl_create_conntrack(struct nf_conntrack *ct);
 int nl_update_conntrack(struct nf_conntrack *ct);
 
 int nl_destroy_conntrack(struct nf_conntrack *ct);
+
+static inline int ct_is_related(const struct nf_conntrack *ct)
+{
+	return (nfct_attr_is_set(ct, ATTR_MASTER_L3PROTO) &&
+		nfct_attr_is_set(ct, ATTR_MASTER_L4PROTO) &&
+		((nfct_attr_is_set(ct, ATTR_MASTER_IPV4_SRC) &&
+		  nfct_attr_is_set(ct, ATTR_MASTER_IPV4_DST)) ||
+		 (nfct_attr_is_set(ct, ATTR_MASTER_IPV6_SRC) &&
+		  nfct_attr_is_set(ct, ATTR_MASTER_IPV6_DST))) &&
+		nfct_attr_is_set(ct, ATTR_MASTER_PORT_SRC) &&
+		nfct_attr_is_set(ct, ATTR_MASTER_PORT_DST));
+}
 
 #endif

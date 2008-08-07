@@ -337,6 +337,18 @@ int nl_update_conntrack(struct nf_conntrack *ct)
 		nfct_set_attr_u32(ct, ATTR_STATUS, status);
 	}
 
+	/* we hit error if we try to update the master conntrack */
+	if (ct_is_related(ct)) {
+		nfct_attr_unset(ct, ATTR_MASTER_L3PROTO);
+		nfct_attr_unset(ct, ATTR_MASTER_L4PROTO);
+		nfct_attr_unset(ct, ATTR_MASTER_IPV4_SRC);
+		nfct_attr_unset(ct, ATTR_MASTER_IPV4_DST);
+		nfct_attr_unset(ct, ATTR_MASTER_IPV6_SRC);
+		nfct_attr_unset(ct, ATTR_MASTER_IPV6_DST);
+		nfct_attr_unset(ct, ATTR_MASTER_PORT_SRC);
+		nfct_attr_unset(ct, ATTR_MASTER_PORT_DST);
+	}
+
 	return nl_create_conntrack(ct);
 }
 

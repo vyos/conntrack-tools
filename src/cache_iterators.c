@@ -95,12 +95,9 @@ void cache_dump(struct cache *c, int fd, int type)
 	hashtable_iterate(c->h, (void *) &tmp, do_dump);
 }
 
-/* no need to clone, called from child process */
-static int do_commit(void *data1, void *data2)
+static void __do_commit_step(struct cache *c, struct us_conntrack *u)
 {
 	int ret, retry = 1;
-	struct cache *c = data1;
-	struct us_conntrack *u = data2;
 	struct nf_conntrack *ct = u->ct;
 
         /* 
@@ -149,18 +146,40 @@ try_again_update:
 			c->commit_ok++;
 		break;
 	}
+}
+
+static int do_commit_related(void *data1, void *data2)
+{
+	struct us_conntrack *u = data2;
+
+	if (ct_is_related(u->ct))
+		__do_commit_step(data1, u);
 
 	/* keep iterating even if we have found errors */
 	return 0;
 }
 
+static int do_commit_master(void *data1, void *data2)
+{
+	struct us_conntrack *u = data2;
+
+	if (ct_is_related(u->ct))
+		return 0;
+
+	__do_commit_step(data1, u);
+	return 0;
+}
+
+/* no need to clone, called from child process */
 void cache_commit(struct cache *c)
 {
 	unsigned int commit_ok = c->commit_ok;
 	unsigned int commit_exist = c->commit_exist;
 	unsigned int commit_fail = c->commit_fail;
 
-	hashtable_iterate(c->h, c, do_commit);
+	/* commit master conntrack first, then related ones */
+	hashtable_iterate(c->h, c, do_commit_master);
+	hashtable_iterate(c->h, c, do_commit_related);
 
 	/* calculate new entries committed */
 	commit_ok = c->commit_ok - commit_ok;
