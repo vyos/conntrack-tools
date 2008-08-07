@@ -38,6 +38,7 @@ void killer(int foo)
 	sigprocmask(SIG_BLOCK, &STATE(block), NULL);
 
 	nfct_close(STATE(event));
+	nfct_close(STATE(request));
 
 	ct_filter_destroy(STATE(us_filter));
 	local_server_destroy(&STATE(local));
@@ -138,6 +139,13 @@ init(void)
 	}
 
 	if (nl_init_overrun_handler() == -1) {
+		dlog(LOG_ERR, "can't open netlink handler: %s",
+		     strerror(errno));
+		dlog(LOG_ERR, "no ctnetlink kernel support?");
+		return -1;
+	}
+
+	if (nl_init_request_handler() == -1) {
 		dlog(LOG_ERR, "can't open netlink handler: %s",
 		     strerror(errno));
 		dlog(LOG_ERR, "no ctnetlink kernel support?");

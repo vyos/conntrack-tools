@@ -214,6 +214,16 @@ int nl_init_overrun_handler(void)
 	return 0;
 }
 
+/* no callback, it does not do anything with the output */
+int nl_init_request_handler(void)
+{
+	STATE(request) = nfct_open(CONNTRACK, 0);
+	if (!STATE(request))
+		return -1;
+
+	return 0;
+}
+
 static int warned = 0;
 
 void nl_resize_socket_buffer(struct nfct_handle *h)
@@ -257,7 +267,7 @@ int nl_overrun_request_resync(void)
 	return nfct_send(STATE(overrun), NFCT_Q_DUMP, &family);
 }
 
-int nl_exist_conntrack(struct nf_conntrack *ct)
+static int __nl_get_conntrack(struct nfct_handle *h, struct nf_conntrack *ct)
 {
 	int ret;
 	char __tmp[nfct_maxsize()];
@@ -268,11 +278,22 @@ int nl_exist_conntrack(struct nf_conntrack *ct)
 	/* use the original tuple to check if it is there */
 	nfct_copy(tmp, ct, NFCT_CP_ORIG);
 
-	ret = nfct_query(STATE(dump), NFCT_Q_GET, tmp);
+	ret = nfct_query(h, NFCT_Q_GET, tmp);
 	if (ret == -1)
 		return errno == ENOENT ? 0 : -1;
 
 	return 1;
+}
+
+int nl_exist_conntrack(struct nf_conntrack *ct)
+{
+	return __nl_get_conntrack(STATE(request), ct);
+}
+
+/* get the conntrack and update the cache */
+int nl_get_conntrack(struct nf_conntrack *ct)
+{
+	return __nl_get_conntrack(STATE(dump), ct);
 }
 
 /* This function modifies the conntrack passed as argument! */
