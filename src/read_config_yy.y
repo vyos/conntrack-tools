@@ -52,7 +52,7 @@ static void __kernel_filter_add_state(int value);
 %token T_GENERAL T_SYNC T_STATS T_RELAX_TRANSITIONS T_BUFFER_SIZE T_DELAY
 %token T_SYNC_MODE T_LISTEN_TO T_FAMILY T_RESEND_BUFFER_SIZE
 %token T_ALARM T_FTFW T_CHECKSUM T_WINDOWSIZE T_ON T_OFF
-%token T_REPLICATE T_FOR T_IFACE 
+%token T_REPLICATE T_FOR T_IFACE T_PURGE
 %token T_ESTABLISHED T_SYN_SENT T_SYN_RECV T_FIN_WAIT 
 %token T_CLOSE_WAIT T_LAST_ACK T_TIME_WAIT T_CLOSE T_LISTEN
 %token T_SYSLOG T_WRITE_THROUGH T_STAT_BUFFER_SIZE T_DESTROY_TIMEOUT
@@ -161,6 +161,11 @@ expiretime: T_EXPIRE T_NUMBER
 timeout: T_TIMEOUT T_NUMBER
 {
 	conf.commit_timeout = $2;
+};
+
+purge: T_PURGE T_NUMBER
+{
+	conf.purge_timeout = $2;
 };
 
 checksum: T_CHECKSUM T_ON 
@@ -427,6 +432,7 @@ sync_list:
 sync_line: refreshtime
 	 | expiretime
 	 | timeout
+	 | purge
 	 | checksum
 	 | multicast_line
 	 | relax_transitions
@@ -986,6 +992,10 @@ init_config(char *filename)
 	/* default to 180 seconds: committed entries */
 	if (CONFIG(commit_timeout) == 0)
 		CONFIG(commit_timeout) = 180;
+
+	/* default to 15 seconds: purge kernel entries */
+	if (CONFIG(purge_timeout) == 0)
+		CONFIG(purge_timeout) = 15;
 
 	/* default to 60 seconds of refresh time */
 	if (CONFIG(refresh) == 0)

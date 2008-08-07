@@ -55,6 +55,10 @@ static int do_dump(void *data1, void *data2)
 	if (CONFIG(flags) & CTD_SYNC_FTFW && alarm_pending(&u->alarm))
 		return 0;
 
+	/* do not show cached timeout, this may confuse users */
+	if (nfct_attr_is_set(u->ct, ATTR_TIMEOUT))
+		nfct_attr_unset(u->ct, ATTR_TIMEOUT);
+
 	memset(buf, 0, sizeof(buf));
 	size = nfct_snprintf(buf, 
 			     sizeof(buf), 
@@ -177,13 +181,11 @@ void cache_commit(struct cache *c)
 static int do_reset_timers(void *data1, void *data2)
 {
 	int ret;
+	u_int32_t current_timeout;
 	struct us_conntrack *u = data2;
 	struct nf_conntrack *ct = u->ct;
 
-	/* this may increase timers but they will end up dying shortly anyway */
-	nfct_set_attr_u32(ct, ATTR_TIMEOUT, CONFIG(commit_timeout));
-
-	ret = nl_exist_conntrack(ct);
+	ret = nl_get_conntrack(ct);
 	switch (ret) {
 	case -1:
 		/* the kernel table is not in sync with internal cache */
@@ -191,6 +193,13 @@ static int do_reset_timers(void *data1, void *data2)
 		dlog_ct(STATE(log), ct, NFCT_O_PLAIN);
 		break;
 	case 1:
+		current_timeout = nfct_get_attr_u32(ct, ATTR_TIMEOUT);
+		/* already about to die, do not touch it */
+		if (current_timeout < CONFIG(purge_timeout))
+			break;
+
+		nfct_set_attr_u32(ct, ATTR_TIMEOUT, CONFIG(purge_timeout));
+
 		if (nl_update_conntrack(ct) == -1) {
 			if (errno == ETIME || errno == ENOENT)
 				break;

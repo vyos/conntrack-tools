@@ -95,9 +95,19 @@ case "$1" in
     	logger "ERROR: failed to invoke conntrackd -n"
     fi
     ;;
+  fault)
+    #
+    # shorten kernel conntrack timers to remove the zombie entries.
+    #
+    $CONNTRACKD_BIN -C $CONNTRACKD_CONFIG -t
+    if [ $? -eq 1 ]
+    then
+    	logger "ERROR: failed to invoke conntrackd -t"
+    fi
+    ;;
   *)
     logger "ERROR: unknown state transition"
-    echo "Usage: primary-backup.sh {primary|backup}"
+    echo "Usage: primary-backup.sh {primary|backup|fault}"
     exit 1
     ;;
 esac

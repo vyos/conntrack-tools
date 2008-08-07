@@ -378,9 +378,6 @@ static int local_handler_sync(int fd, int type, void *data)
 
 static void dump_sync(struct nf_conntrack *ct)
 {
-	if (!CONFIG(cache_write_through))
-		nfct_attr_unset(ct, ATTR_TIMEOUT);
-
 	/* This is required by kernels < 2.6.20 */
 	nfct_attr_unset(ct, ATTR_ORIG_COUNTER_BYTES);
 	nfct_attr_unset(ct, ATTR_ORIG_COUNTER_PACKETS);
@@ -438,9 +435,6 @@ static int overrun_sync(enum nf_conntrack_msg_type type,
 	if (ignore_conntrack(ct))
 		return NFCT_CB_CONTINUE;
 
-	if (!CONFIG(cache_write_through))
-		nfct_attr_unset(ct, ATTR_TIMEOUT);
-
 	/* This is required by kernels < 2.6.20 */
 	nfct_attr_unset(ct, ATTR_ORIG_COUNTER_BYTES);
 	nfct_attr_unset(ct, ATTR_ORIG_COUNTER_PACKETS);
@@ -461,9 +455,6 @@ static int overrun_sync(enum nf_conntrack_msg_type type,
 static void event_new_sync(struct nf_conntrack *ct)
 {
 	struct us_conntrack *u;
-
-	if (!CONFIG(cache_write_through))
-		nfct_attr_unset(ct, ATTR_TIMEOUT);
 
 	/* required by linux kernel <= 2.6.20 */
 	nfct_attr_unset(ct, ATTR_ORIG_COUNTER_BYTES);
@@ -490,9 +481,6 @@ static void event_update_sync(struct nf_conntrack *ct)
 {
 	struct us_conntrack *u;
 
-	if (!CONFIG(cache_write_through))
-		nfct_attr_unset(ct, ATTR_TIMEOUT);
-
 	if ((u = cache_update_force(STATE_SYNC(internal), ct)) == NULL) {
 		debug_ct(ct, "can't update");
 		return;
@@ -504,9 +492,6 @@ static void event_update_sync(struct nf_conntrack *ct)
 static int event_destroy_sync(struct nf_conntrack *ct)
 {
 	struct us_conntrack *u;
-
-	if (!CONFIG(cache_write_through))
-		nfct_attr_unset(ct, ATTR_TIMEOUT);
 
 	u = cache_find(STATE_SYNC(internal), ct);
 	if (u == NULL) {

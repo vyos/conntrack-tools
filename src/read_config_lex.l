@@ -111,6 +111,7 @@ notrack		[N|n][O|o][T|t][R|r][A|a][C|c][K|k]
 "State"				{ return T_STATE; }
 "Accept"			{ return T_ACCEPT; }
 "Ignore"			{ return T_IGNORE; }
+"PurgeTimeout"			{ return T_PURGE; }
 
 {is_on}			{ return T_ON; }
 {is_off}		{ return T_OFF; }
