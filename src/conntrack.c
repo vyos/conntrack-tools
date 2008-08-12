@@ -964,10 +964,6 @@ int main(int argc, char *argv[])
 		case 'd':
 		case 'r':
 		case 'q':
-			if (!optarg)
-				exit_error(PARAMETER_PROBLEM, 
-					   "-%c requires an IP", c);
-
 			options |= opt2type[c];
 
 			l3protonum = parse_addr(optarg, &ad);
@@ -987,10 +983,6 @@ int main(int argc, char *argv[])
 		case '}':
 		case '[':
 		case ']':
-			if (!optarg)
-				exit_error(PARAMETER_PROBLEM, 
-					   "-%c requires an IP", c);
-
 			options |= opt2type[c];
 			l3protonum = parse_addr(optarg, &ad);
 			set_family(&family, l3protonum);
@@ -1006,10 +998,6 @@ int main(int argc, char *argv[])
 			nfct_set_attr_u8(mask, ATTR_ORIG_L3PROTO, l3protonum);
 			break;
 		case 'p':
-			if (!optarg || !*optarg)
-				exit_error(PARAMETER_PROBLEM, 
-					   "-%c requires a valid protocol", c);
-
 			options |= CT_OPT_PROTO;
 			h = findproto(optarg);
 			if (!h)
@@ -1022,44 +1010,24 @@ int main(int argc, char *argv[])
 				exit_error(OTHER_PROBLEM, "out of memory");
 			break;
 		case 't':
-			if (!optarg)
-				exit_error(PARAMETER_PROBLEM, 
-					   "-%c requires value", c);
-
 			options |= CT_OPT_TIMEOUT;
 			nfct_set_attr_u32(obj, ATTR_TIMEOUT, atol(optarg));
 			nfexp_set_attr_u32(exp, ATTR_EXP_TIMEOUT, atol(optarg));
 			break;
 		case 'u':
-			if (!optarg)
-				exit_error(PARAMETER_PROBLEM,
-					   "-%c requires type", c);
-
 			options |= CT_OPT_STATUS;
 			parse_parameter(optarg, &status, PARSE_STATUS);
 			nfct_set_attr_u32(obj, ATTR_STATUS, status);
 			break;
 		case 'e':
-			if (!optarg)
-				exit_error(PARAMETER_PROBLEM,
-					   "-%c requires type", c);
-
 			options |= CT_OPT_EVENT_MASK;
 			parse_parameter(optarg, &event_mask, PARSE_EVENT);
 			break;
 		case 'o':
-			if (!optarg)
-				exit_error(PARAMETER_PROBLEM,
-					   "-%c requires type", c);
-
 			options |= CT_OPT_OUTPUT;
 			parse_parameter(optarg, &output_mask, PARSE_OUTPUT);
 			break;
 		case 'z':
-			if (optarg)
-				exit_error(PARAMETER_PROBLEM,
-					   "-%c does not require parameters",c);
-
 			options |= CT_OPT_ZERO;
 			break;
 		case 'n':
@@ -1085,10 +1053,6 @@ int main(int argc, char *argv[])
 		case 'm':
 		case 'c':
 			options |= opt2type[c];
-			if (!optarg)
-				exit_error(PARAMETER_PROBLEM, 
-					   "-%c requires value", c);
-
 			nfct_set_attr_u32(obj,
 					  opt2attr[c],
 					  strtoul(optarg, NULL, 0));
