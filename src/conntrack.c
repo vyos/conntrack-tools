@@ -934,6 +934,9 @@ int main(int argc, char *argv[])
 	register_icmp();
 	register_icmpv6();
 
+	/* disable explicit missing arguments error output from getopt_long */
+	opterr = 0;
+
 	while ((c = getopt_long(argc, argv, "L::I::U::D::G::E::F::hVs:d:r:q:"
 					    "p:t:u:e:a:z[:]:{:}:m:i:f:o:n::"
 					    "g::c:b:", 
@@ -1076,18 +1079,21 @@ int main(int argc, char *argv[])
 			socketbuffersize = atol(optarg);
 			options |= CT_OPT_BUFFERSIZE;
 			break;
+		case '?':
+			if (optopt)
+				exit_error(PARAMETER_PROBLEM,
+					   "option `%s' requires an "
+					   "argument", argv[optind-1]);
+			else
+				exit_error(PARAMETER_PROBLEM,
+					   "unknown option `%s'", 
+					   argv[optind-1]);
+			break;
 		default:
 			if (h && h->parse_opts 
 			    &&!h->parse_opts(c - h->option_offset, obj,
 			    		     exptuple, mask, &l4flags))
 				exit_error(PARAMETER_PROBLEM, "parse error");
-
-			/* Unknown argument... */
-			if (!h) {
-				usage(argv[0]);
-				exit_error(PARAMETER_PROBLEM,
-					   "Missing arguments...");
-			}
 			break;
 		}
 	}
