@@ -200,7 +200,7 @@ exit_error(enum exittype status, const char *msg, ...)
 		global_option_offset = 0;
 	}
 	va_start(args, msg);
-	fprintf(stderr,"%s v%s: ", PROGNAME, VERSION);
+	fprintf(stderr,"%s v%s (conntrack-tools): ", PROGNAME, VERSION);
 	vfprintf(stderr, msg, args);
 	fprintf(stderr, "\n");
 	va_end(args);
@@ -616,7 +616,7 @@ event_sighandler(int s)
 		fflush(stdout);
 	}
 
-	fprintf(stderr, "%s v%s: ", PROGNAME, VERSION);
+	fprintf(stderr, "%s v%s (conntrack-tools): ", PROGNAME, VERSION);
 	fprintf(stderr, "%d flow events has been shown.\n", counter);
 	nfct_close(cth);
 	exit(0);
@@ -1254,7 +1254,7 @@ int main(int argc, char *argv[])
 			exit_error(OTHER_PROBLEM, "Can't open handler");
 		res = nfct_query(cth, NFCT_Q_FLUSH, &family);
 		nfct_close(cth);
-		fprintf(stderr, "%s v%s: ", PROGNAME, VERSION);
+		fprintf(stderr, "%s v%s (conntrack-tools): ",PROGNAME,VERSION);
 		fprintf(stderr,"connection tracking table has been emptied.\n");
 		break;
 
@@ -1334,7 +1334,7 @@ int main(int argc, char *argv[])
 			   err2str(errno, command));
 
 	if (exit_msg[cmd][0]) {
-		fprintf(stderr, "%s v%s: ", PROGNAME, VERSION);
+		fprintf(stderr, "%s v%s (conntrack-tools): ",PROGNAME,VERSION);
 		fprintf(stderr, exit_msg[cmd], counter);
 		if (counter == 0 && !(command & (CT_LIST | EXP_LIST)))
 			return EXIT_FAILURE;
