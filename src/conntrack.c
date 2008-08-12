@@ -383,7 +383,7 @@ static void
 add_command(unsigned int *cmd, const int newcmd)
 {
 	if (*cmd)
-		exit_error(PARAMETER_PROBLEM, "Invalid commands combination\n");
+		exit_error(PARAMETER_PROBLEM, "Invalid commands combination");
 	*cmd |= newcmd;
 }
 
