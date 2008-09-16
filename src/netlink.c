@@ -66,18 +66,6 @@ int ignore_conntrack(struct nf_conntrack *ct)
 	if (!sanity_check(ct))
 		return 1;
 
-	/* Accept DNAT'ed traffic: not really coming to the local machine */
-	if (nfct_getobjopt(ct, NFCT_GOPT_IS_DNAT)) {
-		debug_ct(ct, "DNAT");
-		return 0;
-	}
-
-	/* Accept SNAT'ed traffic: not really coming to the local machine */
-	if (nfct_getobjopt(ct, NFCT_GOPT_IS_SNAT)) {
-		debug_ct(ct, "SNAT");
-		return 0;
-	}
-
 	/* Ignore traffic */
 	if (!ct_filter_check(STATE(us_filter), ct)) {
 		debug_ct(ct, "ignore traffic");

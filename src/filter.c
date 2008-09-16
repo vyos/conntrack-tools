@@ -167,10 +167,9 @@ __ct_filter_test_ipv4(struct ct_filter *f, struct nf_conntrack *ct)
 	if (!f->h)
 		return 0;
 
+	/* we only use the real source and destination address */
 	return (hashtable_test(f->h, nfct_get_attr(ct, ATTR_ORIG_IPV4_SRC)) ||
-		hashtable_test(f->h, nfct_get_attr(ct, ATTR_ORIG_IPV4_DST)) ||
-		hashtable_test(f->h, nfct_get_attr(ct, ATTR_REPL_IPV4_SRC)) ||
-		hashtable_test(f->h, nfct_get_attr(ct, ATTR_REPL_IPV4_DST)));
+		hashtable_test(f->h, nfct_get_attr(ct, ATTR_REPL_IPV4_SRC)));
 }
 
 static int
@@ -180,9 +179,7 @@ __ct_filter_test_ipv6(struct ct_filter *f, struct nf_conntrack *ct)
 		return 0;
 
 	return (hashtable_test(f->h6, nfct_get_attr(ct, ATTR_ORIG_IPV6_SRC)) ||
-	        hashtable_test(f->h6, nfct_get_attr(ct, ATTR_ORIG_IPV6_DST)) ||
-	        hashtable_test(f->h6, nfct_get_attr(ct, ATTR_REPL_IPV6_SRC)) ||
-	        hashtable_test(f->h6, nfct_get_attr(ct, ATTR_REPL_IPV6_DST)));
+	        hashtable_test(f->h6, nfct_get_attr(ct, ATTR_REPL_IPV6_SRC)));
 }
 
 static int __ct_filter_test_state(struct ct_filter *f, struct nf_conntrack *ct)
