@@ -302,6 +302,10 @@ static int digest_msg(const struct nethdr *net)
 
 		dprint("ACK(%u): from seq=%u to seq=%u\n",
 			h->seq, h->from, h->to);
+
+		if (before(h->to, h->from))
+			return MSG_BAD;
+
 		rs_list_empty(STATE_SYNC(internal), h->from, h->to);
 		queue_iterate(rs_queue, h, rs_queue_empty);
 		return MSG_CTL;
@@ -311,6 +315,10 @@ static int digest_msg(const struct nethdr *net)
 
 		dprint("NACK(%u): from seq=%u to seq=%u\n",
 			nack->seq, nack->from, nack->to);
+
+		if (before(nack->to, nack->from))
+			return MSG_BAD;
+
 		rs_list_to_tx(STATE_SYNC(internal), nack->from, nack->to);
 		queue_iterate(rs_queue, nack, rs_queue_to_tx);
 		return MSG_CTL;
