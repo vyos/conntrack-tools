@@ -90,12 +90,7 @@ int main(int argc, char *argv[])
 		exit(EXIT_FAILURE);
 	}
 	sscanf(u.release, "%d.%d.%d", &version, &major, &minor);
-	if (version < 2 && major < 6) {
-		fprintf(stderr, "Linux kernel version must be >= 2.6.18\n");
-		exit(EXIT_FAILURE);
-	}
-
-	if (major == 6 && minor < 18) {
+	if (version < 2 && major < 6 && minor < 18) {
 		fprintf(stderr, "Linux kernel version must be >= 2.6.18\n");
 		exit(EXIT_FAILURE);
 	}
