@@ -112,16 +112,13 @@ int nl_init_event_handler(void)
 		return -1;
 
 	if (STATE(filter)) {
-		if (nfct_filter_attach(nfct_fd(STATE(event)),
-				       STATE(filter)) == -1) {
-			dlog(LOG_NOTICE, "cannot set netlink kernel-space "
-					 "event filtering, defaulting to "
-					 "user-space. We suggest you to "
-					 "upgrade your Linux kernel to "
-					 ">= 2.6.26. Operation returns: %s", 
-					 strerror(errno));
-			/* don't fail here, old kernels don't support this */
-		}
+		if (CONFIG(kernel_support_netlink_bsf)) {
+			if (nfct_filter_attach(nfct_fd(STATE(event)),
+					       STATE(filter)) == -1) {
+				dlog(LOG_ERR, "cannot set event filtering: %s",
+				     strerror(errno));
+			}
+		} 
 		nfct_filter_destroy(STATE(filter));
 	}
 
