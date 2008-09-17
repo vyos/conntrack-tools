@@ -35,12 +35,6 @@
 #define dp(...)
 #endif
 
-#if 0 
-#define dprint printf
-#else
-#define dprint(...)
-#endif
-
 static LIST_HEAD(rs_list);
 static LIST_HEAD(tx_list);
 static unsigned int rs_list_len;
@@ -119,8 +113,6 @@ static void do_alive_alarm(struct alarm_block *a, void *data)
 {
 	if (ack_from_set && mcast_track_is_seq_set()) {
 		/* exp_seq contains the last update received */
-		dprint("send ALIVE ACK (from=%u, to=%u)\n",
-			ack_from, STATE_SYNC(last_seq_recv));
 		tx_queue_add_ctlmsg(NET_F_ACK,
 				    ack_from,
 				    STATE_SYNC(last_seq_recv));
@@ -140,7 +132,7 @@ static int rs_dump(void *data1, const void *data2)
 {
 	struct nethdr_ack *net = data1;
 
-	dprint("in RS queue -> seq:%u flags:%u\n", net->seq, net->flags);
+	printf("in RS queue -> seq:%u flags:%u\n", net->seq, net->flags);
 
 	return 0;
 }
@@ -155,7 +147,7 @@ static void my_dump(int foo)
 		struct us_conntrack *u;
 		
 		u = cache_get_conntrack(STATE_SYNC(internal), cn);
-		dprint("in RS list -> seq:%u\n", cn->seq);
+		printf("in RS list -> seq:%u\n", cn->seq);
 	}
 
 	queue_iterate(rs_queue, NULL, rs_dump);
@@ -300,9 +292,6 @@ static int digest_msg(const struct nethdr *net)
 	else if (IS_ACK(net)) {
 		const struct nethdr_ack *h = (const struct nethdr_ack *) net;
 
-		dprint("ACK(%u): from seq=%u to seq=%u\n",
-			h->seq, h->from, h->to);
-
 		if (before(h->to, h->from))
 			return MSG_BAD;
 
@@ -312,9 +301,6 @@ static int digest_msg(const struct nethdr *net)
 
 	} else if (IS_NACK(net)) {
 		const struct nethdr_ack *nack = (const struct nethdr_ack *) net;
-
-		dprint("NACK(%u): from seq=%u to seq=%u\n",
-			nack->seq, nack->from, nack->to);
 
 		if (before(nack->to, nack->from))
 			return MSG_BAD;
@@ -367,14 +353,10 @@ static int ftfw_recv(const struct nethdr *net)
 
 		if (ack_from_set) {
 			tx_queue_add_ctlmsg(NET_F_ACK, ack_from, exp_seq-1);
-			dprint("OFS send half ACK: from seq=%u to seq=%u\n", 
-				ack_from, exp_seq-1);
 			ack_from_set = 0;
 		}
 
 		tx_queue_add_ctlmsg(NET_F_NACK, exp_seq, net->seq-1);
-		dprint("OFS send NACK: from seq=%u to seq=%u\n", 
-			exp_seq, net->seq-1);
 
 		/* count this message as part of the new window */
 		window = CONFIG(window_size) - 1;
@@ -405,9 +387,6 @@ bypass:
 
 		if (--window <= 0) {
 			/* received a window, send an acknowledgement */
-			dprint("OFS send ACK: from seq=%u to seq=%u\n",
-				ack_from, net->seq);
-
 			tx_queue_add_ctlmsg(NET_F_ACK, ack_from, net->seq);
 			window = CONFIG(window_size);
 			ack_from_set = 0;
@@ -468,11 +447,9 @@ static int tx_queue_xmit(void *data1, const void *data2)
 	mcast_buffered_send_netmsg(STATE_SYNC(mcast_client), net, len);
 	HDR_NETWORK2HOST(net);
 
-	if (IS_DATA(net) || IS_ACK(net) || IS_NACK(net)) {
-		dprint("tx_queue -> to_rs_queue sq: %u fl:%u len:%u\n",
-        	       net->seq, net->flags, net->len);
+	if (IS_DATA(net) || IS_ACK(net) || IS_NACK(net))
 		queue_add(rs_queue, net, net->len);
-	}
+
 	queue_del(tx_queue, net);
 
 	return 0;
@@ -518,10 +495,10 @@ static void ftfw_run(void)
 	/* reset alive alarm */
 	add_alarm(&alive_alarm, 1, 0);
 
-	dprint("tx_list_len:%u tx_queue_len:%u "
-	       "rs_list_len: %u rs_queue_len:%u\n",
-		tx_list_len, queue_len(tx_queue),
-		rs_list_len, queue_len(rs_queue));
+	dp("tx_list_len:%u tx_queue_len:%u "
+	   "rs_list_len: %u rs_queue_len:%u\n",
+	   tx_list_len, queue_len(tx_queue),
+	   rs_list_len, queue_len(rs_queue));
 }
 
 struct sync_mode sync_ftfw = {
