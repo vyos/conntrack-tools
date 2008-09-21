@@ -70,12 +70,15 @@ static void cache_ftfw_del(struct us_conntrack *u, void *data)
 	struct cache_ftfw *cn = data;
 
 	/* this node is already out of the list */
-	if (list_empty(&cn->rs_list))
-	    	return;
-
-	/* no need for list_del_init since the entry is destroyed */
-	list_del(&cn->rs_list);
-	rs_list_len--;
+	if (!list_empty(&cn->rs_list)) {
+		/* no need for list_del_init since the entry is destroyed */
+		list_del(&cn->rs_list);
+		rs_list_len--;
+	}
+	if (!list_empty(&cn->tx_list)) {
+		list_del(&cn->tx_list);
+		tx_list_len--;
+	}
 }
 
 static struct cache_extra cache_ftfw_extra = {
