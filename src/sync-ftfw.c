@@ -260,6 +260,12 @@ static int rs_queue_empty(void *data1, const void *data2)
 	struct nethdr *net = data1;
 	const struct nethdr_ack *h = data2;
 
+	if (h == NULL) {
+		dp("inconditional remove from queue (seq=%u)\n", net->seq);
+		queue_del(rs_queue, data1);
+		return 0;
+	}
+
 	if (between(net->seq, h->from, h->to)) {
 		dp("remove from queue (seq=%u)\n", net->seq);
 		queue_del(rs_queue, data1);
@@ -362,8 +368,22 @@ static int ftfw_recv(const struct nethdr *net)
 {
 	int ret = MSG_DATA;
 
-	if (digest_hello(net))
+	if (digest_hello(net)) {
+		/* we have received a hello while we had data to acknowledge.
+		 * reset the window, the other doesn't know anthing about it. */
+		if (ack_from_set && before(net->seq, ack_from)) {
+			window = CONFIG(window_size) - 1;
+			ack_from = net->seq;
+		}
+
+		/* XXX: flush the resend queues since the other does not 
+		 * know anything about that data, we are unreliable until 
+		 * the helloing finishes */
+		queue_iterate(rs_queue, NULL, rs_queue_empty);
+		rs_list_empty(STATE_SYNC(internal), 0, ~0U);
+
 		goto bypass;
+	}
 
 	switch (mcast_track_seq(net->seq, &exp_seq)) {
 	case SEQ_AFTER:
