@@ -65,12 +65,6 @@ enum {
 	SEQ_BEFORE,
 };
 
-enum {
-	SAY_HELLO,
-	HELLO_BACK,
-	HELLO_DONE,
-};
-
 int mcast_track_seq(uint32_t seq, uint32_t *exp_seq);
 void mcast_track_update_seq(uint32_t seq);
 int mcast_track_is_seq_set(void);

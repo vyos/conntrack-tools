@@ -46,7 +46,14 @@ static uint32_t window;
 static uint32_t ack_from;
 static int ack_from_set = 0;
 static struct alarm_block alive_alarm;
-static int hello_state = SAY_HELLO;
+
+enum {
+	HELLO_INIT,
+	HELLO_SAY,
+	HELLO_DONE,
+};
+static int hello_state = HELLO_INIT;
+static int say_hello_back;
 
 /* XXX: alive message expiration configurable */
 #define ALIVE_INT 1
@@ -96,13 +103,17 @@ static void tx_queue_add_ctlmsg(uint32_t flags, uint32_t from, uint32_t to)
 	};
 
 	switch(hello_state) {
-	case SAY_HELLO:
+	case HELLO_INIT:
+		hello_state = HELLO_SAY;
+		/* fall through */
+	case HELLO_SAY:
 		ack.flags |= NET_F_HELLO;
 		break;
-	case HELLO_BACK:
+	}
+
+	if (say_hello_back) {
 		ack.flags |= NET_F_HELLO_BACK;
-		hello_state = HELLO_DONE;
-		break;
+		say_hello_back = 0;
 	}
 
 	queue_add(tx_queue, &ack, NETHDR_ACK_SIZ);
@@ -335,12 +346,13 @@ static int digest_hello(const struct nethdr *net)
 	int ret = 0;
 
 	if (IS_HELLO(net)) {
-		dlog(LOG_NOTICE, "The other node says HELLO");
-		hello_state = HELLO_BACK;
+		say_hello_back = 1;
 		ret = 1;
-	} else if (IS_HELLO_BACK(net)) {
-		dlog(LOG_NOTICE, "The other node says HELLO BACK");
-		hello_state = HELLO_DONE;
+	}
+	if (IS_HELLO_BACK(net)) {
+		/* this is a hello back for a requested hello */
+		if (hello_state == HELLO_SAY)
+			hello_state = HELLO_DONE;
 	}
 
 	return ret;
@@ -428,15 +440,19 @@ static void ftfw_send(struct nethdr *net, struct us_conntrack *u)
 		}
 
 		switch(hello_state) {
-		case SAY_HELLO:
+		case HELLO_INIT:
+			hello_state = HELLO_SAY;
+			/* fall through */
+		case HELLO_SAY:
 			net->flags = ntohs(net->flags) | NET_F_HELLO;
 			net->flags = htons(net->flags);
 			break;
-		case HELLO_BACK:
+		}
+
+		if (say_hello_back) {
 			net->flags = ntohs(net->flags) | NET_F_HELLO_BACK;
 			net->flags = htons(net->flags);
-			hello_state = HELLO_DONE;
-			break;
+			say_hello_back = 0;
 		}
 
 		cn->seq = ntohl(net->seq);
