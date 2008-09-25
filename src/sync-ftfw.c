@@ -196,6 +196,10 @@ static int do_cache_to_tx(void *data1, void *data2)
 	struct us_conntrack *u = data2;
 	struct cache_ftfw *cn = cache_get_extra(STATE_SYNC(internal), u);
 
+	/* repeated request for resync? */
+	if (!list_empty(&cn->tx_list))
+		return 0;
+
 	/* add to tx list */
 	list_add_tail(&cn->tx_list, &tx_list);
 	tx_list_len++;
@@ -264,8 +268,11 @@ static void rs_list_to_tx(struct cache *c, unsigned int from, unsigned int to)
 			dp("resending nack'ed (oldseq=%u)\n", cn->seq);
 			list_del_init(&cn->rs_list);
 			rs_list_len--;
-			list_add_tail(&cn->tx_list, &tx_list);
-			tx_list_len++;
+			/* we received a request for resync before this nack? */
+			if (list_empty(&cn->tx_list)) {
+				list_add_tail(&cn->tx_list, &tx_list);
+				tx_list_len++;
+			}
 			write_evfd(STATE_SYNC(evfd));
 		}
 	} 
