@@ -787,21 +787,22 @@ static int update_cb(enum nf_conntrack_msg_type type,
 	char __tmp[nfct_maxsize()];
 	struct nf_conntrack *tmp = (struct nf_conntrack *) (void *)__tmp;
 
-	memcpy(tmp, obj, sizeof(__tmp));
+	memset(tmp, 0, sizeof(__tmp));
 
-	if (ignore_nat(tmp, ct))
+	if (ignore_nat(obj, ct))
 		return NFCT_CB_CONTINUE;
 
 	if (nfct_attr_is_set(obj, ATTR_ID) && nfct_attr_is_set(ct, ATTR_ID) &&
 	    nfct_get_attr_u32(obj, ATTR_ID) != nfct_get_attr_u32(ct, ATTR_ID))
 	    	return NFCT_CB_CONTINUE;
 
-	if (options & CT_OPT_TUPLE_ORIG && !nfct_cmp(tmp, ct, NFCT_CMP_ORIG))
+	if (options & CT_OPT_TUPLE_ORIG && !nfct_cmp(obj, ct, NFCT_CMP_ORIG))
 		return NFCT_CB_CONTINUE;
-	if (options & CT_OPT_TUPLE_REPL && !nfct_cmp(tmp, ct, NFCT_CMP_REPL))
+	if (options & CT_OPT_TUPLE_REPL && !nfct_cmp(obj, ct, NFCT_CMP_REPL))
 		return NFCT_CB_CONTINUE;
 
 	nfct_copy(tmp, ct, NFCT_CP_ORIG);
+	nfct_copy(tmp, obj, NFCT_CP_META);
 
 	res = nfct_query(ith, NFCT_Q_UPDATE, tmp);
 	if (res < 0)
