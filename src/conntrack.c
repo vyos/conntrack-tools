@@ -627,7 +627,6 @@ static int event_cb(enum nf_conntrack_msg_type type,
 		    void *data)
 {
 	char buf[1024];
-	int ret, offset = 0, len = sizeof(buf);
 	struct nf_conntrack *obj = data;
 	unsigned int op_type = NFCT_O_DEFAULT;
 	unsigned int op_flags = 0;
@@ -642,15 +641,8 @@ static int event_cb(enum nf_conntrack_msg_type type,
 		op_type = NFCT_O_XML;
 		if (dump_xml_header_done) {
 			dump_xml_header_done = 0;
-			ret = snprintf(buf, len, "<?xml version=\"1.0\" "
-						 "encoding=\"utf-8\"?>\n"
-						 "<conntrack>\n");
-			if (ret == -1) {
-				fprintf(stderr, "evil! snprintf fails\n");
-				return NFCT_CB_CONTINUE;
-			}
-
-			BUFFER_SIZE(ret, len, offset);
+			printf("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
+			       "<conntrack>\n");
 		}
 	} 
 	if (output_mask & _O_EXT)
@@ -666,7 +658,7 @@ static int event_cb(enum nf_conntrack_msg_type type,
 	if (output_mask & _O_ID)
 		op_flags |= NFCT_OF_ID;
 
-	nfct_snprintf(buf+offset, len, ct, type, op_type, op_flags);
+	nfct_snprintf(buf, sizeof(buf), ct, type, op_type, op_flags);
 
 	printf("%s\n", buf);
 	fflush(stdout);
@@ -681,7 +673,6 @@ static int dump_cb(enum nf_conntrack_msg_type type,
 		   void *data)
 {
 	char buf[1024];
-	int ret, offset = 0, len = sizeof(buf);
 	struct nf_conntrack *obj = data;
 	unsigned int op_type = NFCT_O_DEFAULT;
 	unsigned int op_flags = 0;
@@ -696,15 +687,8 @@ static int dump_cb(enum nf_conntrack_msg_type type,
 		op_type = NFCT_O_XML;
 		if (dump_xml_header_done) {
 			dump_xml_header_done = 0;
-			ret = snprintf(buf, len, "<?xml version=\"1.0\" "
-						 "encoding=\"utf-8\"?>\n"
-						 "<conntrack>\n");
-			if (ret == -1) {
-				fprintf(stderr, "evil! snprintf fails\n");
-				return NFCT_CB_CONTINUE;
-			}
-
-			BUFFER_SIZE(ret, len, offset);
+			printf("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
+			       "<conntrack>\n");
 		}
 	}
 	if (output_mask & _O_EXT)
@@ -712,7 +696,7 @@ static int dump_cb(enum nf_conntrack_msg_type type,
 	if (output_mask & _O_ID)
 		op_flags |= NFCT_OF_ID;
 
-	nfct_snprintf(buf+offset, len, ct, NFCT_T_UNKNOWN, op_type, op_flags);
+	nfct_snprintf(buf, sizeof(buf), ct, NFCT_T_UNKNOWN, op_type, op_flags);
 	printf("%s\n", buf);
 
 	counter++;

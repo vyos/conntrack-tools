@@ -192,10 +192,4 @@ extern void register_udp(void);
 extern void register_icmp(void);
 extern void register_icmpv6(void);
 
-#define BUFFER_SIZE(ret, len, offset)			\
-	if (ret > len)					\
-		ret = len;				\
-	offset += ret;					\
-	len -= ret;
-
 #endif
