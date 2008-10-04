@@ -191,5 +191,6 @@ extern void register_tcp(void);
 extern void register_udp(void);
 extern void register_icmp(void);
 extern void register_icmpv6(void);
+extern void register_unknown(void);
 
 #endif

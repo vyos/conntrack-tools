@@ -53,6 +53,7 @@
 #endif
 #include <signal.h>
 #include <string.h>
+#include <netdb.h>
 #include <libnetfilter_conntrack/libnetfilter_conntrack.h>
 
 static const char cmdflags[NUMBER_OF_CMD]
@@ -156,26 +157,61 @@ void register_proto(struct ctproto_handler *h)
 	list_add(&h->head, &proto_list);
 }
 
-static struct ctproto_handler *findproto(char *name)
+extern struct ctproto_handler ct_proto_unknown;
+
+static struct ctproto_handler *findproto(char *name, int *pnum)
 {
 	struct ctproto_handler *cur;
+	struct protoent *pent;
+	int protonum;
 
-	if (!name) 
-		return NULL;
-
+	/* is it in the list of supported protocol? */
 	list_for_each_entry(cur, &proto_list, head) {
-		if (strcmp(cur->name, name) == 0)
+		if (strcmp(cur->name, name) == 0) {
+			*pnum = cur->protonum;
 			return cur;
+		}
+	}
+	/* using the protocol name for an unsupported protocol? */
+	if ((pent = getprotobyname(name))) {
+		*pnum = pent->p_proto;
+		return &ct_proto_unknown;
+	}
+	/* using a protocol number? */
+	protonum = atoi(name);
+	if (protonum > 0 && protonum <= IPPROTO_MAX) {
+		/* try lookup by number, perhaps this protocol is supported */
+		list_for_each_entry(cur, &proto_list, head) {
+			if (cur->protonum == protonum) {
+				*pnum = protonum;
+				return cur;
+			}
+		}
+		*pnum = protonum;
+		return &ct_proto_unknown;
 	}
 
 	return NULL;
 }
 
 static void
-extension_help(struct ctproto_handler *h)
+extension_help(struct ctproto_handler *h, int protonum)
 {
-	fprintf(stdout, "\n");
-	fprintf(stdout, "Proto `%s' help:\n", h->name);
+	const char *name;
+
+	if (h == &ct_proto_unknown) {
+		struct protoent *pent;
+
+		pent = getprotobynumber(protonum);
+		if (!pent)
+			name = h->name;
+		else
+			name = pent->p_name;
+	} else {
+		name = h->name;
+	}
+
+	fprintf(stdout, "Proto `%s' help:\n", name);
 	h->help();
 }
 
@@ -908,7 +944,7 @@ int main(int argc, char *argv[])
 	struct nf_conntrack *mask = (struct nf_conntrack *)(void*) __mask;
 	char __exp[nfexp_maxsize()];
 	struct nf_expect *exp = (struct nf_expect *)(void*) __exp;
-	int l3protonum;
+	int l3protonum, protonum = 0;
 	union ct_address ad;
 	unsigned int command = 0;
 
@@ -921,6 +957,7 @@ int main(int argc, char *argv[])
 	register_udp();
 	register_icmp();
 	register_icmpv6();
+	register_unknown();
 
 	/* disable explicit missing arguments error output from getopt_long */
 	opterr = 0;
@@ -990,7 +1027,7 @@ int main(int argc, char *argv[])
 			break;
 		case 'p':
 			options |= CT_OPT_PROTO;
-			h = findproto(optarg);
+			h = findproto(optarg, &protonum);
 			if (!h)
 				exit_error(PARAMETER_PROBLEM,
 					   "`%s' unsupported protocol",
@@ -999,6 +1036,8 @@ int main(int argc, char *argv[])
 			opts = merge_options(opts, h->opts, &h->option_offset);
 			if (opts == NULL)
 				exit_error(OTHER_PROBLEM, "out of memory");
+
+			nfct_set_attr_u8(obj, ATTR_L4PROTO, protonum);
 			break;
 		case 't':
 			options |= CT_OPT_TIMEOUT;
@@ -1089,11 +1128,6 @@ int main(int argc, char *argv[])
 	/* default family */
 	if (family == AF_UNSPEC)
 		family = AF_INET;
-
-	/* set the protocol number if we have seen -p with no parameters */
-	if (h && !nfct_attr_is_set(obj, ATTR_ORIG_L4PROTO) &&
-	    !nfct_attr_is_set(obj, ATTR_REPL_L4PROTO))
-		nfct_set_attr_u8(obj, ATTR_L4PROTO, h->protonum);
 
 	cmd = bit2cmd(command);
 	generic_cmd_check(cmd, options);
@@ -1304,7 +1338,7 @@ int main(int argc, char *argv[])
 	case CT_HELP:
 		usage(argv[0]);
 		if (options & CT_OPT_PROTO)
-			extension_help(h);
+			extension_help(h, protonum);
 		break;
 	default:
 		usage(argv[0]);
