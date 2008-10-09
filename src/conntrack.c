@@ -863,6 +863,7 @@ static int dump_exp_cb(enum nf_conntrack_msg_type type,
 
 	nfexp_snprintf(buf, 1024, exp, NFCT_T_UNKNOWN, NFCT_O_DEFAULT, 0);
 	printf("%s\n", buf);
+	counter++;
 
 	return NFCT_CB_CONTINUE;
 }
