@@ -597,28 +597,12 @@ usage(char *prog)
 
 static unsigned int output_mask;
 
-static int ignore_nat(const struct nf_conntrack *obj,
-		      const struct nf_conntrack *ct)
+static int 
+filter_nat(const struct nf_conntrack *obj, const struct nf_conntrack *ct)
 {
 	uint32_t ip;
 
-	if (options & CT_OPT_SRC_NAT && options & CT_OPT_DST_NAT) {
-		if (!nfct_getobjopt(ct, NFCT_GOPT_IS_SNAT) &&
-		    !nfct_getobjopt(ct, NFCT_GOPT_IS_DNAT))
-			return 1;
-
-		if (nfct_attr_is_set(obj, ATTR_SNAT_IPV4)) {
-			ip = nfct_get_attr_u32(obj, ATTR_SNAT_IPV4);
-			if (ip != nfct_get_attr_u32(ct, ATTR_REPL_IPV4_DST))
-				return 1;
-		}
-
-		if (nfct_attr_is_set(obj, ATTR_DNAT_IPV4)) {
-			ip = nfct_get_attr_u32(obj, ATTR_DNAT_IPV4);
-			if (ip != nfct_get_attr_u32(ct, ATTR_REPL_IPV4_SRC))
-				return 1;
-		}
-	} else if (options & CT_OPT_SRC_NAT) {
+	if (options & CT_OPT_SRC_NAT) {
 		if (!nfct_getobjopt(ct, NFCT_GOPT_IS_SNAT))
 		  	return 1;
 
@@ -627,7 +611,8 @@ static int ignore_nat(const struct nf_conntrack *obj,
 			if (ip != nfct_get_attr_u32(ct, ATTR_REPL_IPV4_DST))
 				return 1;
 		}
-	} else if (options & CT_OPT_DST_NAT) {
+	}
+	if (options & CT_OPT_DST_NAT) {
 		if (!nfct_getobjopt(ct, NFCT_GOPT_IS_DNAT))
 			return 1;
 
@@ -667,7 +652,7 @@ static int event_cb(enum nf_conntrack_msg_type type,
 	unsigned int op_type = NFCT_O_DEFAULT;
 	unsigned int op_flags = 0;
 
-	if (ignore_nat(obj, ct))
+	if (filter_nat(obj, ct))
 		return NFCT_CB_CONTINUE;
 
 	if (options & CT_COMPARISON &&
@@ -714,7 +699,7 @@ static int dump_cb(enum nf_conntrack_msg_type type,
 	unsigned int op_type = NFCT_O_DEFAULT;
 	unsigned int op_flags = 0;
 
-	if (ignore_nat(obj, ct))
+	if (filter_nat(obj, ct))
 		return NFCT_CB_CONTINUE;
 
 	if (options & CT_COMPARISON &&
@@ -752,7 +737,7 @@ static int delete_cb(enum nf_conntrack_msg_type type,
 	unsigned int op_type = NFCT_O_DEFAULT;
 	unsigned int op_flags = 0;
 
-	if (ignore_nat(obj, ct))
+	if (filter_nat(obj, ct))
 		return NFCT_CB_CONTINUE;
 
 	if (options & CT_COMPARISON &&
@@ -812,7 +797,7 @@ static int update_cb(enum nf_conntrack_msg_type type,
 
 	memset(tmp, 0, sizeof(__tmp));
 
-	if (ignore_nat(obj, ct))
+	if (filter_nat(obj, ct))
 		return NFCT_CB_CONTINUE;
 
 	if (nfct_attr_is_set(obj, ATTR_ID) && nfct_attr_is_set(ct, ATTR_ID) &&
