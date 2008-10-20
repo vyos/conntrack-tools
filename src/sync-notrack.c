@@ -36,8 +36,26 @@ struct cache_notrack {
 	struct list_head	tx_list;
 };
 
+static void cache_notrack_add(struct us_conntrack *u, void *data)
+{
+	struct cache_notrack *cn = data;
+	INIT_LIST_HEAD(&cn->tx_list);
+}
+
+static void cache_notrack_del(struct us_conntrack *u, void *data)
+{
+	struct cache_notrack *cn = data;
+
+	if (!list_empty(&cn->tx_list)) {
+		list_del(&cn->tx_list);
+		tx_list_len--;
+	}
+}
+
 static struct cache_extra cache_notrack_extra = {
 	.size 		= sizeof(struct cache_notrack),
+	.add		= cache_notrack_add,
+	.destroy	= cache_notrack_del
 };
 
 static void tx_queue_add_ctlmsg(uint32_t flags, uint32_t from, uint32_t to)
@@ -72,6 +90,9 @@ static int do_cache_to_tx(void *data1, void *data2)
 {
 	struct us_conntrack *u = data2;
 	struct cache_notrack *cn = cache_get_extra(STATE_SYNC(internal), u);
+
+	if (!list_empty(&cn->tx_list))
+		return 0;
 
 	/* add to tx list */
 	list_add_tail(&cn->tx_list, &tx_list);
