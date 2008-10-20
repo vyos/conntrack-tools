@@ -231,6 +231,23 @@ struct us_conntrack *cache_add(struct cache *c, struct nf_conntrack *ct)
 	return NULL;
 }
 
+static void 
+__cache_update(struct cache *c, struct us_conntrack *u, struct nf_conntrack *ct)
+{
+	unsigned i;
+	char *data = u->data;
+
+	nfct_copy(u->ct, ct, NFCT_CP_META);
+
+	for (i = 0; i < c->num_features; i++) {
+		c->features[i]->update(u, data);
+		data += c->features[i]->size;
+	}
+
+	if (c->extra && c->extra->update)
+		c->extra->update(u, ((char *) u) + c->extra_offset);
+}
+
 static struct us_conntrack *__update(struct cache *c, struct nf_conntrack *ct)
 {
 	size_t size = c->h->datasize;
@@ -241,19 +258,7 @@ static struct us_conntrack *__update(struct cache *c, struct nf_conntrack *ct)
 
 	u = (struct us_conntrack *) hashtable_test(c->h, u);
 	if (u) {
-		unsigned i;
-		char *data = u->data;
-
-		nfct_copy(u->ct, ct, NFCT_CP_META);
-
-		for (i = 0; i < c->num_features; i++) {
-			c->features[i]->update(u, data);
-			data += c->features[i]->size;
-		}
-
-		if (c->extra && c->extra->update)
-			c->extra->update(u, ((char *) u) + c->extra_offset);
-
+		__cache_update(c, u, ct);
 		return u;
 	} 
 	return NULL;
@@ -271,37 +276,6 @@ struct us_conntrack *cache_update(struct cache *c, struct nf_conntrack *ct)
 	c->upd_fail++;
 	
 	return NULL;
-}
-
-struct us_conntrack *cache_update_force(struct cache *c,
-					struct nf_conntrack *ct)
-{
-	struct us_conntrack *u;
-
-	if ((u = __update(c, ct)) != NULL) {
-		c->upd_ok++;
-		return u;
-	}
-	if ((u = __add(c, ct)) != NULL) {
-		c->add_ok++;
-		return u;
-	}
-	c->add_fail++;
-	return NULL;
-}
-
-int cache_test(struct cache *c, struct nf_conntrack *ct)
-{
-	size_t size = c->h->datasize;
-	char buf[size];
-	struct us_conntrack *u = (struct us_conntrack *) buf;
-	void *ret;
-
-	u->ct = ct;
-
-	ret = hashtable_test(c->h, u);
-
-	return ret != NULL;
 }
 
 static void __del2(struct cache *c, struct us_conntrack *u)
@@ -335,6 +309,43 @@ static void __cache_del(struct cache *c, struct us_conntrack *u)
 	}
 	del_alarm(&u->alarm);
 	__del2(c, u);
+}
+
+struct us_conntrack *cache_update_force(struct cache *c,
+					struct nf_conntrack *ct)
+{
+	struct us_conntrack *u;
+
+	u = cache_find(c, ct);
+	if (u) {
+		if (!alarm_pending(&u->alarm)) {
+			c->upd_ok++;
+			__cache_update(c, u, ct);
+			return u;
+		} else {
+			__cache_del(c, u);
+		}
+	}
+	if ((u = __add(c, ct)) != NULL) {
+		c->add_ok++;
+		return u;
+	}
+	c->add_fail++;
+	return NULL;
+}
+
+int cache_test(struct cache *c, struct nf_conntrack *ct)
+{
+	size_t size = c->h->datasize;
+	char buf[size];
+	struct us_conntrack *u = (struct us_conntrack *) buf;
+	void *ret;
+
+	u->ct = ct;
+
+	ret = hashtable_test(c->h, u);
+
+	return ret != NULL;
 }
 
 int cache_del(struct cache *c, struct nf_conntrack *ct)
