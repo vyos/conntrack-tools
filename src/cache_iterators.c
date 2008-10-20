@@ -106,6 +106,7 @@ static void __do_commit_step(struct cache *c, struct us_conntrack *u)
 	 */
 	nfct_set_attr_u32(ct, ATTR_TIMEOUT, CONFIG(commit_timeout));
 
+try_again:
 	ret = nl_exist_conntrack(ct);
 	switch (ret) {
 	case -1:
@@ -113,13 +114,12 @@ static void __do_commit_step(struct cache *c, struct us_conntrack *u)
 		dlog_ct(STATE(log), ct, NFCT_O_PLAIN);
 		break;
 	case 0:
-try_again_create:
 		if (nl_create_conntrack(ct) == -1) {
 			if (errno == ENOMEM) {
 				if (retry) {
 					retry = 0;
 					sched_yield();
-					goto try_again_create;
+					goto try_again;
 				}
 			}
 			dlog(LOG_ERR, "commit-create: %s", strerror(errno));
@@ -130,15 +130,27 @@ try_again_create:
 		break;
 	case 1:
 		c->commit_exist++;
-try_again_update:
 		if (nl_update_conntrack(ct) == -1) {
 			if (errno == ENOMEM || errno == ETIME) {
 				if (retry) {
 					retry = 0;
 					sched_yield();
-					goto try_again_update;
+					goto try_again;
 				}
 			}
+			/* try harder, delete the entry and retry */
+			if (retry) {
+				ret = nl_destroy_conntrack(ct);
+				if (ret == 0 || 
+				    (ret == -1 && errno == ENOENT)) {
+					retry = 0;
+					goto try_again;
+				}
+				dlog(LOG_ERR, "commit-rm: %s", strerror(errno));
+				dlog_ct(STATE(log), ct, NFCT_O_PLAIN);
+				c->commit_fail++;
+				break;
+			} 
 			dlog(LOG_ERR, "commit-update: %s", strerror(errno));
 			dlog_ct(STATE(log), ct, NFCT_O_PLAIN);
 			c->commit_fail++;
