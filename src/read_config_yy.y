@@ -467,6 +467,7 @@ sync_mode_alarm_list:
 sync_mode_alarm_line: refreshtime
               		 | expiretime
 	     		 | timeout
+			 | purge
 			 | relax_transitions
 			 | delay_destroy_msgs
 			 ;
@@ -476,6 +477,7 @@ sync_mode_ftfw_list:
 
 sync_mode_ftfw_line: resend_queue_size
 		   | timeout
+		   | purge
 		   | window_size
 		   ;
 
@@ -483,8 +485,8 @@ sync_mode_notrack_list:
 	      | sync_mode_notrack_list sync_mode_notrack_line;
 
 sync_mode_notrack_line: timeout
-		   ;
-
+		      | purge
+		      ;
 
 resend_queue_size: T_RESEND_BUFFER_SIZE T_NUMBER
 {
