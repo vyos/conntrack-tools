@@ -40,7 +40,8 @@ void killer(int foo)
 	nfct_close(STATE(event));
 	nfct_close(STATE(request));
 
-	ct_filter_destroy(STATE(us_filter));
+	if (STATE(us_filter))
+		ct_filter_destroy(STATE(us_filter));
 	local_server_destroy(&STATE(local));
 	STATE(mode)->kill();
 
