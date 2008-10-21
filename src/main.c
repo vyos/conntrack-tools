@@ -45,8 +45,9 @@ static const char usage_client_commands[] =
 	"  -k, kill conntrack daemon\n"
 	"  -s, dump statistics\n"
 	"  -R, resync with kernel conntrack table\n"
-	"  -n, request resync with other node (only FT-FW mode)\n"
-	"  -x, dump cache in XML format (requires -i or -e)";
+	"  -n, request resync with other node (only FT-FW and NOTRACK modes)\n"
+	"  -x, dump cache in XML format (requires -i or -e)"
+	"  -t, reset the kernel timeout (see PurgeTimeout clause)";
 
 static const char usage_options[] =
 	"Options:\n"
