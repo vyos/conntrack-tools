@@ -1006,9 +1006,9 @@ init_config(char *filename)
 	if (CONFIG(resend_queue_size) == 0)
 		CONFIG(resend_queue_size) = 262144;
 
-	/* default to a window size of 20 packets */
+	/* default to a window size of 300 packets */
 	if (CONFIG(window_size) == 0)
-		CONFIG(window_size) = 20;
+		CONFIG(window_size) = 300;
 
 	/* double of 120 seconds which is common timeout of a final state */
 	if (conf.flags & CTD_SYNC_FTFW && CONFIG(del_timeout) == 0)
