@@ -118,6 +118,7 @@ int nl_init_event_handler(void)
 				dlog(LOG_ERR, "cannot set event filtering: %s",
 				     strerror(errno));
 			}
+			dlog(LOG_NOTICE, "using kernel-space event filtering");
 		} 
 		nfct_filter_destroy(STATE(filter));
 	}
