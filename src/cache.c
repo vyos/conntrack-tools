@@ -30,15 +30,14 @@
 
 static uint32_t __hash4(const struct nf_conntrack *ct, struct hashtable *table)
 {
-	unsigned int a, b;
-
-	a = jhash(nfct_get_attr(ct, ATTR_ORIG_IPV4_SRC), sizeof(uint32_t),
-		  ((nfct_get_attr_u8(ct, ATTR_ORIG_L3PROTO) << 16) |
-		   (nfct_get_attr_u8(ct, ATTR_ORIG_L4PROTO))));
-
-	b = jhash(nfct_get_attr(ct, ATTR_ORIG_IPV4_DST), sizeof(uint32_t),
-		  ((nfct_get_attr_u16(ct, ATTR_ORIG_PORT_SRC) << 16) |
-		   (nfct_get_attr_u16(ct, ATTR_ORIG_PORT_DST))));
+	uint32_t a[4] = {
+		[0]	= nfct_get_attr_u32(ct, ATTR_IPV4_SRC),
+		[1]	= nfct_get_attr_u32(ct, ATTR_IPV4_DST),
+		[2]	= nfct_get_attr_u8(ct, ATTR_L3PROTO) << 16 |
+			  nfct_get_attr_u8(ct, ATTR_L4PROTO),
+		[3]	= nfct_get_attr_u16(ct, ATTR_PORT_SRC) << 16 |
+			  nfct_get_attr_u16(ct, ATTR_PORT_DST),
+	};
 
 	/*
 	 * Instead of returning hash % table->hashsize (implying a divide)
@@ -47,22 +46,21 @@ static uint32_t __hash4(const struct nf_conntrack *ct, struct hashtable *table)
 	 * but using a multiply, less expensive than a divide. See:
 	 * http://www.mail-archive.com/netdev@vger.kernel.org/msg56623.html
 	 */
-	return ((uint64_t)jhash_2words(a, b, 0) * table->hashsize) >> 32;
+	return ((uint64_t)jhash2(a, 4, 0) * table->hashsize) >> 32;
 }
 
 static uint32_t __hash6(const struct nf_conntrack *ct, struct hashtable *table)
 {
-	unsigned int a, b;
+	uint32_t a[10];
 
-	a = jhash(nfct_get_attr(ct, ATTR_ORIG_IPV6_SRC), sizeof(uint32_t)*4,
-		  ((nfct_get_attr_u8(ct, ATTR_ORIG_L3PROTO) << 16) |
-		   (nfct_get_attr_u8(ct, ATTR_ORIG_L4PROTO))));
+	memcpy(&a[0], nfct_get_attr(ct, ATTR_IPV6_SRC), sizeof(uint32_t)*4);
+	memcpy(&a[4], nfct_get_attr(ct, ATTR_IPV6_SRC), sizeof(uint32_t)*4);
+	a[8] = nfct_get_attr_u8(ct, ATTR_ORIG_L3PROTO) << 16 |
+	       nfct_get_attr_u8(ct, ATTR_ORIG_L4PROTO);
+	a[9] = nfct_get_attr_u16(ct, ATTR_ORIG_PORT_SRC) << 16 |
+	       nfct_get_attr_u16(ct, ATTR_ORIG_PORT_DST);
 
-	b = jhash(nfct_get_attr(ct, ATTR_ORIG_IPV6_DST), sizeof(uint32_t)*4,
-		  ((nfct_get_attr_u16(ct, ATTR_ORIG_PORT_SRC) << 16) |
-		   (nfct_get_attr_u16(ct, ATTR_ORIG_PORT_DST))));
-
-	return ((uint64_t)jhash_2words(a, b, 0) * table->hashsize) >> 32;
+	return ((uint64_t)jhash2(a, 10, 0) * table->hashsize) >> 32;
 }
 
 static uint32_t hash(const void *data, struct hashtable *table)
