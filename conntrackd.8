@@ -1,16 +1,16 @@
-.TH CONNTRACKD 8 "Jan 5, 2008" "" ""
+.TH CONNTRACKD 8 "Oct 21, 2008" "" ""
 
 .\" Man page written by Pablo Neira Ayuso <pablo@netfilter.org> (Dec 2007)
 
 .SH NAME
-conntrackd \- netfilter connection tracking userspace daemon
+conntrackd \- netfilter connection tracking user-space daemon
 .SH SYNOPSIS
 .BR "conntrackd [options]"
 .SH DESCRIPTION
 .B conntrackd
-provides a userspace daemon for the netfilter connection tracking system. This daemon synchronizes connection tracking states among several replica firewalls. Thus,
+is the user-space daemon for the netfilter connection tracking system. This daemon synchronizes connection tracking states between several replica firewalls. Thus,
 .B conntrackd 
-can be used to implement highly available stateful firewalls. The daemon fully supports Primary-Backup and Multiprimary setups for both symmetric and asymmetric paths. It can also be used as statistics collector.
+can be used to deploy highly available stateful firewalls. The daemon supports Primary-Backup and Multiprimary setups. The daemon can also be used as statistics collector.
 .SH OPTIONS
 The options recognized by
 .B conntrackd
@@ -45,9 +45,14 @@ Dump statistics
 .TP
 .BI "-R "
 Force a resync against the kernel connection tracking table
+.TP
+.BI "-t "
+Reset the in-kernel timers (See PurgeTimeout clause)
 .SH DIAGNOSTICS
 The exit code is 0 for correct function. Errors cause an exit code of 1.
 .SH EXAMPLES
+The following example are illustrative, for a real use in a firewall fail-over,
+check the primary-backup.sh script that comes with the sources.
 .TP
 .B conntrackd \-d
 Runs conntrackd in daemon and synchronization mode
@@ -64,6 +69,8 @@ Commits the external cache into the kernel connection tracking system. This is u
 This daemon requires a Linux kernel version >= 2.6.18. TCP window tracking support requires >= 2.6.22, otherwise you have to disable it. Helpers are fully supported since >= 2.6.25, however, if you use any previous version, depending on the protocol helper and your setup (e.g. if you setup performs NAT sequence adjustments or not), your help connection may be successfully recovered.
 .TP
 There are several unsupported stateful iptables matches such as recent, connbytes and the quota matches which gather internal information to operate. Since that information does not belong to the domain of the connection tracking system, connections affected by those matches may not be fully recovered during the takeover.
+.TP
+The daemon requires a Linux kernel version >= 2.6.26 to support kernel-space event filtering. Otherwise, all the event filtering is done in userspace with the corresponding extra overhead. If you are not using the Filter clause in the configuration file, ignore this notice.
 .SH SEE ALSO
 .BR conntrack (8), iptables (8)
 .br
@@ -75,6 +82,6 @@ Netfilter's bugzilla (https://bugzilla.netfilter.org).
 .SH AUTHORS
 Pablo Neira Ayuso wrote and maintains the conntrackd tool
 .TP
-Please send bug reports to <netfilter-failover@lists.netfilter.org>. Subscription is required.
+Please send bug reports to <netfilter-devel@lists.netfilter.org>. Subscription is required.
 .PP
 Man page written by Pablo Neira Ayuso <pablo@netfilter.org>.
