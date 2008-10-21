@@ -60,14 +60,14 @@ static int sanity_check(struct nf_conntrack *ct)
 	return 1;
 }
 
-int ignore_conntrack(struct nf_conntrack *ct)
+/* we do user-space filtering for dump and resyncs */
+int ignore_conntrack(struct nf_conntrack *ct, int userspace)
 {
 	/* missing mandatory attributes in object */
 	if (!sanity_check(ct))
 		return 1;
 
-	/* Ignore traffic */
-	if (!ct_filter_check(STATE(us_filter), ct)) {
+	if (userspace && !ct_filter_check(STATE(us_filter), ct)) {
 		debug_ct(ct, "ignore traffic");
 		return 1;
 	}
@@ -79,7 +79,8 @@ static int event_handler(enum nf_conntrack_msg_type type,
 			 struct nf_conntrack *ct,
 			 void *data)
 {
-	if (ignore_conntrack(ct))
+	/* skip user-space filtering if already do it in the kernel */
+	if (ignore_conntrack(ct, !CONFIG(kernel_support_netlink_bsf)))
 		return NFCT_CB_STOP;
 
 	switch(type) {
@@ -155,7 +156,7 @@ static int dump_handler(enum nf_conntrack_msg_type type,
 			struct nf_conntrack *ct,
 			void *data)
 {
-	if (ignore_conntrack(ct))
+	if (ignore_conntrack(ct, 1))
 		return NFCT_CB_CONTINUE;
 
 	switch(type) {

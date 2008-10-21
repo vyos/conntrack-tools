@@ -6,7 +6,7 @@
 struct nf_conntrack;
 struct nfct_handle;
 
-int ignore_conntrack(struct nf_conntrack *ct);
+int ignore_conntrack(struct nf_conntrack *ct, int userspace);
 
 int nl_init_event_handler(void);
 
