@@ -1,4 +1,4 @@
-.TH CONNTRACK 8 "May 6, 2007" "" ""
+.TH CONNTRACK 8 "Oct 22, 2008" "" ""
 
 .\" Man page written by Harald Welte <laforge@netfilter.org (Jun 2005)
 .\" Maintained by Pablo Neira Ayuso <pablo@netfilter.org (May 2007)
@@ -13,6 +13,8 @@ conntrack \- command line interface for netfilter connection tracking
 .BR "conntrack -D [table] paramaters"
 .br
 .BR "conntrack -I [table] parameters"
+.br
+.BR "conntrack -U [table] parameters"
 .br
 .BR "conntrack -E [table] parameters"
 .br
@@ -61,6 +63,9 @@ Delete an entry from the given table.
 .TP
 .BI "-I, --create "
 Create a new entry from the given table.
+.TP
+.BI "-U, --update "
+Update an entry from the given table.
 .TP
 .BI "-E, --event "
 Display a real-time event log.
