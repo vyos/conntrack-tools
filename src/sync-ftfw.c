@@ -246,13 +246,16 @@ static int rs_queue_to_tx(void *data1, const void *data2)
 	struct nethdr_ack *net = data1;
 	const struct nethdr_ack *nack = data2;
 
-	if (between(net->seq, nack->from, nack->to)) {
-		dp("rs_queue_to_tx sq: %u fl:%u len:%u\n",
-			net->seq, net->flags, net->len);
-		queue_add(tx_queue, net, net->len);
-		write_evfd(STATE_SYNC(evfd));
-		queue_del(rs_queue, net);
-	}
+	if (before(net->seq, nack->from))
+		return 0;	/* continue */
+	else if (after(net->seq, nack->to))
+		return 1;	/* break */
+
+	dp("rs_queue_to_tx sq: %u fl:%u len:%u\n",
+		net->seq, net->flags, net->len);
+	queue_add(tx_queue, net, net->len);
+	write_evfd(STATE_SYNC(evfd));
+	queue_del(rs_queue, net);
 	return 0;
 }
 
@@ -267,10 +270,13 @@ static int rs_queue_empty(void *data1, const void *data2)
 		return 0;
 	}
 
-	if (between(net->seq, h->from, h->to)) {
-		dp("remove from queue (seq=%u)\n", net->seq);
-		queue_del(rs_queue, data1);
-	}
+	if (before(net->seq, h->from))
+		return 0;	/* continue */
+	else if (after(net->seq, h->to))
+		return 1;	/* break */
+
+	dp("remove from queue (seq=%u)\n", net->seq);
+	queue_del(rs_queue, data1);
 	return 0;
 }
 
@@ -282,17 +288,20 @@ static void rs_list_to_tx(struct cache *c, unsigned int from, unsigned int to)
 		struct us_conntrack *u;
 		
 		u = cache_get_conntrack(STATE_SYNC(internal), cn);
-		if (between(cn->seq, from, to)) {
-			dp("resending nack'ed (oldseq=%u)\n", cn->seq);
-			list_del_init(&cn->rs_list);
-			rs_list_len--;
-			/* we received a request for resync before this nack? */
-			if (list_empty(&cn->tx_list)) {
-				list_add_tail(&cn->tx_list, &tx_list);
-				tx_list_len++;
-			}
-			write_evfd(STATE_SYNC(evfd));
+		if (before(cn->seq, from))
+			continue;
+		else if (after(cn->seq, to))
+			break;
+
+		dp("resending nack'ed (oldseq=%u)\n", cn->seq);
+		list_del_init(&cn->rs_list);
+		rs_list_len--;
+		/* we received a request for resync before this nack? */
+		if (list_empty(&cn->tx_list)) {
+			list_add_tail(&cn->tx_list, &tx_list);
+			tx_list_len++;
 		}
+		write_evfd(STATE_SYNC(evfd));
 	} 
 }
 
@@ -304,11 +313,14 @@ static void rs_list_empty(struct cache *c, unsigned int from, unsigned int to)
 		struct us_conntrack *u;
 
 		u = cache_get_conntrack(STATE_SYNC(internal), cn);
-		if (between(cn->seq, from, to)) {
-			dp("queue: deleting from queue (seq=%u)\n", cn->seq);
-			list_del_init(&cn->rs_list);
-			rs_list_len--;
-		}
+		if (before(cn->seq, from))
+			continue;
+		else if (after(cn->seq, to))
+			break;
+
+		dp("queue: deleting from queue (seq=%u)\n", cn->seq);
+		list_del_init(&cn->rs_list);
+		rs_list_len--;
 	}
 }
 
