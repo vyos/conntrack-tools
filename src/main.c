@@ -47,7 +47,8 @@ static const char usage_client_commands[] =
 	"  -R, resync with kernel conntrack table\n"
 	"  -n, request resync with other node (only FT-FW and NOTRACK modes)\n"
 	"  -x, dump cache in XML format (requires -i or -e)"
-	"  -t, reset the kernel timeout (see PurgeTimeout clause)";
+	"  -t, reset the kernel timeout (see PurgeTimeout clause)"
+	"  -v, show internal debugging information (if any)";
 
 static const char usage_options[] =
 	"Options:\n"
@@ -179,6 +180,10 @@ int main(int argc, char *argv[])
 				exit(EXIT_FAILURE);
 
 			}
+			break;
+		case 'v':
+			set_operation_mode(&type, REQUEST, argv);
+			action = DEBUG_INFO;
 			break;
 		default:
 			show_usage(argv[0]);

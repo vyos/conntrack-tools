@@ -139,36 +139,6 @@ static void do_alive_alarm(struct alarm_block *a, void *data)
 	mcast_buffered_pending_netmsg(STATE_SYNC(mcast_client));
 }
 
-#undef _SIGNAL_DEBUG
-#ifdef _SIGNAL_DEBUG
-
-static int rs_dump(void *data1, const void *data2)
-{
-	struct nethdr_ack *net = data1;
-
-	printf("in RS queue -> seq:%u flags:%u\n", net->seq, net->flags);
-
-	return 0;
-}
-
-#include <signal.h>
-
-static void my_dump(int foo)
-{
-	struct cache_ftfw *cn, *tmp;
-
-	list_for_each_entry_safe(cn, tmp, &rs_list, rs_list) {
-		struct us_conntrack *u;
-		
-		u = cache_get_conntrack(STATE_SYNC(internal), cn);
-		printf("in RS list -> seq:%u\n", cn->seq);
-	}
-
-	queue_iterate(rs_queue, NULL, rs_dump);
-}
-
-#endif
-
 static int ftfw_init(void)
 {
 	tx_queue = queue_create(CONFIG(resend_queue_size));
@@ -188,10 +158,6 @@ static int ftfw_init(void)
 
 	/* set ack window size */
 	window = CONFIG(window_size);
-
-#ifdef _SIGNAL_DEBUG
-	signal(SIGUSR1, my_dump);
-#endif
 
 	return 0;
 }
@@ -219,6 +185,38 @@ static int do_cache_to_tx(void *data1, void *data2)
 	return 0;
 }
 
+static int debug_rs_queue_dump_step(void *data1, const void *data2)
+{
+	struct nethdr_ack *net = data1;
+	const int *fd = data2;
+	char buf[512];
+	int size;
+
+	size = sprintf(buf, "seq:%u flags:%u\n", net->seq, net->flags);
+	send(*fd, buf, size, 0);
+	return 0;
+}
+
+static void debug_rs_dump(int fd)
+{
+	struct cache_ftfw *cn, *tmp;
+	char buf[512];
+	int size;
+
+	size = sprintf(buf, "resent list (len=%u):\n", rs_list_len);
+	send(fd, buf, size, 0);
+	list_for_each_entry_safe(cn, tmp, &rs_list, rs_list) {
+		struct us_conntrack *u;
+		
+		u = cache_get_conntrack(STATE_SYNC(internal), cn);
+		size = sprintf(buf, "seq:%u\n", cn->seq);
+		send(fd, buf, size, 0);
+	}
+	size = sprintf(buf, "\nresent queue (len=%u):\n", queue_len(rs_queue));
+	send(fd, buf, size, 0);
+	queue_iterate(rs_queue, &fd, debug_rs_queue_dump_step);
+}
+
 static int ftfw_local(int fd, int type, void *data)
 {
 	int ret = 1;
@@ -231,6 +229,9 @@ static int ftfw_local(int fd, int type, void *data)
 	case SEND_BULK:
 		dlog(LOG_NOTICE, "sending bulk update");
 		cache_iterate(STATE_SYNC(internal), NULL, do_cache_to_tx);
+		break;
+	case DEBUG_INFO:
+		debug_rs_dump(fd);
 		break;
 	default:
 		ret = 0;
