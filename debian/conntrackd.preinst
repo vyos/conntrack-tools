@@ -1,0 +1,17 @@
+#!/bin/sh
+set -e
+
+action=$1
+version=$2
+
+if [ "$action" = upgrade -a -n "$version" ] &&
+    dpkg --compare-versions "$version" lt "1:0.9.8-1" &&
+    test -f /etc/conntrackd.conf &&
+    ! test -e /etc/conntrackd/conntrackd.conf; then
+    # package versions < 0.9.8-1 had the configuration file in a
+    # non-standard location
+    mkdir -p /etc/conntrackd
+    mv /etc/conntrackd.conf /etc/conntrackd/conntrackd.conf
+fi
+
+#DEBHELPER#

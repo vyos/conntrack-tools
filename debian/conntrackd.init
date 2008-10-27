@@ -22,7 +22,7 @@ DAEMON=/usr/sbin/conntrackd
 
 test -x $DAEMON || exit 0
 
-CONFIG=/etc/conntrackd.conf
+CONFIG=/etc/conntrackd/conntrackd.conf
 OPTIONS=""
 
 test -f /etc/default/conntrackd && source /etc/default/conntrackd
