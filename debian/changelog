@@ -1,3 +1,9 @@
+conntrack (1:0.9.8-1) UNRELEASED; urgency=low
+
+  * new upstream release
+
+ -- Max Kellermann <max@duempel.org>  Mon, 27 Oct 2008 13:58:14 +0100
+
 conntrack (1:0.9.7-1) unstable; urgency=low
 
   [ Max Kellermann ]
