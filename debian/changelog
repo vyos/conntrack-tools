@@ -1,6 +1,7 @@
 conntrack (1:0.9.8-1) UNRELEASED; urgency=low
 
   * new upstream release
+  * updated home page to http://people.netfilter.org/pablo/conntrack-tools/
 
  -- Max Kellermann <max@duempel.org>  Mon, 27 Oct 2008 13:58:14 +0100
 
