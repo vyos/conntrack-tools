@@ -31,19 +31,6 @@ static size_t __do_send(struct mcast_sock *m, void *data, size_t len)
 {
 	struct nethdr *net = data;
 
-#undef _TEST_DROP
-#ifdef _TEST_DROP
-
-#define DROP_RATE .25
-
-	/* simulate message omission with a certain probability */
-	if ((random() & 0x7FFFFFFF) < 0x80000000 * DROP_RATE) {
-		printf("drop sq: %u fl:%u len:%u\n",
-			ntohl(net->seq), ntohs(net->flags),
-			ntohs(net->len));
-		return 0;
-	}
-#endif
 	debug("send sq: %u fl:%u len:%u\n",
 		ntohl(net->seq), ntohs(net->flags),
 		ntohs(net->len));
