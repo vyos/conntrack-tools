@@ -477,14 +477,12 @@ static void ftfw_send(struct nethdr *net, struct us_conntrack *u)
 			hello_state = HELLO_SAY;
 			/* fall through */
 		case HELLO_SAY:
-			net->flags = ntohs(net->flags) | NET_F_HELLO;
-			net->flags = htons(net->flags);
+			net->flags |= NET_F_HELLO;
 			break;
 		}
 
 		if (say_hello_back) {
-			net->flags = ntohs(net->flags) | NET_F_HELLO_BACK;
-			net->flags = htons(net->flags);
+			net->flags |= NET_F_HELLO_BACK;
 			say_hello_back = 0;
 		}
 
@@ -501,7 +499,7 @@ static int tx_queue_xmit(void *data1, const void *data2)
 	size_t len = prepare_send_netmsg(STATE_SYNC(mcast_client), net);
 
 	dp("tx_queue sq: %u fl:%u len:%u\n",
-               ntohl(net->seq), ntohs(net->flags), ntohs(net->len));
+               ntohl(net->seq), net->flags, ntohs(net->len));
 
 	mcast_buffered_send_netmsg(STATE_SYNC(mcast_client), net, len);
 	HDR_NETWORK2HOST(net);
@@ -521,8 +519,7 @@ static int tx_list_xmit(struct list_head *i, struct us_conntrack *u, int type)
 	size_t len = prepare_send_netmsg(STATE_SYNC(mcast_client), net);
 
 	dp("tx_list sq: %u fl:%u len:%u\n",
-                ntohl(net->seq), ntohs(net->flags),
-                ntohs(net->len));
+                ntohl(net->seq), net->flags, ntohs(net->len));
 
 	list_del_init(i);
 	tx_list_len--;

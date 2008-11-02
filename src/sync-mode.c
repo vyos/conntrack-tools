@@ -41,6 +41,12 @@ static void do_mcast_handler_step(struct nethdr *net, size_t remain)
 	struct nf_conntrack *ct = (struct nf_conntrack *)(void*) __ct;
 	struct us_conntrack *u;
 
+	if (net->version != CONNTRACKD_PROTOCOL_VERSION) {
+		STATE(malformed)++;
+		dlog(LOG_WARNING, "wrong protocol version `%u'", net->version);
+		return;
+	}
+
 	switch (STATE_SYNC(sync)->recv(net)) {
 		case MSG_DATA:
 			break;
@@ -144,7 +150,7 @@ static void mcast_handler(void)
 		}
 
 		debug("recv sq: %u fl:%u len:%u (rem:%d)\n", 
-			ntohl(net->seq), ntohs(net->flags),
+			ntohl(net->seq), net->flags,
 			ntohs(net->len), remain);
 
 		HDR_NETWORK2HOST(net);

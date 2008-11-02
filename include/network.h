@@ -4,10 +4,13 @@
 #include <stdint.h>
 #include <sys/types.h>
 
+#define CONNTRACKD_PROTOCOL_VERSION	0
+
 struct nf_conntrack;
 
 struct nethdr {
-	uint16_t flags;
+	uint8_t version;
+	uint8_t flags;
 	uint16_t len;
 	uint32_t seq;
 };
@@ -17,7 +20,8 @@ struct nethdr {
 	(struct netpld *)(((char *)x) + sizeof(struct nethdr))
 
 struct nethdr_ack {
-	uint16_t flags; 
+	uint8_t version;
+	uint8_t flags; 
 	uint16_t len;
 	uint32_t seq;
 	uint32_t from;
@@ -87,7 +91,6 @@ ssize_t mcast_buffered_pending_netmsg(struct mcast_sock *m);
 
 #define HDR_NETWORK2HOST(x)						\
 ({									\
-	x->flags = ntohs(x->flags);					\
 	x->len   = ntohs(x->len);					\
 	x->seq   = ntohl(x->seq);					\
 	if (IS_CTL(x)) {						\
@@ -104,7 +107,6 @@ ssize_t mcast_buffered_pending_netmsg(struct mcast_sock *m);
 		__ack->from = htonl(__ack->from);			\
 		__ack->to = htonl(__ack->to);				\
 	}								\
-	x->flags = htons(x->flags);					\
 	x->len   = htons(x->len);					\
 	x->seq   = htonl(x->seq);					\
 })

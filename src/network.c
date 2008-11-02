@@ -32,8 +32,7 @@ static size_t __do_send(struct mcast_sock *m, void *data, size_t len)
 	struct nethdr *net = data;
 
 	debug("send sq: %u fl:%u len:%u\n",
-		ntohl(net->seq), ntohs(net->flags),
-		ntohs(net->len));
+		ntohl(net->seq), net->flags, ntohs(net->len));
 
 	return mcast_send(m, net, len);
 }
@@ -46,6 +45,7 @@ static size_t __do_prepare(struct mcast_sock *m, void *data, size_t len)
 		seq_set = 1;
 		cur_seq = time(NULL);
 	}
+	net->version = CONNTRACKD_PROTOCOL_VERSION;
 	net->len = len;
 	net->seq = cur_seq++;
 	HDR_HOST2NETWORK(net);
