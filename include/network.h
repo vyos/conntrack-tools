@@ -178,6 +178,35 @@ struct netattr {
 #define NTA_ALIGN(len)	(((len) + NTA_ALIGNTO - 1) & ~(NTA_ALIGNTO - 1))
 #define NTA_LENGTH(len)	(NTA_ALIGN(sizeof(struct netattr)) + (len))
 
+enum nta_attr {
+	NTA_IPV4 = 0,		/* struct nfct_attr_grp_ipv4 */
+	NTA_IPV6,		/* struct nfct_attr_grp_ipv6 */
+	NTA_L4PROTO,		/* uint8_t */
+	NTA_PORT,		/* struct nfct_attr_grp_port */
+	NTA_STATE = 4,		/* uint8_t */
+	NTA_STATUS,		/* uint32_t */
+	NTA_TIMEOUT,		/* uint32_t */
+	NTA_MARK,		/* uint32_t */
+	NTA_MASTER_IPV4 = 8,	/* struct nfct_attr_grp_ipv4 */
+	NTA_MASTER_IPV6,	/* struct nfct_attr_grp_ipv6 */
+	NTA_MASTER_L4PROTO,	/* uint8_t */
+	NTA_MASTER_PORT,	/* struct nfct_attr_grp_port */
+	NTA_SNAT_IPV4 = 12,	/* uint32_t */
+	NTA_DNAT_IPV4,		/* uint32_t */
+	NTA_SPAT_PORT,		/* uint16_t */
+	NTA_DPAT_PORT,		/* uint16_t */
+	NTA_NAT_SEQ_ADJ = 16,	/* struct nta_attr_natseqadj */
+};
+
+struct nta_attr_natseqadj {
+	uint32_t orig_seq_correction_pos;
+	uint32_t orig_seq_offset_before;
+	uint32_t orig_seq_offset_after;
+	uint32_t repl_seq_correction_pos;
+	uint32_t repl_seq_offset_before;
+	uint32_t repl_seq_offset_after;
+};
+
 void build_netpld(struct nf_conntrack *ct, struct netpld *pld, int query);
 
 int parse_netpld(struct nf_conntrack *ct, struct nethdr *net, int *query, size_t remain);
