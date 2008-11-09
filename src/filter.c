@@ -211,9 +211,7 @@ int ct_filter_check(struct ct_filter *f, struct nf_conntrack *ct)
 
 	if (f->logic[CT_FILTER_L4PROTO] != -1) {
 		ret = test_bit_u32(protonum, f->l4protomap);
-		if (ret == 0 && f->logic[CT_FILTER_L4PROTO])
-			return 0;
-		else if (ret == 1 && !f->logic[CT_FILTER_L4PROTO])
+		if (ret ^ f->logic[CT_FILTER_L4PROTO])
 			return 0;
 	}
 
@@ -221,16 +219,12 @@ int ct_filter_check(struct ct_filter *f, struct nf_conntrack *ct)
 		switch(nfct_get_attr_u8(ct, ATTR_L3PROTO)) {
 		case AF_INET:
 			ret = __ct_filter_test_ipv4(f, ct);
-			if (ret == 0 && f->logic[CT_FILTER_ADDRESS])
-				return 0;
-			else if (ret == 1 && !f->logic[CT_FILTER_ADDRESS])
+			if (ret ^ f->logic[CT_FILTER_ADDRESS])
 				return 0;
 			break;
 		case AF_INET6:
-			 ret = __ct_filter_test_ipv6(f, ct);
-			if (ret == 0 && f->logic[CT_FILTER_ADDRESS])
-				return 0;
-			else if (ret == 1 && !f->logic[CT_FILTER_ADDRESS])
+			ret = __ct_filter_test_ipv6(f, ct);
+			if (ret ^ f->logic[CT_FILTER_ADDRESS])
 				return 0;
 			break;
 		default:
@@ -240,9 +234,7 @@ int ct_filter_check(struct ct_filter *f, struct nf_conntrack *ct)
 
 	if (f->logic[CT_FILTER_STATE] != -1) {
 		ret = __ct_filter_test_state(f, ct);
-		if (ret == 0 && f->logic[CT_FILTER_STATE])
-			return 0;
-		else if (ret == 1 && !f->logic[CT_FILTER_STATE])
+		if (ret ^ f->logic[CT_FILTER_STATE])
 			return 0;
 	}
 
