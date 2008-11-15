@@ -49,7 +49,7 @@ static uint32_t hash(const void *data, struct hashtable *table)
 
 static uint32_t hash6(const void *data, struct hashtable *table)
 {
-	return jhash(data, sizeof(uint32_t)*4, 0) % table->hashsize;
+	return jhash2(data, 4, 0) % table->hashsize;
 }
 
 static int compare(const void *data1, const void *data2)
