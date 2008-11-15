@@ -161,23 +161,17 @@ void ct_filter_add_state(struct ct_filter *f, int protonum, int val)
 	set_bit_u16(val, &f->statemap[protonum]);
 }
 
-static int
+static inline int
 __ct_filter_test_ipv4(struct ct_filter *f, struct nf_conntrack *ct)
 {
-	if (!f->h)
-		return 0;
-
 	/* we only use the real source and destination address */
 	return (hashtable_test(f->h, nfct_get_attr(ct, ATTR_ORIG_IPV4_SRC)) ||
 		hashtable_test(f->h, nfct_get_attr(ct, ATTR_REPL_IPV4_SRC)));
 }
 
-static int
+static inline int
 __ct_filter_test_ipv6(struct ct_filter *f, struct nf_conntrack *ct)
 {
-	if (!f->h6)
-		return 0;
-
 	return (hashtable_test(f->h6, nfct_get_attr(ct, ATTR_ORIG_IPV6_SRC)) ||
 	        hashtable_test(f->h6, nfct_get_attr(ct, ATTR_REPL_IPV6_SRC)));
 }
