@@ -58,6 +58,7 @@ static void __kernel_filter_add_state(int value);
 %token T_SYSLOG T_WRITE_THROUGH T_STAT_BUFFER_SIZE T_DESTROY_TIMEOUT
 %token T_MCAST_RCVBUFF T_MCAST_SNDBUFF T_NOTRACK
 %token T_FILTER T_ADDRESS T_PROTOCOL T_STATE T_ACCEPT T_IGNORE
+%token T_FROM T_USERSPACE T_KERNELSPACE
 
 %token <string> T_IP T_PATH_VAL
 %token <val> T_NUMBER
@@ -686,7 +687,20 @@ family : T_FAMILY T_STRING
 		conf.family = AF_INET;
 };
 
-filter : T_FILTER '{' filter_list '}';
+filter : T_FILTER '{' filter_list '}'
+{
+	CONFIG(filter_from_kernelspace) = 0;
+};
+
+filter : T_FILTER T_FROM T_USERSPACE '{' filter_list '}'
+{
+	CONFIG(filter_from_kernelspace) = 0;
+};
+
+filter : T_FILTER T_FROM T_KERNELSPACE '{' filter_list '}'
+{
+	CONFIG(filter_from_kernelspace) = 1;
+};
 
 filter_list : 
 	    | filter_list filter_item;

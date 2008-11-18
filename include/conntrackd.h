@@ -91,7 +91,7 @@ struct ct_conf {
 	unsigned int resend_queue_size; /* FTFW protocol */
 	unsigned int window_size;
 	int cache_write_through;
-	int kernel_support_netlink_bsf;
+	int filter_from_kernelspace;
 	struct {
 		char logfile[FILENAME_MAXLEN];
 		int syslog_facility;

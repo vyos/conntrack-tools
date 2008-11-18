@@ -97,10 +97,6 @@ int main(int argc, char *argv[])
 		exit(EXIT_FAILURE);
 	}
 
-	/* BSF filter attaching does not report unsupported operations */
-	if (version >= 2 && major >= 6 && minor >= 26)
-		CONFIG(kernel_support_netlink_bsf) = 1;
-
 	for (i=1; i<argc; i++) {
 		switch(argv[i][1]) {
 		case 'd':

@@ -112,6 +112,9 @@ notrack		[N|n][O|o][T|t][R|r][A|a][C|c][K|k]
 "Accept"			{ return T_ACCEPT; }
 "Ignore"			{ return T_IGNORE; }
 "PurgeTimeout"			{ return T_PURGE; }
+"From"				{ return T_FROM; }
+"Userspace"			{ return T_USERSPACE; }
+"Kernelspace"			{ return T_KERNELSPACE; }
 
 {is_on}			{ return T_ON; }
 {is_off}		{ return T_OFF; }

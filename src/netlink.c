@@ -80,7 +80,7 @@ static int event_handler(enum nf_conntrack_msg_type type,
 			 void *data)
 {
 	/* skip user-space filtering if already do it in the kernel */
-	if (ignore_conntrack(ct, !CONFIG(kernel_support_netlink_bsf)))
+	if (ignore_conntrack(ct, !CONFIG(filter_from_kernelspace)))
 		return NFCT_CB_STOP;
 
 	switch(type) {
@@ -113,14 +113,16 @@ int nl_init_event_handler(void)
 		return -1;
 
 	if (STATE(filter)) {
-		if (CONFIG(kernel_support_netlink_bsf)) {
+		if (CONFIG(filter_from_kernelspace)) {
 			if (nfct_filter_attach(nfct_fd(STATE(event)),
 					       STATE(filter)) == -1) {
 				dlog(LOG_ERR, "cannot set event filtering: %s",
 				     strerror(errno));
 			}
 			dlog(LOG_NOTICE, "using kernel-space event filtering");
-		} 
+		} else
+			dlog(LOG_NOTICE, "using user-space event filtering");
+
 		nfct_filter_destroy(STATE(filter));
 	}
 
