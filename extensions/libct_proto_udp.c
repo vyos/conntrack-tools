@@ -77,104 +77,57 @@ static int parse_options(char c,
 			 unsigned int *flags)
 {
 	switch(c) {
+		u_int16_t port;
 		case '1':
-			if (!optarg)
-				break;
-
-			nfct_set_attr_u16(ct, 
-					  ATTR_ORIG_PORT_SRC, 
-					  htons(atoi(optarg)));
-
+			port = htons(atoi(optarg));
+			nfct_set_attr_u16(ct, ATTR_ORIG_PORT_SRC, port);
 			nfct_set_attr_u8(ct, ATTR_ORIG_L4PROTO, IPPROTO_UDP);
-
 			*flags |= UDP_ORIG_SPORT;
 			break;
 		case '2':
-			if (!optarg)
-				break;
-
-			nfct_set_attr_u16(ct, 
-					  ATTR_ORIG_PORT_DST, 
-					  htons(atoi(optarg)));
-
+			port = htons(atoi(optarg));
+			nfct_set_attr_u16(ct, ATTR_ORIG_PORT_DST, port);
 			nfct_set_attr_u8(ct, ATTR_ORIG_L4PROTO, IPPROTO_UDP);
-
 			*flags |= UDP_ORIG_DPORT;
 			break;
 		case '3':
-			if (!optarg)
-				break;
-
-			nfct_set_attr_u16(ct, 
-					  ATTR_REPL_PORT_SRC, 
-					  htons(atoi(optarg)));
-
+			port = htons(atoi(optarg));
+			nfct_set_attr_u16(ct, ATTR_REPL_PORT_SRC, port);
 			nfct_set_attr_u8(ct, ATTR_REPL_L4PROTO, IPPROTO_UDP);
-
 			*flags |= UDP_REPL_SPORT;
 			break;
 		case '4':
-			if (!optarg)
-				break;
-
-			nfct_set_attr_u16(ct, 
-					  ATTR_REPL_PORT_DST, 
-					  htons(atoi(optarg)));
-
+			port = htons(atoi(optarg));
+			nfct_set_attr_u16(ct, ATTR_REPL_PORT_DST, port);
 			nfct_set_attr_u8(ct, ATTR_REPL_L4PROTO, IPPROTO_UDP);
-
 			*flags |= UDP_REPL_DPORT;
 			break;
 		case '5':
-			if (!optarg)
-				break;
-
-			nfct_set_attr_u16(mask,
-					  ATTR_ORIG_PORT_SRC,
-					  htons(atoi(optarg)));
-
+			port = htons(atoi(optarg));
+			nfct_set_attr_u16(mask, ATTR_ORIG_PORT_SRC, port);
 			nfct_set_attr_u8(mask, ATTR_ORIG_L4PROTO, IPPROTO_UDP);
-
 			*flags |= UDP_MASK_SPORT;
 			break;
 		case '6':
-			if (!optarg)
-				break;
-
-			nfct_set_attr_u16(mask, 
-					  ATTR_ORIG_PORT_DST, 
-					  htons(atoi(optarg)));
-
+			port = htons(atoi(optarg));
+			nfct_set_attr_u16(mask, ATTR_ORIG_PORT_DST, port);
 			nfct_set_attr_u8(mask, ATTR_ORIG_L4PROTO, IPPROTO_UDP);
-
 			*flags |= UDP_MASK_DPORT;
 			break;
 		case '7':
-			if (!optarg)
-				break;
-
-			nfct_set_attr_u16(exptuple, 
-					  ATTR_ORIG_PORT_SRC, 
-					  htons(atoi(optarg)));
-
+			port = htons(atoi(optarg));
+			nfct_set_attr_u16(exptuple, ATTR_ORIG_PORT_SRC, port);
 			nfct_set_attr_u8(exptuple,
 					 ATTR_ORIG_L4PROTO,
 					 IPPROTO_UDP);
-
 			*flags |= UDP_EXPTUPLE_SPORT;
 			break;
 		case '8':
-			if (!optarg)
-				break;
-
-			nfct_set_attr_u16(exptuple, 
-					  ATTR_ORIG_PORT_DST, 
-					  htons(atoi(optarg)));
-
+			port = htons(atoi(optarg));
+			nfct_set_attr_u16(exptuple, ATTR_ORIG_PORT_DST, port);
 			nfct_set_attr_u8(exptuple,
 					 ATTR_ORIG_L4PROTO,
 					 IPPROTO_UDP);
-
 			*flags |= UDP_EXPTUPLE_DPORT;
 			break;
 	}

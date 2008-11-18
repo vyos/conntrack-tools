@@ -67,40 +67,24 @@ static int parse(char c,
 		 unsigned int *flags)
 {
 	switch(c) {
+		u_int8_t tmp;
+		u_int16_t id;
 		case '1':
-			if (!optarg)
-				break;
-
-			nfct_set_attr_u8(ct, 
-					 ATTR_ICMP_TYPE,
-					 atoi(optarg));
-
+			tmp = atoi(optarg);
+			nfct_set_attr_u8(ct, ATTR_ICMP_TYPE, tmp);
 			nfct_set_attr_u8(ct, ATTR_L4PROTO, IPPROTO_ICMP);
-
 			*flags |= ICMP_TYPE;
 			break;
 		case '2':
-			if (!optarg)
-				break;
-
-			nfct_set_attr_u8(ct, 
-					 ATTR_ICMP_CODE,
-					 atoi(optarg));
-
+			tmp = atoi(optarg);
+			nfct_set_attr_u8(ct, ATTR_ICMP_CODE, tmp);
 			nfct_set_attr_u8(ct, ATTR_L4PROTO, IPPROTO_ICMP);
-
 			*flags |= ICMP_CODE;
 			break;
 		case '3':
-			if (!optarg)
-				break;
-
-			nfct_set_attr_u16(ct,
-					  ATTR_ICMP_ID,
-					  htons(atoi(optarg)));
-
+			id = htons(atoi(optarg));
+			nfct_set_attr_u16(ct, ATTR_ICMP_ID, id);
 			nfct_set_attr_u8(ct, ATTR_L4PROTO, IPPROTO_ICMP);
-
 			*flags |= ICMP_ID;
 			break;
 	}
