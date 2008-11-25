@@ -19,35 +19,19 @@
 #include <string.h>
 #include "fds.h"
 
-/* we don't handle that many descriptors so eight is just fine */
-#define FDS_ARRAY_LEN 8
-#define FDS_ARRAY_SIZE (sizeof(int) * FDS_ARRAY_LEN)
-
 struct fds *create_fds(void)
 {
 	struct fds *fds;
 
-	fds = (struct fds *) malloc(sizeof(struct fds));
+	fds = (struct fds *) calloc(sizeof(struct fds), 1);
 	if (fds == NULL)
 		return NULL;
-
-	memset(fds, 0, sizeof(struct fds));
-
-	fds->fd_array = (int *) malloc(FDS_ARRAY_SIZE);
-	if (fds->fd_array == NULL) {
-		free(fds);
-		return NULL;
-	}
-
-	memset(fds->fd_array, 0, FDS_ARRAY_SIZE);
-	fds->fd_array_len = FDS_ARRAY_LEN;
 
 	return fds;
 }
 
 void destroy_fds(struct fds *fds)
 {
-	free(fds->fd_array);
 	free(fds);
 }
 
@@ -57,18 +41,6 @@ int register_fd(int fd, struct fds *fds)
 
 	if (fd > fds->maxfd)
 		fds->maxfd = fd;
-
-	if (fds->fd_array_cur >= fds->fd_array_len) {
-		fds->fd_array_len += FDS_ARRAY_LEN;
-		fds->fd_array = realloc(fds->fd_array,
-					fds->fd_array_len * sizeof(int));
-		if (fds->fd_array == NULL) {
-			fds->fd_array_len -= FDS_ARRAY_LEN;
-			return -1;
-		}
-	}
-
-	fds->fd_array[fds->fd_array_cur++] = fd;
 
 	return 0;
 }

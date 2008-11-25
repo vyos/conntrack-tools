@@ -3,9 +3,6 @@
 
 struct fds {
 	int	maxfd;
-	int	fd_array_len;
-	int	fd_array_cur;
-	int	*fd_array;
 	fd_set	readfds;
 };
 
