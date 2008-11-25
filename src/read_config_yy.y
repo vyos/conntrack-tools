@@ -26,6 +26,7 @@
 #include <errno.h>
 #include "conntrackd.h"
 #include "bitops.h"
+#include "cidr.h"
 #include <syslog.h>
 #include <libnetfilter_conntrack/libnetfilter_conntrack.h>
 #include <libnetfilter_conntrack/libnetfilter_conntrack_tcp.h>
@@ -780,27 +781,55 @@ filter_address_list :
 filter_address_item : T_IPV4_ADDR T_IP
 {
 	union inet_address ip;
+	char *slash;
+	unsigned int cidr = 32;
 
 	memset(&ip, 0, sizeof(union inet_address));
+
+	slash = strchr($2, '/');
+	if (slash) {
+		*slash = '\0';
+		cidr = atoi(slash+1);
+		if (cidr > 32) {
+			fprintf(stderr, "%s/%d is not a valid network, "
+					"ignoring\n", $2, cidr);
+			break;
+		}
+	}
 
 	if (!inet_aton($2, &ip.ipv4)) {
 		fprintf(stderr, "%s is not a valid IPv4, ignoring", $2);
 		break;
 	}
 
-	if (!ct_filter_add_ip(STATE(us_filter), &ip, AF_INET)) {
-		if (errno == EEXIST)
-			fprintf(stderr, "IP %s is repeated "
-					"in the ignore pool\n", $2);
-		if (errno == ENOSPC)
-			fprintf(stderr, "Too many IP in the ignore pool!\n");
-	}
+	if (slash && cidr < 32) {
+		/* network byte order */
+		struct ct_filter_netmask_ipv4 tmp = {
+			.ip = ip.ipv4,
+			.mask = ipv4_cidr2mask_net(cidr)
+		};
 
+		if (!ct_filter_add_netmask(STATE(us_filter), &tmp, AF_INET)) {
+			if (errno == EEXIST)
+				fprintf(stderr, "Netmask %s is repeated "
+						"in the ignore pool\n", $2);
+		}
+	} else {
+		if (!ct_filter_add_ip(STATE(us_filter), &ip, AF_INET)) {
+			if (errno == EEXIST)
+				fprintf(stderr, "IP %s is repeated "
+						"in the ignore pool\n", $2);
+			if (errno == ENOSPC)
+				fprintf(stderr, "Too many IP in the "
+						"ignore pool!\n");
+		}
+	}
 	__kernel_filter_start();
 
+	/* host byte order */
 	struct nfct_filter_ipv4 filter_ipv4 = {
-		.addr = htonl(ip.ipv4),
-		.mask = 0xffffffff,
+		.addr = ntohl(ip.ipv4),
+		.mask = ipv4_cidr2mask_host(cidr),
 	};
 
 	nfct_filter_add_attr(STATE(filter), NFCT_FILTER_SRC_IPV4, &filter_ipv4);
@@ -810,8 +839,21 @@ filter_address_item : T_IPV4_ADDR T_IP
 filter_address_item : T_IPV6_ADDR T_IP
 {
 	union inet_address ip;
+	char *slash;
+	int cidr;
 
 	memset(&ip, 0, sizeof(union inet_address));
+
+	slash = strchr($2, '/');
+	if (slash) {
+		*slash = '\0';
+		cidr = atoi(slash+1);
+		if (cidr > 128) {
+			fprintf(stderr, "%s/%d is not a valid network, "
+					"ignoring\n", $2, cidr);
+			break;
+		}
+	}
 
 #ifdef HAVE_INET_PTON_IPV6
 	if (inet_pton(AF_INET6, $2, &ip.ipv6) <= 0) {
@@ -822,13 +864,25 @@ filter_address_item : T_IPV6_ADDR T_IP
 	fprintf(stderr, "Cannot find inet_pton(), IPv6 unsupported!");
 	break;
 #endif
+	if (slash && cidr < 128) {
+		struct ct_filter_netmask_ipv6 tmp;
 
-	if (!ct_filter_add_ip(STATE(us_filter), &ip, AF_INET6)) {
-		if (errno == EEXIST)
-			fprintf(stderr, "IP %s is repeated "
-					"in the ignore pool\n", $2);
-		if (errno == ENOSPC)
-			fprintf(stderr, "Too many IP in the ignore pool!\n");
+		memcpy(tmp.ip, ip.ipv6, sizeof(uint32_t)*4);
+		ipv6_cidr2mask_net(cidr, tmp.mask);
+		if (!ct_filter_add_netmask(STATE(us_filter), &tmp, AF_INET6)) {
+			if (errno == EEXIST)
+				fprintf(stderr, "Netmask %s is repeated "
+						"in the ignore pool\n", $2);
+		}
+	} else {
+		if (!ct_filter_add_ip(STATE(us_filter), &ip, AF_INET6)) {
+			if (errno == EEXIST)
+				fprintf(stderr, "IP %s is repeated "
+						"in the ignore pool\n", $2);
+			if (errno == ENOSPC)
+				fprintf(stderr, "Too many IP in the "
+						"ignore pool!\n");
+		}
 	}
 };
 

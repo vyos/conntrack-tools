@@ -2,11 +2,13 @@
 #define _FILTER_H_
 
 #include <stdint.h>
+#include <string.h>
+#include <netinet/in.h>
 
 enum ct_filter_type {
 	CT_FILTER_L4PROTO,
 	CT_FILTER_STATE,
-	CT_FILTER_ADDRESS,
+	CT_FILTER_ADDRESS,	/* also for netmask */
 	CT_FILTER_MAX
 };
 
@@ -15,12 +17,23 @@ enum ct_filter_logic {
 	CT_FILTER_POSITIVE = 1,
 };
 
+struct ct_filter_netmask_ipv4 {
+	uint32_t ip;
+	uint32_t mask;
+};
+
+struct ct_filter_netmask_ipv6 {
+	uint32_t ip[4];
+	uint32_t mask[4];
+};
+
 struct nf_conntrack;
 struct ct_filter;
 
 struct ct_filter *ct_filter_create(void);
 void ct_filter_destroy(struct ct_filter *filter);
 int ct_filter_add_ip(struct ct_filter *filter, void *data, uint8_t family);
+int ct_filter_add_netmask(struct ct_filter *filter, void *data, uint8_t family);
 void ct_filter_add_proto(struct ct_filter *filter, int protonum);
 void ct_filter_add_state(struct ct_filter *f, int protonum, int state);
 void ct_filter_set_logic(struct ct_filter *f,

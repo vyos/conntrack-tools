@@ -20,12 +20,14 @@
 #include "bitops.h"
 #include "jhash.h"
 #include "hash.h"
+#include "vector.h"
 #include "conntrackd.h"
 #include "log.h"
 
 #include <libnetfilter_conntrack/libnetfilter_conntrack.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
 #include <limits.h>
 
 struct ct_filter {
@@ -34,6 +36,8 @@ struct ct_filter {
 	u_int16_t statemap[IPPROTO_MAX];
 	struct hashtable *h;
 	struct hashtable *h6;
+	struct vector *v;
+	struct vector *v6;
 };
 
 /* XXX: These should be configurable, better use a rb-tree */
@@ -95,6 +99,23 @@ struct ct_filter *ct_filter_create(void)
 		return NULL;
 	}
 
+	filter->v = vector_create(sizeof(struct ct_filter_netmask_ipv4));
+	if (!filter->v) {
+		free(filter->h6);
+		free(filter->h);
+		free(filter);
+		return NULL;
+	}
+
+	filter->v6 = vector_create(sizeof(struct ct_filter_netmask_ipv6));
+	if (!filter->v6) {
+		free(filter->v);
+		free(filter->h6);
+		free(filter->h);
+		free(filter);
+		return NULL;
+	}
+
 	for (i=0; i<CT_FILTER_MAX; i++)
 		filter->logic[i] = -1;
 
@@ -105,6 +126,8 @@ void ct_filter_destroy(struct ct_filter *filter)
 {
 	hashtable_destroy(filter->h);
 	hashtable_destroy(filter->h6);
+	vector_destroy(filter->v);
+	vector_destroy(filter->v6);
 	free(filter);
 }
 
@@ -147,6 +170,39 @@ int ct_filter_add_ip(struct ct_filter *filter, void *data, uint8_t family)
 	return 1;
 }
 
+static int cmp_ipv4_addr(const void *a, const void *b)
+{
+	return memcmp(a, b, sizeof(struct ct_filter_netmask_ipv4)) == 0;
+}
+
+static int cmp_ipv6_addr(const void *a, const void *b)
+{
+	return memcmp(a, b, sizeof(struct ct_filter_netmask_ipv6)) == 0;
+}
+
+int ct_filter_add_netmask(struct ct_filter *filter, void *data, uint8_t family)
+{
+	filter = __filter_alloc(filter);
+
+	switch(family) {
+		case AF_INET:
+			if (vector_iterate(filter->v, data, cmp_ipv4_addr)) {
+				errno = EEXIST;
+				return 0;
+			}
+			vector_add(filter->v, data);
+			break;
+		case AF_INET6:
+			if (vector_iterate(filter->v, data, cmp_ipv6_addr)) {
+				errno = EEXIST;
+				return 0;
+			}
+			vector_add(filter->v6, data);
+			break;
+	}
+	return 1;
+}
+
 void ct_filter_add_proto(struct ct_filter *f, int protonum)
 {
 	f = __filter_alloc(f);
@@ -174,6 +230,34 @@ __ct_filter_test_ipv6(struct ct_filter *f, struct nf_conntrack *ct)
 {
 	return (hashtable_test(f->h6, nfct_get_attr(ct, ATTR_ORIG_IPV6_SRC)) ||
 	        hashtable_test(f->h6, nfct_get_attr(ct, ATTR_REPL_IPV6_SRC)));
+}
+
+static int
+__ct_filter_test_mask4(const void *ptr, const void *ct)
+{
+	const struct ct_filter_netmask_ipv4 *elem = ptr;
+	const uint32_t src = nfct_get_attr_u32(ct, ATTR_ORIG_IPV4_SRC);
+	const uint32_t dst = nfct_get_attr_u32(ct, ATTR_REPL_IPV4_SRC);
+
+	return ((elem->ip & elem->mask) == (src & elem->mask) || 
+		(elem->ip & elem->mask) == (dst & elem->mask));
+}
+
+static int
+__ct_filter_test_mask6(const void *ptr, const void *ct)
+{
+	const struct ct_filter_netmask_ipv6 *elem = ptr;
+	const uint32_t *src = nfct_get_attr(ct, ATTR_ORIG_IPV6_SRC);
+	const uint32_t *dst = nfct_get_attr(ct, ATTR_REPL_IPV6_SRC);
+
+	return (((elem->ip[0] & elem->mask[0]) == (src[0] & elem->mask[0]) &&
+		 (elem->ip[1] & elem->mask[1]) == (src[1] & elem->mask[1]) &&
+		 (elem->ip[2] & elem->mask[2]) == (src[2] & elem->mask[2]) &&
+		 (elem->ip[3] & elem->mask[3]) == (src[3] & elem->mask[3])) ||
+		((elem->ip[0] & elem->mask[0]) == (dst[0] & elem->mask[0]) &&
+		 (elem->ip[1] & elem->mask[1]) == (dst[1] & elem->mask[1]) &&
+		 (elem->ip[2] & elem->mask[2]) == (dst[2] & elem->mask[2]) &&
+		 (elem->ip[3] & elem->mask[3]) == (dst[3] & elem->mask[3])));
 }
 
 static int __ct_filter_test_state(struct ct_filter *f, struct nf_conntrack *ct)
@@ -212,11 +296,17 @@ int ct_filter_check(struct ct_filter *f, struct nf_conntrack *ct)
 	if (f->logic[CT_FILTER_ADDRESS] != -1) {
 		switch(nfct_get_attr_u8(ct, ATTR_L3PROTO)) {
 		case AF_INET:
+			ret = vector_iterate(f->v, ct, __ct_filter_test_mask4);
+			if (ret ^ f->logic[CT_FILTER_ADDRESS])
+				return 0;
 			ret = __ct_filter_test_ipv4(f, ct);
 			if (ret ^ f->logic[CT_FILTER_ADDRESS])
 				return 0;
 			break;
 		case AF_INET6:
+			ret = vector_iterate(f->v6, ct, __ct_filter_test_mask6);
+			if (ret ^ f->logic[CT_FILTER_ADDRESS])
+				return 0;
 			ret = __ct_filter_test_ipv6(f, ct);
 			if (ret ^ f->logic[CT_FILTER_ADDRESS])
 				return 0;

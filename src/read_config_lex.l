@@ -36,14 +36,16 @@ is_on		[o|O][n|N]
 is_off		[o|O][f|F][f|F]
 integer		[0-9]+
 path		\/[^\"\n ]*
+ip4_cidr	\/[0-2]*[0-9]+
 ip4_end		[0-9]*[0-9]+
 ip4_part	[0-2]*{ip4_end}
-ip4		{ip4_part}\.{ip4_part}\.{ip4_part}\.{ip4_part}
+ip4		{ip4_part}\.{ip4_part}\.{ip4_part}\.{ip4_part}{ip4_cidr}?
 hex_255		[0-9a-fA-F]{1,4}
+ip6_cidr	\/[0-1]*[0-9]*[0-9]+
 ip6_part	{hex_255}":"?
 ip6_form1	{ip6_part}{0,16}"::"{ip6_part}{0,16}
 ip6_form2	({hex_255}":"){16}{hex_255}
-ip6		{ip6_form1}|{ip6_form2}
+ip6		{ip6_form1}{ip6_cidr}?|{ip6_form2}{ip6_cidr}?
 string		[a-zA-Z][a-zA-Z0-9\.]*
 persistent	[P|p][E|e][R|r][S|s][I|i][S|s][T|t][E|e][N|n][T|T]
 nack		[N|n][A|a][C|c][K|k]

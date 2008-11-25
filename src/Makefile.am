@@ -11,13 +11,13 @@ conntrack_LDADD = ../extensions/libct_proto_tcp.la ../extensions/libct_proto_udp
 conntrack_LDFLAGS = $(all_libraries) @LIBNETFILTER_CONNTRACK_LIBS@
 
 conntrackd_SOURCES = alarm.c main.c run.c hash.c queue.c rbtree.c \
-		    local.c log.c mcast.c netlink.c \
+		    local.c log.c mcast.c netlink.c vector.c \
 		    filter.c fds.c event.c \
 		    cache.c cache_iterators.c \
 		    cache_lifetime.c cache_timer.c cache_wt.c \
 		    sync-mode.c sync-alarm.c sync-ftfw.c sync-notrack.c \
 		    traffic_stats.c stats-mode.c \
-		    network.c \
+		    network.c cidr.c \
 		    build.c parse.c \
 		    read_config_yy.y read_config_lex.l
 
