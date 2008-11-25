@@ -46,6 +46,7 @@ void killer(int foo)
 	STATE(mode)->kill();
 
 	nfct_close(STATE(dump));	/* cache_wt needs this here */
+	destroy_fds(STATE(fds)); 
 
 	unlink(CONFIG(lockfile));
 	dlog(LOG_NOTICE, "---- shutdown received ----");
