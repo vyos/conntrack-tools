@@ -120,8 +120,6 @@ static void tx_queue_add_ctlmsg(uint32_t flags, uint32_t from, uint32_t to)
 	write_evfd(STATE_SYNC(evfd));
 }
 
-static void ftfw_run(void);
-
 /* this function is called from the alarm framework */
 static void do_alive_alarm(struct alarm_block *a, void *data)
 {
@@ -133,10 +131,6 @@ static void do_alive_alarm(struct alarm_block *a, void *data)
 		ack_from_set = 0;
 	} else
 		tx_queue_add_ctlmsg(NET_F_ALIVE, 0, 0);
-
-	/* TODO: no need for buffered send, extracted from run_sync() */
-	ftfw_run();
-	mcast_buffered_pending_netmsg(STATE_SYNC(mcast_client));
 }
 
 static int ftfw_init(void)
