@@ -49,7 +49,7 @@ enum {
 #define BUILD_NETMSG(ct, query)					\
 ({								\
 	char __net[4096];					\
-	memset(__net, 0, sizeof(__net));			\
+	memset(__net, 0, NETHDR_SIZ + NETPLD_SIZ);		\
 	build_netmsg(ct, query, (struct nethdr *) __net);	\
 	(struct nethdr *) __net;				\
 })
@@ -170,8 +170,8 @@ struct netattr {
 
 #define NTA_NEXT(x, len)						      \
 (									      \
-	len -= NTA_ALIGN(NTA_LENGTH(x->nta_len)),			      \
-	(struct netattr *)(((char *)x) + NTA_ALIGN(NTA_LENGTH(x->nta_len)))   \
+	len -= NTA_ALIGN(x->nta_len),					      \
+	(struct netattr *)(((char *)x) + NTA_ALIGN(x->nta_len))		      \
 )
 
 #define NTA_ALIGNTO	4
