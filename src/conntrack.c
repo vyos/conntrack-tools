@@ -223,18 +223,21 @@ exit_tryhelp(int status)
 	exit(status);
 }
 
-void __attribute__((noreturn))
-exit_error(enum exittype status, const char *msg, ...)
+static void free_options(void)
 {
-	va_list args;
-
-	/* On error paths, make sure that we don't leak the memory
-	 * reserved during options merging */
 	if (opts != original_opts) {
 		free(opts);
 		opts = original_opts;
 		global_option_offset = 0;
 	}
+}
+
+void __attribute__((noreturn))
+exit_error(enum exittype status, const char *msg, ...)
+{
+	va_list args;
+
+	free_options();
 	va_start(args, msg);
 	fprintf(stderr,"%s v%s (conntrack-tools): ", PROGNAME, VERSION);
 	vfprintf(stderr, msg, args);
@@ -1333,15 +1336,11 @@ int main(int argc, char *argv[])
 		break;
 	}
 
-	if (opts != original_opts) {
-		free(opts);
-		opts = original_opts;
-		global_option_offset = 0;
-	}
-
 	if (res < 0)
 		exit_error(OTHER_PROBLEM, "Operation failed: %s",
 			   err2str(errno, command));
+
+	free_options();
 
 	if (exit_msg[cmd][0]) {
 		fprintf(stderr, "%s v%s (conntrack-tools): ",PROGNAME,VERSION);
