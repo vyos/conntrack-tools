@@ -442,9 +442,9 @@ check_type(int argc, char *argv[])
 	if (!table)
 		return 0;
 		
-	if (strncmp("expect", table, 6) == 0)
+	if (strncmp("expect", table, strlen(table)) == 0)
 		return 1;
-	else if (strncmp("conntrack", table, 9) == 0)
+	else if (strncmp("conntrack", table, strlen(table)) == 0)
 		return 0;
 	else
 		exit_error(PARAMETER_PROBLEM, "unknown type `%s'", table);
