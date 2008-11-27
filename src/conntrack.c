@@ -379,12 +379,14 @@ do_parse_parameter(const char *str, size_t str_length, unsigned int *value,
 	struct parse_parameter *p = &parse_array[parse_type];
 
 	if (strncasecmp(str, "SRC_NAT", str_length) == 0) {
-		printf("skipping SRC_NAT, use --src-nat instead\n");
+		fprintf(stderr, "WARNING: ignoring SRC_NAT, "
+				"use --src-nat instead\n");
 		return 1;
 	}
 
 	if (strncasecmp(str, "DST_NAT", str_length) == 0) {
-		printf("skipping DST_NAT, use --dst-nat instead\n");
+		fprintf(stderr, "WARNING: ignoring DST_NAT, "
+				"use --dst-nat instead\n");
 		return 1;
 	}
 
