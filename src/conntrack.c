@@ -759,7 +759,7 @@ static int delete_cb(enum nf_conntrack_msg_type type,
 	if (output_mask & _O_ID)
 		op_flags |= NFCT_OF_ID;
 
-	nfct_snprintf(buf, 1024, ct, NFCT_T_UNKNOWN, op_type, op_flags);
+	nfct_snprintf(buf, sizeof(buf), ct, NFCT_T_UNKNOWN, op_type, op_flags);
 	printf("%s\n", buf);
 
 	counter++;
@@ -782,7 +782,7 @@ static int print_cb(enum nf_conntrack_msg_type type,
 	if (output_mask & _O_ID)
 		op_flags |= NFCT_OF_ID;
 
-	nfct_snprintf(buf, 1024, ct, NFCT_T_UNKNOWN, op_type, op_flags);
+	nfct_snprintf(buf, sizeof(buf), ct, NFCT_T_UNKNOWN, op_type, op_flags);
 	printf("%s\n", buf);
 
 	return NFCT_CB_CONTINUE;
@@ -848,7 +848,7 @@ static int dump_exp_cb(enum nf_conntrack_msg_type type,
 {
 	char buf[1024];
 
-	nfexp_snprintf(buf, 1024, exp, NFCT_T_UNKNOWN, NFCT_O_DEFAULT, 0);
+	nfexp_snprintf(buf,sizeof(buf), exp, NFCT_T_UNKNOWN, NFCT_O_DEFAULT, 0);
 	printf("%s\n", buf);
 	counter++;
 
