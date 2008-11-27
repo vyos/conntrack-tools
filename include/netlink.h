@@ -6,15 +6,13 @@
 struct nf_conntrack;
 struct nfct_handle;
 
-int ignore_conntrack(struct nf_conntrack *ct, int userspace);
+struct nfct_handle *nl_init_event_handler(void);
 
-int nl_init_event_handler(void);
+struct nfct_handle *nl_init_dump_handler(void);
 
-int nl_init_dump_handler(void);
+struct nfct_handle *nl_init_request_handler(void);
 
-int nl_init_request_handler(void);
-
-int nl_init_overrun_handler(void);
+struct nfct_handle *nl_init_overrun_handler(void);
 
 int nl_overrun_request_resync(void);
 

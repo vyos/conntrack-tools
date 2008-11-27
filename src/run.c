@@ -24,6 +24,7 @@
 #include "log.h"
 #include "alarm.h"
 #include "fds.h"
+#include "traffic_stats.h"
 
 #include <errno.h>
 #include <signal.h>
@@ -100,6 +101,51 @@ static void do_overrun_alarm(struct alarm_block *a, void *data)
 	add_alarm(&STATE(overrun_alarm), 2, 0);
 }
 
+static int event_handler(enum nf_conntrack_msg_type type,
+			 struct nf_conntrack *ct,
+			 void *data)
+{
+	/* skip user-space filtering if already do it in the kernel */
+	if (ct_filter_conntrack(ct, !CONFIG(filter_from_kernelspace)))
+		return NFCT_CB_STOP;
+
+	switch(type) {
+	case NFCT_T_NEW:
+		STATE(mode)->event_new(ct);
+		break;
+	case NFCT_T_UPDATE:
+		STATE(mode)->event_upd(ct);
+		break;
+	case NFCT_T_DESTROY:
+		if (STATE(mode)->event_dst(ct))
+			update_traffic_stats(ct);
+		break;
+	default:
+		dlog(LOG_WARNING, "unknown msg from ctnetlink\n");
+		break;
+	}
+
+	return NFCT_CB_CONTINUE;
+}
+
+static int dump_handler(enum nf_conntrack_msg_type type,
+			struct nf_conntrack *ct,
+			void *data)
+{
+	if (ct_filter_conntrack(ct, 1))
+		return NFCT_CB_CONTINUE;
+
+	switch(type) {
+	case NFCT_T_UPDATE:
+		STATE(mode)->dump(ct);
+		break;
+	default:
+		dlog(LOG_WARNING, "unknown msg from ctnetlink");
+		break;
+	}
+	return NFCT_CB_CONTINUE;
+}
+
 int
 init(void)
 {
@@ -126,28 +172,44 @@ init(void)
 		return -1;
 	}
 
-	if (nl_init_event_handler() == -1) {
+	STATE(event) = nl_init_event_handler();
+	if (STATE(event) == NULL) {
 		dlog(LOG_ERR, "can't open netlink handler: %s",
 		     strerror(errno));
 		dlog(LOG_ERR, "no ctnetlink kernel support?");
 		return -1;
 	}
+	nfct_callback_register(STATE(event), NFCT_T_ALL, event_handler, NULL);
 
-	if (nl_init_dump_handler() == -1) {
+	STATE(dump) = nl_init_dump_handler();
+	if (STATE(dump) == NULL) {
 		dlog(LOG_ERR, "can't open netlink handler: %s",
 		     strerror(errno));
 		dlog(LOG_ERR, "no ctnetlink kernel support?");
 		return -1;
 	}
+	nfct_callback_register(STATE(dump), NFCT_T_ALL, dump_handler, NULL);
 
-	if (nl_init_overrun_handler() == -1) {
+	if (nl_dump_conntrack_table() == -1) {
+		dlog(LOG_ERR, "can't get kernel conntrack table");
+		return -1;
+	}
+
+	STATE(overrun) = nl_init_overrun_handler();
+	if (STATE(overrun)== NULL) {
 		dlog(LOG_ERR, "can't open netlink handler: %s",
 		     strerror(errno));
 		dlog(LOG_ERR, "no ctnetlink kernel support?");
 		return -1;
 	}
+	nfct_callback_register(STATE(overrun),
+			       NFCT_T_ALL,
+			       STATE(mode)->overrun,
+			       NULL);
 
-	if (nl_init_request_handler() == -1) {
+	/* no callback, it does not do anything with the output */
+	STATE(request) = nl_init_request_handler();
+	if (STATE(request) == NULL) {
 		dlog(LOG_ERR, "can't open netlink handler: %s",
 		     strerror(errno));
 		dlog(LOG_ERR, "no ctnetlink kernel support?");

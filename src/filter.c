@@ -279,7 +279,7 @@ static int __ct_filter_test_state(struct ct_filter *f, struct nf_conntrack *ct)
 	return test_bit_u16(val, &f->statemap[protonum]);
 }
 
-int ct_filter_check(struct ct_filter *f, struct nf_conntrack *ct)
+static int ct_filter_check(struct ct_filter *f, struct nf_conntrack *ct)
 {
 	int ret, protonum = nfct_get_attr_u8(ct, ATTR_L4PROTO);
 
@@ -323,4 +323,51 @@ int ct_filter_check(struct ct_filter *f, struct nf_conntrack *ct)
 	}
 
 	return 1;
+}
+
+static inline int ct_filter_sanity_check(struct nf_conntrack *ct)
+{
+	if (!nfct_attr_is_set(ct, ATTR_L3PROTO)) {
+		dlog(LOG_ERR, "missing layer 3 protocol");
+		return 0;
+	}
+
+	switch(nfct_get_attr_u8(ct, ATTR_L3PROTO)) {
+	case AF_INET:
+		if (!nfct_attr_is_set(ct, ATTR_IPV4_SRC) ||
+		    !nfct_attr_is_set(ct, ATTR_IPV4_DST) ||
+		    !nfct_attr_is_set(ct, ATTR_REPL_IPV4_SRC) ||
+		    !nfct_attr_is_set(ct, ATTR_REPL_IPV4_DST)) {
+		    	dlog(LOG_ERR, "missing IPv4 address. "
+				      "You forgot to load "
+				      "nf_conntrack_ipv4?");
+			return 0;
+		}
+		break;
+	case AF_INET6:
+		if (!nfct_attr_is_set(ct, ATTR_IPV6_SRC) ||
+		    !nfct_attr_is_set(ct, ATTR_IPV6_DST) ||
+		    !nfct_attr_is_set(ct, ATTR_REPL_IPV6_SRC) ||
+		    !nfct_attr_is_set(ct, ATTR_REPL_IPV6_DST)) {
+		    	dlog(LOG_ERR, "missing IPv6 address. "
+				      "You forgot to load "
+				      "nf_conntrack_ipv6?");
+			return 0;
+		}
+		break;
+	}
+	return 1;
+}
+
+/* we do user-space filtering for dump and resyncs */
+int ct_filter_conntrack(struct nf_conntrack *ct, int userspace)
+{
+	/* missing mandatory attributes in object */
+	if (!ct_filter_sanity_check(ct))
+		return 1;
+
+	if (userspace && !ct_filter_check(STATE(us_filter), ct))
+		return 1;
+
+	return 0;
 }

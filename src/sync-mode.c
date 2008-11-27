@@ -438,7 +438,7 @@ static int overrun_sync(enum nf_conntrack_msg_type type,
 {
 	struct us_conntrack *u;
 
-	if (ignore_conntrack(ct, 1))
+	if (ct_filter_conntrack(ct, 1))
 		return NFCT_CB_CONTINUE;
 
 	/* This is required by kernels < 2.6.20 */
