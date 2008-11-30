@@ -233,7 +233,7 @@ static int init_sync(void)
 	dlog(LOG_NOTICE, "multicast client socket sender queue "
 			 "has been set to %d bytes", CONFIG(mcast).sndbuf);
 
-	if (mcast_buffered_init(&CONFIG(mcast)) == -1) {
+	if (mcast_buffered_init(CONFIG(mcast).mtu) == -1) {
 		dlog(LOG_ERR, "can't init tx buffer!");
 		mcast_server_destroy(STATE_SYNC(mcast_server));
 		mcast_client_destroy(STATE_SYNC(mcast_client));

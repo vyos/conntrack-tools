@@ -75,7 +75,7 @@ int mcast_track_is_seq_set(void);
 
 struct mcast_conf;
 
-int mcast_buffered_init(struct mcast_conf *mconf);
+int mcast_buffered_init(int mtu);
 void mcast_buffered_destroy(void);
 int mcast_buffered_send_netmsg(struct mcast_sock *m, void *data, size_t len);
 ssize_t mcast_buffered_pending_netmsg(struct mcast_sock *m);

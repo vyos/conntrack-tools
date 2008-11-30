@@ -85,12 +85,12 @@ static char *tx_buf;
 
 #define HEADERSIZ 28 /* IP header (20 bytes) + UDP header 8 (bytes) */
 
-int mcast_buffered_init(struct mcast_conf *mconf)
+int mcast_buffered_init(int if_mtu)
 {
-	int mtu = mconf->mtu - HEADERSIZ;
+	int mtu = if_mtu - HEADERSIZ;
 
 	/* default to Ethernet MTU 1500 bytes */
-	if (mconf->mtu == 0)
+	if (if_mtu == 0)
 		mtu = 1500 - HEADERSIZ;
 
 	tx_buf = malloc(mtu);
