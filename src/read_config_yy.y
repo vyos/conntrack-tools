@@ -172,11 +172,15 @@ purge: T_PURGE T_NUMBER
 
 checksum: T_CHECKSUM T_ON 
 {
+	fprintf(stderr, "WARNING: The use of `Checksum' outside the "
+			"`Multicast' clause is ambiguous.\n");
 	conf.mcast.checksum = 0;
 };
 
 checksum: T_CHECKSUM T_OFF
 {
+	fprintf(stderr, "WARNING: The use of `Checksum' outside the "
+			"`Multicast' clause is ambiguous.\n");
 	conf.mcast.checksum = 1;
 };
 
@@ -355,6 +359,16 @@ multicast_option: T_MCAST_SNDBUFF T_NUMBER
 multicast_option: T_MCAST_RCVBUFF T_NUMBER
 {
 	conf.mcast.rcvbuf = $2;
+};
+
+multicast_option: T_CHECKSUM T_ON 
+{
+	conf.mcast.checksum = 0;
+};
+
+multicast_option: T_CHECKSUM T_OFF
+{
+	conf.mcast.checksum = 1;
 };
 
 hashsize : T_HASHSIZE T_NUMBER
