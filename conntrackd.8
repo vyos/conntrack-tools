@@ -71,6 +71,9 @@ This daemon requires a Linux kernel version >= 2.6.18. TCP window tracking suppo
 There are several unsupported stateful iptables matches such as recent, connbytes and the quota matches which gather internal information to operate. Since that information does not belong to the domain of the connection tracking system, connections affected by those matches may not be fully recovered during the takeover.
 .TP
 The daemon requires a Linux kernel version >= 2.6.26 to support kernel-space event filtering. Otherwise, all the event filtering is done in userspace with the corresponding extra overhead. If you are not using the Filter clause in the configuration file, ignore this notice.
+.SH INCOMPATIBILITIES
+During the 0.9.9 development, some important changes in the replication message format were introduced. Therefore, conntrackd >= 0.9.9 will not work appropriately with conntrackd <= 0.9.8. This should not be a problem if you use the same
+conntrackd version in all the firewall replica nodes.
 .SH SEE ALSO
 .BR conntrack (8), iptables (8)
 .br
