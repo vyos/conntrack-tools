@@ -117,8 +117,6 @@ void build_netpld(struct nf_conntrack *ct, struct netpld *pld, int query)
 
 	if (nfct_attr_is_set(ct, ATTR_TCP_STATE))
 		__build_u8(ct, ATTR_TCP_STATE, pld, NTA_STATE);
-	if (nfct_attr_is_set(ct, ATTR_TIMEOUT))
-		__build_u32(ct, ATTR_TIMEOUT, pld, NTA_TIMEOUT);
 	if (nfct_attr_is_set(ct, ATTR_MARK))
 		__build_u32(ct, ATTR_MARK, pld, NTA_MARK);
 
