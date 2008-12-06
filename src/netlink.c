@@ -183,10 +183,15 @@ int nl_get_conntrack(struct nf_conntrack *ct)
 	return __nl_get_conntrack(STATE(dump), ct);
 }
 
-/* This function modifies the conntrack passed as argument! */
-int nl_create_conntrack(struct nf_conntrack *ct)
+int nl_create_conntrack(const struct nf_conntrack *orig)
 {
+	int ret;
 	uint8_t flags;
+	struct nf_conntrack *ct;
+
+	ct = nfct_clone(orig);
+	if (ct == NULL)
+		return -1;
 
 	/* we hit error if we try to change the expected bit */
 	if (nfct_attr_is_set(ct, ATTR_STATUS)) {
@@ -206,13 +211,21 @@ int nl_create_conntrack(struct nf_conntrack *ct)
 	nfct_set_attr_u8(ct, ATTR_TCP_FLAGS_REPL, flags);
 	nfct_set_attr_u8(ct, ATTR_TCP_MASK_REPL, flags);
 
-	return nfct_query(STATE(dump), NFCT_Q_CREATE_UPDATE, ct);
+	ret = nfct_query(STATE(dump), NFCT_Q_CREATE_UPDATE, ct);
+	nfct_destroy(ct);
+
+	return ret;
 }
 
-/* This function modifies the conntrack passed as argument! */
-int nl_update_conntrack(struct nf_conntrack *ct)
+int nl_update_conntrack(const struct nf_conntrack *orig)
 {
+	int ret;
 	uint8_t flags;
+	struct nf_conntrack *ct;
+
+	ct = nfct_clone(orig);
+	if (ct == NULL)
+		return -1;
 
 	/* unset NAT info, otherwise we hit error */
 	nfct_attr_unset(ct, ATTR_SNAT_IPV4);
@@ -249,7 +262,10 @@ int nl_update_conntrack(struct nf_conntrack *ct)
 	nfct_set_attr_u8(ct, ATTR_TCP_FLAGS_REPL, flags);
 	nfct_set_attr_u8(ct, ATTR_TCP_MASK_REPL, flags);
 
-	return nfct_query(STATE(dump), NFCT_Q_CREATE_UPDATE, ct);
+	ret = nfct_query(STATE(dump), NFCT_Q_CREATE_UPDATE, ct);
+	nfct_destroy(ct);
+
+	return ret;
 }
 
 int nl_destroy_conntrack(struct nf_conntrack *ct)

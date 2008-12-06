@@ -24,9 +24,9 @@ int nl_exist_conntrack(struct nf_conntrack *ct);
 
 int nl_get_conntrack(struct nf_conntrack *ct);
 
-int nl_create_conntrack(struct nf_conntrack *ct);
+int nl_create_conntrack(const struct nf_conntrack *ct);
 
-int nl_update_conntrack(struct nf_conntrack *ct);
+int nl_update_conntrack(const struct nf_conntrack *ct);
 
 int nl_destroy_conntrack(struct nf_conntrack *ct);
 
