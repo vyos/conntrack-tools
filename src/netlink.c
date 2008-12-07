@@ -154,7 +154,8 @@ int nl_overrun_request_resync(void)
 	return nfct_send(STATE(overrun), NFCT_Q_DUMP, &family);
 }
 
-static int __nl_get_conntrack(struct nfct_handle *h, struct nf_conntrack *ct)
+static int
+__nl_get_conntrack(struct nfct_handle *h, const struct nf_conntrack *ct)
 {
 	int ret;
 	char __tmp[nfct_maxsize()];
@@ -172,13 +173,13 @@ static int __nl_get_conntrack(struct nfct_handle *h, struct nf_conntrack *ct)
 	return 1;
 }
 
-int nl_exist_conntrack(struct nf_conntrack *ct)
+int nl_exist_conntrack(const struct nf_conntrack *ct)
 {
 	return __nl_get_conntrack(STATE(request), ct);
 }
 
 /* get the conntrack and update the cache */
-int nl_get_conntrack(struct nf_conntrack *ct)
+int nl_get_conntrack(const struct nf_conntrack *ct)
 {
 	return __nl_get_conntrack(STATE(dump), ct);
 }
@@ -268,7 +269,7 @@ int nl_update_conntrack(const struct nf_conntrack *orig)
 	return ret;
 }
 
-int nl_destroy_conntrack(struct nf_conntrack *ct)
+int nl_destroy_conntrack(const struct nf_conntrack *ct)
 {
 	return nfct_query(STATE(dump), NFCT_Q_DESTROY, ct);
 }
