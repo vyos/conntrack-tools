@@ -211,7 +211,7 @@ int nl_create_conntrack(const struct nf_conntrack *orig)
 	nfct_set_attr_u8(ct, ATTR_TCP_FLAGS_REPL, flags);
 	nfct_set_attr_u8(ct, ATTR_TCP_MASK_REPL, flags);
 
-	ret = nfct_query(STATE(dump), NFCT_Q_CREATE_UPDATE, ct);
+	ret = nfct_query(STATE(dump), NFCT_Q_CREATE, ct);
 	nfct_destroy(ct);
 
 	return ret;
@@ -262,7 +262,7 @@ int nl_update_conntrack(const struct nf_conntrack *orig)
 	nfct_set_attr_u8(ct, ATTR_TCP_FLAGS_REPL, flags);
 	nfct_set_attr_u8(ct, ATTR_TCP_MASK_REPL, flags);
 
-	ret = nfct_query(STATE(dump), NFCT_Q_CREATE_UPDATE, ct);
+	ret = nfct_query(STATE(dump), NFCT_Q_UPDATE, ct);
 	nfct_destroy(ct);
 
 	return ret;
