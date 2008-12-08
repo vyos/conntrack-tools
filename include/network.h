@@ -162,7 +162,7 @@ struct netattr {
 })
 
 #define NTA_DATA(x)							 \
-	(void *)(((char *)x) + sizeof(struct netattr))
+	(void *)(((char *)x) + NTA_ALIGN(sizeof(struct netattr)))
 
 #define NTA_NEXT(x, len)						      \
 (									      \
