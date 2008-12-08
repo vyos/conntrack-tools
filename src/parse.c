@@ -33,75 +33,93 @@ static void parse_nat_seq_adj(struct nf_conntrack *ct, int attr, void *data);
 struct parser {
 	void 	(*parse)(struct nf_conntrack *ct, int attr, void *data);
 	int 	attr;
+	int	size;
 };
 
 static struct parser h[NTA_MAX] = {
 	[NTA_IPV4] = {
 		.parse	= parse_group,
 		.attr	= ATTR_GRP_ORIG_IPV4,
+		.size	= NTA_SIZE(sizeof(struct nfct_attr_grp_ipv4)),
 	},
 	[NTA_IPV6] = {
 		.parse	= parse_group,
 		.attr	= ATTR_GRP_ORIG_IPV6,
+		.size	= NTA_SIZE(sizeof(struct nfct_attr_grp_ipv6)),
 	},
 	[NTA_PORT] = {
 		.parse	= parse_group,
 		.attr	= ATTR_GRP_ORIG_PORT,
+		.size	= NTA_SIZE(sizeof(struct nfct_attr_grp_port)),
 	},
 	[NTA_L4PROTO] = {
 		.parse	= parse_u8,
 		.attr	= ATTR_L4PROTO,
+		.size	= NTA_SIZE(sizeof(uint8_t)),
 	},
 	[NTA_STATE] = {
 		.parse	= parse_u8,
 		.attr	= ATTR_TCP_STATE,
+		.size	= NTA_SIZE(sizeof(uint8_t)),
 	},
 	[NTA_STATUS] = {
 		.parse	= parse_u32,
 		.attr	= ATTR_STATUS,
+		.size	= NTA_SIZE(sizeof(uint32_t)),
 	},
 	[NTA_MARK] = {
 		.parse	= parse_u32,
 		.attr	= ATTR_MARK,
+		.size	= NTA_SIZE(sizeof(uint32_t)),
 	},
 	[NTA_TIMEOUT] = {
 		.parse	= parse_u32,
 		.attr	= ATTR_TIMEOUT,
+		.size	= NTA_SIZE(sizeof(uint32_t)),
 	},
 	[NTA_MASTER_IPV4] = {
 		.parse	= parse_group,
 		.attr	= ATTR_GRP_MASTER_IPV4,
+		.size	= NTA_SIZE(sizeof(struct nfct_attr_grp_ipv4)),
 	},
 	[NTA_MASTER_IPV6] = {
 		.parse	= parse_group,
 		.attr	= ATTR_GRP_MASTER_IPV6,
+		.size	= NTA_SIZE(sizeof(struct nfct_attr_grp_ipv6)),
 	},
 	[NTA_MASTER_L4PROTO] = {
 		.parse	= parse_u8,
 		.attr	= ATTR_MASTER_L4PROTO,
+		.size	= NTA_SIZE(sizeof(uint8_t)),
 	},
 	[NTA_MASTER_PORT] = {
 		.parse	= parse_group,
 		.attr	= ATTR_GRP_MASTER_PORT,
+		.size	= NTA_SIZE(sizeof(struct nfct_attr_grp_port)),
 	},
 	[NTA_SNAT_IPV4]	= {
 		.parse	= parse_u32,
 		.attr	= ATTR_SNAT_IPV4,
+		.size	= NTA_SIZE(sizeof(uint32_t)),
 	},
 	[NTA_DNAT_IPV4] = {
 		.parse	= parse_u32,
 		.attr	= ATTR_DNAT_IPV4,
+		.size	= NTA_SIZE(sizeof(uint32_t)),
 	},
 	[NTA_SPAT_PORT]	= {
 		.parse	= parse_u16,
 		.attr	= ATTR_SNAT_PORT,
+		.size	= NTA_SIZE(sizeof(uint16_t)),
 	},
 	[NTA_DPAT_PORT]	= {
 		.parse	= parse_u16,
 		.attr	= ATTR_SNAT_PORT,
+		.size	= NTA_SIZE(sizeof(uint16_t)),
 	},
 	[NTA_NAT_SEQ_ADJ] = {
 		.parse	= parse_nat_seq_adj,
+		.size	= NTA_SIZE(sizeof(struct nta_attr_natseqadj)),
 	},
 };
 
@@ -164,6 +182,8 @@ int parse_payload(struct nf_conntrack *ct, struct nethdr *net, size_t remain)
 	while (len > ssizeof(struct netattr)) {
 		ATTR_NETWORK2HOST(attr);
 		if (attr->nta_len > len)
+			return -1;
+		if (attr->nta_len != h[attr->nta_attr].size)
 			return -1;
 		if (h[attr->nta_attr].parse == NULL) {
 			attr = NTA_NEXT(attr, len);

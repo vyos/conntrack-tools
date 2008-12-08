@@ -161,6 +161,8 @@ struct netattr {
 	x->nta_attr = ntohs(x->nta_attr);				 \
 })
 
+#define NTA_SIZE(len) NTA_ALIGN(sizeof(struct netattr)) + len
+
 #define NTA_DATA(x)							 \
 	(void *)(((char *)x) + NTA_ALIGN(sizeof(struct netattr)))
 
