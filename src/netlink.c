@@ -239,6 +239,9 @@ int nl_update_conntrack(const struct nf_conntrack *orig)
 		status &= ~IPS_NAT_MASK;
 		nfct_set_attr_u32(ct, ATTR_STATUS, status);
 	}
+	/* we have to unset the helper to avoid EBUSY in reset timers */
+	if (nfct_attr_is_set(ct, ATTR_HELPER_NAME))
+		nfct_attr_unset(ct, ATTR_HELPER_NAME);
 
 	/* we hit error if we try to update the master conntrack */
 	if (ct_is_related(ct)) {
