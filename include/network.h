@@ -196,6 +196,7 @@ enum nta_attr {
 	NTA_SPAT_PORT,		/* uint16_t */
 	NTA_DPAT_PORT,		/* uint16_t */
 	NTA_NAT_SEQ_ADJ = 16,	/* struct nta_attr_natseqadj */
+	NTA_MAX
 };
 
 struct nta_attr_natseqadj {

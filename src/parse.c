@@ -35,7 +35,7 @@ struct parser {
 	int 	attr;
 };
 
-static struct parser h[ATTR_MAX] = {
+static struct parser h[NTA_MAX] = {
 	[NTA_IPV4] = {
 		.parse	= parse_group,
 		.attr	= ATTR_GRP_ORIG_IPV4,
@@ -75,6 +75,10 @@ static struct parser h[ATTR_MAX] = {
 	[NTA_MASTER_IPV6] = {
 		.parse	= parse_group,
 		.attr	= ATTR_GRP_MASTER_IPV6,
+	},
+	[NTA_MASTER_L4PROTO] = {
+		.parse	= parse_u8,
+		.attr	= ATTR_MASTER_L4PROTO,
 	},
 	[NTA_MASTER_PORT] = {
 		.parse	= parse_group,
