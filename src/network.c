@@ -140,17 +140,6 @@ ssize_t mcast_buffered_pending_netmsg(struct mcast_sock *m)
 	return ret;
 }
 
-int mcast_send_netmsg(struct mcast_sock *m, void *data)
-{
-	int ret;
-	size_t len = prepare_send_netmsg(m, data);
-
-	ret = mcast_buffered_send_netmsg(m, data, len);
-	mcast_buffered_pending_netmsg(m);
-
-	return ret;
-}
-
 void build_netmsg(struct nf_conntrack *ct, int query, struct nethdr *net)
 {
 	struct netpld *pld = NETHDR_DATA(net);

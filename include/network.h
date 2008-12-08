@@ -59,7 +59,6 @@ struct mcast_sock;
 
 void build_netmsg(struct nf_conntrack *ct, int query, struct nethdr *net);
 size_t prepare_send_netmsg(struct mcast_sock *m, void *data);
-int mcast_send_netmsg(struct mcast_sock *m, void *data);
 
 enum {
 	SEQ_UNKNOWN,
