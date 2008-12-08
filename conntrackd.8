@@ -37,6 +37,10 @@ with "-i" and "-e" parameters.
 .BI "-f "
 Flush the internal and the external cache
 .TP
+.BI "-F "
+Flush the kernel conntrack table (if you use a Linux kernel >= 2.6.29, this
+option will not flush your internal and external cache).
+.TP
 .BI "-k "
 Kill the daemon
 .TP

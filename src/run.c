@@ -78,12 +78,8 @@ void local_handler(int fd, void *data)
 
 	switch(type) {
 	case FLUSH_MASTER:
-		dlog(LOG_WARNING, "`conntrackd -F' is deprecated. "
-				  "Use conntrack -F instead.");
-		if (fork() == 0) {
-			execlp("conntrack", "conntrack", "-F", NULL);
-			exit(EXIT_SUCCESS);
-		}
+		dlog(LOG_NOTICE, "flushing kernel conntrack table");
+		nl_flush_conntrack_table();
 		return;
 	case RESYNC_MASTER:
 		dlog(LOG_NOTICE, "resync with master table");

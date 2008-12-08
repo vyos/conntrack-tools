@@ -148,6 +148,11 @@ int nl_dump_conntrack_table(void)
 	return nfct_query(STATE(dump), NFCT_Q_DUMP, &CONFIG(family));
 }
 
+int nl_flush_conntrack_table(void)
+{
+	return nfct_query(STATE(request), NFCT_Q_FLUSH, &CONFIG(family));
+}
+
 int nl_overrun_request_resync(void)
 {
 	int family = CONFIG(family);
