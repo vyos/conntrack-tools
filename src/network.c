@@ -27,16 +27,6 @@
 
 static unsigned int seq_set, cur_seq;
 
-static size_t __do_send(struct mcast_sock *m, void *data, size_t len)
-{
-	struct nethdr *net = data;
-
-	debug("send sq: %u fl:%u len:%u\n",
-		ntohl(net->seq), net->flags, ntohs(net->len));
-
-	return mcast_send(m, net, len);
-}
-
 static size_t __do_prepare(struct mcast_sock *m, void *data, size_t len)
 {
 	struct nethdr *net = data;
@@ -117,7 +107,7 @@ retry:
 		memcpy(tx_buf + tx_buflen, net, len);
 		tx_buflen += len;
 	} else {
-		__do_send(m, tx_buf, tx_buflen);
+		mcast_send(m, tx_buf, tx_buflen);
 		ret = 1;
 		tx_buflen = 0;
 		goto retry;
@@ -133,7 +123,7 @@ ssize_t mcast_buffered_pending_netmsg(struct mcast_sock *m)
 	if (tx_buflen == 0)
 		return 0;
 
-	ret = __do_send(m, tx_buf, tx_buflen);
+	ret = mcast_send(m, tx_buf, tx_buflen);
 	tx_buflen = 0;
 
 	return ret;
