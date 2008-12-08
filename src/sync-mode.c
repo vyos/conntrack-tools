@@ -406,7 +406,7 @@ static void mcast_send_sync(struct us_conntrack *u, int query)
 	if (STATE_SYNC(sync)->send)
 		STATE_SYNC(sync)->send(net, u);
 
-	mcast_buffered_send_netmsg(STATE_SYNC(mcast_client), net, len);
+	mcast_buffered_send_netmsg(STATE_SYNC(mcast_client), net);
 }
 
 static int purge_step(void *data1, void *data2)

@@ -76,7 +76,7 @@ struct mcast_conf;
 
 int mcast_buffered_init(int mtu);
 void mcast_buffered_destroy(void);
-int mcast_buffered_send_netmsg(struct mcast_sock *m, void *data, size_t len);
+int mcast_buffered_send_netmsg(struct mcast_sock *m, const struct nethdr *net);
 ssize_t mcast_buffered_pending_netmsg(struct mcast_sock *m);
 
 #define IS_DATA(x)	((x->flags & ~(NET_F_HELLO | NET_F_HELLO_BACK)) == 0)

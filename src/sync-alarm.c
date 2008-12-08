@@ -41,7 +41,7 @@ static void refresher(struct alarm_block *a, void *data)
 
 	net = BUILD_NETMSG(u->ct, NFCT_Q_UPDATE);
 	len = prepare_send_netmsg(STATE_SYNC(mcast_client), net);
-	mcast_buffered_send_netmsg(STATE_SYNC(mcast_client), net, len);
+	mcast_buffered_send_netmsg(STATE_SYNC(mcast_client), net);
 }
 
 static void cache_alarm_add(struct us_conntrack *u, void *data)

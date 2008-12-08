@@ -108,10 +108,9 @@ void mcast_buffered_destroy(void)
 }
 
 /* return 0 if it is not sent, otherwise return 1 */
-int mcast_buffered_send_netmsg(struct mcast_sock *m, void *data, size_t len)
+int mcast_buffered_send_netmsg(struct mcast_sock *m, const struct nethdr *net)
 {
-	int ret = 0;
-	struct nethdr *net = data;
+	int ret = 0, len = ntohs(net->len);
 
 retry:
 	if (tx_buflen + len < tx_buflenmax) {

@@ -495,7 +495,7 @@ static int tx_queue_xmit(void *data1, const void *data2)
 	dp("tx_queue sq: %u fl:%u len:%u\n",
                ntohl(net->seq), net->flags, ntohs(net->len));
 
-	mcast_buffered_send_netmsg(STATE_SYNC(mcast_client), net, len);
+	mcast_buffered_send_netmsg(STATE_SYNC(mcast_client), net);
 	HDR_NETWORK2HOST(net);
 
 	if (IS_DATA(net) || IS_ACK(net) || IS_NACK(net))
@@ -518,7 +518,7 @@ static int tx_list_xmit(struct list_head *i, struct us_conntrack *u, int type)
 	list_del_init(i);
 	tx_list_len--;
 
-	ret = mcast_buffered_send_netmsg(STATE_SYNC(mcast_client), net, len);
+	ret = mcast_buffered_send_netmsg(STATE_SYNC(mcast_client), net);
 	ftfw_send(net, u);
 
 	return ret;

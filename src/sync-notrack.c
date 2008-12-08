@@ -157,7 +157,7 @@ static int tx_queue_xmit(void *data1, const void *data2)
 	struct nethdr *net = data1;
 	size_t len = prepare_send_netmsg(STATE_SYNC(mcast_client), net);
 
-	mcast_buffered_send_netmsg(STATE_SYNC(mcast_client), net, len);
+	mcast_buffered_send_netmsg(STATE_SYNC(mcast_client), net);
 	queue_del(tx_queue, net);
 
 	return 0;
@@ -172,7 +172,7 @@ static int tx_list_xmit(struct list_head *i, struct us_conntrack *u, int type)
 	list_del_init(i);
 	tx_list_len--;
 
-	ret = mcast_buffered_send_netmsg(STATE_SYNC(mcast_client), net, len);
+	ret = mcast_buffered_send_netmsg(STATE_SYNC(mcast_client), net);
 
 	return ret;
 }
