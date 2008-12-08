@@ -25,48 +25,40 @@
 #include <time.h>
 #include <string.h>
 
+#define NETHDR_ALIGNTO	4
+
 static unsigned int seq_set, cur_seq;
 
-static size_t __do_prepare(struct mcast_sock *m, void *data, size_t len)
+int nethdr_align(int value)
 {
-	struct nethdr *net = data;
+	return (value + NETHDR_ALIGNTO - 1) & ~(NETHDR_ALIGNTO - 1);
+}
 
+int nethdr_size(int len)
+{
+	return NETHDR_SIZ + len;
+}
+	
+static inline void __nethdr_set(struct nethdr *net, int len, int type)
+{
 	if (!seq_set) {
 		seq_set = 1;
 		cur_seq = time(NULL);
 	}
-	net->version = CONNTRACKD_PROTOCOL_VERSION;
-	net->len = len;
-	net->seq = cur_seq++;
-	HDR_HOST2NETWORK(net);
-
-	return len;
+	net->version	= CONNTRACKD_PROTOCOL_VERSION;
+	net->type	= type;
+	net->len	= len;
+	net->seq	= cur_seq++;
 }
 
-static size_t __prepare_ctl(struct mcast_sock *m, void *data)
+void nethdr_set(struct nethdr *net, int type)
 {
-	return __do_prepare(m, data, NETHDR_ACK_SIZ);
+	__nethdr_set(net, NETHDR_SIZ, type);
 }
 
-static size_t __prepare_data(struct mcast_sock *m, void *data)
+void nethdr_set_ack(struct nethdr *net)
 {
-	struct nethdr *net = (struct nethdr *) data;
-	struct netpld *pld = NETHDR_DATA(net);
-
-	return __do_prepare(m, data, ntohs(pld->len) + NETPLD_SIZ + NETHDR_SIZ);
-}
-
-size_t prepare_send_netmsg(struct mcast_sock *m, void *data)
-{
-	int ret = 0;
-	struct nethdr *net = (struct nethdr *) data;
-
-	if (IS_DATA(net))
-		ret = __prepare_data(m, data);
-	else if (IS_CTL(net))
-		ret = __prepare_ctl(m, data);
-
-	return ret;
+	__nethdr_set(net, NETHDR_ACK_SIZ, 0);
 }
 
 static size_t tx_buflenmax;
@@ -127,13 +119,6 @@ ssize_t mcast_buffered_pending_netmsg(struct mcast_sock *m)
 	tx_buflen = 0;
 
 	return ret;
-}
-
-void build_netmsg(struct nf_conntrack *ct, int query, struct nethdr *net)
-{
-	struct netpld *pld = NETHDR_DATA(net);
-
-	build_netpld(ct, pld, query);
 }
 
 static int local_seq_set = 0;

@@ -9,25 +9,34 @@
 struct nf_conntrack;
 
 struct nethdr {
-	uint8_t version;
+	uint8_t version:4,
+		type:4;
 	uint8_t flags;
 	uint16_t len;
 	uint32_t seq;
 };
-#define NETHDR_SIZ sizeof(struct nethdr)
+#define NETHDR_SIZ nethdr_align(sizeof(struct nethdr))
+
+int nethdr_align(int len);
+int nethdr_size(int len);
+void nethdr_set(struct nethdr *net, int type);
+void nethdr_set_ack(struct nethdr *net);
 
 #define NETHDR_DATA(x)							 \
-	(struct netpld *)(((char *)x) + sizeof(struct nethdr))
+	(struct netattr *)(((char *)x) + NETHDR_SIZ)
+#define NETHDR_TAIL(x)							 \
+	(struct netattr *)(((char *)x) + x->len)
 
 struct nethdr_ack {
-	uint8_t version;
+	uint8_t version:4,
+		type:4;
 	uint8_t flags; 
 	uint16_t len;
 	uint32_t seq;
 	uint32_t from;
 	uint32_t to;
 };
-#define NETHDR_ACK_SIZ sizeof(struct nethdr_ack)
+#define NETHDR_ACK_SIZ nethdr_align(sizeof(struct nethdr_ack))
 
 enum {
 	NET_F_UNUSED 	= (1 << 0),
@@ -49,16 +58,16 @@ enum {
 #define BUILD_NETMSG(ct, query)					\
 ({								\
 	char __net[4096];					\
-	memset(__net, 0, NETHDR_SIZ + NETPLD_SIZ);		\
-	build_netmsg(ct, query, (struct nethdr *) __net);	\
-	(struct nethdr *) __net;				\
+	struct nethdr *__hdr = (struct nethdr *) __net;		\
+	memset(__hdr, 0, NETHDR_SIZ);				\
+	nethdr_set(__hdr, query);				\
+	build_payload(ct, __hdr);				\
+	HDR_HOST2NETWORK(__hdr);				\
+	__hdr;							\
 })
 
 struct us_conntrack;
 struct mcast_sock;
-
-void build_netmsg(struct nf_conntrack *ct, int query, struct nethdr *net);
-size_t prepare_send_netmsg(struct mcast_sock *m, void *data);
 
 enum {
 	SEQ_UNKNOWN,
@@ -129,12 +138,6 @@ static inline int between(uint32_t seq1, uint32_t seq2, uint32_t seq3)
 	return seq3 - seq2 >= seq1 - seq2;
 }
 
-struct netpld {
-	uint16_t       len;
-	uint16_t       query;
-};
-#define NETPLD_SIZ		sizeof(struct netpld)
-
 #define PLD_NETWORK2HOST(x)						 \
 ({									 \
 	x->len = ntohs(x->len);						 \
@@ -157,12 +160,6 @@ struct netattr {
 	x->nta_len = ntohs(x->nta_len);					 \
 	x->nta_attr = ntohs(x->nta_attr);				 \
 })
-
-#define PLD_DATA(x)							 \
-	(struct netattr *)(((char *)x) + sizeof(struct netpld))
-
-#define PLD_TAIL(x)							 \
-	(struct netattr *)(((char *)x) + sizeof(struct netpld) + x->len)
 
 #define NTA_DATA(x)							 \
 	(void *)(((char *)x) + sizeof(struct netattr))
@@ -207,8 +204,8 @@ struct nta_attr_natseqadj {
 	uint32_t repl_seq_offset_after;
 };
 
-void build_netpld(struct nf_conntrack *ct, struct netpld *pld, int query);
+void build_payload(const struct nf_conntrack *ct, struct nethdr *n);
 
-int parse_netpld(struct nf_conntrack *ct, struct nethdr *net, int *query, size_t remain);
+int parse_payload(struct nf_conntrack *ct, struct nethdr *n, size_t remain);
 
 #endif

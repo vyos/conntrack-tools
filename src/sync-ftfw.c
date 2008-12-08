@@ -451,10 +451,9 @@ out:
 
 static void ftfw_send(struct nethdr *net, struct us_conntrack *u)
 {
-	struct netpld *pld = NETHDR_DATA(net);
 	struct cache_ftfw *cn;
 
-	switch(ntohs(pld->query)) {
+	switch(net->type) {
 	case NFCT_Q_CREATE:
 	case NFCT_Q_UPDATE:
 	case NFCT_Q_DESTROY:
@@ -490,7 +489,9 @@ static void ftfw_send(struct nethdr *net, struct us_conntrack *u)
 static int tx_queue_xmit(void *data1, const void *data2)
 {
 	struct nethdr *net = data1;
-	size_t len = prepare_send_netmsg(STATE_SYNC(mcast_client), net);
+
+	nethdr_set_ack(net);
+	HDR_HOST2NETWORK(net);
 
 	dp("tx_queue sq: %u fl:%u len:%u\n",
                ntohl(net->seq), net->flags, ntohs(net->len));
@@ -510,7 +511,6 @@ static int tx_list_xmit(struct list_head *i, struct us_conntrack *u, int type)
 {
 	int ret;
 	struct nethdr *net = BUILD_NETMSG(u->ct, type);
-	size_t len = prepare_send_netmsg(STATE_SYNC(mcast_client), net);
 
 	dp("tx_list sq: %u fl:%u len:%u\n",
                 ntohl(net->seq), net->flags, ntohs(net->len));

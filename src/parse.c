@@ -150,30 +150,16 @@ parse_nat_seq_adj(struct nf_conntrack *ct, int attr, void *data)
 			  ntohl(this->orig_seq_correction_pos));
 }
 
-int
-parse_netpld(struct nf_conntrack *ct,
-	     struct nethdr *net,
-	     int *query,
-	     size_t remain)
+int parse_payload(struct nf_conntrack *ct, struct nethdr *net, size_t remain)
 {
 	int len;
 	struct netattr *attr;
-	struct netpld *pld;
 
-	if (remain < NETHDR_SIZ + sizeof(struct netpld))
+	if (remain < net->len)
 		return -1;
 
-	pld = NETHDR_DATA(net);
-
-	if (remain < NETHDR_SIZ + sizeof(struct netpld) + ntohs(pld->len))
-		return -1;
-
-	if (net->len < NETHDR_SIZ + sizeof(struct netpld) + ntohs(pld->len))
-		return -1;
-
-	PLD_NETWORK2HOST(pld);
-	len = pld->len;
-	attr = PLD_DATA(pld);
+	len = net->len - NETHDR_SIZ;
+	attr = NETHDR_DATA(net);
 
 	while (len > ssizeof(struct netattr)) {
 		ATTR_NETWORK2HOST(attr);
@@ -187,6 +173,5 @@ parse_netpld(struct nf_conntrack *ct,
 		attr = NTA_NEXT(attr, len);
 	}
 
-	*query = pld->query;
 	return 0;
 }

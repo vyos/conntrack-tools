@@ -36,7 +36,6 @@
 
 static void do_mcast_handler_step(struct nethdr *net, size_t remain)
 {
-	int query;
 	char __ct[nfct_maxsize()];
 	struct nf_conntrack *ct = (struct nf_conntrack *)(void*) __ct;
 	struct us_conntrack *u;
@@ -62,13 +61,13 @@ static void do_mcast_handler_step(struct nethdr *net, size_t remain)
 
 	memset(ct, 0, sizeof(__ct));
 
-	if (parse_netpld(ct, net, &query, remain) == -1) {
+	if (parse_payload(ct, net, remain) == -1) {
 		STATE(malformed)++;
 		dlog(LOG_ERR, "parsing failed: malformed message");
 		return;
 	}
 
-	switch(query) {
+	switch(net->type) {
 	case NFCT_Q_CREATE:
 retry:		
 		if ((u = cache_add(STATE_SYNC(external), ct))) {
@@ -100,7 +99,7 @@ retry:
 		break;
 	default:
 		STATE(malformed)++;
-		dlog(LOG_ERR, "mcast unknown query %d\n", query);
+		dlog(LOG_ERR, "mcast unknown query %d\n", net->type);
 		break;
 	}
 }
@@ -109,7 +108,7 @@ retry:
 static void mcast_handler(void)
 {
 	ssize_t numbytes;
-	size_t remain;
+	ssize_t remain;
 	char __net[65536], *ptr = __net; /* XXX: maximum MTU for IPv4 */
 
 	numbytes = mcast_recv(STATE_SYNC(mcast_server), __net, sizeof(__net));
@@ -397,11 +396,9 @@ static void dump_sync(struct nf_conntrack *ct)
 
 static void mcast_send_sync(struct us_conntrack *u, int query)
 {
-	size_t len;
 	struct nethdr *net;
 
 	net = BUILD_NETMSG(u->ct, query);
-	len = prepare_send_netmsg(STATE_SYNC(mcast_client), net);
 
 	if (STATE_SYNC(sync)->send)
 		STATE_SYNC(sync)->send(net, u);

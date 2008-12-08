@@ -21,12 +21,12 @@
 #include "network.h"
 
 static inline void *
-put_header(struct netpld *pld, int attr, size_t len)
+put_header(struct nethdr *n, int attr, size_t len)
 {
-	struct netattr *nta = PLD_TAIL(pld);
+	struct netattr *nta = NETHDR_TAIL(n);
 	int total_size = NTA_ALIGN(NTA_LENGTH(len));
 	int attr_size = NTA_LENGTH(len);
-	pld->len += total_size;
+	n->len += total_size;
 	nta->nta_attr = htons(attr);
 	nta->nta_len = htons(attr_size);
 	memset((unsigned char *)nta + attr_size, 0, total_size - attr_size);
@@ -34,45 +34,45 @@ put_header(struct netpld *pld, int attr, size_t len)
 }
 
 static inline void
-addattr(struct netpld *pld, int attr, const void *data, size_t len)
+addattr(struct nethdr *n, int attr, const void *data, size_t len)
 {
-	void *ptr = put_header(pld, attr, len);
+	void *ptr = put_header(n, attr, len);
 	memcpy(ptr, data, len);
 }
 
 static inline void
-__build_u8(const struct nf_conntrack *ct, int a, struct netpld *pld, int b)
+__build_u8(const struct nf_conntrack *ct, int a, struct nethdr *n, int b)
 {
-	void *ptr = put_header(pld, b, sizeof(uint8_t));
+	void *ptr = put_header(n, b, sizeof(uint8_t));
 	memcpy(ptr, nfct_get_attr(ct, a), sizeof(uint8_t));
 }
 
 static inline void 
-__build_u16(const struct nf_conntrack *ct, int a, struct netpld *pld, int b)
+__build_u16(const struct nf_conntrack *ct, int a, struct nethdr *n, int b)
 {
 	uint32_t data = nfct_get_attr_u16(ct, a);
 	data = htons(data);
-	addattr(pld, b, &data, sizeof(uint16_t));
+	addattr(n, b, &data, sizeof(uint16_t));
 }
 
 static inline void 
-__build_u32(const struct nf_conntrack *ct, int a, struct netpld *pld, int b)
+__build_u32(const struct nf_conntrack *ct, int a, struct nethdr *n, int b)
 {
 	uint32_t data = nfct_get_attr_u32(ct, a);
 	data = htonl(data);
-	addattr(pld, b, &data, sizeof(uint32_t));
+	addattr(n, b, &data, sizeof(uint32_t));
 }
 
 static inline void 
-__build_group(const struct nf_conntrack *ct, int a, struct netpld *pld, 
+__build_group(const struct nf_conntrack *ct, int a, struct nethdr *n, 
 	      int b, int size)
 {
-	void *ptr = put_header(pld, b, size);
+	void *ptr = put_header(n, b, size);
 	nfct_get_attr_grp(ct, a, ptr);
 }
 
 static inline void 
-__build_natseqadj(const struct nf_conntrack *ct, struct netpld *pld)
+__build_natseqadj(const struct nf_conntrack *ct, struct nethdr *n)
 {
 	struct nta_attr_natseqadj data = {
 		.orig_seq_correction_pos =
@@ -88,7 +88,7 @@ __build_natseqadj(const struct nf_conntrack *ct, struct netpld *pld)
 		.repl_seq_offset_after = 
 		htonl(nfct_get_attr_u32(ct, ATTR_REPL_NAT_SEQ_OFFSET_AFTER))
 	};
-	addattr(pld, NTA_NAT_SEQ_ADJ, &data, sizeof(struct nta_attr_natseqadj));
+	addattr(n, NTA_NAT_SEQ_ADJ, &data, sizeof(struct nta_attr_natseqadj));
 }
 
 static enum nf_conntrack_attr nat_type[] =
@@ -97,65 +97,61 @@ static enum nf_conntrack_attr nat_type[] =
 	  ATTR_REPL_NAT_SEQ_OFFSET_BEFORE, ATTR_REPL_NAT_SEQ_OFFSET_AFTER };
 
 /* XXX: ICMP not supported */
-void build_netpld(struct nf_conntrack *ct, struct netpld *pld, int query)
+void build_payload(const struct nf_conntrack *ct, struct nethdr *n)
 {
 	if (nfct_attr_grp_is_set(ct, ATTR_GRP_ORIG_IPV4)) {
-		__build_group(ct, ATTR_GRP_ORIG_IPV4, pld, NTA_IPV4, 
+		__build_group(ct, ATTR_GRP_ORIG_IPV4, n, NTA_IPV4, 
 			      sizeof(struct nfct_attr_grp_ipv4));
 	} else if (nfct_attr_grp_is_set(ct, ATTR_GRP_ORIG_IPV6)) {
-		__build_group(ct, ATTR_GRP_ORIG_IPV6, pld, NTA_IPV6, 
+		__build_group(ct, ATTR_GRP_ORIG_IPV6, n, NTA_IPV6, 
 			      sizeof(struct nfct_attr_grp_ipv6));
 	}
 
-	__build_u8(ct, ATTR_L4PROTO, pld, NTA_L4PROTO);
+	__build_u8(ct, ATTR_L4PROTO, n, NTA_L4PROTO);
 	if (nfct_attr_grp_is_set(ct, ATTR_GRP_ORIG_PORT)) {
-		__build_group(ct, ATTR_GRP_ORIG_PORT, pld, NTA_PORT,
+		__build_group(ct, ATTR_GRP_ORIG_PORT, n, NTA_PORT,
 			      sizeof(struct nfct_attr_grp_port));
 	}
 
-	__build_u32(ct, ATTR_STATUS, pld, NTA_STATUS); 
+	__build_u32(ct, ATTR_STATUS, n, NTA_STATUS); 
 
 	if (nfct_attr_is_set(ct, ATTR_TCP_STATE))
-		__build_u8(ct, ATTR_TCP_STATE, pld, NTA_STATE);
+		__build_u8(ct, ATTR_TCP_STATE, n, NTA_STATE);
 	if (nfct_attr_is_set(ct, ATTR_MARK))
-		__build_u32(ct, ATTR_MARK, pld, NTA_MARK);
+		__build_u32(ct, ATTR_MARK, n, NTA_MARK);
 
 	/* setup the master conntrack */
 	if (nfct_attr_grp_is_set(ct, ATTR_GRP_MASTER_IPV4)) {
-		__build_group(ct, ATTR_GRP_MASTER_IPV4, pld, NTA_MASTER_IPV4,
+		__build_group(ct, ATTR_GRP_MASTER_IPV4, n, NTA_MASTER_IPV4,
 			      sizeof(struct nfct_attr_grp_ipv4));
-		__build_u8(ct, ATTR_MASTER_L4PROTO, pld, NTA_MASTER_L4PROTO);
+		__build_u8(ct, ATTR_MASTER_L4PROTO, n, NTA_MASTER_L4PROTO);
 		if (nfct_attr_grp_is_set(ct, ATTR_GRP_MASTER_PORT)) {
 			__build_group(ct, ATTR_GRP_MASTER_PORT,
-				      pld, NTA_MASTER_PORT, 
+				      n, NTA_MASTER_PORT, 
 				      sizeof(struct nfct_attr_grp_port));
 		}
 	} else if (nfct_attr_grp_is_set(ct, ATTR_GRP_MASTER_IPV6)) {
-		__build_group(ct, ATTR_GRP_MASTER_IPV6, pld, NTA_MASTER_IPV6,
+		__build_group(ct, ATTR_GRP_MASTER_IPV6, n, NTA_MASTER_IPV6,
 			      sizeof(struct nfct_attr_grp_ipv6));
-		__build_u8(ct, ATTR_MASTER_L4PROTO, pld, NTA_MASTER_L4PROTO);
+		__build_u8(ct, ATTR_MASTER_L4PROTO, n, NTA_MASTER_L4PROTO);
 		if (nfct_attr_grp_is_set(ct, ATTR_GRP_MASTER_PORT)) {
 			__build_group(ct, ATTR_GRP_MASTER_PORT,
-				      pld, NTA_MASTER_PORT,
+				      n, NTA_MASTER_PORT,
 				      sizeof(struct nfct_attr_grp_port));
 		}
 	}
 
 	/*  NAT */
 	if (nfct_getobjopt(ct, NFCT_GOPT_IS_SNAT))
-		__build_u32(ct, ATTR_REPL_IPV4_DST, pld, NTA_SNAT_IPV4);
+		__build_u32(ct, ATTR_REPL_IPV4_DST, n, NTA_SNAT_IPV4);
 	if (nfct_getobjopt(ct, NFCT_GOPT_IS_DNAT))
-		__build_u32(ct, ATTR_REPL_IPV4_SRC, pld, NTA_DNAT_IPV4);
+		__build_u32(ct, ATTR_REPL_IPV4_SRC, n, NTA_DNAT_IPV4);
 	if (nfct_getobjopt(ct, NFCT_GOPT_IS_SPAT))
-		__build_u16(ct, ATTR_REPL_PORT_DST, pld, NTA_SPAT_PORT);
+		__build_u16(ct, ATTR_REPL_PORT_DST, n, NTA_SPAT_PORT);
 	if (nfct_getobjopt(ct, NFCT_GOPT_IS_DPAT))
-		__build_u16(ct, ATTR_REPL_PORT_SRC, pld, NTA_DPAT_PORT);
+		__build_u16(ct, ATTR_REPL_PORT_SRC, n, NTA_DPAT_PORT);
 
 	/* NAT sequence adjustment */
 	if (nfct_attr_is_set_array(ct, nat_type, 6))
-		__build_natseqadj(ct, pld);
-
-	pld->query = query;
-
-	PLD_HOST2NETWORK(pld);
+		__build_natseqadj(ct, n);
 }

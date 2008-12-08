@@ -29,7 +29,6 @@
 
 static void refresher(struct alarm_block *a, void *data)
 {
-	size_t len;
 	struct nethdr *net;
 	struct us_conntrack *u = data;
 
@@ -40,7 +39,6 @@ static void refresher(struct alarm_block *a, void *data)
 		  ((random() % 5 + 1)  * 200000) - 1);
 
 	net = BUILD_NETMSG(u->ct, NFCT_Q_UPDATE);
-	len = prepare_send_netmsg(STATE_SYNC(mcast_client), net);
 	mcast_buffered_send_netmsg(STATE_SYNC(mcast_client), net);
 }
 
