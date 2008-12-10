@@ -60,7 +60,39 @@ void killer(int foo)
 
 static void child(int foo)
 {
-	while(wait(NULL) > 0);
+	int status, ret;
+
+	while ((ret = waitpid(0, &status, WNOHANG)) != 0) {
+		if (ret == -1) {
+			if (errno == EINTR)
+				continue;
+			if (errno == ECHILD)
+				break;
+			dlog(LOG_ERR, "wait has failed (%s)", strerror(errno));
+			break;
+		}
+		if (!WIFSIGNALED(status))
+			continue;
+
+		switch(WTERMSIG(status)) {
+		case SIGSEGV:
+			dlog(LOG_ERR, "child process (pid=%u) has aborted, "
+				      "received signal SIGSEGV (crashed)", ret);
+			break;
+		case SIGINT:
+		case SIGTERM:
+		case SIGKILL:
+			dlog(LOG_ERR, "child process (pid=%u) has aborted, "
+				      "received termination signal (%u)",
+				      ret, WTERMSIG(status));
+			break;
+		default:
+			dlog(LOG_NOTICE, "child process (pid=%u) "
+					 "received signal (%u)", 
+					 ret, WTERMSIG(status));
+			break;
+		}
+	}
 }
 
 void local_handler(int fd, void *data)
