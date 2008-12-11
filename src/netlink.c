@@ -228,7 +228,6 @@ int nl_create_conntrack(struct nfct_handle *h, const struct nf_conntrack *orig)
 int nl_update_conntrack(struct nfct_handle *h, const struct nf_conntrack *orig)
 {
 	int ret;
-	uint8_t flags;
 	struct nf_conntrack *ct;
 
 	ct = nfct_clone(orig);
@@ -267,11 +266,14 @@ int nl_update_conntrack(struct nfct_handle *h, const struct nf_conntrack *orig)
 	/*
 	 * TCP flags to overpass window tracking for recovered connections
 	 */
-	flags = IP_CT_TCP_FLAG_BE_LIBERAL | IP_CT_TCP_FLAG_SACK_PERM;
-	nfct_set_attr_u8(ct, ATTR_TCP_FLAGS_ORIG, flags);
-	nfct_set_attr_u8(ct, ATTR_TCP_MASK_ORIG, flags);
-	nfct_set_attr_u8(ct, ATTR_TCP_FLAGS_REPL, flags);
-	nfct_set_attr_u8(ct, ATTR_TCP_MASK_REPL, flags);
+	if (nfct_attr_is_set(ct, ATTR_TCP_STATE)) {
+		uint8_t flags = IP_CT_TCP_FLAG_BE_LIBERAL |
+				IP_CT_TCP_FLAG_SACK_PERM;
+		nfct_set_attr_u8(ct, ATTR_TCP_FLAGS_ORIG, flags);
+		nfct_set_attr_u8(ct, ATTR_TCP_MASK_ORIG, flags);
+		nfct_set_attr_u8(ct, ATTR_TCP_FLAGS_REPL, flags);
+		nfct_set_attr_u8(ct, ATTR_TCP_MASK_REPL, flags);
+	}
 
 	ret = nfct_query(h, NFCT_Q_UPDATE, ct);
 	nfct_destroy(ct);
