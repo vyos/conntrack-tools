@@ -261,8 +261,6 @@ int nl_update_conntrack(struct nfct_handle *h, const struct nf_conntrack *orig)
 		nfct_attr_unset(ct, ATTR_MASTER_PORT_DST);
 	}
 
-	nfct_setobjopt(ct, NFCT_SOPT_SETUP_REPLY);
-
 	/*
 	 * TCP flags to overpass window tracking for recovered connections
 	 */
