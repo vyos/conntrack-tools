@@ -111,11 +111,11 @@ void local_handler(int fd, void *data)
 	switch(type) {
 	case FLUSH_MASTER:
 		dlog(LOG_NOTICE, "flushing kernel conntrack table");
-		nl_flush_conntrack_table();
+		nl_flush_conntrack_table(STATE(request));
 		return;
 	case RESYNC_MASTER:
 		dlog(LOG_NOTICE, "resync with master table");
-		nl_dump_conntrack_table();
+		nl_dump_conntrack_table(STATE(dump));
 		return;
 	}
 
@@ -125,7 +125,7 @@ void local_handler(int fd, void *data)
 
 static void do_overrun_alarm(struct alarm_block *a, void *data)
 {
-	nl_overrun_request_resync();
+	nl_overrun_request_resync(STATE(overrun));
 	add_alarm(&STATE(overrun_alarm), 2, 0);
 }
 
@@ -218,7 +218,7 @@ init(void)
 	}
 	nfct_callback_register(STATE(dump), NFCT_T_ALL, dump_handler, NULL);
 
-	if (nl_dump_conntrack_table() == -1) {
+	if (nl_dump_conntrack_table(STATE(dump)) == -1) {
 		dlog(LOG_ERR, "can't get kernel conntrack table");
 		return -1;
 	}
@@ -321,7 +321,7 @@ static void __run(struct timeval *next_alarm)
 				 * size and resync with master conntrack table.
 				 */
 				nl_resize_socket_buffer(STATE(event));
-				nl_overrun_request_resync();
+				nl_overrun_request_resync(STATE(overrun));
 				add_alarm(&STATE(overrun_alarm), 2, 0);
 				break;
 			case ENOENT:

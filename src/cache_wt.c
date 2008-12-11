@@ -31,7 +31,7 @@ static void add_wt(struct us_conntrack *u)
 	char __ct[nfct_maxsize()];
 	struct nf_conntrack *ct = (struct nf_conntrack *)(void*) __ct;
 
-	ret = nl_exist_conntrack(u->ct);
+	ret = nl_exist_conntrack(STATE(request), u->ct);
 	switch (ret) {
 	case -1:
 		dlog(LOG_ERR, "cache_wt problem: %s", strerror(errno));
@@ -39,14 +39,14 @@ static void add_wt(struct us_conntrack *u)
 		break;
 	case 0:
 		memcpy(ct, u->ct, nfct_maxsize());
-		if (nl_create_conntrack(ct) == -1) {
+		if (nl_create_conntrack(STATE(dump), ct) == -1) {
 			dlog(LOG_ERR, "cache_wt create: %s", strerror(errno));
 			dlog_ct(STATE(log), u->ct, NFCT_O_PLAIN);
 		}
 		break;
 	case 1:
 		memcpy(ct, u->ct, nfct_maxsize());
-		if (nl_update_conntrack(ct) == -1) {
+		if (nl_update_conntrack(STATE(dump), ct) == -1) {
 			dlog(LOG_ERR, "cache_wt crt-upd: %s", strerror(errno));
 			dlog_ct(STATE(log), u->ct, NFCT_O_PLAIN);
 		}
@@ -61,7 +61,7 @@ static void upd_wt(struct us_conntrack *u)
 
 	memcpy(ct, u->ct, nfct_maxsize());
 
-	if (nl_update_conntrack(ct) == -1) {
+	if (nl_update_conntrack(STATE(dump), ct) == -1) {
 		dlog(LOG_ERR, "cache_wt update:%s", strerror(errno));
 		dlog_ct(STATE(log), u->ct, NFCT_O_PLAIN);
 	}
@@ -79,7 +79,7 @@ static void writethrough_update(struct us_conntrack *u, void *data)
 
 static void writethrough_destroy(struct us_conntrack *u, void *data)
 {
-	nl_destroy_conntrack(u->ct);
+	nl_destroy_conntrack(STATE(dump), u->ct);
 }
 
 struct cache_feature writethrough_feature = {

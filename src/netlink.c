@@ -143,20 +143,20 @@ void nl_resize_socket_buffer(struct nfct_handle *h)
 			 CONFIG(netlink_buffer_size));
 }
 
-int nl_dump_conntrack_table(void)
+int nl_dump_conntrack_table(struct nfct_handle *h)
 {
-	return nfct_query(STATE(dump), NFCT_Q_DUMP, &CONFIG(family));
+	return nfct_query(h, NFCT_Q_DUMP, &CONFIG(family));
 }
 
-int nl_flush_conntrack_table(void)
+int nl_flush_conntrack_table(struct nfct_handle *h)
 {
-	return nfct_query(STATE(request), NFCT_Q_FLUSH, &CONFIG(family));
+	return nfct_query(h, NFCT_Q_FLUSH, &CONFIG(family));
 }
 
-int nl_overrun_request_resync(void)
+int nl_overrun_request_resync(struct nfct_handle *h)
 {
 	int family = CONFIG(family);
-	return nfct_send(STATE(overrun), NFCT_Q_DUMP, &family);
+	return nfct_send(h, NFCT_Q_DUMP, &family);
 }
 
 static int
@@ -178,18 +178,18 @@ __nl_get_conntrack(struct nfct_handle *h, const struct nf_conntrack *ct)
 	return 1;
 }
 
-int nl_exist_conntrack(const struct nf_conntrack *ct)
+int nl_exist_conntrack(struct nfct_handle *h, const struct nf_conntrack *ct)
 {
-	return __nl_get_conntrack(STATE(request), ct);
+	return __nl_get_conntrack(h, ct);
 }
 
 /* get the conntrack and update the cache */
-int nl_get_conntrack(const struct nf_conntrack *ct)
+int nl_get_conntrack(struct nfct_handle *h, const struct nf_conntrack *ct)
 {
-	return __nl_get_conntrack(STATE(dump), ct);
+	return __nl_get_conntrack(h, ct);
 }
 
-int nl_create_conntrack(const struct nf_conntrack *orig)
+int nl_create_conntrack(struct nfct_handle *h, const struct nf_conntrack *orig)
 {
 	int ret;
 	uint8_t flags;
@@ -217,13 +217,13 @@ int nl_create_conntrack(const struct nf_conntrack *orig)
 	nfct_set_attr_u8(ct, ATTR_TCP_FLAGS_REPL, flags);
 	nfct_set_attr_u8(ct, ATTR_TCP_MASK_REPL, flags);
 
-	ret = nfct_query(STATE(dump), NFCT_Q_CREATE, ct);
+	ret = nfct_query(h, NFCT_Q_CREATE, ct);
 	nfct_destroy(ct);
 
 	return ret;
 }
 
-int nl_update_conntrack(const struct nf_conntrack *orig)
+int nl_update_conntrack(struct nfct_handle *h, const struct nf_conntrack *orig)
 {
 	int ret;
 	uint8_t flags;
@@ -271,13 +271,13 @@ int nl_update_conntrack(const struct nf_conntrack *orig)
 	nfct_set_attr_u8(ct, ATTR_TCP_FLAGS_REPL, flags);
 	nfct_set_attr_u8(ct, ATTR_TCP_MASK_REPL, flags);
 
-	ret = nfct_query(STATE(dump), NFCT_Q_UPDATE, ct);
+	ret = nfct_query(h, NFCT_Q_UPDATE, ct);
 	nfct_destroy(ct);
 
 	return ret;
 }
 
-int nl_destroy_conntrack(const struct nf_conntrack *ct)
+int nl_destroy_conntrack(struct nfct_handle *h, const struct nf_conntrack *ct)
 {
-	return nfct_query(STATE(dump), NFCT_Q_DESTROY, ct);
+	return nfct_query(h, NFCT_Q_DESTROY, ct);
 }

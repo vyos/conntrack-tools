@@ -11,15 +11,15 @@ struct nfct_handle *nl_init_dump_handler(void);
 struct nfct_handle *nl_init_request_handler(void);
 struct nfct_handle *nl_init_overrun_handler(void);
 
-int nl_overrun_request_resync(void);
+int nl_overrun_request_resync(struct nfct_handle *h);
 void nl_resize_socket_buffer(struct nfct_handle *h);
-int nl_dump_conntrack_table(void);
-int nl_flush_conntrack_table(void);
-int nl_exist_conntrack(const struct nf_conntrack *ct);
-int nl_get_conntrack(const struct nf_conntrack *ct);
-int nl_create_conntrack(const struct nf_conntrack *ct);
-int nl_update_conntrack(const struct nf_conntrack *ct);
-int nl_destroy_conntrack(const struct nf_conntrack *ct);
+int nl_dump_conntrack_table(struct nfct_handle *h);
+int nl_flush_conntrack_table(struct nfct_handle *h);
+int nl_exist_conntrack(struct nfct_handle *h, const struct nf_conntrack *ct);
+int nl_get_conntrack(struct nfct_handle *h, const struct nf_conntrack *ct);
+int nl_create_conntrack(struct nfct_handle *h, const struct nf_conntrack *ct);
+int nl_update_conntrack(struct nfct_handle *h, const struct nf_conntrack *ct);
+int nl_destroy_conntrack(struct nfct_handle *h, const struct nf_conntrack *ct);
 
 static inline int ct_is_related(const struct nf_conntrack *ct)
 {
