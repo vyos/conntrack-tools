@@ -231,8 +231,15 @@ static int do_reset_timers(void *data1, void *data2)
 	struct nfct_handle *h = data1;
 	struct us_conntrack *u = data2;
 	struct nf_conntrack *ct = u->ct;
+	char __tmp[nfct_maxsize()];
+	struct nf_conntrack *tmp = (struct nf_conntrack *) (void *)__tmp;
 
-	ret = nl_get_conntrack(h, ct);
+	memset(__tmp, 0, sizeof(__tmp));
+
+	/* use the original tuple to check if it is there */
+	nfct_copy(tmp, ct, NFCT_CP_ORIG);
+
+	ret = nl_get_conntrack(h, tmp);
 	switch (ret) {
 	case -1:
 		/* the kernel table is not in sync with internal cache */
@@ -240,14 +247,15 @@ static int do_reset_timers(void *data1, void *data2)
 		dlog_ct(STATE(log), ct, NFCT_O_PLAIN);
 		break;
 	case 1:
+		/* use the object that contain the current timer */
 		current_timeout = nfct_get_attr_u32(ct, ATTR_TIMEOUT);
 		/* already about to die, do not touch it */
 		if (current_timeout < CONFIG(purge_timeout))
 			break;
 
-		nfct_set_attr_u32(ct, ATTR_TIMEOUT, CONFIG(purge_timeout));
+		nfct_set_attr_u32(tmp, ATTR_TIMEOUT, CONFIG(purge_timeout));
 
-		if (nl_update_conntrack(h, ct) == -1) {
+		if (nl_update_conntrack(h, tmp) == -1) {
 			if (errno == ETIME || errno == ENOENT)
 				break;
 			dlog(LOG_ERR, "reset-timers-upd: %s", strerror(errno));
