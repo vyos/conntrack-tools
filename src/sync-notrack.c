@@ -188,7 +188,7 @@ static void notrack_run(void)
 		struct us_conntrack *u;
 
 		u = cache_get_conntrack(STATE_SYNC(internal), cn);
-		tx_list_xmit(&cn->tx_list, u, NFCT_Q_UPDATE);
+		tx_list_xmit(&cn->tx_list, u, NET_T_STATE_UPD);
 	}
 }
 

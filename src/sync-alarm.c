@@ -38,7 +38,7 @@ static void refresher(struct alarm_block *a, void *data)
 		  random() % CONFIG(refresh) + 1,
 		  ((random() % 5 + 1)  * 200000) - 1);
 
-	net = BUILD_NETMSG(u->ct, NFCT_Q_UPDATE);
+	net = BUILD_NETMSG(u->ct, NET_T_STATE_UPD);
 	mcast_buffered_send_netmsg(STATE_SYNC(mcast_client), net);
 }
 

@@ -454,9 +454,9 @@ static void ftfw_send(struct nethdr *net, struct us_conntrack *u)
 	struct cache_ftfw *cn;
 
 	switch(net->type) {
-	case NFCT_Q_CREATE:
-	case NFCT_Q_UPDATE:
-	case NFCT_Q_DESTROY:
+	case NET_T_STATE_NEW:
+	case NET_T_STATE_UPD:
+	case NET_T_STATE_DEL:
 		cn = (struct cache_ftfw *) 
 			cache_get_extra(STATE_SYNC(internal), u);
 
@@ -537,9 +537,9 @@ static void ftfw_run(void)
 
 		u = cache_get_conntrack(STATE_SYNC(internal), cn);
 		if (alarm_pending(&u->alarm))
-			tx_list_xmit(&cn->tx_list, u, NFCT_Q_DESTROY);
+			tx_list_xmit(&cn->tx_list, u, NET_T_STATE_DEL);
 		else
-			tx_list_xmit(&cn->tx_list, u, NFCT_Q_UPDATE);
+			tx_list_xmit(&cn->tx_list, u, NET_T_STATE_UPD);
 	}
 
 	/* reset alive alarm */

@@ -17,6 +17,13 @@ struct nethdr {
 };
 #define NETHDR_SIZ nethdr_align(sizeof(struct nethdr))
 
+enum nethdr_type {
+	NET_T_STATE_NEW = 0,
+	NET_T_STATE_UPD,
+	NET_T_STATE_DEL,
+	NET_T_STATE_MAX = NET_T_STATE_DEL,
+};
+
 int nethdr_align(int len);
 int nethdr_size(int len);
 void nethdr_set(struct nethdr *net, int type);

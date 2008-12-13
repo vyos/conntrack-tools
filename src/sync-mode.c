@@ -68,7 +68,7 @@ static void do_mcast_handler_step(struct nethdr *net, size_t remain)
 	}
 
 	switch(net->type) {
-	case NFCT_Q_CREATE:
+	case NET_T_STATE_NEW:
 retry:		
 		if ((u = cache_add(STATE_SYNC(external), ct))) {
 			debug_ct(u->ct, "external new");
@@ -85,13 +85,13 @@ retry:
 			debug_ct(ct, "can't add");
 		}
 		break;
-	case NFCT_Q_UPDATE:
+	case NET_T_STATE_UPD:
 		if ((u = cache_update_force(STATE_SYNC(external), ct))) {
 			debug_ct(u->ct, "external update");
 		} else
 			debug_ct(ct, "can't update");
 		break;
-	case NFCT_Q_DESTROY:
+	case NET_T_STATE_DEL:
 		if (cache_del(STATE_SYNC(external), ct))
 			debug_ct(ct, "external destroy");
 		else
@@ -415,7 +415,7 @@ static int purge_step(void *data1, void *data2)
 	ret = nfct_query(h, NFCT_Q_GET, u->ct);
 	if (ret == -1 && errno == ENOENT) {
 		debug_ct(u->ct, "overrun purge resync");
-		mcast_send_sync(u, NFCT_Q_DESTROY);
+		mcast_send_sync(u, NET_T_STATE_DEL);
 		__cache_del_timer(STATE_SYNC(internal), u, CONFIG(del_timeout));
 	}
 
@@ -448,7 +448,7 @@ static int overrun_sync(enum nf_conntrack_msg_type type,
 	if (!cache_test(STATE_SYNC(internal), ct)) {
 		if ((u = cache_update_force(STATE_SYNC(internal), ct))) {
 			debug_ct(u->ct, "overrun resync");
-			mcast_send_sync(u, NFCT_Q_UPDATE);
+			mcast_send_sync(u, NET_T_STATE_UPD);
 		}
 	}
 
@@ -466,7 +466,7 @@ static void event_new_sync(struct nf_conntrack *ct)
 	nfct_attr_unset(ct, ATTR_REPL_COUNTER_PACKETS);
 retry:
 	if ((u = cache_add(STATE_SYNC(internal), ct))) {
-		mcast_send_sync(u, NFCT_Q_CREATE);
+		mcast_send_sync(u, NET_T_STATE_NEW);
 		debug_ct(u->ct, "internal new");
 	} else {
 		if (errno == EEXIST) {
@@ -489,7 +489,7 @@ static void event_update_sync(struct nf_conntrack *ct)
 		return;
 	}
 	debug_ct(u->ct, "internal update");
-	mcast_send_sync(u, NFCT_Q_UPDATE);
+	mcast_send_sync(u, NET_T_STATE_UPD);
 }
 
 static int event_destroy_sync(struct nf_conntrack *ct)
@@ -502,7 +502,7 @@ static int event_destroy_sync(struct nf_conntrack *ct)
 		return 0;
 	}
 
-	mcast_send_sync(u, NFCT_Q_DESTROY);
+	mcast_send_sync(u, NET_T_STATE_DEL);
 	__cache_del_timer(STATE_SYNC(internal), u, CONFIG(del_timeout));
 	debug_ct(ct, "internal destroy");
 	return 1;
