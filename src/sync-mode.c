@@ -59,6 +59,11 @@ static void do_mcast_handler_step(struct nethdr *net, size_t remain)
 			break;
 	}
 
+	if (net->type > NET_T_STATE_MAX) {
+		STATE(malformed)++;
+		dlog(LOG_ERR, "bad state message type");
+		return;
+	}
 	memset(ct, 0, sizeof(__ct));
 
 	if (parse_payload(ct, net, remain) == -1) {
