@@ -499,7 +499,7 @@ static int tx_queue_xmit(void *data1, const void *data2)
 	mcast_buffered_send_netmsg(STATE_SYNC(mcast_client), net);
 	HDR_NETWORK2HOST(net);
 
-	if (IS_DATA(net) || IS_ACK(net) || IS_NACK(net))
+	if (IS_ACK(net) || IS_NACK(net))
 		queue_add(rs_queue, net, net->len);
 
 	queue_del(tx_queue, net);
