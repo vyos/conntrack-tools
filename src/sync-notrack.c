@@ -61,6 +61,7 @@ static struct cache_extra cache_notrack_extra = {
 static void tx_queue_add_ctlmsg(uint32_t flags, uint32_t from, uint32_t to)
 {
 	struct nethdr_ack ack = {
+		.type  = NET_T_CTL,
 		.flags = flags,
 		.from  = from,
 		.to    = to,

@@ -58,7 +58,7 @@ void nethdr_set(struct nethdr *net, int type)
 
 void nethdr_set_ack(struct nethdr *net)
 {
-	__nethdr_set(net, NETHDR_ACK_SIZ, 0);
+	__nethdr_set(net, NETHDR_ACK_SIZ, NET_T_CTL);
 }
 
 static size_t tx_buflenmax;

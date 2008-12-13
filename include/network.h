@@ -22,6 +22,7 @@ enum nethdr_type {
 	NET_T_STATE_UPD,
 	NET_T_STATE_DEL,
 	NET_T_STATE_MAX = NET_T_STATE_DEL,
+	NET_T_CTL = 10,
 };
 
 int nethdr_align(int len);
@@ -95,11 +96,12 @@ void mcast_buffered_destroy(void);
 int mcast_buffered_send_netmsg(struct mcast_sock *m, const struct nethdr *net);
 ssize_t mcast_buffered_pending_netmsg(struct mcast_sock *m);
 
-#define IS_DATA(x)	((x->flags & ~(NET_F_HELLO | NET_F_HELLO_BACK)) == 0)
-#define IS_ACK(x)	(x->flags & NET_F_ACK)
-#define IS_NACK(x)	(x->flags & NET_F_NACK)
-#define IS_RESYNC(x)	(x->flags & NET_F_RESYNC)
-#define IS_ALIVE(x)	(x->flags & NET_F_ALIVE)
+#define IS_DATA(x)	(x->type <= NET_T_STATE_MAX && \
+			(x->flags & ~(NET_F_HELLO | NET_F_HELLO_BACK)) == 0)
+#define IS_ACK(x)	(x->type == NET_T_CTL && x->flags & NET_F_ACK)
+#define IS_NACK(x)	(x->type == NET_T_CTL && x->flags & NET_F_NACK)
+#define IS_RESYNC(x)	(x->type == NET_T_CTL && x->flags & NET_F_RESYNC)
+#define IS_ALIVE(x)	(x->type == NET_T_CTL && x->flags & NET_F_ALIVE)
 #define IS_CTL(x)	IS_ACK(x) || IS_NACK(x) || IS_RESYNC(x) || IS_ALIVE(x)
 #define IS_HELLO(x)	(x->flags & NET_F_HELLO)
 #define IS_HELLO_BACK(x)(x->flags & NET_F_HELLO_BACK)
