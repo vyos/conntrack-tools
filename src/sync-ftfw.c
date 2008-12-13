@@ -121,6 +121,31 @@ static void tx_queue_add_ctlmsg(uint32_t flags, uint32_t from, uint32_t to)
 	write_evfd(STATE_SYNC(evfd));
 }
 
+static void tx_queue_add_ctlmsg2(uint32_t flags)
+{
+	struct nethdr ctl = {
+		.type  = NET_T_CTL,
+		.flags = flags,
+	};
+
+	switch(hello_state) {
+	case HELLO_INIT:
+		hello_state = HELLO_SAY;
+		/* fall through */
+	case HELLO_SAY:
+		ctl.flags |= NET_F_HELLO;
+		break;
+	}
+
+	if (say_hello_back) {
+		ctl.flags |= NET_F_HELLO_BACK;
+		say_hello_back = 0;
+	}
+
+	queue_add(tx_queue, &ctl, NETHDR_SIZ);
+	write_evfd(STATE_SYNC(evfd));
+}
+
 /* this function is called from the alarm framework */
 static void do_alive_alarm(struct alarm_block *a, void *data)
 {
@@ -131,7 +156,7 @@ static void do_alive_alarm(struct alarm_block *a, void *data)
 				    STATE_SYNC(last_seq_recv));
 		ack_from_set = 0;
 	} else
-		tx_queue_add_ctlmsg(NET_F_ALIVE, 0, 0);
+		tx_queue_add_ctlmsg2(NET_F_ALIVE);
 }
 
 static int ftfw_init(void)
@@ -491,7 +516,14 @@ static int tx_queue_xmit(void *data1, const void *data2)
 {
 	struct nethdr *net = data1;
 
-	nethdr_set_ack(net);
+	if (IS_ACK(net) || IS_NACK(net) || IS_RESYNC(net)) {
+		nethdr_set_ack(net);
+	} else if (IS_ALIVE(net)) {
+		nethdr_set_ctl(net);
+	} else {
+		dlog(LOG_ERR, "sending unknown control message?");
+		return 0;
+	}
 	HDR_HOST2NETWORK(net);
 
 	dp("tx_queue sq: %u fl:%u len:%u\n",

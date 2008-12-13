@@ -131,7 +131,7 @@ static void mcast_handler(void)
 			break;
 		}
 
-		if (IS_CTL(net)) {
+		if (IS_ACK(net) || IS_NACK(net) || IS_RESYNC(net)) {
 			if (remain < NETHDR_ACK_SIZ) {
 				STATE(malformed)++;
 				dlog(LOG_WARNING, "no room for ctl message");

@@ -29,6 +29,7 @@ int nethdr_align(int len);
 int nethdr_size(int len);
 void nethdr_set(struct nethdr *net, int type);
 void nethdr_set_ack(struct nethdr *net);
+void nethdr_set_ctl(struct nethdr *net);
 
 #define NETHDR_DATA(x)							 \
 	(struct netattr *)(((char *)x) + NETHDR_SIZ)
@@ -102,7 +103,6 @@ ssize_t mcast_buffered_pending_netmsg(struct mcast_sock *m);
 #define IS_NACK(x)	(x->type == NET_T_CTL && x->flags & NET_F_NACK)
 #define IS_RESYNC(x)	(x->type == NET_T_CTL && x->flags & NET_F_RESYNC)
 #define IS_ALIVE(x)	(x->type == NET_T_CTL && x->flags & NET_F_ALIVE)
-#define IS_CTL(x)	IS_ACK(x) || IS_NACK(x) || IS_RESYNC(x) || IS_ALIVE(x)
 #define IS_HELLO(x)	(x->flags & NET_F_HELLO)
 #define IS_HELLO_BACK(x)(x->flags & NET_F_HELLO_BACK)
 
@@ -110,7 +110,7 @@ ssize_t mcast_buffered_pending_netmsg(struct mcast_sock *m);
 ({									\
 	x->len   = ntohs(x->len);					\
 	x->seq   = ntohl(x->seq);					\
-	if (IS_CTL(x)) {						\
+	if (IS_ACK(x) || IS_NACK(x) || IS_RESYNC(x)) {			\
 		struct nethdr_ack *__ack = (struct nethdr_ack *) x;	\
 		__ack->from = ntohl(__ack->from);			\
 		__ack->to = ntohl(__ack->to);				\
@@ -119,7 +119,7 @@ ssize_t mcast_buffered_pending_netmsg(struct mcast_sock *m);
 
 #define HDR_HOST2NETWORK(x)						\
 ({									\
-	if (IS_CTL(x)) {						\
+	if (IS_ACK(x) || IS_NACK(x) || IS_RESYNC(x)) {			\
 		struct nethdr_ack *__ack = (struct nethdr_ack *) x;	\
 		__ack->from = htonl(__ack->from);			\
 		__ack->to = htonl(__ack->to);				\
