@@ -53,10 +53,10 @@ struct nfct_handle *nl_init_event_handler(void)
 	fcntl(nfct_fd(h), F_SETFL, O_NONBLOCK);
 
 	/* set up socket buffer size */
-	if (CONFIG(netlink_buffer_size))
-		nfnl_rcvbufsiz(nfct_nfnlh(h),
-			       CONFIG(netlink_buffer_size));
-	else {
+	if (CONFIG(netlink_buffer_size)) {
+		CONFIG(netlink_buffer_size) = 
+		    nfnl_rcvbufsiz(nfct_nfnlh(h), CONFIG(netlink_buffer_size));
+	} else {
 		socklen_t socklen = sizeof(unsigned int);
 		unsigned int read_size;
 
@@ -66,6 +66,9 @@ struct nfct_handle *nl_init_event_handler(void)
 
 		CONFIG(netlink_buffer_size) = read_size;
 	}
+
+	dlog(LOG_NOTICE, "netlink event socket buffer size has been set "
+			 "to %u bytes", CONFIG(netlink_buffer_size));
 
 	/* ensure that maximum grown size is >= than maximum size */
 	if (CONFIG(netlink_buffer_size_max_grown) < CONFIG(netlink_buffer_size))
@@ -138,9 +141,8 @@ void nl_resize_socket_buffer(struct nfct_handle *h)
 	CONFIG(netlink_buffer_size) = nfnl_rcvbufsiz(nfct_nfnlh(h), s);
 
 	/* notify the sysadmin */
-	dlog(LOG_NOTICE, "netlink socket buffer size "
-			 "has been set to %u bytes",
-			 CONFIG(netlink_buffer_size));
+	dlog(LOG_NOTICE, "netlink socket buffer size has been increased "
+			 "to %u bytes", CONFIG(netlink_buffer_size));
 }
 
 int nl_dump_conntrack_table(struct nfct_handle *h)
