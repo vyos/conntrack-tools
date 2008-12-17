@@ -221,15 +221,15 @@ static inline int
 __ct_filter_test_ipv4(struct ct_filter *f, struct nf_conntrack *ct)
 {
 	/* we only use the real source and destination address */
-	return (hashtable_test(f->h, nfct_get_attr(ct, ATTR_ORIG_IPV4_SRC)) ||
-		hashtable_test(f->h, nfct_get_attr(ct, ATTR_REPL_IPV4_SRC)));
+	return (hashtable_find(f->h, nfct_get_attr(ct, ATTR_ORIG_IPV4_SRC)) ||
+		hashtable_find(f->h, nfct_get_attr(ct, ATTR_REPL_IPV4_SRC)));
 }
 
 static inline int
 __ct_filter_test_ipv6(struct ct_filter *f, struct nf_conntrack *ct)
 {
-	return (hashtable_test(f->h6, nfct_get_attr(ct, ATTR_ORIG_IPV6_SRC)) ||
-	        hashtable_test(f->h6, nfct_get_attr(ct, ATTR_REPL_IPV6_SRC)));
+	return (hashtable_find(f->h6, nfct_get_attr(ct, ATTR_ORIG_IPV6_SRC)) ||
+	        hashtable_find(f->h6, nfct_get_attr(ct, ATTR_REPL_IPV6_SRC)));
 }
 
 static int

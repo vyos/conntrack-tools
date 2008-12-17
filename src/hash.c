@@ -113,7 +113,7 @@ void *hashtable_add(struct hashtable *table, void *data)
 	return n->data;
 }
 
-void *hashtable_test(struct hashtable *table, const void *data)
+void *hashtable_find(struct hashtable *table, const void *data)
 {
 	struct slist_head *e;
 	uint32_t id;

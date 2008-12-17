@@ -38,7 +38,7 @@ hashtable_create(int hashsize, int limit, int datasize,
 void hashtable_destroy(struct hashtable *h);
 
 void *hashtable_add(struct hashtable *table, void *data);
-void *hashtable_test(struct hashtable *table, const void *data);
+void *hashtable_find(struct hashtable *table, const void *data);
 int hashtable_del(struct hashtable *table, void *data);
 int hashtable_flush(struct hashtable *table);
 int hashtable_iterate(struct hashtable *table, void *data,

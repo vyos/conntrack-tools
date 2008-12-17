@@ -254,7 +254,7 @@ static struct us_conntrack *__update(struct cache *c, struct nf_conntrack *ct)
 
 	u->ct = ct;
 
-	u = (struct us_conntrack *) hashtable_test(c->h, u);
+	u = (struct us_conntrack *) hashtable_find(c->h, u);
 	if (u) {
 		__cache_update(c, u, ct);
 		return u;
@@ -341,7 +341,7 @@ int cache_test(struct cache *c, struct nf_conntrack *ct)
 
 	u->ct = ct;
 
-	ret = hashtable_test(c->h, u);
+	ret = hashtable_find(c->h, u);
 
 	return ret != NULL;
 }
@@ -354,7 +354,7 @@ int cache_del(struct cache *c, struct nf_conntrack *ct)
 
 	u->ct = ct;
 
-	u = (struct us_conntrack *) hashtable_test(c->h, u);
+	u = (struct us_conntrack *) hashtable_find(c->h, u);
 	if (u) {
 		__cache_del(c, u);
 		return 1;
@@ -401,7 +401,7 @@ struct us_conntrack *cache_find(struct cache *c, struct nf_conntrack *ct)
 
 	u->ct = ct;
 
-	return ((struct us_conntrack *) hashtable_test(c->h, u));
+	return ((struct us_conntrack *) hashtable_find(c->h, u));
 }
 
 struct us_conntrack *cache_get_conntrack(struct cache *c, void *data)
