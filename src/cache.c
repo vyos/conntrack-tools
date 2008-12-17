@@ -276,7 +276,7 @@ struct us_conntrack *cache_update(struct cache *c, struct nf_conntrack *ct)
 	return NULL;
 }
 
-static void __del2(struct cache *c, struct us_conntrack *u)
+static void __del(struct cache *c, struct us_conntrack *u)
 {
 	unsigned i;
 	char *data = u->data;
@@ -306,7 +306,7 @@ static void __cache_del(struct cache *c, struct us_conntrack *u)
 		c->active--;
 	}
 	del_alarm(&u->alarm);
-	__del2(c, u);
+	__del(c, u);
 }
 
 struct us_conntrack *cache_update_force(struct cache *c,
@@ -368,7 +368,7 @@ static void __del_timeout(struct alarm_block *a, void *data)
 {
 	struct us_conntrack *u = (struct us_conntrack *) data;
 
-	__del2(u->cache, u);
+	__del(u->cache, u);
 }
 
 int
