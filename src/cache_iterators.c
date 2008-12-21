@@ -195,6 +195,7 @@ void cache_commit(struct cache *c)
 	unsigned int commit_exist = c->stats.commit_exist;
 	unsigned int commit_fail = c->stats.commit_fail;
 	struct __commit_container tmp;
+	struct timeval commit_start, commit_stop, res;
 
 	tmp.h = nfct_open(CONNTRACK, 0);
 	if (tmp.h == NULL) {
@@ -203,9 +204,12 @@ void cache_commit(struct cache *c)
 	}
 	tmp.c = c;
 
+	gettimeofday(&commit_start, NULL);
 	/* commit master conntrack first, then related ones */
 	hashtable_iterate(c->h, &tmp, do_commit_master);
 	hashtable_iterate(c->h, &tmp, do_commit_related);
+	gettimeofday(&commit_stop, NULL);
+	timersub(&commit_stop, &commit_start, &res);
 
 	/* calculate new entries committed */
 	commit_ok = c->stats.commit_ok - commit_ok;
@@ -222,6 +226,9 @@ void cache_commit(struct cache *c)
 		dlog(LOG_NOTICE, "%u entries can't be "
 				 "committed", commit_fail);
 	nfct_close(tmp.h);
+
+	dlog(LOG_NOTICE, "commit has taken %llu.%06llu seconds", 
+			res.tv_sec, res.tv_usec);
 }
 
 static int do_reset_timers(void *data1, void *data2)
