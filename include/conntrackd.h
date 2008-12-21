@@ -28,6 +28,7 @@
 #define DEBUG_INFO	27	/* show debug info (if any)		*/
 #define STATS_NETWORK	28	/* extended network stats		*/
 #define STATS_CACHE	29	/* extended cache stats			*/
+#define STATS_RUNTIME	30	/* extended runtime stats		*/
 
 #define DEFAULT_CONFIGFILE	"/etc/conntrackd/conntrackd.conf"
 #define DEFAULT_LOCKFILE	"/var/lock/conntrackd.lock"
@@ -111,8 +112,32 @@ struct ct_general_state {
 	struct fds			*fds;
 
 	/* statistics */
-	uint64_t 			bytes[NFCT_DIR_MAX];
-	uint64_t 			packets[NFCT_DIR_MAX];
+	struct {
+		uint64_t 		bytes[NFCT_DIR_MAX];
+		uint64_t 		packets[NFCT_DIR_MAX];
+
+		time_t			daemon_start_time;
+
+		uint64_t		nl_events_received;
+		uint64_t		nl_events_filtered;
+		uint32_t		nl_events_unknown_type;
+		uint32_t		nl_catch_event_failed;
+		uint32_t		nl_overrun;
+		uint32_t		nl_dump_unknown_type;
+		uint32_t		nl_kernel_table_flush;
+		uint32_t		nl_kernel_table_resync;
+
+		uint32_t		child_process_failed;
+		uint32_t		child_process_error_segfault;
+		uint32_t		child_process_error_term;
+
+		uint32_t		select_failed;
+		uint32_t		wait_failed;
+
+		uint32_t		local_read_failed;
+		uint32_t		local_unknown_request;
+
+	} stats;
 };
 
 #define STATE_SYNC(x) state.sync->x

@@ -21,13 +21,13 @@
 
 void update_traffic_stats(struct nf_conntrack *ct)
 {
-	STATE(bytes)[NFCT_DIR_ORIGINAL] +=
+	STATE(stats).bytes[NFCT_DIR_ORIGINAL] +=
 		nfct_get_attr_u32(ct, ATTR_ORIG_COUNTER_BYTES);
-	STATE(bytes)[NFCT_DIR_REPLY] +=
+	STATE(stats).bytes[NFCT_DIR_REPLY] +=
 		nfct_get_attr_u32(ct, ATTR_REPL_COUNTER_BYTES);
-	STATE(packets)[NFCT_DIR_ORIGINAL] += 
+	STATE(stats).packets[NFCT_DIR_ORIGINAL] += 
 		nfct_get_attr_u32(ct, ATTR_ORIG_COUNTER_PACKETS);
-	STATE(packets)[NFCT_DIR_REPLY] +=
+	STATE(stats).packets[NFCT_DIR_REPLY] +=
 		nfct_get_attr_u32(ct, ATTR_REPL_COUNTER_PACKETS);
 }
 
@@ -35,10 +35,10 @@ void dump_traffic_stats(int fd)
 {
 	char buf[512];
 	int size;
-	uint64_t bytes = STATE(bytes)[NFCT_DIR_ORIGINAL] +
-			  STATE(bytes)[NFCT_DIR_REPLY];
-	uint64_t packets = STATE(packets)[NFCT_DIR_ORIGINAL] +
-			    STATE(packets)[NFCT_DIR_REPLY];
+	uint64_t bytes = STATE(stats).bytes[NFCT_DIR_ORIGINAL] +
+			  STATE(stats).bytes[NFCT_DIR_REPLY];
+	uint64_t packets = STATE(stats).packets[NFCT_DIR_ORIGINAL] +
+			    STATE(stats).packets[NFCT_DIR_REPLY];
 
 	size = sprintf(buf, "traffic processed:\n");
 	size += sprintf(buf+size, "%20llu Bytes      ", (unsigned long long)bytes);

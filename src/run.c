@@ -32,6 +32,7 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <string.h>
+#include <time.h>
 
 void killer(int foo)
 {
@@ -68,7 +69,7 @@ static void child(int foo)
 				continue;
 			if (errno == ECHILD)
 				break;
-			dlog(LOG_ERR, "wait has failed (%s)", strerror(errno));
+			STATE(stats).wait_failed++;
 			break;
 		}
 		if (!WIFSIGNALED(status))
@@ -78,6 +79,8 @@ static void child(int foo)
 		case SIGSEGV:
 			dlog(LOG_ERR, "child process (pid=%u) has aborted, "
 				      "received signal SIGSEGV (crashed)", ret);
+			STATE(stats).child_process_failed++;
+			STATE(stats).child_process_error_segfault++;
 			break;
 		case SIGINT:
 		case SIGTERM:
@@ -85,14 +88,85 @@ static void child(int foo)
 			dlog(LOG_ERR, "child process (pid=%u) has aborted, "
 				      "received termination signal (%u)",
 				      ret, WTERMSIG(status));
+			STATE(stats).child_process_failed++;
+			STATE(stats).child_process_error_term++;
 			break;
 		default:
 			dlog(LOG_NOTICE, "child process (pid=%u) "
 					 "received signal (%u)", 
 					 ret, WTERMSIG(status));
+			STATE(stats).child_process_failed++;
 			break;
 		}
 	}
+}
+
+static void uptime(char *buf, size_t bufsiz)
+{
+	time_t tmp;
+	int updays, upminutes, uphours;
+	size_t size = 0;
+
+	time(&tmp);
+	tmp = tmp - STATE(stats).daemon_start_time;
+	updays = (int) tmp / (60*60*24);
+	if (updays) {
+		size = snprintf(buf, bufsiz, "%d day%s ",
+				updays, (updays != 1) ? "s" : "");
+	}
+	upminutes = (int) tmp / 60;
+	uphours = (upminutes / 60) % 24;
+	upminutes %= 60;
+	if(uphours) {
+		snprintf(buf + size, bufsiz, "%d h %d min", uphours, upminutes);
+	} else {
+		snprintf(buf + size, bufsiz, "%d min", upminutes);
+	}
+}
+
+static void dump_stats_runtime(int fd)
+{
+	char buf[1024], uptime_string[512];
+	int size;
+
+	uptime(uptime_string, sizeof(uptime_string));
+	size = snprintf(buf, sizeof(buf),
+			"daemon uptime: %s\n\n"
+			"netlink stats:\n"
+			"\tevents received:\t%20llu\n"
+			"\tevents filtered:\t%20llu\n"
+			"\tevents unknown type:\t\t%12u\n"
+			"\tcatch event failed:\t\t%12u\n"
+			"\tdump unknown type:\t\t%12u\n"
+			"\tnetlink overrun:\t\t%12u\n"
+			"\tflush kernel table:\t\t%12u\n"
+			"\tresync with kernel table:\t%12u\n\n"
+			"runtime stats:\n"
+			"\tchild process failed:\t\t%12u\n"
+			"\t\tchild process segfault:\t%12u\n"
+			"\t\tchild process termsig:\t%12u\n"
+			"\tselect failed:\t\t\t%12u\n"
+			"\twait failed:\t\t\t%12u\n"
+			"\tlocal read failed:\t\t%12u\n"
+			"\tlocal unknown request:\t\t%12u\n\n",
+			uptime_string,
+			(unsigned long long)STATE(stats).nl_events_received,
+			(unsigned long long)STATE(stats).nl_events_filtered,
+			STATE(stats).nl_events_unknown_type,
+			STATE(stats).nl_catch_event_failed,
+			STATE(stats).nl_dump_unknown_type,
+			STATE(stats).nl_overrun,
+			STATE(stats).nl_kernel_table_flush,
+			STATE(stats).nl_kernel_table_resync,
+			STATE(stats).child_process_failed,
+			STATE(stats).child_process_error_segfault,
+			STATE(stats).child_process_error_term,
+			STATE(stats).select_failed,
+			STATE(stats).wait_failed,
+			STATE(stats).local_read_failed,
+			STATE(stats).local_unknown_request);
+
+	send(fd, buf, size, 0);
 }
 
 void local_handler(int fd, void *data)
@@ -102,7 +176,7 @@ void local_handler(int fd, void *data)
 
 	ret = read(fd, &type, sizeof(type));
 	if (ret == -1) {
-		dlog(LOG_ERR, "can't read from unix socket");
+		STATE(stats).local_read_failed++;
 		return;
 	}
 	if (ret == 0)
@@ -110,17 +184,22 @@ void local_handler(int fd, void *data)
 
 	switch(type) {
 	case FLUSH_MASTER:
+		STATE(stats).nl_kernel_table_flush++;
 		dlog(LOG_NOTICE, "flushing kernel conntrack table");
 		nl_flush_conntrack_table(STATE(request));
 		return;
 	case RESYNC_MASTER:
+		STATE(stats).nl_kernel_table_resync++;
 		dlog(LOG_NOTICE, "resync with master table");
 		nl_dump_conntrack_table(STATE(dump));
+		return;
+	case STATS_RUNTIME:
+		dump_stats_runtime(fd);
 		return;
 	}
 
 	if (!STATE(mode)->local(fd, type, data))
-		dlog(LOG_WARNING, "unknown local request %d", type);
+		STATE(stats).local_unknown_request++;
 }
 
 static void do_overrun_alarm(struct alarm_block *a, void *data)
@@ -133,9 +212,13 @@ static int event_handler(enum nf_conntrack_msg_type type,
 			 struct nf_conntrack *ct,
 			 void *data)
 {
+	STATE(stats).nl_events_received++;
+
 	/* skip user-space filtering if already do it in the kernel */
-	if (ct_filter_conntrack(ct, !CONFIG(filter_from_kernelspace)))
+	if (ct_filter_conntrack(ct, !CONFIG(filter_from_kernelspace))) {
+		STATE(stats).nl_events_filtered++;
 		return NFCT_CB_STOP;
+	}
 
 	switch(type) {
 	case NFCT_T_NEW:
@@ -149,7 +232,7 @@ static int event_handler(enum nf_conntrack_msg_type type,
 			update_traffic_stats(ct);
 		break;
 	default:
-		dlog(LOG_WARNING, "unknown msg from ctnetlink\n");
+		STATE(stats).nl_events_unknown_type++;
 		break;
 	}
 
@@ -168,7 +251,7 @@ static int dump_handler(enum nf_conntrack_msg_type type,
 		STATE(mode)->dump(ct);
 		break;
 	default:
-		dlog(LOG_WARNING, "unknown msg from ctnetlink");
+		STATE(stats).nl_dump_unknown_type++;
 		break;
 	}
 	return NFCT_CB_CONTINUE;
@@ -281,6 +364,8 @@ init(void)
 	if (signal(SIGCHLD, child) == SIG_ERR)
 		return -1;
 
+	time(&STATE(stats).daemon_start_time);
+
 	dlog(LOG_NOTICE, "initialization completed");
 
 	return 0;
@@ -297,7 +382,7 @@ static void __run(struct timeval *next_alarm)
 		if (errno == EINTR)
 			return;
 
-		dlog(LOG_WARNING, "select failed: %s", strerror(errno));
+		STATE(stats).select_failed++;
 		return;
 	}
 
@@ -323,6 +408,8 @@ static void __run(struct timeval *next_alarm)
 				nl_resize_socket_buffer(STATE(event));
 				nl_overrun_request_resync(STATE(overrun));
 				add_alarm(&STATE(overrun_alarm), 2, 0);
+				STATE(stats).nl_catch_event_failed++;
+				STATE(stats).nl_overrun++;
 				break;
 			case ENOENT:
 				/*
@@ -334,8 +421,7 @@ static void __run(struct timeval *next_alarm)
 			case EAGAIN:
 				break;
 			default:
-				dlog(LOG_WARNING,
-				     "event catch says: %s", strerror(errno));
+				STATE(stats).nl_catch_event_failed++;
 				break;
 			}
 		}
