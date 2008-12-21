@@ -197,8 +197,7 @@ static int init_sync(void)
 			     STATE_SYNC(sync)->internal_cache_extra);
 
 	if (!STATE_SYNC(internal)) {
-		dlog(LOG_ERR, "can't allocate memory for "
-			      "the internal cache");
+		dlog(LOG_ERR, "can't allocate memory for the internal cache");
 		return -1;
 	}
 
@@ -212,8 +211,7 @@ static int init_sync(void)
 			     NULL);
 
 	if (!STATE_SYNC(external)) {
-		dlog(LOG_ERR, "can't allocate memory for the "
-			      "external cache");
+		dlog(LOG_ERR, "can't allocate memory for the external cache");
 		return -1;
 	}
 
@@ -383,8 +381,7 @@ static int local_handler_sync(int fd, int type, void *data)
 	case COMMIT:
 		ret = fork();
 		if (ret == 0) {
-			dlog(LOG_NOTICE, 
-			     "committing external cache");
+			dlog(LOG_NOTICE, "committing external cache");
 			cache_commit(STATE_SYNC(external));
 			exit(EXIT_SUCCESS);
 		}
