@@ -147,14 +147,17 @@ int mcast_track_seq(uint32_t seq, uint32_t *exp_seq)
 
 	/* out of sequence: some messages got lost */
 	if (after(seq, STATE_SYNC(last_seq_recv)+1)) {
-		STATE_SYNC(packets_lost) += seq-STATE_SYNC(last_seq_recv)+1;
+		STATE_SYNC(error).msg_rcv_lost +=
+					seq - STATE_SYNC(last_seq_recv) + 1;
 		ret = SEQ_AFTER;
 		goto out;
 	}
 
 	/* out of sequence: replayed/delayed packet? */
-	if (before(seq, STATE_SYNC(last_seq_recv)+1))
+	if (before(seq, STATE_SYNC(last_seq_recv)+1)) {
+		STATE_SYNC(error).msg_rcv_before++;
 		ret = SEQ_BEFORE;
+	}
 
 out:
 	*exp_seq = STATE_SYNC(last_seq_recv)+1;

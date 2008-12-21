@@ -26,6 +26,7 @@
 #define DUMP_EXT_XML	25	/* dump external cache in XML		*/
 #define RESET_TIMERS	26	/* reset kernel timers			*/
 #define DEBUG_INFO	27	/* show debug info (if any)		*/
+#define STATS_NETWORK	28	/* extended network stats		*/
 
 #define DEFAULT_CONFIGFILE	"/etc/conntrackd/conntrackd.conf"
 #define DEFAULT_LOCKFILE	"/var/lock/conntrackd.lock"
@@ -109,7 +110,6 @@ struct ct_general_state {
 	struct fds			*fds;
 
 	/* statistics */
-	uint64_t			malformed;
 	uint64_t 			bytes[NFCT_DIR_MAX];
 	uint64_t 			packets[NFCT_DIR_MAX];
 };
@@ -126,10 +126,22 @@ struct ct_sync_state {
 
 	struct sync_mode *sync;		/* sync mode */
 
+	/* statistics */
+	struct {
+		uint64_t	msg_rcv_malformed;
+		uint32_t	msg_rcv_bad_version;
+		uint32_t	msg_rcv_bad_payload;
+		uint32_t	msg_rcv_bad_header;
+		uint32_t	msg_rcv_bad_type;
+		uint32_t	msg_rcv_truncated;
+		uint32_t	msg_rcv_bad_size;
+		uint32_t	msg_snd_malformed;
+		uint64_t	msg_rcv_lost;
+		uint64_t	msg_rcv_before;
+	} error;
+
 	uint32_t last_seq_sent;	/* last sequence number sent */
 	uint32_t last_seq_recv;	/* last sequence number recv */
-	uint64_t packets_replayed;	/* number of replayed packets */
-	uint64_t packets_lost;         /* lost packets: sequence tracking */
 };
 
 #define STATE_STATS(x) state.stats->x

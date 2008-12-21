@@ -441,8 +441,6 @@ static int ftfw_recv(const struct nethdr *net)
 
 	case SEQ_BEFORE:
 		/* we don't accept delayed packets */
-		dlog(LOG_WARNING, "Received seq=%u before expected seq=%u",
-				   net->seq, exp_seq);
 		ret = MSG_DROP;
 		break;
 
@@ -521,7 +519,7 @@ static int tx_queue_xmit(void *data1, const void *data2)
 	} else if (IS_ALIVE(net)) {
 		nethdr_set_ctl(net);
 	} else {
-		dlog(LOG_ERR, "sending unknown control message?");
+		STATE_SYNC(error).msg_snd_malformed++;
 		return 0;
 	}
 	HDR_HOST2NETWORK(net);

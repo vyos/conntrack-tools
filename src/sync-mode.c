@@ -41,8 +41,8 @@ static void do_mcast_handler_step(struct nethdr *net, size_t remain)
 	struct us_conntrack *u;
 
 	if (net->version != CONNTRACKD_PROTOCOL_VERSION) {
-		STATE(malformed)++;
-		dlog(LOG_WARNING, "wrong protocol version `%u'", net->version);
+		STATE_SYNC(error).msg_rcv_malformed++;
+		STATE_SYNC(error).msg_rcv_bad_version++;
 		return;
 	}
 
@@ -53,22 +53,23 @@ static void do_mcast_handler_step(struct nethdr *net, size_t remain)
 		case MSG_CTL:
 			return;
 		case MSG_BAD:
-			STATE(malformed)++;
+			STATE_SYNC(error).msg_rcv_malformed++;
+			STATE_SYNC(error).msg_rcv_bad_header++;
 			return;
 		default:
 			break;
 	}
 
 	if (net->type > NET_T_STATE_MAX) {
-		STATE(malformed)++;
-		dlog(LOG_ERR, "bad state message type");
+		STATE_SYNC(error).msg_rcv_malformed++;
+		STATE_SYNC(error).msg_rcv_bad_type++;
 		return;
 	}
 	memset(ct, 0, sizeof(__ct));
 
 	if (parse_payload(ct, net, remain) == -1) {
-		STATE(malformed)++;
-		dlog(LOG_ERR, "parsing failed: malformed message");
+		STATE_SYNC(error).msg_rcv_malformed++;
+		STATE_SYNC(error).msg_rcv_bad_payload++;
 		return;
 	}
 
@@ -103,8 +104,8 @@ retry:
 			debug_ct(ct, "can't destroy");
 		break;
 	default:
-		STATE(malformed)++;
-		dlog(LOG_ERR, "mcast unknown query %d\n", net->type);
+		STATE_SYNC(error).msg_rcv_malformed++;
+		STATE_SYNC(error).msg_rcv_bad_type++;
 		break;
 	}
 }
@@ -125,31 +126,31 @@ static void mcast_handler(void)
 		struct nethdr *net = (struct nethdr *) ptr;
 
 		if (remain < NETHDR_SIZ) {
-			STATE(malformed)++;
-			dlog(LOG_WARNING, "no room for header");
+			STATE_SYNC(error).msg_rcv_malformed++;
+			STATE_SYNC(error).msg_rcv_truncated++;
 			break;
 		}
 
 		if (ntohs(net->len) > remain) {
-			STATE(malformed)++;
-			dlog(LOG_WARNING, "fragmented message");
+			STATE_SYNC(error).msg_rcv_malformed++;
+			STATE_SYNC(error).msg_rcv_bad_size++;
 			break;
 		}
 
 		if (IS_ACK(net) || IS_NACK(net) || IS_RESYNC(net)) {
 			if (remain < NETHDR_ACK_SIZ) {
-				STATE(malformed)++;
-				dlog(LOG_WARNING, "no room for ctl message");
+				STATE_SYNC(error).msg_rcv_malformed++;
+				STATE_SYNC(error).msg_rcv_truncated++;
 			}
 
 			if (ntohs(net->len) < NETHDR_ACK_SIZ) {
-				STATE(malformed)++;
-				dlog(LOG_WARNING, "ctl header too small");
+				STATE_SYNC(error).msg_rcv_malformed++;
+				STATE_SYNC(error).msg_rcv_bad_size++;
 			}
 		} else {
 			if (ntohs(net->len) < NETHDR_SIZ) {
-				STATE(malformed)++;
-				dlog(LOG_WARNING, "header too small");
+				STATE_SYNC(error).msg_rcv_malformed++;
+				STATE_SYNC(error).msg_rcv_bad_size++;
 			}
 		}
 
@@ -304,8 +305,43 @@ static void dump_stats_sync(int fd)
 	size = sprintf(buf, "multicast sequence tracking:\n"
 			    "%20llu Pckts mfrm "
 			    "%20llu Pckts lost\n\n",
-			(unsigned long long)STATE(malformed),
-			(unsigned long long)STATE_SYNC(packets_lost));
+			(unsigned long long)STATE_SYNC(error).msg_rcv_malformed,
+			(unsigned long long)STATE_SYNC(error).msg_rcv_lost);
+
+	send(fd, buf, size, 0);
+}
+
+static void dump_stats_sync_extended(int fd)
+{
+	char buf[512];
+	int size;
+
+	size = snprintf(buf, sizeof(buf),
+			"network statistics:\n"
+			"\trecv:\n"
+			"\t\tMalformed messages:\t%20llu\n"
+			"\t\tWrong protocol version:\t%20u\n"
+			"\t\tMalformed header:\t%20u\n"
+			"\t\tMalformed payload:\t%20u\n"
+			"\t\tBad message type:\t%20u\n"
+			"\t\tTruncated message:\t%20u\n"
+			"\t\tBad message size:\t%20u\n"
+			"\tsend:\n"
+			"\t\tMalformed messages:\t%20u\n\n"
+			"sequence tracking statistics:\n"
+			"\trecv:\n"
+			"\t\tPackets lost:\t\t%20llu\n"
+			"\t\tPackets before:\t\t%20llu\n\n",
+			(unsigned long long)STATE_SYNC(error).msg_rcv_malformed,
+			STATE_SYNC(error).msg_rcv_bad_version,
+			STATE_SYNC(error).msg_rcv_bad_header,
+			STATE_SYNC(error).msg_rcv_bad_payload,
+			STATE_SYNC(error).msg_rcv_bad_type,
+			STATE_SYNC(error).msg_rcv_truncated,
+			STATE_SYNC(error).msg_rcv_bad_size,
+			STATE_SYNC(error).msg_snd_malformed,
+			(unsigned long long)STATE_SYNC(error).msg_rcv_lost,
+			(unsigned long long)STATE_SYNC(error).msg_rcv_before);
 
 	send(fd, buf, size, 0);
 }
@@ -376,6 +412,11 @@ static int local_handler_sync(int fd, int type, void *data)
 		mcast_dump_stats(fd, STATE_SYNC(mcast_client), 
 				     STATE_SYNC(mcast_server));
 		dump_stats_sync(fd);
+		break;
+	case STATS_NETWORK:
+		dump_stats_sync_extended(fd);
+		mcast_dump_stats(fd, STATE_SYNC(mcast_client), 
+				     STATE_SYNC(mcast_server));
 		break;
 	default:
 		if (STATE_SYNC(sync)->local)
