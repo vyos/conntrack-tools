@@ -33,17 +33,6 @@
 #define DEFAULT_STATS_LOGFILE	"/var/log/conntrackd-stats.log"
 #define DEFAULT_SYSLOG_FACILITY	LOG_DAEMON
 
-enum {
-	SYNC_MODE_ALARM_BIT = 0,
-	SYNC_MODE_ALARM = (1 << SYNC_MODE_ALARM_BIT),
-
-	SYNC_MODE_FTFW_BIT = 1,
-	SYNC_MODE_FTFW = (1 << SYNC_MODE_FTFW_BIT),
-
-	DONT_CHECKSUM_BIT = 2,
-	DONT_CHECKSUM = (1 << DONT_CHECKSUM_BIT),
-};
-
 /* daemon/request modes */
 #define NOT_SET         0
 #define DAEMON		1
