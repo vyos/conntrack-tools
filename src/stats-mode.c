@@ -79,6 +79,9 @@ static int local_handler_stats(int fd, int type, void *data)
 		cache_stats(STATE_STATS(cache), fd);
 		dump_traffic_stats(fd);
 		break;
+	case STATS_CACHE:
+		cache_stats_extended(STATE_STATS(cache), fd);
+		break;
 	default:
 		ret = 0;
 		break;

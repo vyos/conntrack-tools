@@ -206,7 +206,7 @@ static struct us_conntrack *__add(struct cache *c, struct nf_conntrack *ct)
 		if (c->extra && c->extra->add)
 			c->extra->add(u, ((char *) u) + c->extra_offset);
 
-		c->active++;
+		c->stats.active++;
 		return u;
 	}
 	free(newct);
@@ -220,11 +220,16 @@ struct us_conntrack *cache_add(struct cache *c, struct nf_conntrack *ct)
 
 	u = __add(c, ct);
 	if (u) {
-		c->add_ok++;
+		c->stats.add_ok++;
 		return u;
 	}
-	if (errno != EEXIST)
-		c->add_fail++;
+	if (errno != EEXIST) {
+		c->stats.add_fail++;
+		if (errno == ENOSPC)
+			c->stats.add_fail_enospc++;
+		if (errno == ENOMEM)
+			c->stats.add_fail_enomem++;
+	}
 
 	return NULL;
 }
@@ -268,10 +273,12 @@ struct us_conntrack *cache_update(struct cache *c, struct nf_conntrack *ct)
 
 	u = __update(c, ct);
 	if (u) {
-		c->upd_ok++;
+		c->stats.upd_ok++;
 		return u;
 	}
-	c->upd_fail++;
+	c->stats.upd_fail++;
+	if (errno == ENOENT)
+		c->stats.upd_fail_enoent++;
 	
 	return NULL;
 }
@@ -302,8 +309,8 @@ static void __cache_del(struct cache *c, struct us_conntrack *u)
 	 * __cache_del_timer.
 	 */
 	if (!alarm_pending(&u->alarm)) {
-		c->del_ok++;
-		c->active--;
+		c->stats.del_ok++;
+		c->stats.active--;
 	}
 	del_alarm(&u->alarm);
 	__del(c, u);
@@ -317,7 +324,7 @@ struct us_conntrack *cache_update_force(struct cache *c,
 	u = cache_find(c, ct);
 	if (u) {
 		if (!alarm_pending(&u->alarm)) {
-			c->upd_ok++;
+			c->stats.upd_ok++;
 			__cache_update(c, u, ct);
 			return u;
 		} else {
@@ -325,10 +332,15 @@ struct us_conntrack *cache_update_force(struct cache *c,
 		}
 	}
 	if ((u = __add(c, ct)) != NULL) {
-		c->add_ok++;
+		c->stats.add_ok++;
 		return u;
 	}
-	c->add_fail++;
+	c->stats.add_fail++;
+	if (errno == ENOSPC)
+		c->stats.add_fail_enospc++;
+	if (errno == ENOMEM)
+		c->stats.add_fail_enomem++;
+
 	return NULL;
 }
 
@@ -359,7 +371,9 @@ int cache_del(struct cache *c, struct nf_conntrack *ct)
 		__cache_del(c, u);
 		return 1;
 	}
-	c->del_fail++;
+	c->stats.del_fail++;
+	if (errno == ENOENT)
+		c->stats.del_fail_enoent++;
 
 	return 0;
 }
@@ -386,8 +400,8 @@ __cache_del_timer(struct cache *c, struct us_conntrack *u, int timeout)
 		 * that the replication protocol does not work 
 		 * properly.
 		 */
-		c->del_ok++;
-		c->active--;
+		c->stats.del_ok++;
+		c->stats.active--;
 		return 1;
 	}
 	return 0;
@@ -425,13 +439,46 @@ void cache_stats(const struct cache *c, int fd)
 			    "connections updated:\t\t%12u\tfailed:\t%12u\n"
 			    "connections destroyed:\t\t%12u\tfailed:\t%12u\n\n",
 			    			 c->name,
-						 c->active,
-			    			 c->add_ok, 
-			    			 c->add_fail,
-						 c->upd_ok,
-						 c->upd_fail,
-						 c->del_ok,
-						 c->del_fail);
+						 c->stats.active,
+			    			 c->stats.add_ok, 
+			    			 c->stats.add_fail,
+						 c->stats.upd_ok,
+						 c->stats.upd_fail,
+						 c->stats.del_ok,
+						 c->stats.del_fail);
+	send(fd, buf, size, 0);
+}
+
+void cache_stats_extended(const struct cache *c, int fd)
+{
+	char buf[512];
+	int size;
+
+	size = snprintf(buf, sizeof(buf),
+			    "cache:%s\tactive connections:\t%12u\n"
+			    "\tcreation OK:\t\t\t%12u\n"
+			    "\tcreation failed:\t\t%12u\n"
+			    "\t\tno memory available:\t%12u\n"
+			    "\t\tno space left in cache:\t%12u\n"
+			    "\tupdate OK:\t\t\t%12u\n"
+			    "\tupdate failed:\t\t\t%12u\n"
+			    "\t\tentry not found:\t%12u\n"
+			    "\tdeletion created:\t\t%12u\n"
+			    "\tdeletion failed:\t\t%12u\n"
+			    "\t\tentry not found:\t%12u\n",
+			    c->name,
+			    c->stats.active,
+			    c->stats.add_ok,
+			    c->stats.add_fail,
+			    c->stats.add_fail_enomem,
+			    c->stats.add_fail_enospc,
+			    c->stats.upd_ok,
+			    c->stats.upd_fail,
+			    c->stats.upd_fail_enoent,
+			    c->stats.del_ok,
+			    c->stats.del_fail,
+			    c->stats.del_fail_enoent);
+
 	send(fd, buf, size, 0);
 }
 

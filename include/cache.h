@@ -50,21 +50,28 @@ struct cache {
 	unsigned int extra_offset;
 
         /* statistics */
-	unsigned int active;
+	struct {
+		uint32_t	active;
+	
+		uint32_t	add_ok;
+		uint32_t	del_ok;
+		uint32_t	upd_ok;
+		
+		uint32_t	add_fail;
+		uint32_t	del_fail;
+		uint32_t	upd_fail;
 
-	unsigned int add_ok;
-	unsigned int del_ok;
-	unsigned int upd_ok;
+		uint32_t	add_fail_enomem;
+		uint32_t	add_fail_enospc;
+		uint32_t	del_fail_enoent;
+		uint32_t	upd_fail_enoent;
 
-	unsigned int add_fail;
-	unsigned int del_fail;
-	unsigned int upd_fail;
+		uint32_t	commit_ok;
+		uint32_t	commit_exist;
+		uint32_t	commit_fail;
 
-	unsigned int commit_ok;
-	unsigned int commit_exist;
-	unsigned int commit_fail;
-
-	unsigned int flush;
+		uint32_t	flush;
+	} stats;
 };
 
 struct cache_extra {
@@ -88,6 +95,7 @@ int __cache_del_timer(struct cache *c, struct us_conntrack *u, int timeout);
 struct us_conntrack *cache_find(struct cache *c, struct nf_conntrack *ct);
 int cache_test(struct cache *c, struct nf_conntrack *ct);
 void cache_stats(const struct cache *c, int fd);
+void cache_stats_extended(const struct cache *c, int fd);
 struct us_conntrack *cache_get_conntrack(struct cache *, void *);
 void *cache_get_extra(struct cache *, void *);
 void cache_iterate(struct cache *c, void *data, int (*iterate)(void *data1, void *data2));

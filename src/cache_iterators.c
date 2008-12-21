@@ -130,12 +130,12 @@ try_again:
 			}
 			dlog(LOG_ERR, "commit-create: %s", strerror(errno));
 			dlog_ct(STATE(log), ct, NFCT_O_PLAIN);
-			tmp->c->commit_fail++;
+			tmp->c->stats.commit_fail++;
 		} else
-			tmp->c->commit_ok++;
+			tmp->c->stats.commit_ok++;
 		break;
 	case 1:
-		tmp->c->commit_exist++;
+		tmp->c->stats.commit_exist++;
 		if (nl_update_conntrack(tmp->h, ct) == -1) {
 			if (errno == ENOMEM || errno == ETIME) {
 				if (retry) {
@@ -154,14 +154,14 @@ try_again:
 				}
 				dlog(LOG_ERR, "commit-rm: %s", strerror(errno));
 				dlog_ct(STATE(log), ct, NFCT_O_PLAIN);
-				tmp->c->commit_fail++;
+				tmp->c->stats.commit_fail++;
 				break;
 			} 
 			dlog(LOG_ERR, "commit-update: %s", strerror(errno));
 			dlog_ct(STATE(log), ct, NFCT_O_PLAIN);
-			tmp->c->commit_fail++;
+			tmp->c->stats.commit_fail++;
 		} else
-			tmp->c->commit_ok++;
+			tmp->c->stats.commit_ok++;
 		break;
 	}
 }
@@ -191,9 +191,9 @@ static int do_commit_master(void *data1, void *data2)
 /* no need to clone, called from child process */
 void cache_commit(struct cache *c)
 {
-	unsigned int commit_ok = c->commit_ok;
-	unsigned int commit_exist = c->commit_exist;
-	unsigned int commit_fail = c->commit_fail;
+	unsigned int commit_ok = c->stats.commit_ok;
+	unsigned int commit_exist = c->stats.commit_exist;
+	unsigned int commit_fail = c->stats.commit_fail;
 	struct __commit_container tmp;
 
 	tmp.h = nfct_open(CONNTRACK, 0);
@@ -208,9 +208,9 @@ void cache_commit(struct cache *c)
 	hashtable_iterate(c->h, &tmp, do_commit_related);
 
 	/* calculate new entries committed */
-	commit_ok = c->commit_ok - commit_ok;
-	commit_fail = c->commit_fail - commit_fail;
-	commit_exist = c->commit_exist - commit_exist;
+	commit_ok = c->stats.commit_ok - commit_ok;
+	commit_fail = c->stats.commit_fail - commit_fail;
+	commit_exist = c->stats.commit_exist - commit_exist;
 
 	/* log results */
 	dlog(LOG_NOTICE, "Committed %u new entries", commit_ok);
@@ -292,5 +292,5 @@ static int do_flush(void *data1, void *data2)
 void cache_flush(struct cache *c)
 {
 	hashtable_iterate(c->h, c, do_flush);
-	c->flush++;
+	c->stats.flush++;
 }

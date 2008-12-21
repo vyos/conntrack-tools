@@ -418,6 +418,10 @@ static int local_handler_sync(int fd, int type, void *data)
 		mcast_dump_stats(fd, STATE_SYNC(mcast_client), 
 				     STATE_SYNC(mcast_server));
 		break;
+	case STATS_CACHE:
+		cache_stats_extended(STATE_SYNC(internal), fd);
+		cache_stats_extended(STATE_SYNC(external), fd);
+		break;
 	default:
 		if (STATE_SYNC(sync)->local)
 			ret = STATE_SYNC(sync)->local(fd, type, data);
@@ -519,9 +523,6 @@ retry:
 			cache_del(STATE_SYNC(internal), ct);
 			goto retry;
 		}
-
-		dlog(LOG_ERR, "can't add to internal cache: "
-			      "%s\n", strerror(errno));
 		debug_ct(ct, "can't add");
 	}
 }

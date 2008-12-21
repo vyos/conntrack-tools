@@ -27,6 +27,7 @@
 #define RESET_TIMERS	26	/* reset kernel timers			*/
 #define DEBUG_INFO	27	/* show debug info (if any)		*/
 #define STATS_NETWORK	28	/* extended network stats		*/
+#define STATS_CACHE	29	/* extended cache stats			*/
 
 #define DEFAULT_CONFIGFILE	"/etc/conntrackd/conntrackd.conf"
 #define DEFAULT_LOCKFILE	"/var/lock/conntrackd.lock"

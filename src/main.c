@@ -43,7 +43,7 @@ static const char usage_client_commands[] =
 	"  -i, display content of the internal cache\n"
 	"  -e, display the content of the external cache\n"
 	"  -k, kill conntrack daemon\n"
-	"  -s  [|network], dump statistics\n"
+	"  -s  [|network|cache], dump statistics\n"
 	"  -R, resync with kernel conntrack table\n"
 	"  -n, request resync with other node (only FT-FW and NOTRACK modes)\n"
 	"  -x, dump cache in XML format (requires -i or -e)"
@@ -160,6 +160,10 @@ int main(int argc, char *argv[])
 				if (strncmp(argv[i+1], "network",
 					    strlen(argv[i+1])) == 0) {
 					action = STATS_NETWORK;
+					i++;
+				} else if (strncmp(argv[i+1], "cache",
+						 strlen(argv[i+1])) == 0) {
+					action = STATS_CACHE;
 					i++;
 				} else {
 					fprintf(stderr, "ERROR: unknown "
