@@ -455,7 +455,7 @@ void cache_stats_extended(const struct cache *c, int fd)
 	int size;
 
 	size = snprintf(buf, sizeof(buf),
-			    "cache:%s\tactive connections:\t%12u\n"
+			    "cache:%s\tactive/total entries:\t%12u/%12u\n"
 			    "\tcreation OK:\t\t\t%12u\n"
 			    "\tcreation failed:\t\t%12u\n"
 			    "\t\tno memory available:\t%12u\n"
@@ -467,7 +467,7 @@ void cache_stats_extended(const struct cache *c, int fd)
 			    "\tdeletion failed:\t\t%12u\n"
 			    "\t\tentry not found:\t%12u\n",
 			    c->name,
-			    c->stats.active,
+			    c->stats.active, hashtable_counter(c->h),
 			    c->stats.add_ok,
 			    c->stats.add_fail,
 			    c->stats.add_fail_enomem,
