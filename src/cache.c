@@ -88,7 +88,7 @@ static int compare(const void *data1, const void *data2)
 	const struct us_conntrack *u1 = data1;
 	const struct us_conntrack *u2 = data2;
 
-	return nfct_cmp(u1->ct, u2->ct, NFCT_CMP_ORIG | NFCT_CMP_REPL);
+	return nfct_cmp(u1->ct, u2->ct, NFCT_CMP_ORIG);
 }
 
 struct cache_feature *cache_feature[CACHE_MAX_FEATURE] = {
