@@ -318,7 +318,8 @@ static int ct_filter_check(struct ct_filter *f, struct nf_conntrack *ct)
 
 	if (f->logic[CT_FILTER_STATE] != -1) {
 		ret = __ct_filter_test_state(f, ct);
-		if (ret ^ f->logic[CT_FILTER_STATE])
+		/* ret is -1 if we don't know what to do */
+		if (ret != -1 && ret ^ f->logic[CT_FILTER_STATE])
 			return 0;
 	}
 
