@@ -118,7 +118,8 @@ static int warned = 0;
 
 void nl_resize_socket_buffer(struct nfct_handle *h)
 {
-	unsigned int s = CONFIG(netlink_buffer_size) * 2;
+	/* sock_setsockopt in net/core/sock.c doubles the size of the buffer */
+	unsigned int s = CONFIG(netlink_buffer_size);
 
 	/* already warned that we have reached the maximum buffer size */
 	if (warned)
