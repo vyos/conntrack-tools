@@ -31,7 +31,7 @@ struct hashtable_node *hashtable_alloc_node(int datasize, void *data)
 	int size = sizeof(struct hashtable_node) + datasize;
 
 	n = calloc(size, 1);
-	if (!n)
+	if (n == NULL)
 		return NULL;
 	memcpy(n->data, data, datasize);
 
@@ -55,7 +55,7 @@ hashtable_create(int hashsize, int limit, int datasize,
 		   + hashsize * sizeof(struct slist_head);
 
 	h = (struct hashtable *) calloc(size, 1);
-	if (!h) {
+	if (h == NULL) {
 		errno = ENOMEM;
 		return NULL;
 	}
