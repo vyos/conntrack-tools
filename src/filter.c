@@ -44,19 +44,19 @@ struct ct_filter {
 #define FILTER_POOL_SIZE 128
 #define FILTER_POOL_LIMIT INT_MAX
 
-static uint32_t hash(const void *data, const struct hashtable *table)
+static uint32_t ct_filter_hash(const void *data, const struct hashtable *table)
 {
 	const uint32_t *f = data;
 
 	return jhash_1word(*f, 0) % table->hashsize;
 }
 
-static uint32_t hash6(const void *data, const struct hashtable *table)
+static uint32_t ct_filter_hash6(const void *data, const struct hashtable *table)
 {
 	return jhash2(data, 4, 0) % table->hashsize;
 }
 
-static int compare(const void *data1, const void *data2)
+static int ct_filter_compare(const void *data1, const void *data2)
 {
 	const uint32_t *f1 = data1;
 	const uint32_t *f2 = data2;
@@ -64,7 +64,7 @@ static int compare(const void *data1, const void *data2)
 	return *f1 == *f2;
 }
 
-static int compare6(const void *data1, const void *data2)
+static int ct_filter_compare6(const void *data1, const void *data2)
 {
 	return memcmp(data1, data2, sizeof(uint32_t)*4) == 0;
 }
@@ -81,8 +81,8 @@ struct ct_filter *ct_filter_create(void)
 	filter->h = hashtable_create(FILTER_POOL_SIZE,
 				     FILTER_POOL_LIMIT,
 				     sizeof(uint32_t),
-				     hash,
-				     compare);
+				     ct_filter_hash,
+				     ct_filter_compare);
 	if (!filter->h) {
 		free(filter);
 		return NULL;
@@ -91,8 +91,8 @@ struct ct_filter *ct_filter_create(void)
 	filter->h6 = hashtable_create(FILTER_POOL_SIZE,
 				      FILTER_POOL_LIMIT,
 				      sizeof(uint32_t)*4,
-				      hash6,
-				      compare6);
+				      ct_filter_hash6,
+				      ct_filter_compare6);
 	if (!filter->h6) {
 		free(filter->h);
 		free(filter);
