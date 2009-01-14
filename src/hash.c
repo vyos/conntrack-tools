@@ -46,7 +46,8 @@ void hashtable_destroy_node(struct hashtable_node *h)
 
 struct hashtable *
 hashtable_create(int hashsize, int limit, int datasize,
-		 uint32_t (*hash)(const void *data, struct hashtable *table),
+		 uint32_t (*hash)(const void *data,
+		 		  const struct hashtable *table),
 		 int (*compare)(const void *data1, const void *data2))
 {
 	int i;

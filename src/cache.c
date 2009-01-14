@@ -28,7 +28,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-static uint32_t __hash4(const struct nf_conntrack *ct, struct hashtable *table)
+static uint32_t
+__hash4(const struct nf_conntrack *ct, const struct hashtable *table)
 {
 	uint32_t a[4] = {
 		[0]	= nfct_get_attr_u32(ct, ATTR_IPV4_SRC),
@@ -49,7 +50,8 @@ static uint32_t __hash4(const struct nf_conntrack *ct, struct hashtable *table)
 	return ((uint64_t)jhash2(a, 4, 0) * table->hashsize) >> 32;
 }
 
-static uint32_t __hash6(const struct nf_conntrack *ct, struct hashtable *table)
+static uint32_t
+__hash6(const struct nf_conntrack *ct, const struct hashtable *table)
 {
 	uint32_t a[10];
 
@@ -63,7 +65,7 @@ static uint32_t __hash6(const struct nf_conntrack *ct, struct hashtable *table)
 	return ((uint64_t)jhash2(a, 10, 0) * table->hashsize) >> 32;
 }
 
-static uint32_t hash(const void *data, struct hashtable *table)
+static uint32_t hash(const void *data, const struct hashtable *table)
 {
 	int ret = 0;
 	const struct us_conntrack *u = data;

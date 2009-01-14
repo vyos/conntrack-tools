@@ -44,14 +44,14 @@ struct ct_filter {
 #define FILTER_POOL_SIZE 128
 #define FILTER_POOL_LIMIT INT_MAX
 
-static uint32_t hash(const void *data, struct hashtable *table)
+static uint32_t hash(const void *data, const struct hashtable *table)
 {
 	const uint32_t *f = data;
 
 	return jhash_1word(*f, 0) % table->hashsize;
 }
 
-static uint32_t hash6(const void *data, struct hashtable *table)
+static uint32_t hash6(const void *data, const struct hashtable *table)
 {
 	return jhash2(data, 4, 0) % table->hashsize;
 }
