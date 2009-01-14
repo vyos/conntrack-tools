@@ -140,7 +140,8 @@ static void dump_stats_runtime(int fd)
 			"\tdump unknown type:\t\t%12u\n"
 			"\tnetlink overrun:\t\t%12u\n"
 			"\tflush kernel table:\t\t%12u\n"
-			"\tresync with kernel table:\t%12u\n\n"
+			"\tresync with kernel table:\t%12u\n"
+			"\tcurrent buffer size (in bytes):\t%12u\n\n"
 			"runtime stats:\n"
 			"\tchild process failed:\t\t%12u\n"
 			"\t\tchild process segfault:\t%12u\n"
@@ -158,6 +159,7 @@ static void dump_stats_runtime(int fd)
 			STATE(stats).nl_overrun,
 			STATE(stats).nl_kernel_table_flush,
 			STATE(stats).nl_kernel_table_resync,
+			CONFIG(netlink_buffer_size),
 			STATE(stats).child_process_failed,
 			STATE(stats).child_process_error_segfault,
 			STATE(stats).child_process_error_term,
