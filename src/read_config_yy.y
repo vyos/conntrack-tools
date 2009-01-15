@@ -59,7 +59,7 @@ static void __kernel_filter_add_state(int value);
 %token T_SYSLOG T_WRITE_THROUGH T_STAT_BUFFER_SIZE T_DESTROY_TIMEOUT
 %token T_MCAST_RCVBUFF T_MCAST_SNDBUFF T_NOTRACK
 %token T_FILTER T_ADDRESS T_PROTOCOL T_STATE T_ACCEPT T_IGNORE
-%token T_FROM T_USERSPACE T_KERNELSPACE
+%token T_FROM T_USERSPACE T_KERNELSPACE T_EVENT_ITER_LIMIT
 
 %token <string> T_IP T_PATH_VAL
 %token <val> T_NUMBER
@@ -681,6 +681,7 @@ general_line: hashsize
 	    | netlink_buffer_size
 	    | netlink_buffer_size_max_grown
 	    | family
+	    | event_iterations_limit
 	    | filter
 	    ;
 
@@ -700,6 +701,11 @@ family : T_FAMILY T_STRING
 		conf.family = AF_INET6;
 	else
 		conf.family = AF_INET;
+};
+
+event_iterations_limit : T_EVENT_ITER_LIMIT T_NUMBER
+{
+	CONFIG(event_iterations_limit) = $2;
 };
 
 filter : T_FILTER '{' filter_list '}'
@@ -1095,6 +1101,9 @@ init_config(char *filename)
 	/* double of 120 seconds which is common timeout of a final state */
 	if (conf.flags & CTD_SYNC_FTFW && CONFIG(del_timeout) == 0)
 		CONFIG(del_timeout) = 240;
+
+	if (CONFIG(event_iterations_limit) == 0)
+		CONFIG(event_iterations_limit) = 100;
 
 	return 0;
 }

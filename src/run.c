@@ -219,7 +219,7 @@ static int event_handler(enum nf_conntrack_msg_type type,
 	/* skip user-space filtering if already do it in the kernel */
 	if (ct_filter_conntrack(ct, !CONFIG(filter_from_kernelspace))) {
 		STATE(stats).nl_events_filtered++;
-		return NFCT_CB_STOP;
+		goto out;
 	}
 
 	switch(type) {
@@ -238,7 +238,12 @@ static int event_handler(enum nf_conntrack_msg_type type,
 		break;
 	}
 
-	return NFCT_CB_CONTINUE;
+out:
+	if (STATE(event_iterations_limit)-- <= 0) {
+		STATE(event_iterations_limit) = CONFIG(event_iterations_limit);
+		return NFCT_CB_STOP;
+	} else
+		return NFCT_CB_CONTINUE;
 }
 
 static int dump_handler(enum nf_conntrack_msg_type type,
@@ -397,7 +402,7 @@ static void __run(struct timeval *next_alarm)
 
 	/* conntrack event has happened */
 	if (FD_ISSET(nfct_fd(STATE(event)), &readfds)) {
-		while ((ret = nfct_catch(STATE(event))) != -1);
+		ret = nfct_catch(STATE(event));
 		if (ret == -1) {
 			switch(errno) {
 			case ENOBUFS:

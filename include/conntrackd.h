@@ -84,6 +84,7 @@ struct ct_conf {
 	unsigned int window_size;
 	int cache_write_through;
 	int filter_from_kernelspace;
+	int event_iterations_limit;
 	struct {
 		char logfile[FILENAME_MAXLEN];
 		int syslog_facility;
@@ -103,6 +104,7 @@ struct ct_general_state {
 
 	struct nfct_handle		*event;         /* event handler */
 	struct nfct_filter		*filter;	/* event filter */
+	int				event_iterations_limit;
 
 	struct nfct_handle		*dump;		/* dump handler */
 	struct nfct_handle		*request;	/* request handler */
