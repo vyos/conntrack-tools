@@ -17,6 +17,8 @@
  */
 #include <unistd.h>
 #include <stdlib.h>
+#include <unistd.h>
+#include <fcntl.h>
 
 #include "event.h"
 
@@ -37,6 +39,7 @@ struct evfd *create_evfd(void)
 		free(e);
 		return NULL;
 	}
+	fcntl(e->fds[0], F_SETFL, O_NONBLOCK);
 
 	return e;
 }
@@ -55,19 +58,20 @@ int get_read_evfd(struct evfd *evfd)
 
 int write_evfd(struct evfd *evfd)
 {
-	int data = 0;
+	int data = 0, ret = 0;
 
-	if (evfd->read)
-		return 0;
+	if (evfd->read == 0)
+		ret = write(evfd->fds[1], &data, sizeof(data));
+	evfd->read++;
 
-	evfd->read = 1;
-	return write(evfd->fds[1], &data, sizeof(data));
+	return ret;
 }
 
 int read_evfd(struct evfd *evfd)
 {
-	int data;
+	int data, ret = 0;
 
-	evfd->read = 0;
-	return read(evfd->fds[0], &data, sizeof(data));
+	if (--evfd->read == 0)
+		ret = read(evfd->fds[0], &data, sizeof(data));
+	return ret;
 }

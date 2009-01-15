@@ -1,28 +1,53 @@
 #ifndef _QUEUE_H_
 #define _QUEUE_H_
 
+#include <stdint.h>
 #include "linux_list.h"
 
-struct queue {
-	size_t max_size;
-	size_t cur_size;
-	unsigned int num_elems;
-	struct list_head head;
-};
-
 struct queue_node {
-	struct list_head head;
-	size_t size;
-	char data[0];
+	struct list_head	head;
+	uint32_t		type;
+	struct queue		*owner;
+	size_t 			size;
 };
 
-struct queue *queue_create(size_t max_size);
+enum {
+	Q_ELEM_OBJ = 0,
+	Q_ELEM_CTL = 1
+};
+
+void queue_node_init(struct queue_node *n, int type);
+void *queue_node_data(struct queue_node *n);
+
+struct queue_object {
+	struct queue_node	qnode;
+	char			data[0];
+};
+
+struct queue_object *queue_object_new(int type, size_t size);
+void queue_object_free(struct queue_object *obj);
+
+struct evfd;
+
+struct queue {
+	unsigned int		max_elems;
+	unsigned int		num_elems;
+	uint32_t		flags;
+	struct list_head	head;
+	struct evfd		*evfd;
+};
+
+#define QUEUE_F_EVFD (1U << 0)
+
+struct queue *queue_create(int max_objects, unsigned int flags);
 void queue_destroy(struct queue *b);
 unsigned int queue_len(const struct queue *b);
-int queue_add(struct queue *b, const void *data, size_t size);
-void queue_del(struct queue *b, void *data);
+int queue_add(struct queue *b, struct queue_node *n);
+int queue_del(struct queue_node *n);
+int queue_in(struct queue *b, struct queue_node *n);
 void queue_iterate(struct queue *b,
 		   const void *data,
-		   int (*iterate)(void *data1, const void *data2));
+		   int (*iterate)(struct queue_node *n, const void *data2));
+int queue_get_eventfd(struct queue *b);
 
 #endif

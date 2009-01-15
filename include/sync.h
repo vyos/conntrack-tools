@@ -1,8 +1,11 @@
 #ifndef _SYNC_HOOKS_H_
 #define _SYNC_HOOKS_H_
 
+#include <sys/select.h>
+
 struct nethdr;
 struct cache_object;
+struct fds;
 
 struct sync_mode {
 	int internal_cache_flags;
@@ -15,7 +18,8 @@ struct sync_mode {
 	int  (*local)(int fd, int type, void *data);
 	int  (*recv)(const struct nethdr *net);
 	void (*send)(struct nethdr *net, struct cache_object *obj);
-	void (*run)(void);
+	void (*run)(fd_set *readfds);
+	int (*register_fds)(struct fds *fds);
 };
 
 extern struct sync_mode sync_alarm;

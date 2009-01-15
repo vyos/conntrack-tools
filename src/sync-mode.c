@@ -242,12 +242,6 @@ static int init_sync(void)
 		return -1;
 	}
 
-	STATE_SYNC(evfd) = create_evfd();
-	if (STATE_SYNC(evfd) == NULL) {
-		dlog(LOG_ERR, "cannot open evfd");
-		return -1;
-	}
-
 	/* initialization of multicast sequence generation */
 	STATE_SYNC(last_seq_sent) = time(NULL);
 
@@ -259,7 +253,10 @@ static int register_fds_sync(struct fds *fds)
 	if (register_fd(STATE_SYNC(mcast_server->fd), fds) == -1)
 		return -1;
 
-	return register_fd(get_read_evfd(STATE_SYNC(evfd)), fds);
+	if (STATE_SYNC(sync)->register_fds)
+		return STATE_SYNC(sync)->register_fds(fds);
+
+	return 0;
 }
 
 static void run_sync(fd_set *readfds)
@@ -268,11 +265,8 @@ static void run_sync(fd_set *readfds)
 	if (FD_ISSET(STATE_SYNC(mcast_server->fd), readfds))
 		mcast_handler();
 
-	if (FD_ISSET(get_read_evfd(STATE_SYNC(evfd)), readfds) && 
-	    STATE_SYNC(sync)->run) {
-	    	read_evfd(STATE_SYNC(evfd));
-		STATE_SYNC(sync)->run();
-	}
+	if (STATE_SYNC(sync)->run)
+		STATE_SYNC(sync)->run(readfds);
 
 	/* flush pending messages */
 	mcast_buffered_pending_netmsg(STATE_SYNC(mcast_client));
@@ -285,8 +279,6 @@ static void kill_sync(void)
 
 	mcast_server_destroy(STATE_SYNC(mcast_server));
 	mcast_client_destroy(STATE_SYNC(mcast_client));
-
-	destroy_evfd(STATE_SYNC(evfd));
 
 	mcast_buffered_destroy();
 

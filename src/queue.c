@@ -1,5 +1,5 @@
 /*
- * (C) 2006-2008 by Pablo Neira Ayuso <pablo@netfilter.org>
+ * (C) 2006-2009 by Pablo Neira Ayuso <pablo@netfilter.org>
  * 
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,110 +17,122 @@
  */
 
 #include "queue.h"
+#include "event.h"
 
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 
-struct queue *queue_create(size_t max_size)
+struct queue *queue_create(int max_objects, unsigned int flags)
 {
 	struct queue *b;
 
-	b = malloc(sizeof(struct queue));
+	b = calloc(sizeof(struct queue), 1);
 	if (b == NULL)
 		return NULL;
-	memset(b, 0, sizeof(struct queue));
 
-	b->max_size = max_size;
+	b->max_elems = max_objects;
 	INIT_LIST_HEAD(&b->head);
+	b->flags = flags;
+
+	if (flags & QUEUE_F_EVFD) {
+		b->evfd = create_evfd();
+		if (b->evfd == NULL) {
+			free(b);
+			return NULL;
+		}
+	}
 
 	return b;
 }
 
 void queue_destroy(struct queue *b)
 {
-	struct list_head *i, *tmp;
-	struct queue_node *node;
-
-	/* XXX: set cur_size and num_elems */
-	list_for_each_safe(i, tmp, &b->head) {
-		node = (struct queue_node *) i;
-		list_del(i);
-		free(node);
-	}
+	if (b->flags & QUEUE_F_EVFD)
+		destroy_evfd(b->evfd);
 	free(b);
 }
 
-static struct queue_node *queue_node_create(const void *data, size_t size)
+void queue_node_init(struct queue_node *n, int type)
 {
-	struct queue_node *n;
+	INIT_LIST_HEAD(&n->head);
+	n->type = type;
+}
 
-	n = malloc(sizeof(struct queue_node) + size);
-	if (n == NULL)
+void *queue_node_data(struct queue_node *n)
+{
+	return ((char *)n) + sizeof(struct queue_node);
+}
+
+struct queue_object *queue_object_new(int type, size_t size)
+{
+	struct queue_object *obj;
+
+	obj = calloc(sizeof(struct queue_object) + size, 1);
+	if (obj == NULL)
 		return NULL;
 
-	n->size = size;
-	memcpy(n->data, data, size);
+	obj->qnode.size = size;
+	queue_node_init(&obj->qnode, type);
 
-	return n;
+	return obj;
 }
 
-int queue_add(struct queue *b, const void *data, size_t size)
+void queue_object_free(struct queue_object *obj)
 {
-	int ret = 0;
-	struct queue_node *n;
+	free(obj);
+}
 
-	/* does it fit this queue? */
-	if (size > b->max_size) {
+int queue_add(struct queue *b, struct queue_node *n)
+{
+	if (!list_empty(&n->head))
+		return 0;
+
+	if (b->num_elems >= b->max_elems) {
 		errno = ENOSPC;
-		ret = -1;
-		goto err;
+		return -1;
 	}
-
-retry:
-	/* queue is full: kill the oldest entry */
-	if (b->cur_size + size > b->max_size) {
-		n = (struct queue_node *) b->head.prev;
-		list_del(b->head.prev);
-		b->cur_size -= n->size;
-		free(n);
-		goto retry;
-	}
-
-	n = queue_node_create(data, size);
-	if (n == NULL) {
-		ret = -1;
-		goto err;
-	}
-
+	n->owner = b;
 	list_add_tail(&n->head, &b->head);
-	b->cur_size += size;
 	b->num_elems++;
-
-err:
-	return ret;
+	if (b->evfd)
+		write_evfd(b->evfd);
+	return 1;
 }
 
-void queue_del(struct queue *b, void *data)
+int queue_del(struct queue_node *n)
 {
-	struct queue_node *n = container_of(data, struct queue_node, data); 
+	if (list_empty(&n->head))
+		return 0;
 
-	list_del(&n->head);
-	b->cur_size -= n->size;
-	b->num_elems--;
-	free(n);
+	list_del_init(&n->head);
+	n->owner->num_elems--;
+	if (n->owner->evfd)
+		read_evfd(n->owner->evfd);
+	n->owner = NULL;
+	return 1;
+}
+
+int queue_in(struct queue *b, struct queue_node *n)
+{
+	return b == n->owner;
+}
+
+int queue_get_eventfd(struct queue *b)
+{
+	return get_read_evfd(b->evfd);
 }
 
 void queue_iterate(struct queue *b, 
 		   const void *data, 
-		   int (*iterate)(void *data1, const void *data2))
+		   int (*iterate)(struct queue_node *n, const void *data2))
 {
 	struct list_head *i, *tmp;
 	struct queue_node *n;
 
 	list_for_each_safe(i, tmp, &b->head) {
 		n = (struct queue_node *) i;
-		if (iterate(n->data, data))
+		if (iterate(n, data))
 			break;
 	}
 }
