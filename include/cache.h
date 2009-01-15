@@ -23,11 +23,19 @@ enum {
 };
 #define CACHE_MAX_FEATURE __CACHE_MAX_FEATURE
 
+enum {
+	C_OBJ_NONE = 0,		/* not in the cache */
+	C_OBJ_NEW,		/* just added to the cache */
+	C_OBJ_ALIVE,		/* in the cache, alive */
+	C_OBJ_DEAD		/* still in the cache, but dead */
+};
+
 struct cache;
 struct cache_object {
 	struct	hashtable_node hashnode;
 	struct	nf_conntrack *ct;
 	struct	cache *cache;
+	int	status;
 	struct	alarm_block alarm;
 	char	data[0];
 };

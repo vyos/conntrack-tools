@@ -177,3 +177,16 @@ int mcast_track_is_seq_set()
 {
 	return local_seq_set;
 }
+
+#include "cache.h"
+
+static int status2type[] = {
+	[C_OBJ_NEW]	= NET_T_STATE_NEW,
+	[C_OBJ_ALIVE]	= NET_T_STATE_UPD,
+	[C_OBJ_DEAD]	= NET_T_STATE_DEL,
+};
+
+int object_status_to_network_type(int status)
+{
+	return status2type[status];
+}

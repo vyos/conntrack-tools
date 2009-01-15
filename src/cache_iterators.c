@@ -51,7 +51,7 @@ static int do_dump(void *data1, struct hashtable_node *n)
 	 * 	specific and it breaks conntrackd modularity. Probably
 	 * 	there's a nicer way to do this but until I come up with it...
 	 */
-	if (CONFIG(flags) & CTD_SYNC_FTFW && alarm_pending(&obj->alarm))
+	if (CONFIG(flags) & CTD_SYNC_FTFW && obj->status == C_OBJ_DEAD)
 		return 0;
 
 	/* do not show cached timeout, this may confuse users */

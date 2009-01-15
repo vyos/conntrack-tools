@@ -196,6 +196,7 @@ struct cache_object *cache_object_new(struct cache *c, struct nf_conntrack *ct)
 		return NULL;
 	}
 	memcpy(obj->ct, ct, nfct_sizeof(ct));
+	obj->status = C_OBJ_NONE;
 
 	return obj;
 }
@@ -225,6 +226,7 @@ static int __add(struct cache *c, struct cache_object *obj, int id)
 		c->extra->add(obj, ((char *) obj) + c->extra_offset);
 
 	c->stats.active++;
+	obj->status = C_OBJ_NEW;
 	return 0;
 }
 
@@ -260,6 +262,7 @@ void cache_update(struct cache *c, struct cache_object *obj, int id,
 		c->extra->update(obj, ((char *) obj) + c->extra_offset);
 
 	c->stats.upd_ok++;
+	obj->status = C_OBJ_ALIVE;
 }
 
 static void __del(struct cache *c, struct cache_object *obj)
@@ -285,7 +288,7 @@ void cache_del(struct cache *c, struct cache_object *obj)
 	 * kill an entry was previously deleted via
 	 * __cache_del_timer.
 	 */
-	if (!alarm_pending(&obj->alarm)) {
+	if (obj->status != C_OBJ_DEAD) {
 		c->stats.del_ok++;
 		c->stats.active--;
 	}
@@ -301,7 +304,7 @@ cache_update_force(struct cache *c, struct nf_conntrack *ct)
 
 	obj = cache_find(c, ct, &id);
 	if (obj) {
-		if (!alarm_pending(&obj->alarm)) {
+		if (obj->status != C_OBJ_DEAD) {
 			cache_update(c, obj, id, ct);
 			return obj;
 		} else {
@@ -333,7 +336,8 @@ int cache_del_timer(struct cache *c, struct cache_object *obj, int timeout)
 		cache_object_free(obj);
 		return 1;
 	}
-	if (!alarm_pending(&obj->alarm)) {
+	if (obj->status != C_OBJ_DEAD) {
+		obj->status = C_OBJ_DEAD;
 		add_alarm(&obj->alarm, timeout, 0);
 		/*
 		 * increase stats even if this entry was not really
