@@ -207,7 +207,7 @@ void local_handler(int fd, void *data)
 static void do_overrun_alarm(struct alarm_block *a, void *data)
 {
 	nl_overrun_request_resync(STATE(overrun));
-	add_alarm(&STATE(overrun_alarm), 2, 0);
+	STATE(stats).nl_kernel_table_resync++;
 }
 
 static int event_handler(enum nf_conntrack_msg_type type,
@@ -378,6 +378,9 @@ init(void)
 	return 0;
 }
 
+/* interval of 30s. for between two overrun */
+#define OVRUN_INT	30
+
 static void __run(struct timeval *next_alarm)
 {
 	int ret;
@@ -406,15 +409,33 @@ static void __run(struct timeval *next_alarm)
 		if (ret == -1) {
 			switch(errno) {
 			case ENOBUFS:
-				/*
-				 * It seems that ctnetlink can't back off,
-				 * it's likely that we're losing events.
-				 * Solution: duplicate the socket buffer
-				 * size and resync with master conntrack table.
+				/* We have hit ENOBUFS, it's likely that we are
+				 * losing events. Two possible situations may
+				 * trigger this error:
+				 *
+				 * 1) The netlink receiver buffer is too small:
+				 *    increasing the netlink buffer size should
+				 *    be enough. However, some event messages
+				 *    got lost. We have to resync ourselves
+				 *    with the kernel table conntrack table to
+				 *    resolve the inconsistency. 
+				 *
+				 * 2) The receiver is too slow to process the
+				 *    netlink messages so that the queue gets
+				 *    full quickly. This generally happens
+				 *    if the system is under heavy workload
+				 *    (busy CPU). In this case, increasing the
+				 *    size of the netlink receiver buffer
+				 *    would not help anymore since we would
+				 *    be delaying the overrun. Moreover, we
+				 *    should avoid resynchronizations. We 
+				 *    should do our best here and keep
+				 *    replicating as much states as possible.
+				 *    If workload lowers at some point,
+				 *    we resync ourselves.
 				 */
 				nl_resize_socket_buffer(STATE(event));
-				nl_overrun_request_resync(STATE(overrun));
-				add_alarm(&STATE(overrun_alarm), 2, 0);
+				add_alarm(&STATE(overrun_alarm), OVRUN_INT, 0);
 				STATE(stats).nl_catch_event_failed++;
 				STATE(stats).nl_overrun++;
 				break;
@@ -435,7 +456,6 @@ static void __run(struct timeval *next_alarm)
 	}
 
 	if (FD_ISSET(nfct_fd(STATE(overrun)), &readfds)) {
-		del_alarm(&STATE(overrun_alarm));
 		nfct_catch(STATE(overrun));
 		if (STATE(mode)->purge)
 			STATE(mode)->purge();
