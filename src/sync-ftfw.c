@@ -18,7 +18,6 @@
 
 #include "conntrackd.h"
 #include "sync.h"
-#include "us-conntrack.h"
 #include "queue.h"
 #include "debug.h"
 #include "network.h"
@@ -64,7 +63,7 @@ struct cache_ftfw {
 	uint32_t 		seq;
 };
 
-static void cache_ftfw_add(struct us_conntrack *u, void *data)
+static void cache_ftfw_add(struct cache_object *obj, void *data)
 {
 	struct cache_ftfw *cn = data;
 	/* These nodes are not inserted in the list */
@@ -72,7 +71,7 @@ static void cache_ftfw_add(struct us_conntrack *u, void *data)
 	INIT_LIST_HEAD(&cn->tx_list);
 }
 
-static void cache_ftfw_del(struct us_conntrack *u, void *data)
+static void cache_ftfw_del(struct cache_object *obj, void *data)
 {
 	struct cache_ftfw *cn = data;
 
@@ -190,8 +189,8 @@ static void ftfw_kill(void)
 
 static int do_cache_to_tx(void *data1, void *data2)
 {
-	struct us_conntrack *u = data2;
-	struct cache_ftfw *cn = cache_get_extra(STATE_SYNC(internal), u);
+	struct cache_object *obj = data2;
+	struct cache_ftfw *cn = cache_get_extra(STATE_SYNC(internal), obj);
 
 	/* repeated request for resync? */
 	if (!list_empty(&cn->tx_list))
@@ -226,9 +225,6 @@ static void debug_rs_dump(int fd)
 	size = sprintf(buf, "resent list (len=%u):\n", rs_list_len);
 	send(fd, buf, size, 0);
 	list_for_each_entry_safe(cn, tmp, &rs_list, rs_list) {
-		struct us_conntrack *u;
-		
-		u = cache_get_conntrack(STATE_SYNC(internal), cn);
 		size = sprintf(buf, "seq:%u\n", cn->seq);
 		send(fd, buf, size, 0);
 	}
@@ -305,9 +301,9 @@ static void rs_list_to_tx(struct cache *c, unsigned int from, unsigned int to)
 	struct cache_ftfw *cn, *tmp;
 
 	list_for_each_entry_safe(cn, tmp, &rs_list, rs_list) {
-		struct us_conntrack *u;
+		struct cache_object *obj;;
 		
-		u = cache_get_conntrack(STATE_SYNC(internal), cn);
+		obj = cache_data_get_object(STATE_SYNC(internal), cn);
 		if (before(cn->seq, from))
 			continue;
 		else if (after(cn->seq, to))
@@ -330,9 +326,9 @@ static void rs_list_empty(struct cache *c, unsigned int from, unsigned int to)
 	struct cache_ftfw *cn, *tmp;
 
 	list_for_each_entry_safe(cn, tmp, &rs_list, rs_list) {
-		struct us_conntrack *u;
+		struct cache_object *obj;
 
-		u = cache_get_conntrack(STATE_SYNC(internal), cn);
+		obj = cache_data_get_object(STATE_SYNC(internal), cn);
 		if (before(cn->seq, from))
 			continue;
 		else if (after(cn->seq, to))
@@ -473,7 +469,7 @@ out:
 	return ret;
 }
 
-static void ftfw_send(struct nethdr *net, struct us_conntrack *u)
+static void ftfw_send(struct nethdr *net, struct cache_object *obj)
 {
 	struct cache_ftfw *cn;
 
@@ -482,7 +478,7 @@ static void ftfw_send(struct nethdr *net, struct us_conntrack *u)
 	case NET_T_STATE_UPD:
 	case NET_T_STATE_DEL:
 		cn = (struct cache_ftfw *) 
-			cache_get_extra(STATE_SYNC(internal), u);
+			cache_get_extra(STATE_SYNC(internal), obj);
 
 		if (!list_empty(&cn->rs_list)) {
 			list_del_init(&cn->rs_list);
@@ -538,10 +534,10 @@ static int tx_queue_xmit(void *data1, const void *data2)
 	return 0;
 }
 
-static int tx_list_xmit(struct list_head *i, struct us_conntrack *u, int type)
+static int tx_list_xmit(struct list_head *i, struct cache_object *obj, int type)
 {
 	int ret;
-	struct nethdr *net = BUILD_NETMSG(u->ct, type);
+	struct nethdr *net = BUILD_NETMSG(obj->ct, type);
 
 	dp("tx_list sq: %u fl:%u len:%u\n",
                 ntohl(net->seq), net->flags, ntohs(net->len));
@@ -550,7 +546,7 @@ static int tx_list_xmit(struct list_head *i, struct us_conntrack *u, int type)
 	tx_list_len--;
 
 	ret = mcast_buffered_send_netmsg(STATE_SYNC(mcast_client), net);
-	ftfw_send(net, u);
+	ftfw_send(net, obj);
 
 	return ret;
 }
@@ -564,13 +560,13 @@ static void ftfw_run(void)
 
 	/* send conntracks in the tx_list */
 	list_for_each_entry_safe(cn, tmp, &tx_list, tx_list) {
-		struct us_conntrack *u;
+		struct cache_object *obj;
 
-		u = cache_get_conntrack(STATE_SYNC(internal), cn);
-		if (alarm_pending(&u->alarm))
-			tx_list_xmit(&cn->tx_list, u, NET_T_STATE_DEL);
+		obj = cache_data_get_object(STATE_SYNC(internal), cn);
+		if (alarm_pending(&obj->alarm))
+			tx_list_xmit(&cn->tx_list, obj, NET_T_STATE_DEL);
 		else
-			tx_list_xmit(&cn->tx_list, u, NET_T_STATE_UPD);
+			tx_list_xmit(&cn->tx_list, obj, NET_T_STATE_UPD);
 	}
 
 	/* reset alive alarm */

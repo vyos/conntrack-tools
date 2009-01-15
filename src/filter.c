@@ -58,15 +58,17 @@ static uint32_t ct_filter_hash6(const void *data, const struct hashtable *table)
 
 static int ct_filter_compare(const void *data1, const void *data2)
 {
-	const uint32_t *f1 = data1;
+	const struct ct_filter_ipv4_hnode *f1 = data1;
 	const uint32_t *f2 = data2;
 
-	return *f1 == *f2;
+	return f1->ip == *f2;
 }
 
 static int ct_filter_compare6(const void *data1, const void *data2)
 {
-	return memcmp(data1, data2, sizeof(uint32_t)*4) == 0;
+	const struct ct_filter_ipv6_hnode *f = data1;
+
+	return memcmp(f->ipv6, data2, sizeof(uint32_t)*4) == 0;
 }
 
 struct ct_filter *ct_filter_create(void)
@@ -80,7 +82,6 @@ struct ct_filter *ct_filter_create(void)
 
 	filter->h = hashtable_create(FILTER_POOL_SIZE,
 				     FILTER_POOL_LIMIT,
-				     sizeof(uint32_t),
 				     ct_filter_hash,
 				     ct_filter_compare);
 	if (!filter->h) {
@@ -90,7 +91,6 @@ struct ct_filter *ct_filter_create(void)
 
 	filter->h6 = hashtable_create(FILTER_POOL_SIZE,
 				      FILTER_POOL_LIMIT,
-				      sizeof(uint32_t)*4,
 				      ct_filter_hash6,
 				      ct_filter_compare6);
 	if (!filter->h6) {
@@ -155,16 +155,33 @@ void ct_filter_set_logic(struct ct_filter *filter,
 
 int ct_filter_add_ip(struct ct_filter *filter, void *data, uint8_t family)
 {
+	int id;
 	filter = __filter_alloc(filter);
 
 	switch(family) {
 		case AF_INET:
-			if (!hashtable_add(filter->h, data))
+			id = hashtable_hash(filter->h, data);
+			if (!hashtable_find(filter->h, data, id)) {
+				struct ct_filter_ipv4_hnode *n;
+				n = malloc(sizeof(struct ct_filter_ipv4_hnode));
+				if (n == NULL)
+					return 0;
+				memcpy(&n->ip, data, sizeof(uint32_t));
+				hashtable_add(filter->h, &n->node, id);
 				return 0;
+			}
 			break;
 		case AF_INET6:
-			if (!hashtable_add(filter->h6, data))
+			id = hashtable_hash(filter->h6, data);
+			if (!hashtable_find(filter->h6, data, id)) {
+				struct ct_filter_ipv6_hnode *n;
+				n = malloc(sizeof(struct ct_filter_ipv6_hnode));
+				if (n == NULL)
+					return 0;
+				memcpy(n->ipv6, data, sizeof(uint32_t)*4);
+				hashtable_add(filter->h6, &n->node, id);
 				return 0;
+			}
 			break;
 	}
 	return 1;
@@ -220,16 +237,34 @@ void ct_filter_add_state(struct ct_filter *f, int protonum, int val)
 static inline int
 __ct_filter_test_ipv4(struct ct_filter *f, struct nf_conntrack *ct)
 {
+	int id_src, id_dst;
+	uint32_t src, dst;
+
 	/* we only use the real source and destination address */
-	return (hashtable_find(f->h, nfct_get_attr(ct, ATTR_ORIG_IPV4_SRC)) ||
-		hashtable_find(f->h, nfct_get_attr(ct, ATTR_REPL_IPV4_SRC)));
+	src = nfct_get_attr_u32(ct, ATTR_ORIG_IPV4_SRC);
+	dst = nfct_get_attr_u32(ct, ATTR_REPL_IPV4_SRC);
+
+	id_src = hashtable_hash(f->h, &src);
+	id_dst = hashtable_hash(f->h, &dst);
+
+	return hashtable_find(f->h, &src, id_src) ||
+	       hashtable_find(f->h, &dst, id_dst);
 }
 
 static inline int
 __ct_filter_test_ipv6(struct ct_filter *f, struct nf_conntrack *ct)
 {
-	return (hashtable_find(f->h6, nfct_get_attr(ct, ATTR_ORIG_IPV6_SRC)) ||
-	        hashtable_find(f->h6, nfct_get_attr(ct, ATTR_REPL_IPV6_SRC)));
+	int id_src, id_dst;
+	const uint32_t *src, *dst;
+
+	src = nfct_get_attr(ct, ATTR_ORIG_IPV6_SRC);
+	dst = nfct_get_attr(ct, ATTR_REPL_IPV6_SRC);
+
+	id_src = hashtable_hash(f->h6, src);
+	id_dst = hashtable_hash(f->h6, dst);
+
+	return hashtable_find(f->h6, src, id_src) ||
+	       hashtable_find(f->h6, dst, id_dst);
 }
 
 static int

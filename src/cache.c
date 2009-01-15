@@ -1,5 +1,5 @@
 /*
- * (C) 2006-2007 by Pablo Neira Ayuso <pablo@netfilter.org>
+ * (C) 2006-2009 by Pablo Neira Ayuso <pablo@netfilter.org>
  * 
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,7 +20,6 @@
 #include "jhash.h"
 #include "hash.h"
 #include "log.h"
-#include "us-conntrack.h"
 #include "conntrackd.h"
 
 #include <libnetfilter_conntrack/libnetfilter_conntrack.h>
@@ -68,14 +67,14 @@ __hash6(const struct nf_conntrack *ct, const struct hashtable *table)
 static uint32_t hash(const void *data, const struct hashtable *table)
 {
 	int ret = 0;
-	const struct us_conntrack *u = data;
+	const struct nf_conntrack *ct = data;
 
-	switch(nfct_get_attr_u8(u->ct, ATTR_L3PROTO)) {
+	switch(nfct_get_attr_u8(ct, ATTR_L3PROTO)) {
 		case AF_INET:
-			ret = __hash4(u->ct, table);
+			ret = __hash4(ct, table);
 			break;
 		case AF_INET6:
-			ret = __hash6(u->ct, table);
+			ret = __hash6(ct, table);
 			break;
 		default:
 			dlog(LOG_ERR, "unknown layer 3 proto in hash");
@@ -87,10 +86,10 @@ static uint32_t hash(const void *data, const struct hashtable *table)
 
 static int compare(const void *data1, const void *data2)
 {
-	const struct us_conntrack *u1 = data1;
-	const struct us_conntrack *u2 = data2;
+	const struct cache_object *obj = data1;
+	const struct nf_conntrack *ct = data2;
 
-	return nfct_cmp(u1->ct, u2->ct, NFCT_CMP_ORIG);
+	return nfct_cmp(obj->ct, ct, NFCT_CMP_ORIG);
 }
 
 struct cache_feature *cache_feature[CACHE_MAX_FEATURE] = {
@@ -103,7 +102,7 @@ struct cache *cache_create(const char *name,
 			   unsigned int features, 
 			   struct cache_extra *extra)
 {
-	size_t size = sizeof(struct us_conntrack);
+	size_t size = sizeof(struct cache_object);
 	int i, j = 0;
 	struct cache *c;
 	struct cache_feature *feature_array[CACHE_MAX_FEATURE] = {};
@@ -152,7 +151,6 @@ struct cache *cache_create(const char *name,
 
 	c->h = hashtable_create(CONFIG(hashsize),
 				CONFIG(limit),
-				size,
 				hash,
 				compare);
 
@@ -162,6 +160,7 @@ struct cache *cache_create(const char *name,
 		free(c);
 		return NULL;
 	}
+	c->object_size = size;
 
 	return c;
 }
@@ -177,225 +176,165 @@ void cache_destroy(struct cache *c)
 
 static void __del_timeout(struct alarm_block *a, void *data);
 
-static struct us_conntrack *__add(struct cache *c, struct nf_conntrack *ct)
+struct cache_object *cache_object_new(struct cache *c, struct nf_conntrack *ct)
 {
-	unsigned i;
-	size_t size = c->h->datasize;
-	char buf[size];
-	struct us_conntrack *u = (struct us_conntrack *) buf;
-	struct nf_conntrack *newct;
+	struct cache_object *obj;
 
-	memset(u, 0, size);
-
-	u->cache = c;
-	if ((u->ct = newct = nfct_new()) == NULL) {
+	obj = calloc(c->object_size, 1);
+	if (obj == NULL) {
 		errno = ENOMEM;
-		return 0;
+		c->stats.add_fail_enomem++;
+		return NULL;
 	}
-	memcpy(u->ct, ct, nfct_sizeof(ct));
+	obj->cache = c;
+	init_alarm(&obj->alarm, obj, __del_timeout);
 
-	u = hashtable_add(c->h, u);
-	if (u) {
-		char *data = u->data;
-
-		init_alarm(&u->alarm, u, __del_timeout);
-
-        	for (i = 0; i < c->num_features; i++) {
-			c->features[i]->add(u, data);
-			data += c->features[i]->size;
-		}
-
-		if (c->extra && c->extra->add)
-			c->extra->add(u, ((char *) u) + c->extra_offset);
-
-		c->stats.active++;
-		return u;
+	if ((obj->ct = nfct_new()) == NULL) {
+		free(obj);
+		errno = ENOMEM;
+		c->stats.add_fail_enomem++;
+		return NULL;
 	}
-	free(newct);
+	memcpy(obj->ct, ct, nfct_sizeof(ct));
 
-	return NULL;
+	return obj;
 }
 
-struct us_conntrack *cache_add(struct cache *c, struct nf_conntrack *ct)
+void cache_object_free(struct cache_object *obj)
 {
-	struct us_conntrack *u;
+	nfct_destroy(obj->ct);
+	free(obj);
+}
 
-	u = __add(c, ct);
-	if (u) {
-		c->stats.add_ok++;
-		return u;
+static int __add(struct cache *c, struct cache_object *obj, int id)
+{
+	int ret;
+	unsigned int i;
+	char *data = obj->data;
+
+	ret = hashtable_add(c->h, &obj->hashnode, id);
+	if (ret == -1)
+		return -1;
+
+	for (i = 0; i < c->num_features; i++) {
+		c->features[i]->add(obj, data);
+		data += c->features[i]->size;
 	}
-	if (errno != EEXIST) {
+
+	if (c->extra && c->extra->add)
+		c->extra->add(obj, ((char *) obj) + c->extra_offset);
+
+	c->stats.active++;
+	return 0;
+}
+
+int cache_add(struct cache *c, struct cache_object *obj, int id)
+{
+	int ret;
+
+	ret = __add(c, obj, id);
+	if (ret == -1) {
 		c->stats.add_fail++;
 		if (errno == ENOSPC)
 			c->stats.add_fail_enospc++;
-		if (errno == ENOMEM)
-			c->stats.add_fail_enomem++;
+		return -1;
 	}
-
-	return NULL;
+	c->stats.add_ok++;
+	return 0;
 }
 
-static void 
-__cache_update(struct cache *c, struct us_conntrack *u, struct nf_conntrack *ct)
+void cache_update(struct cache *c, struct cache_object *obj, int id,
+		  struct nf_conntrack *ct)
 {
-	unsigned i;
-	char *data = u->data;
+	char *data = obj->data;
+	unsigned int i;
 
-	nfct_copy(u->ct, ct, NFCT_CP_META);
+	nfct_copy(obj->ct, ct, NFCT_CP_META);
 
 	for (i = 0; i < c->num_features; i++) {
-		c->features[i]->update(u, data);
+		c->features[i]->update(obj, data);
 		data += c->features[i]->size;
 	}
 
 	if (c->extra && c->extra->update)
-		c->extra->update(u, ((char *) u) + c->extra_offset);
+		c->extra->update(obj, ((char *) obj) + c->extra_offset);
+
+	c->stats.upd_ok++;
 }
 
-static struct us_conntrack *__update(struct cache *c, struct nf_conntrack *ct)
-{
-	size_t size = c->h->datasize;
-	char buf[size];
-	struct us_conntrack *u = (struct us_conntrack *) buf;
-
-	u->ct = ct;
-
-	u = (struct us_conntrack *) hashtable_find(c->h, u);
-	if (u) {
-		__cache_update(c, u, ct);
-		return u;
-	} 
-	return NULL;
-}
-
-struct us_conntrack *cache_update(struct cache *c, struct nf_conntrack *ct)
-{
-	struct us_conntrack *u;
-
-	u = __update(c, ct);
-	if (u) {
-		c->stats.upd_ok++;
-		return u;
-	}
-	c->stats.upd_fail++;
-	if (errno == ENOENT)
-		c->stats.upd_fail_enoent++;
-	
-	return NULL;
-}
-
-static void __del(struct cache *c, struct us_conntrack *u)
+static void __del(struct cache *c, struct cache_object *obj)
 {
 	unsigned i;
-	char *data = u->data;
-	struct nf_conntrack *p = u->ct;
+	char *data = obj->data;
 
 	for (i = 0; i < c->num_features; i++) {
-		c->features[i]->destroy(u, data);
+		c->features[i]->destroy(obj, data);
 		data += c->features[i]->size;
 	}
 
 	if (c->extra && c->extra->destroy)
-		c->extra->destroy(u, ((char *) u) + c->extra_offset);
+		c->extra->destroy(obj, ((char *) obj) + c->extra_offset);
 
-	hashtable_del(c->h, u);
-	free(p);
+	hashtable_del(c->h, &obj->hashnode);
 }
 
-static void __cache_del(struct cache *c, struct us_conntrack *u)
+void cache_del(struct cache *c, struct cache_object *obj)
 {
 	/*
 	 * Do not increase stats if we are trying to
 	 * kill an entry was previously deleted via
 	 * __cache_del_timer.
 	 */
-	if (!alarm_pending(&u->alarm)) {
+	if (!alarm_pending(&obj->alarm)) {
 		c->stats.del_ok++;
 		c->stats.active--;
 	}
-	del_alarm(&u->alarm);
-	__del(c, u);
+	del_alarm(&obj->alarm);
+	__del(c, obj);
 }
 
-struct us_conntrack *cache_update_force(struct cache *c,
-					struct nf_conntrack *ct)
+struct cache_object *
+cache_update_force(struct cache *c, struct nf_conntrack *ct)
 {
-	struct us_conntrack *u;
+	struct cache_object *obj;
+	int id;
 
-	u = cache_find(c, ct);
-	if (u) {
-		if (!alarm_pending(&u->alarm)) {
-			c->stats.upd_ok++;
-			__cache_update(c, u, ct);
-			return u;
+	obj = cache_find(c, ct, &id);
+	if (obj) {
+		if (!alarm_pending(&obj->alarm)) {
+			cache_update(c, obj, id, ct);
+			return obj;
 		} else {
-			__cache_del(c, u);
+			cache_del(c, obj);
+			cache_object_free(obj);
 		}
 	}
-	if ((u = __add(c, ct)) != NULL) {
-		c->stats.add_ok++;
-		return u;
-	}
-	c->stats.add_fail++;
-	if (errno == ENOSPC)
-		c->stats.add_fail_enospc++;
-	if (errno == ENOMEM)
-		c->stats.add_fail_enomem++;
+	obj = cache_object_new(c, ct);
+	if (obj == NULL)
+		return NULL;
 
-	return NULL;
-}
+	if (cache_add(c, obj, id) == -1)
+		return NULL;
 
-int cache_test(struct cache *c, struct nf_conntrack *ct)
-{
-	size_t size = c->h->datasize;
-	char buf[size];
-	struct us_conntrack *u = (struct us_conntrack *) buf;
-	void *ret;
-
-	u->ct = ct;
-
-	ret = hashtable_find(c->h, u);
-
-	return ret != NULL;
-}
-
-int cache_del(struct cache *c, struct nf_conntrack *ct)
-{
-	size_t size = c->h->datasize;
-	char buf[size];
-	struct us_conntrack *u = (struct us_conntrack *) buf;
-
-	u->ct = ct;
-
-	u = (struct us_conntrack *) hashtable_find(c->h, u);
-	if (u) {
-		__cache_del(c, u);
-		return 1;
-	}
-	c->stats.del_fail++;
-	if (errno == ENOENT)
-		c->stats.del_fail_enoent++;
-
-	return 0;
+	return obj;
 }
 
 static void __del_timeout(struct alarm_block *a, void *data)
 {
-	struct us_conntrack *u = (struct us_conntrack *) data;
-
-	__del(u->cache, u);
+	struct cache_object *obj = (struct cache_object *) data;
+	__del(obj->cache, obj);
+	cache_object_free(obj);
 }
 
-int
-__cache_del_timer(struct cache *c, struct us_conntrack *u, int timeout)
+int cache_del_timer(struct cache *c, struct cache_object *obj, int timeout)
 {
 	if (timeout <= 0) {
-		__cache_del(c, u);
+		cache_del(c, obj);
+		cache_object_free(obj);
 		return 1;
 	}
-	if (!alarm_pending(&u->alarm)) {
-		add_alarm(&u->alarm, timeout, 0);
+	if (!alarm_pending(&obj->alarm)) {
+		add_alarm(&obj->alarm, timeout, 0);
 		/*
 		 * increase stats even if this entry was not really
 		 * removed yet. We do not want to make people think
@@ -409,20 +348,16 @@ __cache_del_timer(struct cache *c, struct us_conntrack *u, int timeout)
 	return 0;
 }
 
-struct us_conntrack *cache_find(struct cache *c, struct nf_conntrack *ct)
+struct cache_object *
+cache_find(struct cache *c, struct nf_conntrack *ct, int *id)
 {
-	size_t size = c->h->datasize;
-	char buf[size];
-	struct us_conntrack *u = (struct us_conntrack *) buf;
-
-	u->ct = ct;
-
-	return ((struct us_conntrack *) hashtable_find(c->h, u));
+	*id = hashtable_hash(c->h, ct);
+	return ((struct cache_object *) hashtable_find(c->h, ct, *id));
 }
 
-struct us_conntrack *cache_get_conntrack(struct cache *c, void *data)
+struct cache_object *cache_data_get_object(struct cache *c, void *data)
 {
-	return (struct us_conntrack *)((char*)data - c->extra_offset);
+	return (struct cache_object *)((char*)data - c->extra_offset);
 }
 
 void *cache_get_extra(struct cache *c, void *data)

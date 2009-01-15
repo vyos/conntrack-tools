@@ -3,6 +3,8 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include "hash.h"
+#include "alarm.h"
 
 /* cache features */
 enum {
@@ -22,14 +24,20 @@ enum {
 #define CACHE_MAX_FEATURE __CACHE_MAX_FEATURE
 
 struct cache;
-struct us_conntrack;
+struct cache_object {
+	struct	hashtable_node hashnode;
+	struct	nf_conntrack *ct;
+	struct	cache *cache;
+	struct	alarm_block alarm;
+	char	data[0];
+};
 
 struct cache_feature {
 	size_t size;
-	void (*add)(struct us_conntrack *u, void *data);
-	void (*update)(struct us_conntrack *u, void *data);
-	void (*destroy)(struct us_conntrack *u, void *data);
-	int  (*dump)(struct us_conntrack *u, void *data, char *buf, int type);
+	void (*add)(struct cache_object *obj, void *data);
+	void (*update)(struct cache_object *obj, void *data);
+	void (*destroy)(struct cache_object *obj, void *data);
+	int  (*dump)(struct cache_object *obj, void *data, char *buf, int type);
 };
 
 extern struct cache_feature lifetime_feature;
@@ -48,6 +56,7 @@ struct cache {
 	unsigned int *feature_offset;
 	struct cache_extra *extra;
 	unsigned int extra_offset;
+	size_t object_size;
 
         /* statistics */
 	struct {
@@ -77,9 +86,9 @@ struct cache {
 struct cache_extra {
 	unsigned int size;
 
-	void (*add)(struct us_conntrack *u, void *data);
-	void (*update)(struct us_conntrack *u, void *data);
-	void (*destroy)(struct us_conntrack *u, void *data);
+	void (*add)(struct cache_object *obj, void *data);
+	void (*update)(struct cache_object *obj, void *data);
+	void (*destroy)(struct cache_object *obj, void *data);
 };
 
 struct nf_conntrack;
@@ -87,16 +96,18 @@ struct nf_conntrack;
 struct cache *cache_create(const char *name, unsigned int features, struct cache_extra *extra);
 void cache_destroy(struct cache *e);
 
-struct us_conntrack *cache_add(struct cache *c, struct nf_conntrack *ct);
-struct us_conntrack *cache_update(struct cache *c, struct nf_conntrack *ct);
-struct us_conntrack *cache_update_force(struct cache *c, struct nf_conntrack *ct);
-int cache_del(struct cache *c, struct nf_conntrack *ct);
-int __cache_del_timer(struct cache *c, struct us_conntrack *u, int timeout);
-struct us_conntrack *cache_find(struct cache *c, struct nf_conntrack *ct);
-int cache_test(struct cache *c, struct nf_conntrack *ct);
+struct cache_object *cache_object_new(struct cache *c, struct nf_conntrack *ct);
+void cache_object_free(struct cache_object *obj);
+
+int cache_add(struct cache *c, struct cache_object *obj, int id);
+void cache_update(struct cache *c, struct cache_object *obj, int id, struct nf_conntrack *ct);
+struct cache_object *cache_update_force(struct cache *c, struct nf_conntrack *ct);
+void cache_del(struct cache *c, struct cache_object *obj);
+int cache_del_timer(struct cache *c, struct cache_object *obj, int timeout);
+struct cache_object *cache_find(struct cache *c, struct nf_conntrack *ct, int *pos);
 void cache_stats(const struct cache *c, int fd);
 void cache_stats_extended(const struct cache *c, int fd);
-struct us_conntrack *cache_get_conntrack(struct cache *, void *);
+struct cache_object *cache_data_get_object(struct cache *c, void *data);
 void *cache_get_extra(struct cache *, void *);
 void cache_iterate(struct cache *c, void *data, int (*iterate)(void *data1, void *data2));
 

@@ -2,7 +2,7 @@
 #define _SYNC_HOOKS_H_
 
 struct nethdr;
-struct us_conntrack;
+struct cache_object;
 
 struct sync_mode {
 	int internal_cache_flags;
@@ -14,7 +14,7 @@ struct sync_mode {
 	void (*kill)(void);
 	int  (*local)(int fd, int type, void *data);
 	int  (*recv)(const struct nethdr *net);
-	void (*send)(struct nethdr *net, struct us_conntrack *u);
+	void (*send)(struct nethdr *net, struct cache_object *obj);
 	void (*run)(void);
 };
 

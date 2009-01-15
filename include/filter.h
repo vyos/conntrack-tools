@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <netinet/in.h>
+#include <hash.h>
 
 enum ct_filter_type {
 	CT_FILTER_L4PROTO,
@@ -15,6 +16,16 @@ enum ct_filter_type {
 enum ct_filter_logic {
 	CT_FILTER_NEGATIVE = 0,
 	CT_FILTER_POSITIVE = 1,
+};
+
+struct ct_filter_ipv4_hnode {
+	struct hashtable_node node;
+	uint32_t ip;
+};
+
+struct ct_filter_ipv6_hnode {
+	struct hashtable_node node;
+	uint32_t ipv6[4];
 };
 
 struct ct_filter_netmask_ipv4 {

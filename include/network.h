@@ -75,7 +75,6 @@ enum {
 	__hdr;							\
 })
 
-struct us_conntrack;
 struct mcast_sock;
 
 enum {

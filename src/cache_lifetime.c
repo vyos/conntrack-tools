@@ -17,12 +17,12 @@
  */
 
 #include <stdio.h>
-#include "us-conntrack.h"
 #include "cache.h"
 #include <sys/time.h>
 #include <time.h>
+#include <libnetfilter_conntrack/libnetfilter_conntrack.h>
 
-static void lifetime_add(struct us_conntrack *u, void *data)
+static void lifetime_add(struct cache_object *obj, void *data)
 {
 	long *lifetime = data;
 	struct timeval tv;
@@ -32,15 +32,15 @@ static void lifetime_add(struct us_conntrack *u, void *data)
 	*lifetime = tv.tv_sec;
 }
 
-static void lifetime_update(struct us_conntrack *u, void *data)
+static void lifetime_update(struct cache_object *obj, void *data)
 {
 }
 
-static void lifetime_destroy(struct us_conntrack *u, void *data)
+static void lifetime_destroy(struct cache_object *obj, void *data)
 {
 }
 
-static int lifetime_dump(struct us_conntrack *u, 
+static int lifetime_dump(struct cache_object *obj, 
 			 void *data, 
 			 char *buf, 
 			 int type)

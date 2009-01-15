@@ -22,7 +22,6 @@
 #include "cache.h"
 #include "log.h"
 #include "conntrackd.h"
-#include "us-conntrack.h"
 
 #include <errno.h>
 #include <string.h>
@@ -118,9 +117,8 @@ static int overrun_stats(enum nf_conntrack_msg_type type,
 	nfct_attr_unset(ct, ATTR_REPL_COUNTER_PACKETS);
 	nfct_attr_unset(ct, ATTR_USE);
 
-	if (!cache_test(STATE_STATS(cache), ct))
-		if (!cache_update_force(STATE_STATS(cache), ct))
-			debug_ct(ct, "overrun stats resync");
+	if (!cache_update_force(STATE_STATS(cache), ct))
+		debug_ct(ct, "overrun stats resync");
 
 	return NFCT_CB_CONTINUE;
 }
@@ -128,12 +126,13 @@ static int overrun_stats(enum nf_conntrack_msg_type type,
 static int purge_step(void *data1, void *data2)
 {
 	int ret;
-	struct us_conntrack *u = data2;
+	struct cache_object *obj = data2;
 
-	ret = nfct_query(STATE(dump), NFCT_Q_GET, u->ct);
+	ret = nfct_query(STATE(dump), NFCT_Q_GET, obj->ct);
 	if (ret == -1 && errno == ENOENT) {
-		debug_ct(u->ct, "overrun purge stats");
-		cache_del(STATE_STATS(cache), u->ct);
+		debug_ct(obj->ct, "overrun purge stats");
+		cache_del(STATE_STATS(cache), obj);
+		cache_object_free(obj);
 	}
 
 	return 0;
@@ -148,42 +147,46 @@ static int purge_stats(void)
 
 static void event_new_stats(struct nf_conntrack *ct)
 {
+	int id;
+	struct cache_object *obj;
+
 	nfct_attr_unset(ct, ATTR_TIMEOUT);
 
-	if (cache_add(STATE_STATS(cache), ct)) {
-		debug_ct(ct, "cache new");
-	} else {
-		if (errno != EEXIST) {
-			dlog(LOG_ERR, 
-			     "can't add to cache cache: %s\n", strerror(errno));
-			debug_ct(ct, "can't add");
+	obj = cache_find(STATE_STATS(cache), ct, &id);
+	if (obj == NULL) {
+		obj = cache_object_new(STATE_STATS(cache), ct);
+		if (obj == NULL)
+			return;
+
+		if (cache_add(STATE_STATS(cache), obj, id) == -1) {
+			cache_object_free(obj);
+			return;
 		}
 	}
+	return;
 }
 
 static void event_update_stats(struct nf_conntrack *ct)
 {
 	nfct_attr_unset(ct, ATTR_TIMEOUT);
-
-	if (!cache_update_force(STATE_STATS(cache), ct)) {
-		debug_ct(ct, "can't update");
-		return;
-	}
-	debug_ct(ct, "update");
+	cache_update_force(STATE_STATS(cache), ct);
 }
 
 static int event_destroy_stats(struct nf_conntrack *ct)
 {
+	int id;
+	struct cache_object *obj;
+
 	nfct_attr_unset(ct, ATTR_TIMEOUT);
 
-	if (cache_del(STATE_STATS(cache), ct)) {
-		debug_ct(ct, "cache destroy");
+	obj = cache_find(STATE_STATS(cache), ct, &id);
+	if (obj) {
+		cache_del(STATE_STATS(cache), obj);
 		dlog_ct(STATE(stats_log), ct, NFCT_O_PLAIN);
+		cache_object_free(obj);
 		return 1;
-	} else {
-		debug_ct(ct, "can't destroy!");
-		return 0;
 	}
+	return 0;
 }
 
 struct ct_mode stats_mode = {

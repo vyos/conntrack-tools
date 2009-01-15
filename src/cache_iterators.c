@@ -21,7 +21,6 @@
 #include "log.h"
 #include "conntrackd.h"
 #include "netlink.h"
-#include "us-conntrack.h"
 
 #include <libnetfilter_conntrack/libnetfilter_conntrack.h>
 #include <sched.h>
@@ -33,13 +32,13 @@ struct __dump_container {
 	int type;
 };
 
-static int do_dump(void *data1, void *data2)
+static int do_dump(void *data1, struct hashtable_node *n)
 {
 	char buf[1024];
 	int size;
 	struct __dump_container *container = data1;
-	struct us_conntrack *u = data2;
-	char *data = u->data;
+	struct cache_object *obj = (struct cache_object *)n;
+	char *data = obj->data;
 	unsigned i;
 
 	/*
@@ -52,28 +51,28 @@ static int do_dump(void *data1, void *data2)
 	 * 	specific and it breaks conntrackd modularity. Probably
 	 * 	there's a nicer way to do this but until I come up with it...
 	 */
-	if (CONFIG(flags) & CTD_SYNC_FTFW && alarm_pending(&u->alarm))
+	if (CONFIG(flags) & CTD_SYNC_FTFW && alarm_pending(&obj->alarm))
 		return 0;
 
 	/* do not show cached timeout, this may confuse users */
-	if (nfct_attr_is_set(u->ct, ATTR_TIMEOUT))
-		nfct_attr_unset(u->ct, ATTR_TIMEOUT);
+	if (nfct_attr_is_set(obj->ct, ATTR_TIMEOUT))
+		nfct_attr_unset(obj->ct, ATTR_TIMEOUT);
 
 	memset(buf, 0, sizeof(buf));
 	size = nfct_snprintf(buf, 
 			     sizeof(buf), 
-			     u->ct, 
+			     obj->ct, 
 			     NFCT_T_UNKNOWN, 
 			     container->type,
 			     0);
 
-	for (i = 0; i < u->cache->num_features; i++) {
-		if (u->cache->features[i]->dump) {
-			size += u->cache->features[i]->dump(u, 
-							    data, 
-							    buf+size,
-							    container->type);
-			data += u->cache->features[i]->size;
+	for (i = 0; i < obj->cache->num_features; i++) {
+		if (obj->cache->features[i]->dump) {
+			size += obj->cache->features[i]->dump(obj, 
+							      data, 
+							      buf+size,
+							      container->type);
+			data += obj->cache->features[i]->size;
 		}
 	}
 	size += sprintf(buf+size, "\n");
@@ -101,10 +100,10 @@ struct __commit_container {
 };
 
 static void
-__do_commit_step(struct __commit_container *tmp, struct us_conntrack *u)
+__do_commit_step(struct __commit_container *tmp, struct cache_object *obj)
 {
 	int ret, retry = 1;
-	struct nf_conntrack *ct = u->ct;
+	struct nf_conntrack *ct = obj->ct;
 
         /* 
 	 * Set a reduced timeout for candidate-to-be-committed
@@ -166,25 +165,25 @@ try_again:
 	}
 }
 
-static int do_commit_related(void *data1, void *data2)
+static int do_commit_related(void *data, struct hashtable_node *n)
 {
-	struct us_conntrack *u = data2;
+	struct cache_object *obj = (struct cache_object *)n;
 
-	if (ct_is_related(u->ct))
-		__do_commit_step(data1, u);
+	if (ct_is_related(obj->ct))
+		__do_commit_step(data, obj);
 
 	/* keep iterating even if we have found errors */
 	return 0;
 }
 
-static int do_commit_master(void *data1, void *data2)
+static int do_commit_master(void *data, struct hashtable_node *n)
 {
-	struct us_conntrack *u = data2;
+	struct cache_object *obj = (struct cache_object *)n;
 
-	if (ct_is_related(u->ct))
+	if (ct_is_related(obj->ct))
 		return 0;
 
-	__do_commit_step(data1, u);
+	__do_commit_step(data, obj);
 	return 0;
 }
 
@@ -231,13 +230,13 @@ void cache_commit(struct cache *c)
 			res.tv_sec, res.tv_usec);
 }
 
-static int do_reset_timers(void *data1, void *data2)
+static int do_reset_timers(void *data1, struct hashtable_node *n)
 {
 	int ret;
 	u_int32_t current_timeout;
 	struct nfct_handle *h = data1;
-	struct us_conntrack *u = data2;
-	struct nf_conntrack *ct = u->ct;
+	struct cache_object *obj = (struct cache_object *)n;
+	struct nf_conntrack *ct = obj->ct;
 	char __tmp[nfct_maxsize()];
 	struct nf_conntrack *tmp = (struct nf_conntrack *) (void *)__tmp;
 
@@ -286,13 +285,13 @@ void cache_reset_timers(struct cache *c)
 	nfct_close(h);
 }
 
-static int do_flush(void *data1, void *data2)
+static int do_flush(void *data, struct hashtable_node *n)
 {
-	struct cache *c = data1;
-	struct us_conntrack *u = data2;
+	struct cache *c = data;
+	struct cache_object *obj = (struct cache_object *)n;
 
-	cache_del(c, u->ct);
-
+	cache_del(c, obj);
+	cache_object_free(obj);
 	return 0;
 }
 

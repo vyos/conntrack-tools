@@ -19,7 +19,6 @@
 #include "conntrackd.h"
 #include "sync.h"
 #include "network.h"
-#include "us-conntrack.h"
 #include "alarm.h"
 #include "cache.h"
 #include "debug.h"
@@ -30,40 +29,40 @@
 static void refresher(struct alarm_block *a, void *data)
 {
 	struct nethdr *net;
-	struct us_conntrack *u = data;
+	struct cache_object *obj = data;
 
-	debug_ct(u->ct, "persistence update");
+	debug_ct(obj->ct, "persistence update");
 
 	add_alarm(a, 
 		  random() % CONFIG(refresh) + 1,
 		  ((random() % 5 + 1)  * 200000) - 1);
 
-	net = BUILD_NETMSG(u->ct, NET_T_STATE_UPD);
+	net = BUILD_NETMSG(obj->ct, NET_T_STATE_UPD);
 	mcast_buffered_send_netmsg(STATE_SYNC(mcast_client), net);
 }
 
-static void cache_alarm_add(struct us_conntrack *u, void *data)
+static void cache_alarm_add(struct cache_object *obj, void *data)
 {
-	struct alarm_block *alarm = data;
+	struct alarm_block *a = data;
 
-	init_alarm(alarm, u, refresher);
-	add_alarm(alarm,
+	init_alarm(a, obj, refresher);
+	add_alarm(a,
 		  random() % CONFIG(refresh) + 1,
 		  ((random() % 5 + 1)  * 200000) - 1);
 }
 
-static void cache_alarm_update(struct us_conntrack *u, void *data)
+static void cache_alarm_update(struct cache_object *obj, void *data)
 {
-	struct alarm_block *alarm = data;
-	add_alarm(alarm, 
+	struct alarm_block *a = data;
+	add_alarm(a, 
 		  random() % CONFIG(refresh) + 1,
 		  ((random() % 5 + 1)  * 200000) - 1);
 }
 
-static void cache_alarm_destroy(struct us_conntrack *u, void *data)
+static void cache_alarm_destroy(struct cache_object *obj, void *data)
 {
-	struct alarm_block *alarm = data;
-	del_alarm(alarm);
+	struct alarm_block *a = data;
+	del_alarm(a);
 }
 
 static struct cache_extra cache_alarm_extra = {

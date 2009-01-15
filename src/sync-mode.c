@@ -22,7 +22,6 @@
 #include "log.h"
 #include "cache.h"
 #include "conntrackd.h"
-#include "us-conntrack.h"
 #include "network.h"
 #include "fds.h"
 #include "event.h"
@@ -38,7 +37,8 @@ static void do_mcast_handler_step(struct nethdr *net, size_t remain)
 {
 	char __ct[nfct_maxsize()];
 	struct nf_conntrack *ct = (struct nf_conntrack *)(void*) __ct;
-	struct us_conntrack *u;
+	struct cache_object *obj;
+	int id;
 
 	if (net->version != CONNTRACKD_PROTOCOL_VERSION) {
 		STATE_SYNC(error).msg_rcv_malformed++;
@@ -75,33 +75,32 @@ static void do_mcast_handler_step(struct nethdr *net, size_t remain)
 
 	switch(net->type) {
 	case NET_T_STATE_NEW:
-retry:		
-		if ((u = cache_add(STATE_SYNC(external), ct))) {
-			debug_ct(u->ct, "external new");
-		} else {
-		        /*
-			 * One certain connection A arrives to the cache but 
-			 * another existing connection B in the cache has 
-			 * the same configuration, therefore B clashes with A.
-			 */
-			if (errno == EEXIST) {
-				cache_del(STATE_SYNC(external), ct);
-				goto retry;
+		obj = cache_find(STATE_SYNC(external), ct, &id);
+		if (obj == NULL) {
+retry:
+			obj = cache_object_new(STATE_SYNC(external), ct);
+			if (obj == NULL)
+				return;
+
+			if (cache_add(STATE_SYNC(external), obj, id) == -1) {
+				cache_object_free(obj);
+				return;
 			}
-			debug_ct(ct, "can't add");
+		} else {
+			cache_del(STATE_SYNC(external), obj);
+			cache_object_free(obj);
+			goto retry;
 		}
 		break;
 	case NET_T_STATE_UPD:
-		if ((u = cache_update_force(STATE_SYNC(external), ct))) {
-			debug_ct(u->ct, "external update");
-		} else
-			debug_ct(ct, "can't update");
+		cache_update_force(STATE_SYNC(external), ct);
 		break;
 	case NET_T_STATE_DEL:
-		if (cache_del(STATE_SYNC(external), ct))
-			debug_ct(ct, "external destroy");
-		else
-			debug_ct(ct, "can't destroy");
+		obj = cache_find(STATE_SYNC(external), ct, &id);
+		if (obj) {
+			cache_del(STATE_SYNC(external), obj);
+			cache_object_free(obj);
+		}
 		break;
 	default:
 		STATE_SYNC(error).msg_rcv_malformed++;
@@ -441,14 +440,14 @@ static void dump_sync(struct nf_conntrack *ct)
 		debug_ct(ct, "resync");
 }
 
-static void mcast_send_sync(struct us_conntrack *u, int query)
+static void mcast_send_sync(struct cache_object *obj, int query)
 {
 	struct nethdr *net;
 
-	net = BUILD_NETMSG(u->ct, query);
+	net = BUILD_NETMSG(obj->ct, query);
 
 	if (STATE_SYNC(sync)->send)
-		STATE_SYNC(sync)->send(net, u);
+		STATE_SYNC(sync)->send(net, obj);
 
 	mcast_buffered_send_netmsg(STATE_SYNC(mcast_client), net);
 }
@@ -457,13 +456,13 @@ static int purge_step(void *data1, void *data2)
 {
 	int ret;
 	struct nfct_handle *h = STATE(dump);
-	struct us_conntrack *u = data2;
+	struct cache_object *obj = data2;
 
-	ret = nfct_query(h, NFCT_Q_GET, u->ct);
+	ret = nfct_query(h, NFCT_Q_GET, obj->ct);
 	if (ret == -1 && errno == ENOENT) {
-		debug_ct(u->ct, "overrun purge resync");
-		mcast_send_sync(u, NET_T_STATE_DEL);
-		__cache_del_timer(STATE_SYNC(internal), u, CONFIG(del_timeout));
+		debug_ct(obj->ct, "overrun purge resync");
+		mcast_send_sync(obj, NET_T_STATE_DEL);
+		cache_del_timer(STATE_SYNC(internal), obj, CONFIG(del_timeout));
 	}
 
 	return 0;
@@ -480,7 +479,7 @@ static int overrun_sync(enum nf_conntrack_msg_type type,
 			struct nf_conntrack *ct,
 			void *data)
 {
-	struct us_conntrack *u;
+	struct cache_object *obj;
 
 	if (ct_filter_conntrack(ct, 1))
 		return NFCT_CB_CONTINUE;
@@ -492,11 +491,9 @@ static int overrun_sync(enum nf_conntrack_msg_type type,
 	nfct_attr_unset(ct, ATTR_REPL_COUNTER_PACKETS);
 	nfct_attr_unset(ct, ATTR_USE);
 
-	if (!cache_test(STATE_SYNC(internal), ct)) {
-		if ((u = cache_update_force(STATE_SYNC(internal), ct))) {
-			debug_ct(u->ct, "overrun resync");
-			mcast_send_sync(u, NET_T_STATE_UPD);
-		}
+	if ((obj = cache_update_force(STATE_SYNC(internal), ct))) {
+		debug_ct(obj->ct, "overrun resync");
+		mcast_send_sync(obj, NET_T_STATE_UPD);
 	}
 
 	return NFCT_CB_CONTINUE;
@@ -504,50 +501,59 @@ static int overrun_sync(enum nf_conntrack_msg_type type,
 
 static void event_new_sync(struct nf_conntrack *ct)
 {
-	struct us_conntrack *u;
+	struct cache_object *obj;
+	int id;
 
 	/* required by linux kernel <= 2.6.20 */
 	nfct_attr_unset(ct, ATTR_ORIG_COUNTER_BYTES);
 	nfct_attr_unset(ct, ATTR_ORIG_COUNTER_PACKETS);
 	nfct_attr_unset(ct, ATTR_REPL_COUNTER_BYTES);
 	nfct_attr_unset(ct, ATTR_REPL_COUNTER_PACKETS);
+
+	obj = cache_find(STATE_SYNC(internal), ct, &id);
+	if (obj == NULL) {
 retry:
-	if ((u = cache_add(STATE_SYNC(internal), ct))) {
-		mcast_send_sync(u, NET_T_STATE_NEW);
-		debug_ct(u->ct, "internal new");
-	} else {
-		if (errno == EEXIST) {
-			cache_del(STATE_SYNC(internal), ct);
-			goto retry;
+		obj = cache_object_new(STATE_SYNC(internal), ct);
+		if (obj == NULL)
+			return;
+		if (cache_add(STATE_SYNC(internal), obj, id) == -1) {
+			cache_object_free(obj);
+			return;
 		}
+		mcast_send_sync(obj, NET_T_STATE_NEW);
+		debug_ct(obj->ct, "internal new");
+	} else {
+		cache_del(STATE_SYNC(internal), obj);
+		cache_object_free(obj);
 		debug_ct(ct, "can't add");
+		goto retry;
 	}
 }
 
 static void event_update_sync(struct nf_conntrack *ct)
 {
-	struct us_conntrack *u;
+	struct cache_object *obj;
 
-	if ((u = cache_update_force(STATE_SYNC(internal), ct)) == NULL) {
+	if ((obj = cache_update_force(STATE_SYNC(internal), ct)) == NULL) {
 		debug_ct(ct, "can't update");
 		return;
 	}
-	debug_ct(u->ct, "internal update");
-	mcast_send_sync(u, NET_T_STATE_UPD);
+	debug_ct(obj->ct, "internal update");
+	mcast_send_sync(obj, NET_T_STATE_UPD);
 }
 
 static int event_destroy_sync(struct nf_conntrack *ct)
 {
-	struct us_conntrack *u;
+	struct cache_object *obj;
+	int id;
 
-	u = cache_find(STATE_SYNC(internal), ct);
-	if (u == NULL) {
+	obj = cache_find(STATE_SYNC(internal), ct, &id);
+	if (obj == NULL) {
 		debug_ct(ct, "can't destroy");
 		return 0;
 	}
-
-	mcast_send_sync(u, NET_T_STATE_DEL);
-	__cache_del_timer(STATE_SYNC(internal), u, CONFIG(del_timeout));
+	mcast_send_sync(obj, NET_T_STATE_DEL);
+	cache_del_timer(STATE_SYNC(internal), obj, CONFIG(del_timeout));
 	debug_ct(ct, "internal destroy");
 	return 1;
 }

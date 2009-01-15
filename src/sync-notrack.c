@@ -18,7 +18,6 @@
 
 #include "conntrackd.h"
 #include "sync.h"
-#include "us-conntrack.h"
 #include "queue.h"
 #include "debug.h"
 #include "network.h"
@@ -36,13 +35,13 @@ struct cache_notrack {
 	struct list_head	tx_list;
 };
 
-static void cache_notrack_add(struct us_conntrack *u, void *data)
+static void cache_notrack_add(struct cache_object *obj, void *data)
 {
 	struct cache_notrack *cn = data;
 	INIT_LIST_HEAD(&cn->tx_list);
 }
 
-static void cache_notrack_del(struct us_conntrack *u, void *data)
+static void cache_notrack_del(struct cache_object *obj, void *data)
 {
 	struct cache_notrack *cn = data;
 
@@ -89,8 +88,8 @@ static void notrack_kill(void)
 
 static int do_cache_to_tx(void *data1, void *data2)
 {
-	struct us_conntrack *u = data2;
-	struct cache_notrack *cn = cache_get_extra(STATE_SYNC(internal), u);
+	struct cache_object *obj = data2;
+	struct cache_notrack *cn = cache_get_extra(STATE_SYNC(internal), obj);
 
 	if (!list_empty(&cn->tx_list))
 		return 0;
@@ -164,10 +163,10 @@ static int tx_queue_xmit(void *data1, const void *data2)
 	return 0;
 }
 
-static int tx_list_xmit(struct list_head *i, struct us_conntrack *u, int type)
+static int tx_list_xmit(struct list_head *i, struct cache_object *obj, int type)
 {
 	int ret;
-	struct nethdr *net = BUILD_NETMSG(u->ct, type);
+	struct nethdr *net = BUILD_NETMSG(obj->ct, type);
 
 	list_del_init(i);
 	tx_list_len--;
@@ -186,10 +185,10 @@ static void notrack_run(void)
 
 	/* send conntracks in the tx_list */
 	list_for_each_entry_safe(cn, tmp, &tx_list, tx_list) {
-		struct us_conntrack *u;
+		struct cache_object *obj;
 
-		u = cache_get_conntrack(STATE_SYNC(internal), cn);
-		tx_list_xmit(&cn->tx_list, u, NET_T_STATE_UPD);
+		obj = cache_data_get_object(STATE_SYNC(internal), cn);
+		tx_list_xmit(&cn->tx_list, obj, NET_T_STATE_UPD);
 	}
 }
 

@@ -19,67 +19,66 @@
 #include "conntrackd.h"
 #include "cache.h"
 #include "netlink.h"
-#include "us-conntrack.h"
 #include "log.h"
 
 #include <string.h>
 #include <errno.h>
 
-static void add_wt(struct us_conntrack *u)
+static void add_wt(struct cache_object *obj)
 {
 	int ret;
 	char __ct[nfct_maxsize()];
 	struct nf_conntrack *ct = (struct nf_conntrack *)(void*) __ct;
 
-	ret = nl_exist_conntrack(STATE(request), u->ct);
+	ret = nl_exist_conntrack(STATE(request), obj->ct);
 	switch (ret) {
 	case -1:
 		dlog(LOG_ERR, "cache_wt problem: %s", strerror(errno));
-		dlog_ct(STATE(log), u->ct, NFCT_O_PLAIN);
+		dlog_ct(STATE(log), obj->ct, NFCT_O_PLAIN);
 		break;
 	case 0:
-		memcpy(ct, u->ct, nfct_maxsize());
+		memcpy(ct, obj->ct, nfct_maxsize());
 		if (nl_create_conntrack(STATE(dump), ct) == -1) {
 			dlog(LOG_ERR, "cache_wt create: %s", strerror(errno));
-			dlog_ct(STATE(log), u->ct, NFCT_O_PLAIN);
+			dlog_ct(STATE(log), obj->ct, NFCT_O_PLAIN);
 		}
 		break;
 	case 1:
-		memcpy(ct, u->ct, nfct_maxsize());
+		memcpy(ct, obj->ct, nfct_maxsize());
 		if (nl_update_conntrack(STATE(dump), ct) == -1) {
 			dlog(LOG_ERR, "cache_wt crt-upd: %s", strerror(errno));
-			dlog_ct(STATE(log), u->ct, NFCT_O_PLAIN);
+			dlog_ct(STATE(log), obj->ct, NFCT_O_PLAIN);
 		}
 		break;
 	}
 }
 
-static void upd_wt(struct us_conntrack *u)
+static void upd_wt(struct cache_object *obj)
 {
 	char __ct[nfct_maxsize()];
 	struct nf_conntrack *ct = (struct nf_conntrack *)(void*) __ct;
 
-	memcpy(ct, u->ct, nfct_maxsize());
+	memcpy(ct, obj->ct, nfct_maxsize());
 
 	if (nl_update_conntrack(STATE(dump), ct) == -1) {
 		dlog(LOG_ERR, "cache_wt update:%s", strerror(errno));
-		dlog_ct(STATE(log), u->ct, NFCT_O_PLAIN);
+		dlog_ct(STATE(log), obj->ct, NFCT_O_PLAIN);
 	}
 }
 
-static void writethrough_add(struct us_conntrack *u, void *data)
+static void writethrough_add(struct cache_object *obj, void *data)
 {
-	add_wt(u);
+	add_wt(obj);
 }
 
-static void writethrough_update(struct us_conntrack *u, void *data)
+static void writethrough_update(struct cache_object *obj, void *data)
 {
-	upd_wt(u);
+	upd_wt(obj);
 }
 
-static void writethrough_destroy(struct us_conntrack *u, void *data)
+static void writethrough_destroy(struct cache_object *obj, void *data)
 {
-	nl_destroy_conntrack(STATE(dump), u->ct);
+	nl_destroy_conntrack(STATE(dump), obj->ct);
 }
 
 struct cache_feature writethrough_feature = {

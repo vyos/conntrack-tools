@@ -18,7 +18,6 @@
 
 #include "cache.h"
 #include "conntrackd.h"
-#include "us-conntrack.h"
 #include "alarm.h"
 #include "debug.h"
 
@@ -26,45 +25,46 @@
 
 static void timeout(struct alarm_block *a, void *data)
 {
-	struct us_conntrack *u = data;
+	struct cache_object *obj = data;
 
-	debug_ct(u->ct, "expired timeout");
-	cache_del(u->cache, u->ct);
+	debug_ct(obj->ct, "expired timeout");
+	cache_del(obj->cache, obj);
+	cache_object_free(obj);
 }
 
-static void timer_add(struct us_conntrack *u, void *data)
+static void timer_add(struct cache_object *obj, void *data)
 {
-	struct alarm_block *alarm = data;
+	struct alarm_block *a = data;
 
-	init_alarm(alarm, u, timeout);
-	add_alarm(alarm, CONFIG(cache_timeout), 0);
+	init_alarm(a, obj, timeout);
+	add_alarm(a, CONFIG(cache_timeout), 0);
 }
 
-static void timer_update(struct us_conntrack *u, void *data)
+static void timer_update(struct cache_object *obj, void *data)
 {
-	struct alarm_block *alarm = data;
-	add_alarm(alarm, CONFIG(cache_timeout), 0);
+	struct alarm_block *a = data;
+	add_alarm(a, CONFIG(cache_timeout), 0);
 }
 
-static void timer_destroy(struct us_conntrack *u, void *data)
+static void timer_destroy(struct cache_object *obj, void *data)
 {
-	struct alarm_block *alarm = data;
-	del_alarm(alarm);
+	struct alarm_block *a = data;
+	del_alarm(a);
 }
 
-static int timer_dump(struct us_conntrack *u, void *data, char *buf, int type)
+static int timer_dump(struct cache_object *obj, void *data, char *buf, int type)
 {
 	struct timeval tv, tmp;
- 	struct alarm_block *alarm = data;
+ 	struct alarm_block *a = data;
 
 	if (type == NFCT_O_XML)
 		return 0;
 
-	if (!alarm_pending(alarm))
+	if (!alarm_pending(a))
 		return 0;
 
 	gettimeofday(&tv, NULL);
-	timersub(&alarm->tv, &tv, &tmp);
+	timersub(&a->tv, &tv, &tmp);
 	return sprintf(buf, " [expires in %lds]", tmp.tv_sec);
 }
 
