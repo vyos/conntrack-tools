@@ -54,7 +54,7 @@ static void __max_mcast_dedicated_links_reached(void);
 %token T_GENERAL T_SYNC T_STATS T_RELAX_TRANSITIONS T_BUFFER_SIZE T_DELAY
 %token T_SYNC_MODE T_LISTEN_TO T_FAMILY T_RESEND_BUFFER_SIZE
 %token T_ALARM T_FTFW T_CHECKSUM T_WINDOWSIZE T_ON T_OFF
-%token T_REPLICATE T_FOR T_IFACE T_PURGE
+%token T_REPLICATE T_FOR T_IFACE T_PURGE T_RESEND_QUEUE_SIZE
 %token T_ESTABLISHED T_SYN_SENT T_SYN_RECV T_FIN_WAIT 
 %token T_CLOSE_WAIT T_LAST_ACK T_TIME_WAIT T_CLOSE T_LISTEN
 %token T_SYSLOG T_WRITE_THROUGH T_STAT_BUFFER_SIZE T_DESTROY_TIMEOUT
@@ -525,6 +525,7 @@ sync_mode_ftfw_list:
 	      | sync_mode_ftfw_list sync_mode_ftfw_line;
 
 sync_mode_ftfw_line: resend_queue_size
+		   | resend_buffer_size
 		   | timeout
 		   | purge
 		   | window_size
@@ -537,7 +538,13 @@ sync_mode_notrack_line: timeout
 		      | purge
 		      ;
 
-resend_queue_size: T_RESEND_BUFFER_SIZE T_NUMBER
+resend_buffer_size: T_RESEND_BUFFER_SIZE T_NUMBER
+{
+	fprintf(stderr, "WARNING: `ResendBufferSize' is deprecated. "
+			"Use `ResendQueueSize' instead\n");
+};
+
+resend_queue_size: T_RESEND_QUEUE_SIZE T_NUMBER
 {
 	conf.resend_queue_size = $2;
 };
@@ -1146,7 +1153,7 @@ init_config(char *filename)
 		CONFIG(refresh) = 60;
 
 	if (CONFIG(resend_queue_size) == 0)
-		CONFIG(resend_queue_size) = 262144;
+		CONFIG(resend_queue_size) = 131072;
 
 	/* default to a window size of 300 packets */
 	if (CONFIG(window_size) == 0)

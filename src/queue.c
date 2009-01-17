@@ -113,6 +113,13 @@ int queue_del(struct queue_node *n)
 	return 1;
 }
 
+struct queue_node *queue_del_head(struct queue *b)
+{
+	struct queue_node *n = (struct queue_node *) b->head.next;
+	queue_del(n);
+	return n;
+}
+
 int queue_in(struct queue *b, struct queue_node *n)
 {
 	return b == n->owner;

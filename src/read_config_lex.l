@@ -88,6 +88,7 @@ notrack		[N|n][O|o][T|t][R|r][A|a][C|c][K|k]
 "ListenTo"			{ return T_LISTEN_TO; }
 "Family"			{ return T_FAMILY; }
 "ResendBufferSize"		{ return T_RESEND_BUFFER_SIZE; }
+"ResendQueueSize"		{ return T_RESEND_QUEUE_SIZE; }
 "Checksum"			{ return T_CHECKSUM; }
 "ACKWindowSize"			{ return T_WINDOWSIZE; }
 "Replicate"			{ return T_REPLICATE; }

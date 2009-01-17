@@ -44,6 +44,7 @@ void queue_destroy(struct queue *b);
 unsigned int queue_len(const struct queue *b);
 int queue_add(struct queue *b, struct queue_node *n);
 int queue_del(struct queue_node *n);
+struct queue_node *queue_del_head(struct queue *b);
 int queue_in(struct queue *b, struct queue_node *n);
 void queue_iterate(struct queue *b,
 		   const void *data,
