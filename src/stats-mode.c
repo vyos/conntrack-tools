@@ -102,9 +102,9 @@ static void dump_stats(struct nf_conntrack *ct)
 		debug_ct(ct, "resync entry");
 }
 
-static int overrun_stats(enum nf_conntrack_msg_type type,
-			 struct nf_conntrack *ct,
-			 void *data)
+static int resync_stats(enum nf_conntrack_msg_type type,
+			struct nf_conntrack *ct,
+			void *data)
 {
 	if (ct_filter_conntrack(ct, 1))
 		return NFCT_CB_CONTINUE;
@@ -118,7 +118,7 @@ static int overrun_stats(enum nf_conntrack_msg_type type,
 	nfct_attr_unset(ct, ATTR_USE);
 
 	if (!cache_update_force(STATE_STATS(cache), ct))
-		debug_ct(ct, "overrun stats resync");
+		debug_ct(ct, "stats resync");
 
 	return NFCT_CB_CONTINUE;
 }
@@ -130,7 +130,7 @@ static int purge_step(void *data1, void *data2)
 
 	ret = nfct_query(STATE(dump), NFCT_Q_GET, obj->ct);
 	if (ret == -1 && errno == ENOENT) {
-		debug_ct(obj->ct, "overrun purge stats");
+		debug_ct(obj->ct, "purge stats");
 		cache_del(STATE_STATS(cache), obj);
 		cache_object_free(obj);
 	}
@@ -196,7 +196,7 @@ struct ct_mode stats_mode = {
 	.local			= local_handler_stats,
 	.kill			= kill_stats,
 	.dump			= dump_stats,
-	.overrun		= overrun_stats,
+	.resync			= resync_stats,
 	.purge			= purge_stats,
 	.event_new		= event_new_stats,
 	.event_upd		= event_update_stats,

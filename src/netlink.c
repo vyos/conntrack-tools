@@ -90,7 +90,7 @@ struct nfct_handle *nl_init_dump_handler(void)
 	return h;
 }
 
-struct nfct_handle *nl_init_overrun_handler(void)
+struct nfct_handle *nl_init_resync_handler(void)
 {
 	struct nfct_handle *h;
 
@@ -172,7 +172,7 @@ int nl_flush_conntrack_table(struct nfct_handle *h)
 	return nfct_query(h, NFCT_Q_FLUSH, &CONFIG(family));
 }
 
-int nl_overrun_request_resync(struct nfct_handle *h)
+int nl_send_resync(struct nfct_handle *h)
 {
 	int family = CONFIG(family);
 	return nfct_send(h, NFCT_Q_DUMP, &family);

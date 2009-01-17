@@ -204,9 +204,9 @@ void local_handler(int fd, void *data)
 		STATE(stats).local_unknown_request++;
 }
 
-static void do_overrun_alarm(struct alarm_block *a, void *data)
+static void do_resync_alarm(struct alarm_block *a, void *data)
 {
-	nl_overrun_request_resync(STATE(overrun));
+	nl_send_resync(STATE(resync));
 	STATE(stats).nl_kernel_table_resync++;
 }
 
@@ -313,16 +313,16 @@ init(void)
 		return -1;
 	}
 
-	STATE(overrun) = nl_init_overrun_handler();
-	if (STATE(overrun)== NULL) {
+	STATE(resync) = nl_init_resync_handler();
+	if (STATE(resync)== NULL) {
 		dlog(LOG_ERR, "can't open netlink handler: %s",
 		     strerror(errno));
 		dlog(LOG_ERR, "no ctnetlink kernel support?");
 		return -1;
 	}
-	nfct_callback_register(STATE(overrun),
+	nfct_callback_register(STATE(resync),
 			       NFCT_T_ALL,
-			       STATE(mode)->overrun,
+			       STATE(mode)->resync,
 			       NULL);
 
 	/* no callback, it does not do anything with the output */
@@ -334,7 +334,7 @@ init(void)
 		return -1;
 	}
 
-	init_alarm(&STATE(overrun_alarm), NULL, do_overrun_alarm);
+	init_alarm(&STATE(resync_alarm), NULL, do_resync_alarm);
 
 	STATE(fds) = create_fds();
 	if (STATE(fds) == NULL) {
@@ -344,7 +344,7 @@ init(void)
 
 	register_fd(STATE(local).fd, STATE(fds));
 	register_fd(nfct_fd(STATE(event)), STATE(fds));
-	register_fd(nfct_fd(STATE(overrun)), STATE(fds));
+	register_fd(nfct_fd(STATE(resync)), STATE(fds));
 
 	if (STATE(mode)->register_fds &&
 	    STATE(mode)->register_fds(STATE(fds)) == -1) {
@@ -435,7 +435,7 @@ static void __run(struct timeval *next_alarm)
 				 *    we resync ourselves.
 				 */
 				nl_resize_socket_buffer(STATE(event));
-				add_alarm(&STATE(overrun_alarm), OVRUN_INT, 0);
+				add_alarm(&STATE(resync_alarm), OVRUN_INT, 0);
 				STATE(stats).nl_catch_event_failed++;
 				STATE(stats).nl_overrun++;
 				break;
@@ -455,8 +455,8 @@ static void __run(struct timeval *next_alarm)
 		}
 	}
 
-	if (FD_ISSET(nfct_fd(STATE(overrun)), &readfds)) {
-		nfct_catch(STATE(overrun));
+	if (FD_ISSET(nfct_fd(STATE(resync)), &readfds)) {
+		nfct_catch(STATE(resync));
 		if (STATE(mode)->purge)
 			STATE(mode)->purge();
 	}

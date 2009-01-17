@@ -518,7 +518,7 @@ static int purge_step(void *data1, void *data2)
 
 	ret = nfct_query(h, NFCT_Q_GET, obj->ct);
 	if (ret == -1 && errno == ENOENT) {
-		debug_ct(obj->ct, "overrun purge resync");
+		debug_ct(obj->ct, "purge resync");
 		if (obj->status != C_OBJ_DEAD) {
 			cache_object_set_status(obj, C_OBJ_DEAD);
 			mcast_send_sync(obj, NET_T_STATE_DEL);
@@ -536,9 +536,9 @@ static int purge_sync(void)
 	return 0;
 }
 
-static int overrun_sync(enum nf_conntrack_msg_type type,
-			struct nf_conntrack *ct,
-			void *data)
+static int resync_sync(enum nf_conntrack_msg_type type,
+		       struct nf_conntrack *ct,
+		       void *data)
 {
 	struct cache_object *obj;
 
@@ -553,7 +553,7 @@ static int overrun_sync(enum nf_conntrack_msg_type type,
 	nfct_attr_unset(ct, ATTR_USE);
 
 	if ((obj = cache_update_force(STATE_SYNC(internal), ct))) {
-		debug_ct(obj->ct, "overrun resync");
+		debug_ct(obj->ct, "resync");
 		mcast_send_sync(obj, NET_T_STATE_UPD);
 	}
 
@@ -629,7 +629,7 @@ struct ct_mode sync_mode = {
 	.local			= local_handler_sync,
 	.kill			= kill_sync,
 	.dump			= dump_sync,
-	.overrun		= overrun_sync,
+	.resync			= resync_sync,
 	.purge			= purge_sync,
 	.event_new		= event_new_sync,
 	.event_upd		= event_update_sync,
