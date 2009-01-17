@@ -27,8 +27,6 @@
 
 #include <string.h>
 
-static struct queue *tx_queue;
-
 struct cache_notrack {
 	struct queue_node	qnode;
 };
@@ -66,30 +64,14 @@ static void tx_queue_add_ctlmsg(uint32_t flags, uint32_t from, uint32_t to)
 	ack->from	= from;
 	ack->to		= to;
 
-	queue_add(tx_queue, &qobj->qnode);
-}
-
-static int notrack_init(void)
-{
-	tx_queue = queue_create(INT_MAX, QUEUE_F_EVFD);
-	if (tx_queue == NULL) {
-		dlog(LOG_ERR, "cannot create tx queue");
-		return -1;
-	}
-
-	return 0;
-}
-
-static void notrack_kill(void)
-{
-	queue_destroy(tx_queue);
+	queue_add(STATE_SYNC(tx_queue), &qobj->qnode);
 }
 
 static int do_cache_to_tx(void *data1, void *data2)
 {
 	struct cache_object *obj = data2;
 	struct cache_notrack *cn = cache_get_extra(STATE_SYNC(internal), obj);
-	queue_add(tx_queue, &cn->qnode);
+	queue_add(STATE_SYNC(tx_queue), &cn->qnode);
 	return 0;
 }
 
@@ -176,25 +158,16 @@ static int tx_queue_xmit(struct queue_node *n, const void *data2)
 	return 0;
 }
 
-static void notrack_run(fd_set *readfds)
+static void notrack_xmit(void)
 {
-	if (FD_ISSET(queue_get_eventfd(tx_queue), readfds))
-		queue_iterate(tx_queue, NULL, tx_queue_xmit);
-}
-
-static int notrack_register_fds(struct fds *fds)
-{
-	return register_fd(queue_get_eventfd(tx_queue), fds);
+	queue_iterate(STATE_SYNC(tx_queue), NULL, tx_queue_xmit);
 }
 
 struct sync_mode sync_notrack = {
 	.internal_cache_flags	= LIFETIME,
 	.external_cache_flags	= LIFETIME,
 	.internal_cache_extra	= &cache_notrack_extra,
-	.init			= notrack_init,
-	.kill			= notrack_kill,
 	.local			= notrack_local,
 	.recv			= notrack_recv,
-	.run			= notrack_run,
-	.register_fds		= notrack_register_fds,
+	.xmit			= notrack_xmit,
 };

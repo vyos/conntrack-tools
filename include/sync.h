@@ -18,8 +18,7 @@ struct sync_mode {
 	int  (*local)(int fd, int type, void *data);
 	int  (*recv)(const struct nethdr *net);
 	void (*send)(struct nethdr *net, struct cache_object *obj);
-	void (*run)(fd_set *readfds);
-	int (*register_fds)(struct fds *fds);
+	void (*xmit)(void);
 };
 
 extern struct sync_mode sync_alarm;

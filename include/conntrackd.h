@@ -150,6 +150,7 @@ struct ct_sync_state {
 
 	struct mcast_sock *mcast_server;  /* multicast socket: incoming */
 	struct mcast_sock *mcast_client;  /* multicast socket: outgoing  */
+	struct queue *tx_queue;
 
 	struct sync_mode *sync;		/* sync mode */
 

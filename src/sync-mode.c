@@ -26,6 +26,7 @@
 #include "fds.h"
 #include "event.h"
 #include "debug.h"
+#include "queue.h"
 
 #include <errno.h>
 #include <unistd.h>
@@ -242,6 +243,12 @@ static int init_sync(void)
 		return -1;
 	}
 
+	STATE_SYNC(tx_queue) = queue_create(INT_MAX, QUEUE_F_EVFD);
+	if (STATE_SYNC(tx_queue) == NULL) {
+		dlog(LOG_ERR, "cannot create tx queue");
+		return -1;
+	}
+
 	/* initialization of multicast sequence generation */
 	STATE_SYNC(last_seq_sent) = time(NULL);
 
@@ -253,8 +260,8 @@ static int register_fds_sync(struct fds *fds)
 	if (register_fd(STATE_SYNC(mcast_server->fd), fds) == -1)
 		return -1;
 
-	if (STATE_SYNC(sync)->register_fds)
-		return STATE_SYNC(sync)->register_fds(fds);
+	if (register_fd(queue_get_eventfd(STATE_SYNC(tx_queue)), fds) == -1)
+		return -1;
 
 	return 0;
 }
@@ -265,8 +272,8 @@ static void run_sync(fd_set *readfds)
 	if (FD_ISSET(STATE_SYNC(mcast_server->fd), readfds))
 		mcast_handler();
 
-	if (STATE_SYNC(sync)->run)
-		STATE_SYNC(sync)->run(readfds);
+	if (FD_ISSET(queue_get_eventfd(STATE_SYNC(tx_queue)), readfds))
+		STATE_SYNC(sync)->xmit();
 
 	/* flush pending messages */
 	mcast_buffered_pending_netmsg(STATE_SYNC(mcast_client));
@@ -281,6 +288,7 @@ static void kill_sync(void)
 	mcast_client_destroy(STATE_SYNC(mcast_client));
 
 	mcast_buffered_destroy();
+	queue_destroy(STATE_SYNC(tx_queue));
 
 	if (STATE_SYNC(sync)->kill)
 		STATE_SYNC(sync)->kill();
