@@ -207,6 +207,8 @@ static void mcast_iface_handler(void)
 
 static int init_sync(void)
 {
+	int i;
+
 	state.sync = malloc(sizeof(struct ct_sync_state));
 	if (!state.sync) {
 		dlog(LOG_ERR, "can't allocate memory for sync");
@@ -261,6 +263,11 @@ static int init_sync(void)
 		dlog(LOG_ERR, "can't open multicast server!");
 		return -1;
 	}
+	for (i=0; i<STATE_SYNC(mcast_server)->num_links; i++) {
+		int fd = mcast_get_fd(STATE_SYNC(mcast_server)->multi[i]);
+		if (register_fd(fd, STATE(fds)) == -1)
+			return -1;
+	}
 
 	/* multicast client to send events on the wire */
 	STATE_SYNC(mcast_client) =
@@ -286,33 +293,20 @@ static int init_sync(void)
 		dlog(LOG_ERR, "can't open interface watcher");
 		return -1;
 	}
+	if (register_fd(nlif_fd(STATE_SYNC(mcast_iface)), STATE(fds)) == -1)
+		return -1;
 
 	STATE_SYNC(tx_queue) = queue_create(INT_MAX, QUEUE_F_EVFD);
 	if (STATE_SYNC(tx_queue) == NULL) {
 		dlog(LOG_ERR, "cannot create tx queue");
 		return -1;
 	}
+	if (register_fd(queue_get_eventfd(STATE_SYNC(tx_queue)), 
+							STATE(fds)) == -1)
+		return -1;
 
 	/* initialization of multicast sequence generation */
 	STATE_SYNC(last_seq_sent) = time(NULL);
-
-	return 0;
-}
-
-static int register_fds_sync(struct fds *fds) 
-{
-	int i;
-
-	for (i=0; i<STATE_SYNC(mcast_server)->num_links; i++) {
-		int fd = mcast_get_fd(STATE_SYNC(mcast_server)->multi[i]);
-		if (register_fd(fd, fds) == -1)
-			return -1;
-	}
-	if (register_fd(nlif_fd(STATE_SYNC(mcast_iface)), fds) == -1)
-		return -1;
-
-	if (register_fd(queue_get_eventfd(STATE_SYNC(tx_queue)), fds) == -1)
-		return -1;
 
 	return 0;
 }
@@ -624,7 +618,6 @@ static int event_destroy_sync(struct nf_conntrack *ct)
 
 struct ct_mode sync_mode = {
 	.init 			= init_sync,
-	.register_fds		= register_fds_sync,
 	.run			= run_sync,
 	.local			= local_handler_sync,
 	.kill			= kill_sync,

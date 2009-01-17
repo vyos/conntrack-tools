@@ -278,6 +278,12 @@ init(void)
 		STATE(mode) = &stats_mode;
 	}
 
+	STATE(fds) = create_fds();
+	if (STATE(fds) == NULL) {
+		dlog(LOG_ERR, "can't create file descriptor pool");
+		return -1;
+	}
+
 	/* Initialization */
 	if (STATE(mode)->init() == -1) {
 		dlog(LOG_ERR, "initialization failed");
@@ -289,6 +295,7 @@ init(void)
 		dlog(LOG_ERR, "can't open unix socket!");
 		return -1;
 	}
+	register_fd(STATE(local).fd, STATE(fds));
 
 	STATE(event) = nl_init_event_handler();
 	if (STATE(event) == NULL) {
@@ -298,6 +305,7 @@ init(void)
 		return -1;
 	}
 	nfct_callback_register(STATE(event), NFCT_T_ALL, event_handler, NULL);
+	register_fd(nfct_fd(STATE(event)), STATE(fds));
 
 	STATE(dump) = nl_init_dump_handler();
 	if (STATE(dump) == NULL) {
@@ -324,6 +332,7 @@ init(void)
 			       NFCT_T_ALL,
 			       STATE(mode)->resync,
 			       NULL);
+	register_fd(nfct_fd(STATE(resync)), STATE(fds));
 
 	/* no callback, it does not do anything with the output */
 	STATE(request) = nl_init_request_handler();
@@ -335,22 +344,6 @@ init(void)
 	}
 
 	init_alarm(&STATE(resync_alarm), NULL, do_resync_alarm);
-
-	STATE(fds) = create_fds();
-	if (STATE(fds) == NULL) {
-		dlog(LOG_ERR, "can't create file descriptor pool");
-		return -1;
-	}
-
-	register_fd(STATE(local).fd, STATE(fds));
-	register_fd(nfct_fd(STATE(event)), STATE(fds));
-	register_fd(nfct_fd(STATE(resync)), STATE(fds));
-
-	if (STATE(mode)->register_fds &&
-	    STATE(mode)->register_fds(STATE(fds)) == -1) {
-		dlog(LOG_ERR, "fds registration failed");
-		return -1;
-	}
 
 	/* Signals handling */
 	sigemptyset(&STATE(block));

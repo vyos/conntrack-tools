@@ -199,7 +199,6 @@ extern struct ct_general_state st;
 
 struct ct_mode {
 	int (*init)(void);
-	int (*register_fds)(struct fds *fds);
 	void (*run)(fd_set *readfds);
 	int (*local)(int fd, int type, void *data);
 	void (*kill)(void);

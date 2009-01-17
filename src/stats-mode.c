@@ -191,7 +191,6 @@ static int event_destroy_stats(struct nf_conntrack *ct)
 
 struct ct_mode stats_mode = {
 	.init 			= init_stats,
-	.register_fds 		= NULL,
 	.run			= NULL,
 	.local			= local_handler_stats,
 	.kill			= kill_stats,
