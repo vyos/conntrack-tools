@@ -119,6 +119,7 @@ notrack		[N|n][O|o][T|t][R|r][A|a][C|c][K|k]
 "Kernelspace"			{ return T_KERNELSPACE; }
 "EventIterationLimit"		{ return T_EVENT_ITER_LIMIT; }
 "Default"			{ return T_DEFAULT; }
+"PollSecs"			{ return T_POLL_SECS; }
 
 {is_on}			{ return T_ON; }
 {is_off}		{ return T_OFF; }

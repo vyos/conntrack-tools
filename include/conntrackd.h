@@ -48,6 +48,7 @@
 #define CTD_SYNC_FTFW		(1UL << 2)
 #define CTD_SYNC_ALARM		(1UL << 3)
 #define CTD_SYNC_NOTRACK	(1UL << 4)
+#define CTD_POLL		(1UL << 5)
 
 /* FILENAME_MAX is 4096 on my system, perhaps too much? */
 #ifndef FILENAME_MAXLEN
@@ -85,6 +86,7 @@ struct ct_conf {
 	int family;			/* protocol family */
 	unsigned int resend_queue_size; /* FTFW protocol */
 	unsigned int window_size;
+	int poll_kernel_secs;
 	int cache_write_through;
 	int filter_from_kernelspace;
 	int event_iterations_limit;

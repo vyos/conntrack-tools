@@ -58,7 +58,7 @@ static void __max_mcast_dedicated_links_reached(void);
 %token T_ESTABLISHED T_SYN_SENT T_SYN_RECV T_FIN_WAIT 
 %token T_CLOSE_WAIT T_LAST_ACK T_TIME_WAIT T_CLOSE T_LISTEN
 %token T_SYSLOG T_WRITE_THROUGH T_STAT_BUFFER_SIZE T_DESTROY_TIMEOUT
-%token T_MCAST_RCVBUFF T_MCAST_SNDBUFF T_NOTRACK
+%token T_MCAST_RCVBUFF T_MCAST_SNDBUFF T_NOTRACK T_POLL_SECS
 %token T_FILTER T_ADDRESS T_PROTOCOL T_STATE T_ACCEPT T_IGNORE
 %token T_FROM T_USERSPACE T_KERNELSPACE T_EVENT_ITER_LIMIT T_DEFAULT
 
@@ -715,6 +715,7 @@ general_line: hashsize
 	    | netlink_buffer_size_max_grown
 	    | family
 	    | event_iterations_limit
+	    | poll_secs
 	    | filter
 	    ;
 
@@ -739,6 +740,16 @@ family : T_FAMILY T_STRING
 event_iterations_limit : T_EVENT_ITER_LIMIT T_NUMBER
 {
 	CONFIG(event_iterations_limit) = $2;
+};
+
+poll_secs: T_POLL_SECS T_NUMBER
+{
+	conf.flags |= CTD_POLL;
+	conf.poll_kernel_secs = $2;
+	if (conf.poll_kernel_secs == 0) {
+		fprintf(stderr, "ERROR: `PollSecs' clause must be > 0\n");
+		exit(EXIT_FAILURE);
+	}
 };
 
 filter : T_FILTER '{' filter_list '}'
