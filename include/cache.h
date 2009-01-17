@@ -87,6 +87,8 @@ struct cache {
 		uint32_t	commit_fail;
 
 		uint32_t	flush;
+
+		uint32_t	objects;
 	} stats;
 };
 

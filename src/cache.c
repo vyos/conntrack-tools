@@ -194,12 +194,14 @@ struct cache_object *cache_object_new(struct cache *c, struct nf_conntrack *ct)
 	}
 	memcpy(obj->ct, ct, nfct_sizeof(ct));
 	obj->status = C_OBJ_NONE;
+	c->stats.objects++;
 
 	return obj;
 }
 
 void cache_object_free(struct cache_object *obj)
 {
+	obj->cache->stats.objects--;
 	nfct_destroy(obj->ct);
 	free(obj);
 }
@@ -387,18 +389,16 @@ void cache_stats_extended(const struct cache *c, int fd)
 	int size;
 
 	size = snprintf(buf, sizeof(buf),
-			    "cache:%s\tactive/total entries:\t%12u/%12u\n"
-			    "\tcreation OK:\t\t\t%12u\n"
-			    "\tcreation failed:\t\t%12u\n"
+			    "cache:%s\tactive objects:\t\t%12u\n"
+			    "\tactive/total entries:\t\t%12u/%12u\n"
+			    "\tcreation OK/failed:\t\t%12u/%12u\n"
 			    "\t\tno memory available:\t%12u\n"
 			    "\t\tno space left in cache:\t%12u\n"
-			    "\tupdate OK:\t\t\t%12u\n"
-			    "\tupdate failed:\t\t\t%12u\n"
+			    "\tupdate OK/failed:\t\t%12u/%12u\n"
 			    "\t\tentry not found:\t%12u\n"
-			    "\tdeletion created:\t\t%12u\n"
-			    "\tdeletion failed:\t\t%12u\n"
-			    "\t\tentry not found:\t%12u\n",
-			    c->name,
+			    "\tdeletion created/failed:\t%12u/%12u\n"
+			    "\t\tentry not found:\t%12u\n\n",
+			    c->name, c->stats.objects,
 			    c->stats.active, hashtable_counter(c->h),
 			    c->stats.add_ok,
 			    c->stats.add_fail,
