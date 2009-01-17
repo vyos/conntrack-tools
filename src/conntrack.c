@@ -54,13 +54,15 @@
 #include <signal.h>
 #include <string.h>
 #include <netdb.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include <libnetfilter_conntrack/libnetfilter_conntrack.h>
 
 static const char cmdflags[NUMBER_OF_CMD]
-= {'L','I','U','D','G','F','E','V','h','L','I','D','G','F','E'};
+= {'L','I','U','D','G','F','E','V','h','L','I','D','G','F','E','C','C'};
 
 static const char cmd_need_param[NUMBER_OF_CMD]
-= { 2,  0,  0,  0,  0,  2,  2,  2,  2,  2,  0,  0,  0,  2,  2 };
+= { 2,  0,  0,  0,  0,  2,  2,  2,  2,  2,  0,  0,  0,  2,  2,  2,  2};
 
 static const char *optflags[NUMBER_OF_OPT] = {
 "src","dst","reply-src","reply-dst","protonum","timeout","status","zero",
@@ -138,6 +140,7 @@ static char commands_v_options[NUMBER_OF_CMD][NUMBER_OF_OPT] =
 /*EXP_GET*/   {1,1,2,2,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
 /*EXP_FLUSH*/ {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
 /*EXP_EVENT*/ {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+/*CT_COUNT*/  {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
 };
 
 static LIST_HEAD(proto_list);
@@ -858,6 +861,14 @@ static int dump_exp_cb(enum nf_conntrack_msg_type type,
 	return NFCT_CB_CONTINUE;
 }
 
+static int count_exp_cb(enum nf_conntrack_msg_type type,
+			struct nf_expect *exp,
+			void *data)
+{
+	counter++;
+	return NFCT_CB_CONTINUE;
+}
+
 static struct ctproto_handler *h;
 
 static const int cmd2type[][2] = {
@@ -869,6 +880,7 @@ static const int cmd2type[][2] = {
 	['E']	= { CT_EVENT,	EXP_EVENT },
 	['V']	= { CT_VERSION,	CT_VERSION },
 	['h']	= { CT_HELP,	CT_HELP },
+	['C']	= { CT_COUNT,	EXP_COUNT },
 };
 
 static const int opt2type[] = {
@@ -908,7 +920,7 @@ static const int opt2attr[] = {
 	['i']	= ATTR_ID,
 };
 
-static char exit_msg[][64] = {
+static char exit_msg[NUMBER_OF_CMD][64] = {
 	[CT_LIST_BIT] 		= "%d flow entries has been shown.\n",
 	[CT_CREATE_BIT]		= "%d flow entries has been created.\n",
 	[CT_UPDATE_BIT]		= "%d flow entries has been updated.\n",
@@ -955,7 +967,7 @@ int main(int argc, char *argv[])
 
 	while ((c = getopt_long(argc, argv, "L::I::U::D::G::E::F::hVs:d:r:q:"
 					    "p:t:u:e:a:z[:]:{:}:m:i:f:o:n::"
-					    "g::c:b:", 
+					    "g::c:b:C::", 
 					    opts, NULL)) != -1) {
 	switch(c) {
 		/* commands */
@@ -967,6 +979,7 @@ int main(int argc, char *argv[])
 		case 'E':
 		case 'V':
 		case 'h':
+		case 'C':
 			type = check_type(argc, argv);
 			add_command(&command, cmd2type[c][type]);
 			break;
@@ -1322,7 +1335,34 @@ int main(int argc, char *argv[])
 		res = nfexp_catch(cth);
 		nfct_close(cth);
 		break;
-			
+	case CT_COUNT: {
+#define NF_CONNTRACK_COUNT_PROC "/proc/sys/net/netfilter/nf_conntrack_count"
+		int fd, count;
+		char buf[strlen("2147483647")];	/* INT_MAX */
+		fd = open(NF_CONNTRACK_COUNT_PROC, O_RDONLY);
+		if (fd == -1) {
+			exit_error(OTHER_PROBLEM, "Can't open %s",
+				   NF_CONNTRACK_COUNT_PROC);
+		}
+		if (read(fd, buf, sizeof(buf)) == -1) {
+			exit_error(OTHER_PROBLEM, "Can't read %s",
+				   NF_CONNTRACK_COUNT_PROC);
+		}
+		close(fd);
+		count = atoi(buf);
+		printf("%d\n", count);
+		break;
+	}
+	case EXP_COUNT:
+		cth = nfct_open(EXPECT, 0);
+		if (!cth)
+			exit_error(OTHER_PROBLEM, "Can't open handler");
+
+		nfexp_callback_register(cth, NFCT_T_ALL, count_exp_cb, NULL);
+		res = nfexp_query(cth, NFCT_Q_DUMP, &family);
+		nfct_close(cth);
+		printf("%d\n", counter);
+		break;
 	case CT_VERSION:
 		printf("%s v%s (conntrack-tools)\n", PROGNAME, VERSION);
 		break;

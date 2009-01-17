@@ -59,8 +59,14 @@ enum action {
 
 	EXP_EVENT_BIT	= 14,
 	EXP_EVENT	= (1 << EXP_EVENT_BIT),
+
+	CT_COUNT_BIT	= 15,
+	CT_COUNT	= (1 << CT_COUNT_BIT),
+
+	EXP_COUNT_BIT	= 16,
+	EXP_COUNT	= (1 << EXP_COUNT_BIT),
 };
-#define NUMBER_OF_CMD   15
+#define NUMBER_OF_CMD   17
 
 enum options {
 	CT_OPT_ORIG_SRC_BIT	= 0,
