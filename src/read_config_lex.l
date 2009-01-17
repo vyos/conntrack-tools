@@ -118,6 +118,7 @@ notrack		[N|n][O|o][T|t][R|r][A|a][C|c][K|k]
 "Userspace"			{ return T_USERSPACE; }
 "Kernelspace"			{ return T_KERNELSPACE; }
 "EventIterationLimit"		{ return T_EVENT_ITER_LIMIT; }
+"Default"			{ return T_DEFAULT; }
 
 {is_on}			{ return T_ON; }
 {is_off}		{ return T_OFF; }

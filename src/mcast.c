@@ -1,5 +1,5 @@
 /*
- * (C) 2006 by Pablo Neira Ayuso <pablo@netfilter.org>
+ * (C) 2006-2009 by Pablo Neira Ayuso <pablo@netfilter.org>
  * 
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -44,6 +44,8 @@ struct mcast_sock *mcast_server_create(struct mcast_conf *conf)
 	if (!m)
 		return NULL;
 	memset(m, 0, sizeof(struct mcast_sock));
+
+	m->interface_idx = conf->interface_idx;
 
 	switch(conf->ipproto) {
 	case AF_INET:
@@ -147,9 +149,49 @@ struct mcast_sock *mcast_server_create(struct mcast_conf *conf)
 	return m;
 }
 
+struct mcast_sock_multi *
+mcast_server_create_multi(struct mcast_conf *conf, int conf_len)
+{
+	struct mcast_sock_multi *m;
+	int i, j;
+
+	if (conf_len <= 0 || conf_len > MCAST_LINKS_MAX)
+		return NULL;
+
+	m = calloc(sizeof(struct mcast_sock_multi), 1);
+	if (m == NULL)
+		return NULL;
+
+	m->max_mtu = INT_MAX;
+	for (i=0; i<conf_len; i++) {
+		m->multi[i] = mcast_server_create(&conf[i]);
+		if (m->multi[i] == NULL) {
+			for (j=0; j<i; j++) {
+				mcast_server_destroy(m->multi[j]);
+			}
+			free(m);
+			return NULL;
+		}
+		if (m->max_mtu > conf[i].mtu)
+			m->max_mtu = conf[i].mtu;
+	}
+	m->num_links = conf_len;
+
+	return m;
+}
+
 void mcast_server_destroy(struct mcast_sock *m)
 {
 	close(m->fd);
+	free(m);
+}
+
+void mcast_server_destroy_multi(struct mcast_sock_multi *m)
+{
+	int i;
+
+	for (i=0; i<m->num_links; i++)
+		mcast_server_destroy(m->multi[i]);
 	free(m);
 }
 
@@ -222,6 +264,8 @@ struct mcast_sock *mcast_client_create(struct mcast_conf *conf)
 		return NULL;
 	memset(m, 0, sizeof(struct mcast_sock));
 
+	m->interface_idx = conf->interface_idx;
+
 	if ((m->fd = socket(conf->ipproto, SOCK_DGRAM, 0)) == -1) {
 		debug("mcast_sock_client_create:socket");
 		free(m);
@@ -275,9 +319,49 @@ struct mcast_sock *mcast_client_create(struct mcast_conf *conf)
 	return m;
 }
 
+struct mcast_sock_multi *
+mcast_client_create_multi(struct mcast_conf *conf, int conf_len)
+{
+	struct mcast_sock_multi *m;
+	int i, j;
+
+	if (conf_len <= 0 || conf_len > MCAST_LINKS_MAX)
+		return NULL;
+
+	m = calloc(sizeof(struct mcast_sock_multi), 1);
+	if (m == NULL)
+		return NULL;
+
+	m->max_mtu = INT_MAX;
+	for (i=0; i<conf_len; i++) {
+		m->multi[i] = mcast_client_create(&conf[i]);
+		if (m->multi[i] == NULL) {
+			for (j=0; j<i; j++) {
+				mcast_client_destroy(m->multi[j]);
+			}
+			free(m);
+			return NULL;
+		}
+		if (m->max_mtu > conf[i].mtu)
+			m->max_mtu = conf[i].mtu;
+	}
+	m->num_links = conf_len;
+
+	return m;
+}
+
 void mcast_client_destroy(struct mcast_sock *m)
 {
 	close(m->fd);
+	free(m);
+}
+
+void mcast_client_destroy_multi(struct mcast_sock_multi *m)
+{
+	int i;
+
+	for (i=0; i<m->num_links; i++)
+		mcast_client_destroy(m->multi[i]);
 	free(m);
 }
 
@@ -326,29 +410,140 @@ ssize_t mcast_recv(struct mcast_sock *m, void *data, int size)
 	return ret;
 }
 
-struct mcast_stats *mcast_get_stats(struct mcast_sock *m)
+void mcast_set_current_link(struct mcast_sock_multi *m, int i)
 {
-	return &m->stats;
+	m->current_link = m->multi[i];
 }
 
-void mcast_dump_stats(int fd, struct mcast_sock *s, struct mcast_sock *r)
+struct mcast_sock *mcast_get_current_link(struct mcast_sock_multi *m)
 {
-	char buf[512];
+	return m->current_link;
+}
+
+int mcast_get_fd(struct mcast_sock *m)
+{
+	return m->fd;
+}
+
+int mcast_get_current_ifidx(struct mcast_sock_multi *m)
+{
+	return m->current_link->interface_idx;
+}
+
+int mcast_get_ifidx(struct mcast_sock_multi *m, int i)
+{
+	return m->multi[i]->interface_idx;
+}
+
+static int
+mcast_snprintf_stats(char *buf, size_t buflen, char *ifname,
+		     struct mcast_stats *s, struct mcast_stats *r)
+{
+	size_t size;
+
+	size = snprintf(buf, buflen, "multicast traffic (active device=%s):\n"
+				     "%20llu Bytes sent "
+				     "%20llu Bytes recv\n"
+				     "%20llu Pckts sent "
+				     "%20llu Pckts recv\n"
+				     "%20llu Error send "
+				     "%20llu Error recv\n\n",
+				     ifname,
+				     (unsigned long long)s->bytes,
+				     (unsigned long long)r->bytes,
+				     (unsigned long long)s->messages,
+				     (unsigned long long)r->messages,
+				     (unsigned long long)s->error,
+				     (unsigned long long)r->error);
+	return size;
+}
+
+static int
+mcast_snprintf_stats2(char *buf, size_t buflen, const char *ifname, 
+		      const char *status, int active,
+		      struct mcast_stats *s, struct mcast_stats *r)
+{
+	size_t size;
+
+	size = snprintf(buf, buflen, 
+			"multicast traffic device=%s status=%s role=%s:\n"
+			"%20llu Bytes sent "
+			"%20llu Bytes recv\n"
+			"%20llu Pckts sent "
+			"%20llu Pckts recv\n"
+			"%20llu Error send "
+			"%20llu Error recv\n\n",
+			ifname, status, active ? "ACTIVE" : "BACKUP",
+			(unsigned long long)s->bytes,
+			(unsigned long long)r->bytes,
+			(unsigned long long)s->messages,
+			(unsigned long long)r->messages,
+			(unsigned long long)s->error,
+			(unsigned long long)r->error);
+	return size;
+}
+
+void
+mcast_dump_stats(int fd,
+		 const struct mcast_sock_multi *s,
+		 const struct mcast_sock_multi *r)
+{
+	int i;
+	struct mcast_stats snd = { 0, 0, 0};
+	struct mcast_stats rcv = { 0, 0, 0};
+	char ifname[IFNAMSIZ], buf[512];
 	int size;
 
-	size = sprintf(buf, "multicast traffic:\n"
-			    "%20llu Bytes sent "
-			    "%20llu Bytes recv\n"
-			    "%20llu Pckts sent "
-			    "%20llu Pckts recv\n"
-			    "%20llu Error send "
-			    "%20llu Error recv\n\n",
-			    (unsigned long long)s->stats.bytes,
-			    (unsigned long long)r->stats.bytes,
-			    (unsigned long long)s->stats.messages,
-			    (unsigned long long)r->stats.messages,
-			    (unsigned long long)s->stats.error,
-			    (unsigned long long)r->stats.error);
+	/* it is the same for the receiver, no need to do it twice */
+	if_indextoname(s->current_link->interface_idx, ifname);
 
+	for (i=0; i<s->num_links && i<r->num_links; i++) {
+		snd.bytes	+= s->multi[i]->stats.bytes;
+		snd.messages	+= s->multi[i]->stats.messages;
+		snd.error	+= s->multi[i]->stats.error;
+		rcv.bytes	+= r->multi[i]->stats.bytes;
+		rcv.messages	+= r->multi[i]->stats.messages;
+		rcv.error	+= r->multi[i]->stats.error;
+	}
+	size = mcast_snprintf_stats(buf, sizeof(buf), ifname, &snd, &rcv);
+	send(fd, buf, size, 0);
+}
+
+void
+mcast_dump_stats_extended(int fd,
+			  const struct mcast_sock_multi *s,
+			  const struct mcast_sock_multi *r,
+			  const struct nlif_handle *h)
+{
+	int i;
+	char buf[4096];
+	int size = 0;
+
+	for (i=0; i<s->num_links && i<r->num_links; i++) {
+		int idx = s->multi[i]->interface_idx, active;
+		unsigned int flags;
+		char ifname[IFNAMSIZ];
+		const char *status;
+
+		if_indextoname(idx, ifname);
+		nlif_get_ifflags(h, idx, &flags);
+		active = (s->multi[i] == s->current_link);
+		/* 
+		 * IFF_UP shows administrative status
+		 * IFF_RUNNING shows carrier status
+		 */
+		if (flags & IFF_UP) {
+			if (!(flags & IFF_RUNNING))
+				status = "NO-CARRIER";
+			else
+				status = "RUNNING";
+		} else {
+			status = "DOWN";
+		}
+		size += mcast_snprintf_stats2(buf+size, sizeof(buf),
+					      ifname, status, active,
+					      &s->multi[i]->stats,
+					      &r->multi[i]->stats);
+	}
 	send(fd, buf, size, 0);
 }

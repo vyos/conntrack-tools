@@ -76,7 +76,7 @@ enum {
 	__hdr;							\
 })
 
-struct mcast_sock;
+struct mcast_sock_multi;
 
 enum {
 	SEQ_UNKNOWN,
@@ -94,8 +94,8 @@ struct mcast_conf;
 
 int mcast_buffered_init(int mtu);
 void mcast_buffered_destroy(void);
-int mcast_buffered_send_netmsg(struct mcast_sock *m, const struct nethdr *net);
-ssize_t mcast_buffered_pending_netmsg(struct mcast_sock *m);
+int mcast_buffered_send_netmsg(struct mcast_sock_multi *m, const struct nethdr *net);
+ssize_t mcast_buffered_pending_netmsg(struct mcast_sock_multi *m);
 
 #define IS_DATA(x)	(x->type <= NET_T_STATE_MAX && \
 			(x->flags & ~(NET_F_HELLO | NET_F_HELLO_BACK)) == 0)

@@ -114,6 +114,22 @@ struct nfct_handle *nl_init_request_handler(void)
 	return h;
 }
 
+struct nlif_handle *nl_init_interface_handler(void)
+{
+	struct nlif_handle *h;
+	h = nlif_open();
+	if (h == NULL)
+		return NULL;
+
+	if (nlif_query(h) == -1) {
+		free(h);
+		return NULL;
+	}
+	fcntl(nlif_fd(h), F_SETFL, O_NONBLOCK);
+
+	return h;
+}
+
 static int warned = 0;
 
 void nl_resize_socket_buffer(struct nfct_handle *h)

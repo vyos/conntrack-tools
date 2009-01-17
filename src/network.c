@@ -95,7 +95,8 @@ void mcast_buffered_destroy(void)
 }
 
 /* return 0 if it is not sent, otherwise return 1 */
-int mcast_buffered_send_netmsg(struct mcast_sock *m, const struct nethdr *net)
+int
+mcast_buffered_send_netmsg(struct mcast_sock_multi *m, const struct nethdr *net)
 {
 	int ret = 0, len = ntohs(net->len);
 
@@ -104,7 +105,7 @@ retry:
 		memcpy(tx_buf + tx_buflen, net, len);
 		tx_buflen += len;
 	} else {
-		mcast_send(m, tx_buf, tx_buflen);
+		mcast_send(mcast_get_current_link(m), tx_buf, tx_buflen);
 		ret = 1;
 		tx_buflen = 0;
 		goto retry;
@@ -113,14 +114,14 @@ retry:
 	return ret;
 }
 
-ssize_t mcast_buffered_pending_netmsg(struct mcast_sock *m)
+ssize_t mcast_buffered_pending_netmsg(struct mcast_sock_multi *m)
 {
 	ssize_t ret;
 
 	if (tx_buflen == 0)
 		return 0;
 
-	ret = mcast_send(m, tx_buf, tx_buflen);
+	ret = mcast_send(mcast_get_current_link(m), tx_buf, tx_buflen);
 	tx_buflen = 0;
 
 	return ret;

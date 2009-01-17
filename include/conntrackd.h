@@ -29,6 +29,7 @@
 #define STATS_NETWORK	28	/* extended network stats		*/
 #define STATS_CACHE	29	/* extended cache stats			*/
 #define STATS_RUNTIME	30	/* extended runtime stats		*/
+#define STATS_MULTICAST	31	/* multicast network stats		*/
 
 #define DEFAULT_CONFIGFILE	"/etc/conntrackd/conntrackd.conf"
 #define DEFAULT_LOCKFILE	"/var/lock/conntrackd.lock"
@@ -66,7 +67,9 @@ struct ct_conf {
 	int syslog_facility;
 	char lockfile[FILENAME_MAXLEN];
 	int hashsize;			/* hashtable size */
-	struct mcast_conf mcast;	/* multicast settings */
+	int mcast_links;
+	int mcast_default_link;
+	struct mcast_conf mcast[MCAST_LINKS_MAX];
 	struct local_conf local;	/* unix socket facilities */
 	int limit;
 	int refresh;
@@ -148,8 +151,9 @@ struct ct_sync_state {
 	struct cache *internal; 	/* internal events cache (netlink) */
 	struct cache *external; 	/* external events cache (mcast) */
 
-	struct mcast_sock *mcast_server;  /* multicast socket: incoming */
-	struct mcast_sock *mcast_client;  /* multicast socket: outgoing  */
+	struct mcast_sock_multi *mcast_server;  /* multicast incoming */
+	struct mcast_sock_multi *mcast_client;  /* multicast outgoing  */
+	struct nlif_handle	*mcast_iface;
 	struct queue *tx_queue;
 
 	struct sync_mode *sync;		/* sync mode */

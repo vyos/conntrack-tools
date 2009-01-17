@@ -10,6 +10,7 @@ struct nfct_handle *nl_init_event_handler(void);
 struct nfct_handle *nl_init_dump_handler(void);
 struct nfct_handle *nl_init_request_handler(void);
 struct nfct_handle *nl_init_overrun_handler(void);
+struct nlif_handle *nl_init_interface_handler(void);
 
 int nl_overrun_request_resync(struct nfct_handle *h);
 void nl_resize_socket_buffer(struct nfct_handle *h);
