@@ -442,14 +442,7 @@ static void dump_sync(struct nf_conntrack *ct)
 
 static void mcast_send_sync(struct cache_object *obj, int query)
 {
-	struct nethdr *net;
-
-	net = BUILD_NETMSG(obj->ct, query);
-
-	if (STATE_SYNC(sync)->send)
-		STATE_SYNC(sync)->send(net, obj);
-
-	mcast_buffered_send_netmsg(STATE_SYNC(mcast_client), net);
+	STATE_SYNC(sync)->enqueue(obj, query);
 }
 
 static int purge_step(void *data1, void *data2)
@@ -461,8 +454,11 @@ static int purge_step(void *data1, void *data2)
 	ret = nfct_query(h, NFCT_Q_GET, obj->ct);
 	if (ret == -1 && errno == ENOENT) {
 		debug_ct(obj->ct, "overrun purge resync");
-		mcast_send_sync(obj, NET_T_STATE_DEL);
-		cache_del_timer(STATE_SYNC(internal), obj, CONFIG(del_timeout));
+		if (obj->status != C_OBJ_DEAD) {
+			cache_object_set_status(obj, C_OBJ_DEAD);
+			mcast_send_sync(obj, NET_T_STATE_DEL);
+			cache_object_put(obj);
+		}
 	}
 
 	return 0;
@@ -552,8 +548,11 @@ static int event_destroy_sync(struct nf_conntrack *ct)
 		debug_ct(ct, "can't destroy");
 		return 0;
 	}
-	mcast_send_sync(obj, NET_T_STATE_DEL);
-	cache_del_timer(STATE_SYNC(internal), obj, CONFIG(del_timeout));
+	if (obj->status != C_OBJ_DEAD) {
+		cache_object_set_status(obj, C_OBJ_DEAD);
+		mcast_send_sync(obj, NET_T_STATE_DEL);
+		cache_object_put(obj);
+	}
 	debug_ct(ct, "internal destroy");
 	return 1;
 }

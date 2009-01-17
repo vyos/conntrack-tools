@@ -4,7 +4,6 @@
 #include <stdint.h>
 #include <stddef.h>
 #include "hash.h"
-#include "alarm.h"
 
 /* cache features */
 enum {
@@ -36,7 +35,7 @@ struct cache_object {
 	struct	nf_conntrack *ct;
 	struct	cache *cache;
 	int	status;
-	struct	alarm_block alarm;
+	int	refcnt;
 	char	data[0];
 };
 
@@ -106,12 +105,14 @@ void cache_destroy(struct cache *e);
 
 struct cache_object *cache_object_new(struct cache *c, struct nf_conntrack *ct);
 void cache_object_free(struct cache_object *obj);
+void cache_object_get(struct cache_object *obj);
+int cache_object_put(struct cache_object *obj);
+void cache_object_set_status(struct cache_object *obj, int status);
 
 int cache_add(struct cache *c, struct cache_object *obj, int id);
 void cache_update(struct cache *c, struct cache_object *obj, int id, struct nf_conntrack *ct);
 struct cache_object *cache_update_force(struct cache *c, struct nf_conntrack *ct);
 void cache_del(struct cache *c, struct cache_object *obj);
-int cache_del_timer(struct cache *c, struct cache_object *obj, int timeout);
 struct cache_object *cache_find(struct cache *c, struct nf_conntrack *ct, int *pos);
 void cache_stats(const struct cache *c, int fd);
 void cache_stats_extended(const struct cache *c, int fd);

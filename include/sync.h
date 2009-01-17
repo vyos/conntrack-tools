@@ -17,7 +17,7 @@ struct sync_mode {
 	void (*kill)(void);
 	int  (*local)(int fd, int type, void *data);
 	int  (*recv)(const struct nethdr *net);
-	void (*send)(struct nethdr *net, struct cache_object *obj);
+	void (*enqueue)(struct cache_object *obj, int type);
 	void (*xmit)(void);
 };
 

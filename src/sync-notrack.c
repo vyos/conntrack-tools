@@ -71,7 +71,8 @@ static int do_cache_to_tx(void *data1, void *data2)
 {
 	struct cache_object *obj = data2;
 	struct cache_notrack *cn = cache_get_extra(STATE_SYNC(internal), obj);
-	queue_add(STATE_SYNC(tx_queue), &cn->qnode);
+	if (queue_add(STATE_SYNC(tx_queue), &cn->qnode))
+		cache_object_get(obj);
 	return 0;
 }
 
@@ -152,6 +153,7 @@ static int tx_queue_xmit(struct queue_node *n, const void *data2)
 
 		mcast_buffered_send_netmsg(STATE_SYNC(mcast_client), net);
 		queue_del(n);
+		cache_object_put(obj);
 		break;
 	}
 	}
@@ -163,11 +165,19 @@ static void notrack_xmit(void)
 	queue_iterate(STATE_SYNC(tx_queue), NULL, tx_queue_xmit);
 }
 
+static void notrack_enqueue(struct cache_object *obj, int query)
+{
+	struct cache_notrack *cn = cache_get_extra(STATE_SYNC(internal), obj);
+	if (queue_add(STATE_SYNC(tx_queue), &cn->qnode))
+		cache_object_get(obj);
+}
+
 struct sync_mode sync_notrack = {
 	.internal_cache_flags	= LIFETIME,
 	.external_cache_flags	= LIFETIME,
 	.internal_cache_extra	= &cache_notrack_extra,
 	.local			= notrack_local,
 	.recv			= notrack_recv,
+	.enqueue		= notrack_enqueue,
 	.xmit			= notrack_xmit,
 };

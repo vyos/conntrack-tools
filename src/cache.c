@@ -174,8 +174,6 @@ void cache_destroy(struct cache *c)
 	free(c);
 }
 
-static void __del_timeout(struct alarm_block *a, void *data);
-
 struct cache_object *cache_object_new(struct cache *c, struct nf_conntrack *ct)
 {
 	struct cache_object *obj;
@@ -187,7 +185,6 @@ struct cache_object *cache_object_new(struct cache *c, struct nf_conntrack *ct)
 		return NULL;
 	}
 	obj->cache = c;
-	init_alarm(&obj->alarm, obj, __del_timeout);
 
 	if ((obj->ct = nfct_new()) == NULL) {
 		free(obj);
@@ -205,6 +202,30 @@ void cache_object_free(struct cache_object *obj)
 {
 	nfct_destroy(obj->ct);
 	free(obj);
+}
+
+int cache_object_put(struct cache_object *obj)
+{
+	if (--obj->refcnt == 0) {
+		cache_del(obj->cache, obj);
+		cache_object_free(obj);
+		return 1;
+	}
+	return 0;
+}
+
+void cache_object_get(struct cache_object *obj)
+{
+	obj->refcnt++;
+}
+
+void cache_object_set_status(struct cache_object *obj, int status)
+{
+	if (status == C_OBJ_DEAD) {
+		obj->cache->stats.del_ok++;
+		obj->cache->stats.active--;
+	}
+	obj->status = status;
 }
 
 static int __add(struct cache *c, struct cache_object *obj, int id)
@@ -227,6 +248,7 @@ static int __add(struct cache *c, struct cache_object *obj, int id)
 
 	c->stats.active++;
 	obj->status = C_OBJ_NEW;
+	obj->refcnt++;
 	return 0;
 }
 
@@ -292,7 +314,6 @@ void cache_del(struct cache *c, struct cache_object *obj)
 		c->stats.del_ok++;
 		c->stats.active--;
 	}
-	del_alarm(&obj->alarm);
 	__del(c, obj);
 }
 
@@ -320,36 +341,6 @@ cache_update_force(struct cache *c, struct nf_conntrack *ct)
 		return NULL;
 
 	return obj;
-}
-
-static void __del_timeout(struct alarm_block *a, void *data)
-{
-	struct cache_object *obj = (struct cache_object *) data;
-	__del(obj->cache, obj);
-	cache_object_free(obj);
-}
-
-int cache_del_timer(struct cache *c, struct cache_object *obj, int timeout)
-{
-	if (timeout <= 0) {
-		cache_del(c, obj);
-		cache_object_free(obj);
-		return 1;
-	}
-	if (obj->status != C_OBJ_DEAD) {
-		obj->status = C_OBJ_DEAD;
-		add_alarm(&obj->alarm, timeout, 0);
-		/*
-		 * increase stats even if this entry was not really
-		 * removed yet. We do not want to make people think
-		 * that the replication protocol does not work 
-		 * properly.
-		 */
-		c->stats.del_ok++;
-		c->stats.active--;
-		return 1;
-	}
-	return 0;
 }
 
 struct cache_object *
