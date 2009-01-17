@@ -204,12 +204,12 @@ static int rs_queue_dump(struct queue_node *n, const void *data2)
 	return 0;
 }
 
-static void debug_rs_dump(int fd)
+static void ftfw_local_queue(int fd)
 {
 	char buf[512];
 	int size;
 
-	size = sprintf(buf, "resent queue (len=%u):\n", queue_len(rs_queue));
+	size = sprintf(buf, "resent queue (len=%u)\n", queue_len(rs_queue));
 	send(fd, buf, size, 0);
 	queue_iterate(rs_queue, &fd, rs_queue_dump);
 }
@@ -227,8 +227,8 @@ static int ftfw_local(int fd, int type, void *data)
 		dlog(LOG_NOTICE, "sending bulk update");
 		cache_iterate(STATE_SYNC(internal), NULL, do_cache_to_tx);
 		break;
-	case DEBUG_INFO:
-		debug_rs_dump(fd);
+	case STATS_QUEUE:
+		ftfw_local_queue(fd);
 		break;
 	default:
 		ret = 0;

@@ -43,12 +43,12 @@ static const char usage_client_commands[] =
 	"  -i, display content of the internal cache\n"
 	"  -e, display the content of the external cache\n"
 	"  -k, kill conntrack daemon\n"
-	"  -s  [|network|cache|runtime|multicast], dump statistics\n"
+	"  -s  [|network|cache|runtime|multicast|queue], dump statistics\n"
 	"  -R, resync with kernel conntrack table\n"
 	"  -n, request resync with other node (only FT-FW and NOTRACK modes)\n"
 	"  -x, dump cache in XML format (requires -i or -e)\n"
 	"  -t, reset the kernel timeout (see PurgeTimeout clause)\n"
-	"  -v, show internal debugging information (if any)\n";
+	"  -v, display conntrackd version\n";
 
 static const char usage_options[] =
 	"Options:\n"
@@ -62,6 +62,15 @@ show_usage(char *progname)
 	fprintf(stdout, "%s\n", usage_daemon_commands);
 	fprintf(stdout, "%s\n", usage_client_commands);
 	fprintf(stdout, "%s\n", usage_options);
+}
+
+static void
+show_version(void)
+{
+	fprintf(stdout, "Connection tracking userspace daemon v%s. ", VERSION);
+	fprintf(stdout, "Licensed under GPLv2.\n");
+	fprintf(stdout, "(C) 2006-2009 Pablo Neira Ayuso ");
+	fprintf(stdout, "<pablo@netfilter.org>\n");
 }
 
 static void
@@ -173,6 +182,10 @@ int main(int argc, char *argv[])
 						 strlen(argv[i+1])) == 0) {
 					action = STATS_MULTICAST;
 					i++;
+				} else if (strncmp(argv[i+1], "queue",
+						strlen(argv[i+1])) == 0) {
+					action = STATS_QUEUE;
+					i++;
 				} else {
 					fprintf(stderr, "ERROR: unknown "
 							"parameter `%s' for "
@@ -206,9 +219,8 @@ int main(int argc, char *argv[])
 			}
 			break;
 		case 'v':
-			set_operation_mode(&type, REQUEST, argv);
-			action = DEBUG_INFO;
-			break;
+			show_version();
+			exit(EXIT_SUCCESS);
 		default:
 			show_usage(argv[0]);
 			fprintf(stderr, "Unknown option: %s\n", argv[i]);

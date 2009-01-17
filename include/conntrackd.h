@@ -25,11 +25,12 @@
 #define DUMP_INT_XML	24	/* dump internal cache in XML		*/
 #define DUMP_EXT_XML	25	/* dump external cache in XML		*/
 #define RESET_TIMERS	26	/* reset kernel timers			*/
-#define DEBUG_INFO	27	/* show debug info (if any)		*/
+#define DEBUG_INFO	27	/* unused				*/
 #define STATS_NETWORK	28	/* extended network stats		*/
 #define STATS_CACHE	29	/* extended cache stats			*/
 #define STATS_RUNTIME	30	/* extended runtime stats		*/
 #define STATS_MULTICAST	31	/* multicast network stats		*/
+#define STATS_QUEUE	32	/* queue stats				*/
 
 #define DEFAULT_CONFIGFILE	"/etc/conntrackd/conntrackd.conf"
 #define DEFAULT_LOCKFILE	"/var/lock/conntrackd.lock"
