@@ -463,11 +463,8 @@ static int tx_queue_xmit(struct queue_node *n, const void *data)
 
 		if (IS_ACK(net) || IS_NACK(net) || IS_RESYNC(net)) {
 			nethdr_set_ack(net);
-		} else if (IS_ALIVE(net)) {
-			nethdr_set_ctl(net);
 		} else {
-			STATE_SYNC(error).msg_snd_malformed++;
-			return 0;
+			nethdr_set_ctl(net);
 		}
 		HDR_HOST2NETWORK(net);
 

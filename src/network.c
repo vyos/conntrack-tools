@@ -39,31 +39,31 @@ int nethdr_size(int len)
 	return NETHDR_SIZ + len;
 }
 	
-static inline void __nethdr_set(struct nethdr *net, int len, int type)
+static inline void __nethdr_set(struct nethdr *net, int len)
 {
 	if (!seq_set) {
 		seq_set = 1;
 		cur_seq = time(NULL);
 	}
 	net->version	= CONNTRACKD_PROTOCOL_VERSION;
-	net->type	= type;
 	net->len	= len;
 	net->seq	= cur_seq++;
 }
 
 void nethdr_set(struct nethdr *net, int type)
 {
-	__nethdr_set(net, NETHDR_SIZ, type);
+	__nethdr_set(net, NETHDR_SIZ);
+	net->type = type;
 }
 
 void nethdr_set_ack(struct nethdr *net)
 {
-	__nethdr_set(net, NETHDR_ACK_SIZ, NET_T_CTL);
+	__nethdr_set(net, NETHDR_ACK_SIZ);
 }
 
 void nethdr_set_ctl(struct nethdr *net)
 {
-	__nethdr_set(net, NETHDR_SIZ, NET_T_CTL);
+	__nethdr_set(net, NETHDR_SIZ);
 }
 
 static size_t tx_buflenmax;
