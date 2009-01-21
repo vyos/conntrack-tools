@@ -556,7 +556,8 @@ window_size: T_WINDOWSIZE T_NUMBER
 
 destroy_timeout: T_DESTROY_TIMEOUT T_NUMBER
 {
-	conf.del_timeout = $2;
+	fprintf(stderr, "WARNING: `DestroyTimeout' is deprecated. "
+			"Remove it.\n");
 };
 
 relax_transitions: T_RELAX_TRANSITIONS
@@ -1158,10 +1159,6 @@ init_config(char *filename)
 	/* default to a window size of 300 packets */
 	if (CONFIG(window_size) == 0)
 		CONFIG(window_size) = 300;
-
-	/* double of 120 seconds which is common timeout of a final state */
-	if (conf.flags & CTD_SYNC_FTFW && CONFIG(del_timeout) == 0)
-		CONFIG(del_timeout) = 240;
 
 	if (CONFIG(event_iterations_limit) == 0)
 		CONFIG(event_iterations_limit) = 100;
