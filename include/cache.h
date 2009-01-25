@@ -83,7 +83,6 @@ struct cache {
 		uint32_t	upd_fail_enoent;
 
 		uint32_t	commit_ok;
-		uint32_t	commit_exist;
 		uint32_t	commit_fail;
 
 		uint32_t	flush;

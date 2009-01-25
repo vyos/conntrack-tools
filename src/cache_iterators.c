@@ -111,57 +111,26 @@ __do_commit_step(struct __commit_container *tmp, struct cache_object *obj)
 	 */
 	nfct_set_attr_u32(ct, ATTR_TIMEOUT, CONFIG(commit_timeout));
 
-try_again:
-	ret = nl_exist_conntrack(tmp->h, ct);
-	switch (ret) {
-	case -1:
-		dlog(LOG_ERR, "commit-exist: %s", strerror(errno));
-		dlog_ct(STATE(log), ct, NFCT_O_PLAIN);
-		break;
-	case 0:
-		if (nl_create_conntrack(tmp->h, ct) == -1) {
-			if (errno == ENOMEM) {
+retry:
+	if (nl_create_conntrack(tmp->h, ct) == -1) {
+		if (errno == EEXIST && retry == 1) {
+			ret = nl_destroy_conntrack(tmp->h, ct);
+			if (ret == 0 || (ret == -1 && errno == ENOENT)) {
 				if (retry) {
 					retry = 0;
-					sched_yield();
-					goto try_again;
+					goto retry;
 				}
 			}
+			dlog(LOG_ERR, "commit-destroy: %s", strerror(errno));
+			dlog_ct(STATE(log), ct, NFCT_O_PLAIN);
+			tmp->c->stats.commit_fail++;
+		} else {
 			dlog(LOG_ERR, "commit-create: %s", strerror(errno));
 			dlog_ct(STATE(log), ct, NFCT_O_PLAIN);
 			tmp->c->stats.commit_fail++;
-		} else
-			tmp->c->stats.commit_ok++;
-		break;
-	case 1:
-		tmp->c->stats.commit_exist++;
-		if (nl_update_conntrack(tmp->h, ct) == -1) {
-			if (errno == ENOMEM || errno == ETIME) {
-				if (retry) {
-					retry = 0;
-					sched_yield();
-					goto try_again;
-				}
-			}
-			/* try harder, delete the entry and retry */
-			if (retry) {
-				ret = nl_destroy_conntrack(tmp->h, ct);
-				if (ret == 0 || 
-				    (ret == -1 && errno == ENOENT)) {
-					retry = 0;
-					goto try_again;
-				}
-				dlog(LOG_ERR, "commit-rm: %s", strerror(errno));
-				dlog_ct(STATE(log), ct, NFCT_O_PLAIN);
-				tmp->c->stats.commit_fail++;
-				break;
-			} 
-			dlog(LOG_ERR, "commit-update: %s", strerror(errno));
-			dlog_ct(STATE(log), ct, NFCT_O_PLAIN);
-			tmp->c->stats.commit_fail++;
-		} else
-			tmp->c->stats.commit_ok++;
-		break;
+		}
+	} else {
+		tmp->c->stats.commit_ok++;
 	}
 }
 
@@ -191,7 +160,6 @@ static int do_commit_master(void *data, struct hashtable_node *n)
 void cache_commit(struct cache *c)
 {
 	unsigned int commit_ok = c->stats.commit_ok;
-	unsigned int commit_exist = c->stats.commit_exist;
 	unsigned int commit_fail = c->stats.commit_fail;
 	struct __commit_container tmp;
 	struct timeval commit_start, commit_stop, res;
@@ -213,14 +181,10 @@ void cache_commit(struct cache *c)
 	/* calculate new entries committed */
 	commit_ok = c->stats.commit_ok - commit_ok;
 	commit_fail = c->stats.commit_fail - commit_fail;
-	commit_exist = c->stats.commit_exist - commit_exist;
 
 	/* log results */
 	dlog(LOG_NOTICE, "Committed %u new entries", commit_ok);
 
-	if (commit_exist)
-		dlog(LOG_NOTICE, "%u entries updated, "
-				 "already exist", commit_exist);
 	if (commit_fail)
 		dlog(LOG_NOTICE, "%u entries can't be "
 				 "committed", commit_fail);
