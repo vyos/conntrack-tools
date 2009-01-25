@@ -197,7 +197,9 @@ int nl_get_conntrack(struct nfct_handle *h, const struct nf_conntrack *ct)
 	return 1;
 }
 
-int nl_create_conntrack(struct nfct_handle *h, const struct nf_conntrack *orig)
+int nl_create_conntrack(struct nfct_handle *h, 
+			const struct nf_conntrack *orig,
+			int timeout)
 {
 	int ret;
 	struct nf_conntrack *ct;
@@ -205,6 +207,9 @@ int nl_create_conntrack(struct nfct_handle *h, const struct nf_conntrack *orig)
 	ct = nfct_clone(orig);
 	if (ct == NULL)
 		return -1;
+
+	if (timeout > 0)
+		nfct_set_attr_u32(ct, ATTR_TIMEOUT, timeout);
 
 	/* we hit error if we try to change the expected bit */
 	if (nfct_attr_is_set(ct, ATTR_STATUS)) {
@@ -233,7 +238,9 @@ int nl_create_conntrack(struct nfct_handle *h, const struct nf_conntrack *orig)
 	return ret;
 }
 
-int nl_update_conntrack(struct nfct_handle *h, const struct nf_conntrack *orig)
+int nl_update_conntrack(struct nfct_handle *h,
+			const struct nf_conntrack *orig,
+			int timeout)
 {
 	int ret;
 	struct nf_conntrack *ct;
@@ -241,6 +248,9 @@ int nl_update_conntrack(struct nfct_handle *h, const struct nf_conntrack *orig)
 	ct = nfct_clone(orig);
 	if (ct == NULL)
 		return -1;
+
+	if (timeout > 0)
+		nfct_set_attr_u32(ct, ATTR_TIMEOUT, timeout);
 
 	/* unset NAT info, otherwise we hit error */
 	nfct_attr_unset(ct, ATTR_SNAT_IPV4);

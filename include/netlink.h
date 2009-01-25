@@ -17,8 +17,8 @@ void nl_resize_socket_buffer(struct nfct_handle *h);
 int nl_dump_conntrack_table(struct nfct_handle *h);
 int nl_flush_conntrack_table(struct nfct_handle *h);
 int nl_get_conntrack(struct nfct_handle *h, const struct nf_conntrack *ct);
-int nl_create_conntrack(struct nfct_handle *h, const struct nf_conntrack *ct);
-int nl_update_conntrack(struct nfct_handle *h, const struct nf_conntrack *ct);
+int nl_create_conntrack(struct nfct_handle *h, const struct nf_conntrack *ct, int timeout);
+int nl_update_conntrack(struct nfct_handle *h, const struct nf_conntrack *ct, int timeout);
 int nl_destroy_conntrack(struct nfct_handle *h, const struct nf_conntrack *ct);
 
 static inline int ct_is_related(const struct nf_conntrack *ct)

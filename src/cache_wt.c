@@ -38,14 +38,14 @@ static void add_wt(struct cache_object *obj)
 		break;
 	case 0:
 		memcpy(ct, obj->ct, nfct_maxsize());
-		if (nl_create_conntrack(STATE(dump), ct) == -1) {
+		if (nl_create_conntrack(STATE(dump), ct, 0) == -1) {
 			dlog(LOG_ERR, "cache_wt create: %s", strerror(errno));
 			dlog_ct(STATE(log), obj->ct, NFCT_O_PLAIN);
 		}
 		break;
 	case 1:
 		memcpy(ct, obj->ct, nfct_maxsize());
-		if (nl_update_conntrack(STATE(dump), ct) == -1) {
+		if (nl_update_conntrack(STATE(dump), ct, 0) == -1) {
 			dlog(LOG_ERR, "cache_wt crt-upd: %s", strerror(errno));
 			dlog_ct(STATE(log), obj->ct, NFCT_O_PLAIN);
 		}
@@ -60,7 +60,7 @@ static void upd_wt(struct cache_object *obj)
 
 	memcpy(ct, obj->ct, nfct_maxsize());
 
-	if (nl_update_conntrack(STATE(dump), ct) == -1) {
+	if (nl_update_conntrack(STATE(dump), ct, 0) == -1) {
 		dlog(LOG_ERR, "cache_wt update:%s", strerror(errno));
 		dlog_ct(STATE(log), obj->ct, NFCT_O_PLAIN);
 	}

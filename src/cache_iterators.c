@@ -105,14 +105,8 @@ __do_commit_step(struct __commit_container *tmp, struct cache_object *obj)
 	int ret, retry = 1;
 	struct nf_conntrack *ct = obj->ct;
 
-        /* 
-	 * Set a reduced timeout for candidate-to-be-committed
-	 * conntracks that live in the external cache
-	 */
-	nfct_set_attr_u32(ct, ATTR_TIMEOUT, CONFIG(commit_timeout));
-
 retry:
-	if (nl_create_conntrack(tmp->h, ct) == -1) {
+	if (nl_create_conntrack(tmp->h, ct, CONFIG(commit_timeout)) == -1) {
 		if (errno == EEXIST && retry == 1) {
 			ret = nl_destroy_conntrack(tmp->h, ct);
 			if (ret == 0 || (ret == -1 && errno == ENOENT)) {
@@ -223,9 +217,7 @@ static int do_reset_timers(void *data1, struct hashtable_node *n)
 		if (current_timeout < CONFIG(purge_timeout))
 			break;
 
-		nfct_set_attr_u32(tmp, ATTR_TIMEOUT, CONFIG(purge_timeout));
-
-		if (nl_update_conntrack(h, tmp) == -1) {
+		if (nl_update_conntrack(h, tmp, CONFIG(purge_timeout)) == -1) {
 			if (errno == ETIME || errno == ENOENT)
 				break;
 			dlog(LOG_ERR, "reset-timers-upd: %s", strerror(errno));
