@@ -27,6 +27,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/fcntl.h>
+#include <libnetfilter_conntrack/libnetfilter_conntrack_tcp.h>
 
 struct nfct_handle *nl_init_event_handler(void)
 {
@@ -226,6 +227,12 @@ int nl_create_conntrack(struct nfct_handle *h,
 	if (nfct_attr_is_set(ct, ATTR_TCP_STATE)) {
 		uint8_t flags = IP_CT_TCP_FLAG_BE_LIBERAL |
 				IP_CT_TCP_FLAG_SACK_PERM;
+
+		/* FIXME: workaround, we should send TCP flags in updates */
+		if (nfct_get_attr_u32(ct, ATTR_TCP_STATE) ==
+						TCP_CONNTRACK_TIME_WAIT) {
+			flags |= IP_CT_TCP_FLAG_CLOSE_INIT;
+		}
 		nfct_set_attr_u8(ct, ATTR_TCP_FLAGS_ORIG, flags);
 		nfct_set_attr_u8(ct, ATTR_TCP_MASK_ORIG, flags);
 		nfct_set_attr_u8(ct, ATTR_TCP_FLAGS_REPL, flags);
@@ -285,6 +292,12 @@ int nl_update_conntrack(struct nfct_handle *h,
 	if (nfct_attr_is_set(ct, ATTR_TCP_STATE)) {
 		uint8_t flags = IP_CT_TCP_FLAG_BE_LIBERAL |
 				IP_CT_TCP_FLAG_SACK_PERM;
+
+		/* FIXME: workaround, we should send TCP flags in updates */
+		if (nfct_get_attr_u32(ct, ATTR_TCP_STATE) ==
+						TCP_CONNTRACK_TIME_WAIT) {
+			flags |= IP_CT_TCP_FLAG_CLOSE_INIT;
+		}
 		nfct_set_attr_u8(ct, ATTR_TCP_FLAGS_ORIG, flags);
 		nfct_set_attr_u8(ct, ATTR_TCP_MASK_ORIG, flags);
 		nfct_set_attr_u8(ct, ATTR_TCP_FLAGS_REPL, flags);
