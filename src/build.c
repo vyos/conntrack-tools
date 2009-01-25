@@ -19,6 +19,7 @@
 #include <string.h>
 #include <libnetfilter_conntrack/libnetfilter_conntrack.h>
 #include "network.h"
+#include "conntrackd.h"
 
 static inline void *
 put_header(struct nethdr *n, int attr, size_t len)
@@ -117,6 +118,8 @@ void build_payload(const struct nf_conntrack *ct, struct nethdr *n)
 
 	if (nfct_attr_is_set(ct, ATTR_TCP_STATE))
 		__build_u8(ct, ATTR_TCP_STATE, n, NTA_STATE);
+	if (!CONFIG(commit_timeout) && nfct_attr_is_set(ct, ATTR_TIMEOUT))
+		__build_u32(ct, ATTR_TIMEOUT, n, NTA_TIMEOUT);
 	if (nfct_attr_is_set(ct, ATTR_MARK))
 		__build_u32(ct, ATTR_MARK, n, NTA_MARK);
 

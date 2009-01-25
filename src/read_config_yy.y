@@ -1141,10 +1141,6 @@ init_config(char *filename)
 	if (CONFIG(cache_timeout) == 0)
 		CONFIG(cache_timeout) = 180;
 
-	/* default to 180 seconds: committed entries */
-	if (CONFIG(commit_timeout) == 0)
-		CONFIG(commit_timeout) = 180;
-
 	/* default to 15 seconds: purge kernel entries */
 	if (CONFIG(purge_timeout) == 0)
 		CONFIG(purge_timeout) = 15;

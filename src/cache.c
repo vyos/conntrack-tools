@@ -249,7 +249,7 @@ static int __add(struct cache *c, struct cache_object *obj, int id)
 		c->extra->add(obj, ((char *) obj) + c->extra_offset);
 
 	c->stats.active++;
-	obj->lifetime = time(NULL);
+	obj->lifetime = obj->lastupdate = time(NULL);
 	obj->status = C_OBJ_NEW;
 	obj->refcnt++;
 	return 0;
@@ -287,6 +287,7 @@ void cache_update(struct cache *c, struct cache_object *obj, int id,
 		c->extra->update(obj, ((char *) obj) + c->extra_offset);
 
 	c->stats.upd_ok++;
+	obj->lastupdate = time(NULL);
 	obj->status = C_OBJ_ALIVE;
 }
 

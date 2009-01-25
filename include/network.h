@@ -192,7 +192,7 @@ enum nta_attr {
 	NTA_PORT,		/* struct nfct_attr_grp_port */
 	NTA_STATE = 4,		/* uint8_t */
 	NTA_STATUS,		/* uint32_t */
-	NTA_TIMEOUT,		/* uint32_t -- unused */
+	NTA_TIMEOUT,		/* uint32_t */
 	NTA_MARK,		/* uint32_t */
 	NTA_MASTER_IPV4 = 8,	/* struct nfct_attr_grp_ipv4 */
 	NTA_MASTER_IPV6,	/* struct nfct_attr_grp_ipv6 */

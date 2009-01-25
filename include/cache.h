@@ -34,6 +34,7 @@ struct cache_object {
 	int	status;
 	int	refcnt;
 	long	lifetime;
+	long	lastupdate;
 	char	data[0];
 };
 

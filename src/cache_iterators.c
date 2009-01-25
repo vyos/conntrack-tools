@@ -108,11 +108,29 @@ struct __commit_container {
 static void
 __do_commit_step(struct __commit_container *tmp, struct cache_object *obj)
 {
-	int ret, retry = 1;
+	int ret, retry = 1, timeout;
 	struct nf_conntrack *ct = obj->ct;
 
+	if (CONFIG(commit_timeout)) {
+		timeout = CONFIG(commit_timeout);
+	} else {
+		timeout = time(NULL) - obj->lastupdate;
+		if (timeout < 0) {
+			/* XXX: Arbitrarily set the timer to one minute, how
+			 * can this happen? For example, an adjustment due to
+			 * daylight-saving. Probably other situations can
+			 * trigger this. */
+			timeout = 60;
+		}
+		/* calculate an estimation of the current timeout */
+		timeout = nfct_get_attr_u32(ct, ATTR_TIMEOUT) - timeout;
+		if (timeout < 0) {
+			timeout = 60;
+		}
+	}
+
 retry:
-	if (nl_create_conntrack(tmp->h, ct, CONFIG(commit_timeout)) == -1) {
+	if (nl_create_conntrack(tmp->h, ct, timeout) == -1) {
 		if (errno == EEXIST && retry == 1) {
 			ret = nl_destroy_conntrack(tmp->h, ct);
 			if (ret == 0 || (ret == -1 && errno == ENOENT)) {
