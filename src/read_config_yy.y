@@ -1141,9 +1141,9 @@ init_config(char *filename)
 	if (CONFIG(cache_timeout) == 0)
 		CONFIG(cache_timeout) = 180;
 
-	/* default to 15 seconds: purge kernel entries */
+	/* default to 60 seconds: purge kernel entries */
 	if (CONFIG(purge_timeout) == 0)
-		CONFIG(purge_timeout) = 15;
+		CONFIG(purge_timeout) = 60;
 
 	/* default to 60 seconds of refresh time */
 	if (CONFIG(refresh) == 0)
