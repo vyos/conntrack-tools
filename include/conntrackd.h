@@ -158,6 +158,8 @@ struct ct_sync_state {
 	struct nlif_handle	*mcast_iface;
 	struct queue *tx_queue;
 
+	struct alarm_block		reset_cache_alarm;
+
 	struct sync_mode *sync;		/* sync mode */
 
 	/* statistics */

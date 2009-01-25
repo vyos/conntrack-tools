@@ -205,6 +205,13 @@ static void mcast_iface_handler(void)
 		mcast_iface_candidate();
 }
 
+static void do_reset_cache_alarm(struct alarm_block *a, void *data)
+{
+	STATE(stats).nl_kernel_table_flush++;
+	dlog(LOG_NOTICE, "flushing kernel conntrack table (scheduled)");
+	nl_flush_conntrack_table(STATE(request));
+}
+
 static int init_sync(void)
 {
 	int i;
@@ -304,6 +311,8 @@ static int init_sync(void)
 	if (register_fd(queue_get_eventfd(STATE_SYNC(tx_queue)), 
 							STATE(fds)) == -1)
 		return -1;
+
+	init_alarm(&STATE_SYNC(reset_cache_alarm), NULL, do_reset_cache_alarm);
 
 	/* initialization of multicast sequence generation */
 	STATE_SYNC(last_seq_sent) = time(NULL);
@@ -432,6 +441,8 @@ static int local_handler_sync(int fd, int type, void *data)
 		}
 		break;
 	case COMMIT:
+		/* delete the reset alarm if any before committing */
+		del_alarm(&STATE_SYNC(reset_cache_alarm));
 		ret = fork();
 		if (ret == 0) {
 			dlog(LOG_NOTICE, "committing external cache");
@@ -440,14 +451,16 @@ static int local_handler_sync(int fd, int type, void *data)
 		}
 		break;
 	case RESET_TIMERS:
-		ret = fork();
-		if (ret == 0) {
-			dlog(LOG_NOTICE, "resetting timers");
-			cache_reset_timers(STATE_SYNC(internal));
-			exit(EXIT_SUCCESS);
+		if (!alarm_pending(&STATE_SYNC(reset_cache_alarm))) {
+			dlog(LOG_NOTICE, "flushing conntrack table in %d secs",
+					 CONFIG(purge_timeout));
+			add_alarm(&STATE_SYNC(reset_cache_alarm),
+				  CONFIG(purge_timeout), 0);
 		}
 		break;
 	case FLUSH_CACHE:
+		/* inmediate flush, remove pending flush scheduled if any */
+		del_alarm(&STATE_SYNC(reset_cache_alarm));
 		dlog(LOG_NOTICE, "flushing caches");
 		cache_flush(STATE_SYNC(internal));
 		cache_flush(STATE_SYNC(external));

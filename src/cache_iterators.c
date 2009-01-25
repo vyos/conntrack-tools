@@ -188,52 +188,6 @@ void cache_commit(struct cache *c)
 			res.tv_sec, res.tv_usec);
 }
 
-static int do_reset_timers(void *data1, struct hashtable_node *n)
-{
-	int ret;
-	u_int32_t current_timeout;
-	struct nfct_handle *h = data1;
-	struct cache_object *obj = (struct cache_object *)n;
-
-	ret = nl_get_conntrack(h, obj->ct);
-	switch (ret) {
-	case -1:
-		/* the kernel table is not in sync with internal cache */
-		dlog(LOG_ERR, "reset-timers: %s", strerror(errno));
-		dlog_ct(STATE(log), obj->ct, NFCT_O_PLAIN);
-		break;
-	case 1:
-		/* use the object that contain the current timer */
-		current_timeout = nfct_get_attr_u32(obj->ct, ATTR_TIMEOUT);
-		/* already about to die, do not touch it */
-		if (current_timeout < CONFIG(purge_timeout))
-			break;
-
-		ret = nl_update_conntrack(h, obj->ct, CONFIG(purge_timeout));
-		if (ret == -1) {
-			if (errno == ETIME || errno == ENOENT)
-				break;
-			dlog(LOG_ERR, "reset-timers-upd: %s", strerror(errno));
-			dlog_ct(STATE(log), obj->ct, NFCT_O_PLAIN);
-		}
-		break;
-	}
-	return 0;
-}
-
-void cache_reset_timers(struct cache *c)
-{
-	struct nfct_handle *h;
-
-	h = nfct_open(CONNTRACK, 0);
-	if (h == NULL) {
-		dlog(LOG_ERR, "can't create handler to reset timers");
-		return;
-	}
-	hashtable_iterate(c->h, h, do_reset_timers);
-	nfct_close(h);
-}
-
 static int do_flush(void *data, struct hashtable_node *n)
 {
 	struct cache *c = data;

@@ -126,6 +126,5 @@ void cache_dump(struct cache *c, int fd, int type);
 void cache_commit(struct cache *c);
 void cache_flush(struct cache *c);
 void cache_bulk(struct cache *c);
-void cache_reset_timers(struct cache *c);
 
 #endif
