@@ -12,10 +12,7 @@ enum {
 	TIMER_FEATURE = 0,
 	TIMER = (1 << TIMER_FEATURE),
 
-	LIFETIME_FEATURE = 2,
-	LIFETIME = (1 << LIFETIME_FEATURE),
-
-	WRITE_THROUGH_FEATURE = 3,
+	WRITE_THROUGH_FEATURE = 1,
 	WRITE_THROUGH = (1 << WRITE_THROUGH_FEATURE),
 
 	__CACHE_MAX_FEATURE
@@ -36,6 +33,7 @@ struct cache_object {
 	struct	cache *cache;
 	int	status;
 	int	refcnt;
+	long	lifetime;
 	char	data[0];
 };
 

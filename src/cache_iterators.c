@@ -26,6 +26,7 @@
 #include <sched.h>
 #include <errno.h>
 #include <string.h>
+#include <time.h>
 
 struct __dump_container {
 	int fd;
@@ -74,6 +75,11 @@ static int do_dump(void *data1, struct hashtable_node *n)
 							      container->type);
 			data += obj->cache->features[i]->size;
 		}
+	}
+	if (container->type != NFCT_O_XML) {
+		long tm = time(NULL);
+		size += sprintf(buf+size, " [active since %lds]",
+				tm - obj->lifetime);
 	}
 	size += sprintf(buf+size, "\n");
 	if (send(container->fd, buf, size, 0) == -1) {

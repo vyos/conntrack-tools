@@ -561,8 +561,8 @@ static void ftfw_enqueue(struct cache_object *obj, int type)
 }
 
 struct sync_mode sync_ftfw = {
-	.internal_cache_flags	= LIFETIME,
-	.external_cache_flags	= LIFETIME,
+	.internal_cache_flags	= NO_FEATURES,
+	.external_cache_flags	= NO_FEATURES,
 	.internal_cache_extra	= &cache_ftfw_extra,
 	.init			= ftfw_init,
 	.kill			= ftfw_kill,

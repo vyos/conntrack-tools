@@ -173,8 +173,8 @@ static void notrack_enqueue(struct cache_object *obj, int query)
 }
 
 struct sync_mode sync_notrack = {
-	.internal_cache_flags	= LIFETIME,
-	.external_cache_flags	= LIFETIME,
+	.internal_cache_flags	= NO_FEATURES,
+	.external_cache_flags	= NO_FEATURES,
 	.internal_cache_extra	= &cache_notrack_extra,
 	.local			= notrack_local,
 	.recv			= notrack_recv,

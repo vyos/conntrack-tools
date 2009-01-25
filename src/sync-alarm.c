@@ -154,8 +154,8 @@ static void alarm_xmit(void)
 }
 
 struct sync_mode sync_alarm = {
-	.internal_cache_flags	= LIFETIME,
-	.external_cache_flags	= TIMER | LIFETIME,
+	.internal_cache_flags	= NO_FEATURES,
+	.external_cache_flags	= TIMER,
 	.internal_cache_extra	= &cache_alarm_extra,
 	.recv 			= alarm_recv,
 	.enqueue		= alarm_enqueue,

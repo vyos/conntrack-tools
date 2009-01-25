@@ -26,6 +26,7 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 static uint32_t
 __hash4(const struct nf_conntrack *ct, const struct hashtable *table)
@@ -94,7 +95,6 @@ static int compare(const void *data1, const void *data2)
 
 struct cache_feature *cache_feature[CACHE_MAX_FEATURE] = {
 	[TIMER_FEATURE]		= &timer_feature,
-	[LIFETIME_FEATURE]	= &lifetime_feature,
 	[WRITE_THROUGH_FEATURE] = &writethrough_feature,
 };
 
@@ -249,6 +249,7 @@ static int __add(struct cache *c, struct cache_object *obj, int id)
 		c->extra->add(obj, ((char *) obj) + c->extra_offset);
 
 	c->stats.active++;
+	obj->lifetime = time(NULL);
 	obj->status = C_OBJ_NEW;
 	obj->refcnt++;
 	return 0;
