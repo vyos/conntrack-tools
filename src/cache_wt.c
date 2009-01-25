@@ -30,7 +30,7 @@ static void add_wt(struct cache_object *obj)
 	char __ct[nfct_maxsize()];
 	struct nf_conntrack *ct = (struct nf_conntrack *)(void*) __ct;
 
-	ret = nl_exist_conntrack(STATE(request), obj->ct);
+	ret = nl_get_conntrack(STATE(request), obj->ct);
 	switch (ret) {
 	case -1:
 		dlog(LOG_ERR, "cache_wt problem: %s", strerror(errno));

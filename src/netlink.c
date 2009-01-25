@@ -178,8 +178,8 @@ int nl_send_resync(struct nfct_handle *h)
 	return nfct_send(h, NFCT_Q_DUMP, &family);
 }
 
-static int
-__nl_get_conntrack(struct nfct_handle *h, const struct nf_conntrack *ct)
+/* if the handle has no callback, check for existence, otherwise, update */
+int nl_get_conntrack(struct nfct_handle *h, const struct nf_conntrack *ct)
 {
 	int ret;
 	char __tmp[nfct_maxsize()];
@@ -195,17 +195,6 @@ __nl_get_conntrack(struct nfct_handle *h, const struct nf_conntrack *ct)
 		return errno == ENOENT ? 0 : -1;
 
 	return 1;
-}
-
-int nl_exist_conntrack(struct nfct_handle *h, const struct nf_conntrack *ct)
-{
-	return __nl_get_conntrack(h, ct);
-}
-
-/* get the conntrack and update the cache */
-int nl_get_conntrack(struct nfct_handle *h, const struct nf_conntrack *ct)
-{
-	return __nl_get_conntrack(h, ct);
 }
 
 int nl_create_conntrack(struct nfct_handle *h, const struct nf_conntrack *orig)

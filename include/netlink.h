@@ -16,7 +16,6 @@ int nl_send_resync(struct nfct_handle *h);
 void nl_resize_socket_buffer(struct nfct_handle *h);
 int nl_dump_conntrack_table(struct nfct_handle *h);
 int nl_flush_conntrack_table(struct nfct_handle *h);
-int nl_exist_conntrack(struct nfct_handle *h, const struct nf_conntrack *ct);
 int nl_get_conntrack(struct nfct_handle *h, const struct nf_conntrack *ct);
 int nl_create_conntrack(struct nfct_handle *h, const struct nf_conntrack *ct);
 int nl_update_conntrack(struct nfct_handle *h, const struct nf_conntrack *ct);
