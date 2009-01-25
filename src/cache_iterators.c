@@ -194,34 +194,27 @@ static int do_reset_timers(void *data1, struct hashtable_node *n)
 	u_int32_t current_timeout;
 	struct nfct_handle *h = data1;
 	struct cache_object *obj = (struct cache_object *)n;
-	struct nf_conntrack *ct = obj->ct;
-	char __tmp[nfct_maxsize()];
-	struct nf_conntrack *tmp = (struct nf_conntrack *) (void *)__tmp;
 
-	memset(__tmp, 0, sizeof(__tmp));
-
-	/* use the original tuple to check if it is there */
-	nfct_copy(tmp, ct, NFCT_CP_ORIG);
-
-	ret = nl_get_conntrack(h, tmp);
+	ret = nl_get_conntrack(h, obj->ct);
 	switch (ret) {
 	case -1:
 		/* the kernel table is not in sync with internal cache */
 		dlog(LOG_ERR, "reset-timers: %s", strerror(errno));
-		dlog_ct(STATE(log), ct, NFCT_O_PLAIN);
+		dlog_ct(STATE(log), obj->ct, NFCT_O_PLAIN);
 		break;
 	case 1:
 		/* use the object that contain the current timer */
-		current_timeout = nfct_get_attr_u32(ct, ATTR_TIMEOUT);
+		current_timeout = nfct_get_attr_u32(obj->ct, ATTR_TIMEOUT);
 		/* already about to die, do not touch it */
 		if (current_timeout < CONFIG(purge_timeout))
 			break;
 
-		if (nl_update_conntrack(h, tmp, CONFIG(purge_timeout)) == -1) {
+		ret = nl_update_conntrack(h, obj->ct, CONFIG(purge_timeout));
+		if (ret == -1) {
 			if (errno == ETIME || errno == ENOENT)
 				break;
 			dlog(LOG_ERR, "reset-timers-upd: %s", strerror(errno));
-			dlog_ct(STATE(log), ct, NFCT_O_PLAIN);
+			dlog_ct(STATE(log), obj->ct, NFCT_O_PLAIN);
 		}
 		break;
 	}
