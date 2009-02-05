@@ -7,9 +7,6 @@ struct nf_conntrack;
 struct nfct_handle;
 
 struct nfct_handle *nl_init_event_handler(void);
-struct nfct_handle *nl_init_dump_handler(void);
-struct nfct_handle *nl_init_request_handler(void);
-struct nfct_handle *nl_init_resync_handler(void);
 struct nlif_handle *nl_init_interface_handler(void);
 
 int nl_send_resync(struct nfct_handle *h);

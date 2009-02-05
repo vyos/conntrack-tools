@@ -33,6 +33,7 @@
 #include <sys/wait.h>
 #include <string.h>
 #include <time.h>
+#include <fcntl.h>
 
 void killer(int foo)
 {
@@ -317,7 +318,7 @@ init(void)
 		register_fd(nfct_fd(STATE(event)), STATE(fds));
 	}
 
-	STATE(dump) = nl_init_dump_handler();
+	STATE(dump) = nfct_open(CONNTRACK, 0);
 	if (STATE(dump) == NULL) {
 		dlog(LOG_ERR, "can't open netlink handler: %s",
 		     strerror(errno));
@@ -331,7 +332,7 @@ init(void)
 		return -1;
 	}
 
-	STATE(resync) = nl_init_resync_handler();
+	STATE(resync) = nfct_open(CONNTRACK, 0);
 	if (STATE(resync)== NULL) {
 		dlog(LOG_ERR, "can't open netlink handler: %s",
 		     strerror(errno));
@@ -343,9 +344,10 @@ init(void)
 			       STATE(mode)->resync,
 			       NULL);
 	register_fd(nfct_fd(STATE(resync)), STATE(fds));
+	fcntl(nfct_fd(STATE(resync)), F_SETFL, O_NONBLOCK);
 
 	/* no callback, it does not do anything with the output */
-	STATE(request) = nl_init_request_handler();
+	STATE(request) = nfct_open(CONNTRACK, 0);
 	if (STATE(request) == NULL) {
 		dlog(LOG_ERR, "can't open netlink handler: %s",
 		     strerror(errno));

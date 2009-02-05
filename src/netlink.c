@@ -79,42 +79,6 @@ struct nfct_handle *nl_init_event_handler(void)
 	return h;
 }
 
-struct nfct_handle *nl_init_dump_handler(void)
-{
-	struct nfct_handle *h;
-
-	/* open dump netlink socket */
-	h = nfct_open(CONNTRACK, 0);
-	if (h == NULL)
-		return NULL;
-
-	return h;
-}
-
-struct nfct_handle *nl_init_resync_handler(void)
-{
-	struct nfct_handle *h;
-
-	h = nfct_open(CONNTRACK, 0);
-	if (h == NULL)
-		return NULL;
-
-	fcntl(nfct_fd(h), F_SETFL, O_NONBLOCK);
-
-	return h;
-}
-
-struct nfct_handle *nl_init_request_handler(void)
-{
-	struct nfct_handle *h;
-
-	h = nfct_open(CONNTRACK, 0);
-	if (h == NULL)
-		return NULL;
-
-	return h;
-}
-
 struct nlif_handle *nl_init_interface_handler(void)
 {
 	struct nlif_handle *h;
