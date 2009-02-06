@@ -499,8 +499,15 @@ static int local_handler_sync(int fd, int type, void *data)
 	return ret;
 }
 
+static void mcast_send_sync(struct cache_object *obj, int query)
+{
+	STATE_SYNC(sync)->enqueue(obj, query);
+}
+
 static void dump_sync(struct nf_conntrack *ct)
 {
+	struct cache_object *obj;
+
 	/* This is required by kernels < 2.6.20 */
 	nfct_attr_unset(ct, ATTR_ORIG_COUNTER_BYTES);
 	nfct_attr_unset(ct, ATTR_ORIG_COUNTER_PACKETS);
@@ -508,23 +515,22 @@ static void dump_sync(struct nf_conntrack *ct)
 	nfct_attr_unset(ct, ATTR_REPL_COUNTER_PACKETS);
 	nfct_attr_unset(ct, ATTR_USE);
 
-	if (cache_update_force(STATE_SYNC(internal), ct))
-		debug_ct(ct, "resync");
-}
-
-static void mcast_send_sync(struct cache_object *obj, int query)
-{
-	STATE_SYNC(sync)->enqueue(obj, query);
+	obj = cache_update_force(STATE_SYNC(internal), ct);
+	if ((CONFIG(flags) & CTD_POLL)) {
+		if (obj != NULL && obj->status == C_OBJ_NEW) {
+			debug_ct(ct, "poll");
+			mcast_send_sync(obj, NET_T_STATE_NEW);
+		}
+	}
 }
 
 static int purge_step(void *data1, void *data2)
 {
-	int ret;
-	struct nfct_handle *h = STATE(dump);
 	struct cache_object *obj = data2;
 
-	ret = nfct_query(h, NFCT_Q_GET, obj->ct);
-	if (ret == -1 && errno == ENOENT) {
+	STATE(get_retval) = 0;
+	nl_get_conntrack(STATE(get), obj->ct);	/* modifies STATE(get_reval) */
+	if (!STATE(get_retval)) {
 		debug_ct(obj->ct, "purge resync");
 		if (obj->status != C_OBJ_DEAD) {
 			cache_object_set_status(obj, C_OBJ_DEAD);

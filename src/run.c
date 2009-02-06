@@ -1,5 +1,5 @@
 /*
- * (C) 2006-2007 by Pablo Neira Ayuso <pablo@netfilter.org>
+ * (C) 2006-2009 by Pablo Neira Ayuso <pablo@netfilter.org>
  * 
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -40,8 +40,11 @@ void killer(int foo)
 	/* no signals while handling signals */
 	sigprocmask(SIG_BLOCK, &STATE(block), NULL);
 
-	if (!(CONFIG(flags) & CTD_POLL))
+	if (!(CONFIG(flags) & CTD_POLL)) {
 		nfct_close(STATE(event));
+		nfct_close(STATE(resync));
+	}
+	nfct_close(STATE(get));
 	nfct_close(STATE(request));
 
 	if (STATE(us_filter))
@@ -212,10 +215,13 @@ static void do_overrun_resync_alarm(struct alarm_block *a, void *data)
 	STATE(stats).nl_kernel_table_resync++;
 }
 
-static void do_poll_resync_alarm(struct alarm_block *a, void *data)
+static void do_polling_alarm(struct alarm_block *a, void *data)
 {
-	nl_send_resync(STATE(resync));
-	add_alarm(&STATE(resync_alarm), CONFIG(poll_kernel_secs), 0);
+	if (STATE(mode)->purge)
+		STATE(mode)->purge();
+
+	nl_send_resync(STATE(dump));
+	add_alarm(&STATE(polling_alarm), CONFIG(poll_kernel_secs), 0);
 }
 
 static int event_handler(enum nf_conntrack_msg_type type,
@@ -272,6 +278,17 @@ static int dump_handler(enum nf_conntrack_msg_type type,
 	return NFCT_CB_CONTINUE;
 }
 
+static int get_handler(enum nf_conntrack_msg_type type,
+		       struct nf_conntrack *ct,
+		       void *data)
+{
+	if (ct_filter_conntrack(ct, 1))
+		return NFCT_CB_CONTINUE;
+
+	STATE(get_retval) = 1;
+	return NFCT_CB_CONTINUE;
+}
+
 int
 init(void)
 {
@@ -316,6 +333,20 @@ init(void)
 		nfct_callback_register(STATE(event), NFCT_T_ALL,
 				       event_handler, NULL);
 		register_fd(nfct_fd(STATE(event)), STATE(fds));
+
+		STATE(resync) = nfct_open(CONNTRACK, 0);
+		if (STATE(resync)== NULL) {
+			dlog(LOG_ERR, "can't open netlink handler: %s",
+			     strerror(errno));
+			dlog(LOG_ERR, "no ctnetlink kernel support?");
+			return -1;
+		}
+		nfct_callback_register(STATE(resync),
+				       NFCT_T_ALL,
+				       STATE(mode)->resync,
+				       NULL);
+		register_fd(nfct_fd(STATE(resync)), STATE(fds));
+		fcntl(nfct_fd(STATE(resync)), F_SETFL, O_NONBLOCK);
 	}
 
 	STATE(dump) = nfct_open(CONNTRACK, 0);
@@ -326,25 +357,22 @@ init(void)
 		return -1;
 	}
 	nfct_callback_register(STATE(dump), NFCT_T_ALL, dump_handler, NULL);
+	if (CONFIG(flags) & CTD_POLL)
+		register_fd(nfct_fd(STATE(dump)), STATE(fds));
 
 	if (nl_dump_conntrack_table(STATE(dump)) == -1) {
 		dlog(LOG_ERR, "can't get kernel conntrack table");
 		return -1;
 	}
 
-	STATE(resync) = nfct_open(CONNTRACK, 0);
-	if (STATE(resync)== NULL) {
+	STATE(get) = nfct_open(CONNTRACK, 0);
+	if (STATE(get) == NULL) {
 		dlog(LOG_ERR, "can't open netlink handler: %s",
 		     strerror(errno));
 		dlog(LOG_ERR, "no ctnetlink kernel support?");
 		return -1;
 	}
-	nfct_callback_register(STATE(resync),
-			       NFCT_T_ALL,
-			       STATE(mode)->resync,
-			       NULL);
-	register_fd(nfct_fd(STATE(resync)), STATE(fds));
-	fcntl(nfct_fd(STATE(resync)), F_SETFL, O_NONBLOCK);
+	nfct_callback_register(STATE(get), NFCT_T_ALL, get_handler, NULL);
 
 	/* no callback, it does not do anything with the output */
 	STATE(request) = nfct_open(CONNTRACK, 0);
@@ -356,8 +384,8 @@ init(void)
 	}
 
 	if (CONFIG(flags) & CTD_POLL) {
-		init_alarm(&STATE(resync_alarm), NULL, do_poll_resync_alarm);
-		add_alarm(&STATE(resync_alarm), CONFIG(poll_kernel_secs), 0);
+		init_alarm(&STATE(polling_alarm), NULL, do_polling_alarm);
+		add_alarm(&STATE(polling_alarm), CONFIG(poll_kernel_secs), 0);
 		dlog(LOG_NOTICE, "running in polling mode");
 	} else {
 		init_alarm(&STATE(resync_alarm), NULL, do_overrun_resync_alarm);
@@ -414,11 +442,11 @@ static void __run(struct timeval *next_alarm)
 	if (FD_ISSET(STATE(local).fd, &readfds))
 		do_local_server_step(&STATE(local), NULL, local_handler);
 
-	/* conntrack event has happened */
-	if (!(CONFIG(flags) & CTD_POLL) &&
-	    FD_ISSET(nfct_fd(STATE(event)), &readfds)) {
-		ret = nfct_catch(STATE(event));
-		if (ret == -1) {
+	if (!(CONFIG(flags) & CTD_POLL)) {
+		/* conntrack event has happened */
+		if (FD_ISSET(nfct_fd(STATE(event)), &readfds)) {
+			ret = nfct_catch(STATE(event));
+			if (ret == -1) {
 			switch(errno) {
 			case ENOBUFS:
 				/* We have hit ENOBUFS, it's likely that we are
@@ -464,13 +492,18 @@ static void __run(struct timeval *next_alarm)
 				STATE(stats).nl_catch_event_failed++;
 				break;
 			}
+			}
 		}
-	}
-
-	if (FD_ISSET(nfct_fd(STATE(resync)), &readfds)) {
-		nfct_catch(STATE(resync));
-		if (STATE(mode)->purge)
-			STATE(mode)->purge();
+		if (FD_ISSET(nfct_fd(STATE(resync)), &readfds)) {
+			nfct_catch(STATE(resync));
+			if (STATE(mode)->purge)
+				STATE(mode)->purge();
+		}
+	} else {
+		/* using polling mode */
+		if (FD_ISSET(nfct_fd(STATE(dump)), &readfds)) {
+			nfct_catch(STATE(dump));
+		}
 	}
 
 	if (STATE(mode)->run)

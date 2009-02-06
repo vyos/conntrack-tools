@@ -114,7 +114,11 @@ struct ct_general_state {
 	struct nfct_handle		*dump;		/* dump handler */
 	struct nfct_handle		*request;	/* request handler */
 	struct nfct_handle		*resync;	/* resync handler */
+	struct nfct_handle		*get;		/* get handler */
+	int				get_retval;	/* hackish */
+
 	struct alarm_block		resync_alarm;
+	struct alarm_block		polling_alarm;
 
 	struct fds			*fds;
 

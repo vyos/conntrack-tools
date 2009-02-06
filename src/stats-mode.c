@@ -123,11 +123,11 @@ static int resync_stats(enum nf_conntrack_msg_type type,
 
 static int purge_step(void *data1, void *data2)
 {
-	int ret;
 	struct cache_object *obj = data2;
 
-	ret = nfct_query(STATE(dump), NFCT_Q_GET, obj->ct);
-	if (ret == -1 && errno == ENOENT) {
+	STATE(get_retval) = 0;
+	nl_get_conntrack(STATE(get), obj->ct); /* modifies STATE(get_retval) */
+	if (!STATE(get_retval)) {
 		debug_ct(obj->ct, "purge stats");
 		cache_del(STATE_STATS(cache), obj);
 		cache_object_free(obj);
