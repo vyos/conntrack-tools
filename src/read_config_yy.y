@@ -61,10 +61,11 @@ static void __max_mcast_dedicated_links_reached(void);
 %token T_MCAST_RCVBUFF T_MCAST_SNDBUFF T_NOTRACK T_POLL_SECS
 %token T_FILTER T_ADDRESS T_PROTOCOL T_STATE T_ACCEPT T_IGNORE
 %token T_FROM T_USERSPACE T_KERNELSPACE T_EVENT_ITER_LIMIT T_DEFAULT
-%token T_NETLINK_OVERRUN_RESYNC
+%token T_NETLINK_OVERRUN_RESYNC T_NICE
 
 %token <string> T_IP T_PATH_VAL
 %token <val> T_NUMBER
+%token <val> T_SIGNED_NUMBER
 %token <string> T_STRING
 
 %%
@@ -727,6 +728,7 @@ general_line: hashsize
 	    | poll_secs
 	    | filter
 	    | netlink_overrun_resync
+	    | nice
 	    ;
 
 netlink_buffer_size: T_BUFFER_SIZE T_NUMBER
@@ -752,7 +754,12 @@ netlink_overrun_resync : T_NETLINK_OVERRUN_RESYNC T_OFF
 netlink_overrun_resync : T_NETLINK_OVERRUN_RESYNC T_NUMBER
 {
 	conf.nl_overrun_resync = $2;
-}
+};
+
+nice : T_NICE T_SIGNED_NUMBER
+{
+	conf.nice = $2;
+};
 
 family : T_FAMILY T_STRING
 {

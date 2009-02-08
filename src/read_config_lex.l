@@ -35,6 +35,7 @@ nl		[\n\r]
 is_on		[o|O][n|N]
 is_off		[o|O][f|F][f|F]
 integer		[0-9]+
+signed_integer	[\-\+][0-9]+
 path		\/[^\"\n ]*
 ip4_cidr	\/[0-2]*[0-9]+
 ip4_end		[0-9]*[0-9]+
@@ -122,10 +123,12 @@ notrack		[N|n][O|o][T|t][R|r][A|a][C|c][K|k]
 "Default"			{ return T_DEFAULT; }
 "PollSecs"			{ return T_POLL_SECS; }
 "NetlinkOverrunResync"		{ return T_NETLINK_OVERRUN_RESYNC; }
+"Nice"				{ return T_NICE; }
 
 {is_on}			{ return T_ON; }
 {is_off}		{ return T_OFF; }
 {integer}		{ yylval.val = atoi(yytext); return T_NUMBER; }
+{signed_integer}	{ yylval.val = atoi(yytext); return T_SIGNED_NUMBER; }
 {ip4}			{ yylval.string = strdup(yytext); return T_IP; }
 {ip6}			{ yylval.string = strdup(yytext); return T_IP; }
 {path}			{ yylval.string = strdup(yytext); return T_PATH_VAL; }

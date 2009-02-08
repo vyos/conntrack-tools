@@ -73,6 +73,7 @@ struct ct_conf {
 	int mcast_default_link;
 	struct mcast_conf mcast[MCAST_LINKS_MAX];
 	struct local_conf local;	/* unix socket facilities */
+	int nice;
 	int limit;
 	int refresh;
 	int cache_timeout;		/* cache entries timeout */

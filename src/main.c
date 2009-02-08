@@ -279,6 +279,7 @@ int main(int argc, char *argv[])
 
 	chdir("/");
 	close(STDIN_FILENO);
+	nice(CONFIG(nice));
 
 	/* Daemonize conntrackd */
 	if (type == DAEMON) {
