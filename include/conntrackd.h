@@ -80,6 +80,7 @@ struct ct_conf {
 	unsigned int purge_timeout;	/* purge kernel entries timeout */
 	unsigned int netlink_buffer_size;
 	unsigned int netlink_buffer_size_max_grown;
+	unsigned int nl_overrun_resync;
 	union inet_address *listen_to;
 	unsigned int listen_to_len;
 	unsigned int flags;

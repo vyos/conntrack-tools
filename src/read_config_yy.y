@@ -1,6 +1,6 @@
 %{
 /*
- * (C) 2006-2007 by Pablo Neira Ayuso <pablo@netfilter.org>
+ * (C) 2006-2009 by Pablo Neira Ayuso <pablo@netfilter.org>
  * 
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -61,6 +61,7 @@ static void __max_mcast_dedicated_links_reached(void);
 %token T_MCAST_RCVBUFF T_MCAST_SNDBUFF T_NOTRACK T_POLL_SECS
 %token T_FILTER T_ADDRESS T_PROTOCOL T_STATE T_ACCEPT T_IGNORE
 %token T_FROM T_USERSPACE T_KERNELSPACE T_EVENT_ITER_LIMIT T_DEFAULT
+%token T_NETLINK_OVERRUN_RESYNC
 
 %token <string> T_IP T_PATH_VAL
 %token <val> T_NUMBER
@@ -725,6 +726,7 @@ general_line: hashsize
 	    | event_iterations_limit
 	    | poll_secs
 	    | filter
+	    | netlink_overrun_resync
 	    ;
 
 netlink_buffer_size: T_BUFFER_SIZE T_NUMBER
@@ -736,6 +738,21 @@ netlink_buffer_size_max_grown : T_BUFFER_SIZE_MAX_GROWN T_NUMBER
 {
 	conf.netlink_buffer_size_max_grown = $2;
 };
+
+netlink_overrun_resync : T_NETLINK_OVERRUN_RESYNC T_ON
+{
+	conf.nl_overrun_resync = 30;
+};
+
+netlink_overrun_resync : T_NETLINK_OVERRUN_RESYNC T_OFF
+{
+	conf.nl_overrun_resync = -1;
+};
+
+netlink_overrun_resync : T_NETLINK_OVERRUN_RESYNC T_NUMBER
+{
+	conf.nl_overrun_resync = $2;
+}
 
 family : T_FAMILY T_STRING
 {
@@ -1158,6 +1175,10 @@ init_config(char *filename)
 
 	if (CONFIG(event_iterations_limit) == 0)
 		CONFIG(event_iterations_limit) = 100;
+
+	/* if overrun, automatically resync with kernel after 30 seconds */
+	if (CONFIG(nl_overrun_resync) == 0)
+		CONFIG(nl_overrun_resync) = 30;
 
 	return 0;
 }

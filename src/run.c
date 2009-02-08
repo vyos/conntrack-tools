@@ -417,9 +417,6 @@ init(void)
 	return 0;
 }
 
-/* interval of 30s. for between two overrun */
-#define OVRUN_INT	30
-
 static void __run(struct timeval *next_alarm)
 {
 	int ret;
@@ -475,7 +472,10 @@ static void __run(struct timeval *next_alarm)
 				 *    we resync ourselves.
 				 */
 				nl_resize_socket_buffer(STATE(event));
-				add_alarm(&STATE(resync_alarm), OVRUN_INT, 0);
+				if (CONFIG(nl_overrun_resync) > 0) {
+					add_alarm(&STATE(resync_alarm),
+						  CONFIG(nl_overrun_resync),0);
+				}
 				STATE(stats).nl_catch_event_failed++;
 				STATE(stats).nl_overrun++;
 				break;
