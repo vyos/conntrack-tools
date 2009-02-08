@@ -210,6 +210,7 @@ static void do_reset_cache_alarm(struct alarm_block *a, void *data)
 	STATE(stats).nl_kernel_table_flush++;
 	dlog(LOG_NOTICE, "flushing kernel conntrack table (scheduled)");
 	nl_flush_conntrack_table(STATE(request));
+	cache_flush(STATE_SYNC(internal));
 }
 
 static int init_sync(void)
