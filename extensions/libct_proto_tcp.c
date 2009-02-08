@@ -46,7 +46,7 @@ static char tcp_commands_v_options[NUMBER_OF_CMD][TCP_NUMBER_OF_OPT] =
 /*CT_LIST*/   	  {2,2,2,2,0,0,2,0,0},
 /*CT_CREATE*/	  {2,2,2,2,0,0,1,0,0},
 /*CT_UPDATE*/	  {2,2,2,2,0,0,2,0,0},
-/*CT_DELETE*/	  {2,2,2,2,0,0,0,0,0},
+/*CT_DELETE*/	  {2,2,2,2,0,0,2,0,0},
 /*CT_GET*/	  {2,2,2,2,0,0,2,0,0},
 /*CT_FLUSH*/	  {0,0,0,0,0,0,0,0,0},
 /*CT_EVENT*/	  {2,2,2,2,0,0,2,0,0},
