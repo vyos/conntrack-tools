@@ -208,7 +208,7 @@ void cache_commit(struct cache *c)
 				 "committed", commit_fail);
 	nfct_close(tmp.h);
 
-	dlog(LOG_NOTICE, "commit has taken %llu.%06llu seconds", 
+	dlog(LOG_NOTICE, "commit has taken %lu.%06lu seconds", 
 			res.tv_sec, res.tv_usec);
 }
 
