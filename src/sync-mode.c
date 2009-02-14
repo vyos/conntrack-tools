@@ -507,8 +507,6 @@ static void mcast_send_sync(struct cache_object *obj, int query)
 
 static void dump_sync(struct nf_conntrack *ct)
 {
-	struct cache_object *obj;
-
 	/* This is required by kernels < 2.6.20 */
 	nfct_attr_unset(ct, ATTR_ORIG_COUNTER_BYTES);
 	nfct_attr_unset(ct, ATTR_ORIG_COUNTER_PACKETS);
@@ -516,13 +514,8 @@ static void dump_sync(struct nf_conntrack *ct)
 	nfct_attr_unset(ct, ATTR_REPL_COUNTER_PACKETS);
 	nfct_attr_unset(ct, ATTR_USE);
 
-	obj = cache_update_force(STATE_SYNC(internal), ct);
-	if ((CONFIG(flags) & CTD_POLL)) {
-		if (obj != NULL && obj->status == C_OBJ_NEW) {
-			debug_ct(ct, "poll");
-			mcast_send_sync(obj, NET_T_STATE_NEW);
-		}
-	}
+	if (cache_update_force(STATE_SYNC(internal), ct))
+		debug_ct(ct, "dump");
 }
 
 static int purge_step(void *data1, void *data2)
@@ -566,11 +559,20 @@ static int resync_sync(enum nf_conntrack_msg_type type,
 	nfct_attr_unset(ct, ATTR_REPL_COUNTER_PACKETS);
 	nfct_attr_unset(ct, ATTR_USE);
 
-	if ((obj = cache_update_force(STATE_SYNC(internal), ct))) {
-		debug_ct(obj->ct, "resync");
-		mcast_send_sync(obj, NET_T_STATE_UPD);
-	}
+	obj = cache_update_force(STATE_SYNC(internal), ct);
+	if (obj == NULL)
+		return NFCT_CB_CONTINUE;
 
+	switch (obj->status) {
+	case C_OBJ_NEW:
+		debug_ct(ct, "resync");
+		mcast_send_sync(obj, NET_T_STATE_NEW);
+		break;
+	case C_OBJ_ALIVE:
+		debug_ct(ct, "resync");
+		mcast_send_sync(obj, NET_T_STATE_UPD);
+		break;
+	}
 	return NFCT_CB_CONTINUE;
 }
 

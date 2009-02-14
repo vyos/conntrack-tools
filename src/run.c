@@ -40,10 +40,10 @@ void killer(int foo)
 	/* no signals while handling signals */
 	sigprocmask(SIG_BLOCK, &STATE(block), NULL);
 
-	if (!(CONFIG(flags) & CTD_POLL)) {
+	if (!(CONFIG(flags) & CTD_POLL))
 		nfct_close(STATE(event));
-		nfct_close(STATE(resync));
-	}
+
+	nfct_close(STATE(resync));
 	nfct_close(STATE(get));
 	nfct_close(STATE(request));
 
@@ -220,7 +220,7 @@ static void do_polling_alarm(struct alarm_block *a, void *data)
 	if (STATE(mode)->purge)
 		STATE(mode)->purge();
 
-	nl_send_resync(STATE(dump));
+	nl_send_resync(STATE(resync));
 	add_alarm(&STATE(polling_alarm), CONFIG(poll_kernel_secs), 0);
 }
 
@@ -333,21 +333,22 @@ init(void)
 		nfct_callback_register(STATE(event), NFCT_T_ALL,
 				       event_handler, NULL);
 		register_fd(nfct_fd(STATE(event)), STATE(fds));
-
-		STATE(resync) = nfct_open(CONNTRACK, 0);
-		if (STATE(resync)== NULL) {
-			dlog(LOG_ERR, "can't open netlink handler: %s",
-			     strerror(errno));
-			dlog(LOG_ERR, "no ctnetlink kernel support?");
-			return -1;
-		}
-		nfct_callback_register(STATE(resync),
-				       NFCT_T_ALL,
-				       STATE(mode)->resync,
-				       NULL);
-		register_fd(nfct_fd(STATE(resync)), STATE(fds));
-		fcntl(nfct_fd(STATE(resync)), F_SETFL, O_NONBLOCK);
 	}
+
+	/* resynchronize (like 'dump' socket) but it also purges old entries */
+	STATE(resync) = nfct_open(CONNTRACK, 0);
+	if (STATE(resync)== NULL) {
+		dlog(LOG_ERR, "can't open netlink handler: %s",
+		     strerror(errno));
+		dlog(LOG_ERR, "no ctnetlink kernel support?");
+		return -1;
+	}
+	nfct_callback_register(STATE(resync),
+			       NFCT_T_ALL,
+			       STATE(mode)->resync,
+			       NULL);
+	register_fd(nfct_fd(STATE(resync)), STATE(fds));
+	fcntl(nfct_fd(STATE(resync)), F_SETFL, O_NONBLOCK);
 
 	STATE(dump) = nfct_open(CONNTRACK, 0);
 	if (STATE(dump) == NULL) {
@@ -357,8 +358,6 @@ init(void)
 		return -1;
 	}
 	nfct_callback_register(STATE(dump), NFCT_T_ALL, dump_handler, NULL);
-	if (CONFIG(flags) & CTD_POLL)
-		register_fd(nfct_fd(STATE(dump)), STATE(fds));
 
 	if (nl_dump_conntrack_table(STATE(dump)) == -1) {
 		dlog(LOG_ERR, "can't get kernel conntrack table");
@@ -501,8 +500,8 @@ static void __run(struct timeval *next_alarm)
 		}
 	} else {
 		/* using polling mode */
-		if (FD_ISSET(nfct_fd(STATE(dump)), &readfds)) {
-			nfct_catch(STATE(dump));
+		if (FD_ISSET(nfct_fd(STATE(resync)), &readfds)) {
+			nfct_catch(STATE(resync));
 		}
 	}
 
