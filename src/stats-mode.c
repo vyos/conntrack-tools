@@ -130,6 +130,7 @@ static int purge_step(void *data1, void *data2)
 	if (!STATE(get_retval)) {
 		debug_ct(obj->ct, "purge stats");
 		cache_del(STATE_STATS(cache), obj);
+		dlog_ct(STATE(stats_log), obj->ct, NFCT_O_PLAIN);
 		cache_object_free(obj);
 	}
 
