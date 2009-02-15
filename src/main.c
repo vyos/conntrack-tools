@@ -38,7 +38,7 @@ static const char usage_daemon_commands[] =
 static const char usage_client_commands[] =
 	"Client mode commands:\n"
 	"  -c, commit external cache to conntrack table\n"
-	"  -f, flush internal and external cache\n"
+	"  -f [|internal|external], flush internal and external cache\n"
 	"  -F, flush kernel conntrack table\n"
 	"  -i, display content of the internal cache\n"
 	"  -e, display the content of the external cache\n"
@@ -144,7 +144,26 @@ int main(int argc, char *argv[])
 			break;
 		case 'f':
 			set_operation_mode(&type, REQUEST, argv);
-			action = FLUSH_CACHE;
+			if (i+1 < argc && argv[i+1][0] != '-') {
+				if (strncmp(argv[i+1], "internal",
+					    strlen(argv[i+1])) == 0) {
+					action = FLUSH_INT_CACHE;
+					i++;
+				} else if (strncmp(argv[i+1], "external",
+						 strlen(argv[i+1])) == 0) {
+					action = FLUSH_EXT_CACHE;
+					i++;
+				} else {
+					fprintf(stderr, "ERROR: unknown "
+							"parameter `%s' for "
+							"option `-f'\n",
+							argv[i+1]);
+					exit(EXIT_FAILURE);
+				}
+			} else {
+				/* default to general flushing */
+				action = FLUSH_CACHE;
+			}
 			break;
 		case 'R':
 			set_operation_mode(&type, REQUEST, argv);

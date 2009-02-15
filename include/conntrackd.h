@@ -31,6 +31,8 @@
 #define STATS_RUNTIME	30	/* extended runtime stats		*/
 #define STATS_MULTICAST	31	/* multicast network stats		*/
 #define STATS_QUEUE	32	/* queue stats				*/
+#define FLUSH_INT_CACHE	33	/* flush internal cache			*/
+#define FLUSH_EXT_CACHE	34	/* flush external cache			*/
 
 #define DEFAULT_CONFIGFILE	"/etc/conntrackd/conntrackd.conf"
 #define DEFAULT_LOCKFILE	"/var/lock/conntrackd.lock"

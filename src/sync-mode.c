@@ -466,6 +466,16 @@ static int local_handler_sync(int fd, int type, void *data)
 		cache_flush(STATE_SYNC(internal));
 		cache_flush(STATE_SYNC(external));
 		break;
+	case FLUSH_INT_CACHE:
+		/* inmediate flush, remove pending flush scheduled if any */
+		del_alarm(&STATE_SYNC(reset_cache_alarm));
+		dlog(LOG_NOTICE, "flushing internal cache");
+		cache_flush(STATE_SYNC(internal));
+		break;
+	case FLUSH_EXT_CACHE:
+		dlog(LOG_NOTICE, "flushing external cache");
+		cache_flush(STATE_SYNC(external));
+		break;
 	case KILL:
 		killer(0);
 		break;

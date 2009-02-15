@@ -66,6 +66,7 @@ static int local_handler_stats(int fd, int type, void *data)
 		cache_dump(STATE_STATS(cache), fd, NFCT_O_XML);
 		break;
 	case FLUSH_CACHE:
+	case FLUSH_INT_CACHE:
 		dlog(LOG_NOTICE, "flushing caches");
 		cache_flush(STATE_STATS(cache));
 		break;
