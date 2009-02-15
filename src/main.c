@@ -262,12 +262,6 @@ int main(int argc, char *argv[])
 		exit(EXIT_FAILURE);
 	}
 
-	/*
-	 * Setting up logging
-	 */
-	if (init_log() == -1)
-		exit(EXIT_FAILURE);
-
 	if (type == REQUEST) {
 		if (do_local_request(action, &conf.local, local_step) == -1) {
 			fprintf(stderr, "can't connect: is conntrackd "
@@ -276,6 +270,12 @@ int main(int argc, char *argv[])
 		}
 		exit(EXIT_SUCCESS);
 	}
+
+	/*
+	 * Setting up logging
+	 */
+	if (init_log() == -1)
+		exit(EXIT_FAILURE);
 
 	/*
 	 * lock file
