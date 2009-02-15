@@ -7,6 +7,8 @@
 #
 # Description:
 #
+# Use this script is you use a Linux kernel < 2.6.29.
+#
 # This is the script for primary-backup setups for keepalived
 # (http://www.keepalived.org). You may adapt it to make it work with other
 # high-availability managers.
@@ -48,6 +50,15 @@ case "$1" in
     if [ $? -eq 1 ]
     then
     	logger "ERROR: failed to invoke conntrackd -R"
+    fi
+
+    #
+    # send a bulk update to backups 
+    #
+    $CONNTRACKD_BIN -C $CONNTRACKD_CONFIG -B
+    if [ $? -eq 1 ]
+    then
+        logger "ERROR: failed to invoke conntrackd -B"
     fi
     ;;
   backup)
