@@ -48,7 +48,8 @@ static const char usage_client_commands[] =
 	"  -n, request resync with other node (only FT-FW and NOTRACK modes)\n"
 	"  -x, dump cache in XML format (requires -i or -e)\n"
 	"  -t, reset the kernel timeout (see PurgeTimeout clause)\n"
-	"  -v, display conntrackd version\n";
+	"  -v, display conntrackd version\n"
+	"  -h, display this help information\n";
 
 static const char usage_options[] =
 	"Options:\n"
@@ -239,6 +240,9 @@ int main(int argc, char *argv[])
 			break;
 		case 'v':
 			show_version();
+			exit(EXIT_SUCCESS);
+		case 'h':
+			show_usage(argv[0]);
 			exit(EXIT_SUCCESS);
 		default:
 			show_usage(argv[0]);
