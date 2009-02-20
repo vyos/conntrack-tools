@@ -36,6 +36,13 @@
 #include <net/if.h>
 
 static void
+mcast_change_current_link(int if_idx)
+{
+	if (if_idx != mcast_get_current_ifidx(STATE_SYNC(mcast_client)))
+		mcast_set_current_link(STATE_SYNC(mcast_client), if_idx);
+}
+
+static void
 do_mcast_handler_step(int if_idx, struct nethdr *net, size_t remain)
 {
 	char __ct[nfct_maxsize()];
@@ -49,14 +56,14 @@ do_mcast_handler_step(int if_idx, struct nethdr *net, size_t remain)
 		return;
 	}
 
-	if (if_idx != mcast_get_current_ifidx(STATE_SYNC(mcast_client)))
-		mcast_set_current_link(STATE_SYNC(mcast_client), if_idx);
-
 	switch (STATE_SYNC(sync)->recv(net)) {
 		case MSG_DATA:
+			mcast_change_current_link(if_idx);
 			break;
 		case MSG_DROP:
+			return;
 		case MSG_CTL:
+			mcast_change_current_link(if_idx);
 			return;
 		case MSG_BAD:
 			STATE_SYNC(error).msg_rcv_malformed++;
