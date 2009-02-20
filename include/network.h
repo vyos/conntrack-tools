@@ -45,8 +45,15 @@ int object_status_to_network_type(int status);
 	(struct netattr *)(((char *)x) + x->len)
 
 struct nethdr_ack {
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+	uint8_t type:4,
+		version:4;
+#elif __BYTE_ORDER == __BIG_ENDIAN
 	uint8_t version:4,
 		type:4;
+#else
+#error  "Unknown system endianess!"
+#endif
 	uint8_t flags; 
 	uint16_t len;
 	uint32_t seq;
