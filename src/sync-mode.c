@@ -25,7 +25,6 @@
 #include "network.h"
 #include "fds.h"
 #include "event.h"
-#include "debug.h"
 #include "queue.h"
 
 #include <errno.h>
@@ -165,10 +164,6 @@ static void mcast_handler(struct mcast_sock *m, int if_idx)
 				STATE_SYNC(error).msg_rcv_bad_size++;
 			}
 		}
-
-		debug("recv sq: %u fl:%u len:%u (rem:%d)\n", 
-			ntohl(net->seq), net->flags,
-			ntohs(net->len), remain);
 
 		HDR_NETWORK2HOST(net);
 
@@ -531,8 +526,7 @@ static void dump_sync(struct nf_conntrack *ct)
 	nfct_attr_unset(ct, ATTR_REPL_COUNTER_PACKETS);
 	nfct_attr_unset(ct, ATTR_USE);
 
-	if (cache_update_force(STATE_SYNC(internal), ct))
-		debug_ct(ct, "dump");
+	cache_update_force(STATE_SYNC(internal), ct);
 }
 
 static int purge_step(void *data1, void *data2)
@@ -542,7 +536,6 @@ static int purge_step(void *data1, void *data2)
 	STATE(get_retval) = 0;
 	nl_get_conntrack(STATE(get), obj->ct);	/* modifies STATE(get_reval) */
 	if (!STATE(get_retval)) {
-		debug_ct(obj->ct, "purge resync");
 		if (obj->status != C_OBJ_DEAD) {
 			cache_object_set_status(obj, C_OBJ_DEAD);
 			mcast_send_sync(obj, NET_T_STATE_DEL);
@@ -582,11 +575,9 @@ static int resync_sync(enum nf_conntrack_msg_type type,
 
 	switch (obj->status) {
 	case C_OBJ_NEW:
-		debug_ct(ct, "resync");
 		mcast_send_sync(obj, NET_T_STATE_NEW);
 		break;
 	case C_OBJ_ALIVE:
-		debug_ct(ct, "resync");
 		mcast_send_sync(obj, NET_T_STATE_UPD);
 		break;
 	}
@@ -615,11 +606,9 @@ retry:
 			return;
 		}
 		mcast_send_sync(obj, NET_T_STATE_NEW);
-		debug_ct(obj->ct, "internal new");
 	} else {
 		cache_del(STATE_SYNC(internal), obj);
 		cache_object_free(obj);
-		debug_ct(ct, "can't add");
 		goto retry;
 	}
 }
@@ -628,11 +617,10 @@ static void event_update_sync(struct nf_conntrack *ct)
 {
 	struct cache_object *obj;
 
-	if ((obj = cache_update_force(STATE_SYNC(internal), ct)) == NULL) {
-		debug_ct(ct, "can't update");
+	obj = cache_update_force(STATE_SYNC(internal), ct);
+	if (obj == NULL)
 		return;
-	}
-	debug_ct(obj->ct, "internal update");
+
 	mcast_send_sync(obj, NET_T_STATE_UPD);
 }
 
@@ -642,16 +630,14 @@ static int event_destroy_sync(struct nf_conntrack *ct)
 	int id;
 
 	obj = cache_find(STATE_SYNC(internal), ct, &id);
-	if (obj == NULL) {
-		debug_ct(ct, "can't destroy");
+	if (obj == NULL)
 		return 0;
-	}
+
 	if (obj->status != C_OBJ_DEAD) {
 		cache_object_set_status(obj, C_OBJ_DEAD);
 		mcast_send_sync(obj, NET_T_STATE_DEL);
 		cache_object_put(obj);
 	}
-	debug_ct(ct, "internal destroy");
 	return 1;
 }
 

@@ -20,7 +20,6 @@
 #include "conntrackd.h"
 #include "filter.h"
 #include "log.h"
-#include "debug.h"
 
 #include <string.h>
 #include <errno.h>

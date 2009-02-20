@@ -18,7 +18,6 @@
 
 #include "netlink.h"
 #include "traffic_stats.h"
-#include "debug.h"
 #include "cache.h"
 #include "log.h"
 #include "conntrackd.h"
@@ -97,8 +96,7 @@ static void dump_stats(struct nf_conntrack *ct)
 	nfct_attr_unset(ct, ATTR_TIMEOUT);
 	nfct_attr_unset(ct, ATTR_USE);
 
-	if (cache_update_force(STATE_STATS(cache), ct))
-		debug_ct(ct, "resync entry");
+	cache_update_force(STATE_STATS(cache), ct);
 }
 
 static int resync_stats(enum nf_conntrack_msg_type type,
@@ -116,8 +114,7 @@ static int resync_stats(enum nf_conntrack_msg_type type,
 	nfct_attr_unset(ct, ATTR_REPL_COUNTER_PACKETS);
 	nfct_attr_unset(ct, ATTR_USE);
 
-	if (!cache_update_force(STATE_STATS(cache), ct))
-		debug_ct(ct, "stats resync");
+	cache_update_force(STATE_STATS(cache), ct);
 
 	return NFCT_CB_CONTINUE;
 }
@@ -129,7 +126,6 @@ static int purge_step(void *data1, void *data2)
 	STATE(get_retval) = 0;
 	nl_get_conntrack(STATE(get), obj->ct); /* modifies STATE(get_retval) */
 	if (!STATE(get_retval)) {
-		debug_ct(obj->ct, "purge stats");
 		cache_del(STATE_STATS(cache), obj);
 		dlog_ct(STATE(stats_log), obj->ct, NFCT_O_PLAIN);
 		cache_object_free(obj);

@@ -19,7 +19,6 @@
 #include "conntrackd.h"
 #include "sync.h"
 #include "queue.h"
-#include "debug.h"
 #include "network.h"
 #include "log.h"
 #include "cache.h"

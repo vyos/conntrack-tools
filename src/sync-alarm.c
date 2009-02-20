@@ -22,7 +22,6 @@
 #include "alarm.h"
 #include "cache.h"
 #include "queue.h"
-#include "debug.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -37,8 +36,6 @@ static void alarm_enqueue(struct cache_object *obj, int query);
 static void refresher(struct alarm_block *a, void *data)
 {
 	struct cache_object *obj = data;
-
-	debug_ct(obj->ct, "persistence update");
 
 	add_alarm(a, 
 		  random() % CONFIG(refresh) + 1,

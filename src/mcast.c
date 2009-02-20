@@ -19,7 +19,6 @@
  */
 
 #include "mcast.h"
-#include "debug.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -73,7 +72,6 @@ struct mcast_sock *mcast_server_create(struct mcast_conf *conf)
 	}
 
 	if ((m->fd = socket(conf->ipproto, SOCK_DGRAM, 0)) == -1) {
-		debug("mcast_sock_server_create:socket");
 		free(m);
 		return NULL;
 	}
@@ -84,7 +82,6 @@ struct mcast_sock *mcast_server_create(struct mcast_conf *conf)
 		strncpy(ifr.ifr_name, conf->iface, sizeof(ifr.ifr_name));
 
 		if (ioctl(m->fd, SIOCGIFMTU, &ifr) == -1) {
-			debug("ioctl");
 			close(m->fd);
 			free(m);
 			return NULL;
@@ -94,7 +91,6 @@ struct mcast_sock *mcast_server_create(struct mcast_conf *conf)
 
 	if (setsockopt(m->fd, SOL_SOCKET, SO_REUSEADDR, &yes, 
 				sizeof(int)) == -1) {
-		debug("mcast_sock_server_create:setsockopt1");
 		close(m->fd);
 		free(m);
 		return NULL;
@@ -109,7 +105,6 @@ struct mcast_sock *mcast_server_create(struct mcast_conf *conf)
 				sizeof(int)) == -1) {
 		/* not supported in linux kernel < 2.6.14 */
 		if (errno != ENOPROTOOPT) {
-			debug("mcast_sock_server_create:setsockopt2");
 			close(m->fd);
 			free(m);
 			return NULL;
@@ -119,7 +114,6 @@ struct mcast_sock *mcast_server_create(struct mcast_conf *conf)
 	getsockopt(m->fd, SOL_SOCKET, SO_RCVBUF, &conf->rcvbuf, &socklen);
 
 	if (bind(m->fd, (struct sockaddr *) &m->addr, m->sockaddr_len) == -1) {
-		debug("mcast_sock_server_create:bind");
 		close(m->fd);
 		free(m);
 		return NULL;
@@ -129,7 +123,6 @@ struct mcast_sock *mcast_server_create(struct mcast_conf *conf)
 	case AF_INET:
 		if (setsockopt(m->fd, IPPROTO_IP, IP_ADD_MEMBERSHIP,
 			       &mreq.ipv4, sizeof(mreq.ipv4)) < 0) {
-			debug("mcast_sock_server_create:setsockopt2");
 			close(m->fd);
 			free(m);
 			return NULL;
@@ -138,7 +131,6 @@ struct mcast_sock *mcast_server_create(struct mcast_conf *conf)
 	case AF_INET6:
 		if (setsockopt(m->fd, IPPROTO_IPV6, IPV6_JOIN_GROUP,
 			       &mreq.ipv6, sizeof(mreq.ipv6)) < 0) {
-			debug("mcast_sock_server_create:setsockopt2");
 			close(m->fd);
 			free(m);
 			return NULL;
@@ -207,7 +199,6 @@ __mcast_client_create_ipv4(struct mcast_sock *m, struct mcast_conf *conf)
 
 	if (setsockopt(m->fd, IPPROTO_IP, IP_MULTICAST_LOOP, &no,
 		       sizeof(int)) < 0) {
-		debug("mcast_sock_client_create:setsockopt2");
 		close(m->fd);
 		return -1;
 	}
@@ -215,7 +206,6 @@ __mcast_client_create_ipv4(struct mcast_sock *m, struct mcast_conf *conf)
 	if (setsockopt(m->fd, IPPROTO_IP, IP_MULTICAST_IF,
 		       &conf->ifa.interface_addr,
 		       sizeof(struct in_addr)) == -1) {
-		debug("mcast_sock_client_create:setsockopt3");
 		close(m->fd);
 		return -1;
 	}
@@ -237,7 +227,6 @@ __mcast_client_create_ipv6(struct mcast_sock *m, struct mcast_conf *conf)
 
 	if (setsockopt(m->fd, IPPROTO_IPV6, IPV6_MULTICAST_LOOP, &no,
 		       sizeof(int)) < 0) {
-		debug("mcast_sock_client_create:setsockopt2");
 		close(m->fd);
 		return -1;
 	}
@@ -245,7 +234,6 @@ __mcast_client_create_ipv6(struct mcast_sock *m, struct mcast_conf *conf)
 	if (setsockopt(m->fd, IPPROTO_IPV6, IPV6_MULTICAST_IF,
 		       &conf->ifa.interface_index6,
 		       sizeof(unsigned int)) == -1) {
-		debug("mcast_sock_client_create:setsockopt3");
 		close(m->fd);
 		return -1;
 	}
@@ -267,14 +255,12 @@ struct mcast_sock *mcast_client_create(struct mcast_conf *conf)
 	m->interface_idx = conf->interface_idx;
 
 	if ((m->fd = socket(conf->ipproto, SOCK_DGRAM, 0)) == -1) {
-		debug("mcast_sock_client_create:socket");
 		free(m);
 		return NULL;
 	}
 
 	if (setsockopt(m->fd, SOL_SOCKET, SO_NO_CHECK, &conf->checksum, 
 				sizeof(int)) == -1) {
-		debug("mcast_sock_client_create:setsockopt1");
 		close(m->fd);
 		free(m);
 		return NULL;
@@ -289,7 +275,6 @@ struct mcast_sock *mcast_client_create(struct mcast_conf *conf)
 				sizeof(int)) == -1) {
 		/* not supported in linux kernel < 2.6.14 */
 		if (errno != ENOPROTOOPT) {
-			debug("mcast_sock_server_create:setsockopt2");
 			close(m->fd);
 			free(m);
 			return NULL;
@@ -376,7 +361,6 @@ ssize_t mcast_send(struct mcast_sock *m, void *data, int size)
 		     (struct sockaddr *) &m->addr,
 		     m->sockaddr_len);
 	if (ret == -1) {
-		debug("mcast_sock_send");
 		m->stats.error++;
 		return ret;
 	}
@@ -399,7 +383,6 @@ ssize_t mcast_recv(struct mcast_sock *m, void *data, int size)
 		       (struct sockaddr *)&m->addr,
 		       &sin_size);
 	if (ret == -1) {
-		debug("mcast_sock_recv");
 		m->stats.error++;
 		return ret;
 	}

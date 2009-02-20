@@ -19,7 +19,6 @@
 #include "conntrackd.h"
 #include "network.h"
 #include "log.h"
-#include "debug.h"
 
 #include <stdlib.h>
 #include <time.h>

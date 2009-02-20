@@ -19,7 +19,6 @@
 #include "cache.h"
 #include "conntrackd.h"
 #include "alarm.h"
-#include "debug.h"
 
 #include <stdio.h>
 
@@ -27,7 +26,6 @@ static void timeout(struct alarm_block *a, void *data)
 {
 	struct cache_object *obj = data;
 
-	debug_ct(obj->ct, "expired timeout");
 	cache_del(obj->cache, obj);
 	cache_object_free(obj);
 }
