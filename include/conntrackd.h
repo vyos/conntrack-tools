@@ -128,8 +128,10 @@ struct ct_general_state {
 
 	/* statistics */
 	struct {
-		uint64_t 		bytes[NFCT_DIR_MAX];
-		uint64_t 		packets[NFCT_DIR_MAX];
+		uint64_t 		bytes_orig;
+		uint64_t 		bytes_repl;
+		uint64_t 		packets_orig;
+		uint64_t 		packets_repl;
 
 		time_t			daemon_start_time;
 
