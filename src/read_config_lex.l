@@ -82,9 +82,11 @@ notrack		[N|n][O|o][T|t][R|r][A|a][C|c][K|k]
 "Sync"				{ return T_SYNC; }
 "Stats"				{ return T_STATS; }
 "RelaxTransitions"		{ return T_RELAX_TRANSITIONS; }
-"SocketBufferSize"		{ return T_BUFFER_SIZE; }
-"SocketBufferSizeMaxGrown"	{ return T_BUFFER_SIZE_MAX_GROWN; }
-"SocketBufferSizeMaxGrowth"	{ return T_BUFFER_SIZE_MAX_GROWN; }
+"SocketBufferSize"		{ return T_BUFFER_SIZE; /* alias */ }
+"SocketBufferSizeMaxGrown"	{ return T_BUFFER_SIZE_MAX_GROWN; /* alias */ }
+"SocketBufferSizeMaxGrowth"	{ return T_BUFFER_SIZE_MAX_GROWN; /* alias */ }
+"NetlinkBufferSize"		{ return T_BUFFER_SIZE; }
+"NetlinkBufferSizeMaxGrowth"	{ return T_BUFFER_SIZE_MAX_GROWN; }
 "Mode"				{ return T_SYNC_MODE; }
 "ListenTo"			{ return T_LISTEN_TO; }
 "Family"			{ return T_FAMILY; }
