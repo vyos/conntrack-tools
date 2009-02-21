@@ -28,6 +28,7 @@
 #include <sys/ioctl.h>
 #include <net/if.h>
 #include <errno.h>
+#include <limits.h>
 #include <libnfnetlink/libnfnetlink.h>
 
 struct mcast_sock *mcast_server_create(struct mcast_conf *conf)
