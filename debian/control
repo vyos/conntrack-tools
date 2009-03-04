@@ -4,8 +4,8 @@ Priority: optional
 Maintainer: netfilter maintainers <netfilter-maintainers@ned.snow-crash.org>
 Uploaders: Max Kellermann <max@duempel.org>, Alexander Wirt <formorer@debian.org>
 Homepage: http://conntrack-tools.netfilter.org/
-Build-Depends: debhelper (>= 5), libnfnetlink-dev (>= 0.0.33),
- libnetfilter-conntrack-dev (>= 0.0.97), bison, flex 
+Build-Depends: debhelper (>= 5), libnfnetlink-dev (>= 0.0.40),
+ libnetfilter-conntrack-dev (>= 0.0.99), bison, flex 
 Standards-Version: 3.8.0
 
 Package: conntrack
