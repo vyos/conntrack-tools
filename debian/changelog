@@ -1,11 +1,11 @@
-conntrack (1:0.9.8-1) UNRELEASED; urgency=low
+conntrack (1:0.9.11-1) UNRELEASED; urgency=low
 
   * new upstream release
   * moved conntrackd.conf to /etc/conntrackd/conntrackd.conf (Closes: #477679)
   * updated sample configuration file
   * updated home page to http://people.netfilter.org/pablo/conntrack-tools/
 
- -- Max Kellermann <max@duempel.org>  Mon, 27 Oct 2008 13:58:14 +0100
+ -- Max Kellermann <max@duempel.org>  Wed, 04 Mar 2009 10:09:50 +0100
 
 conntrack (1:0.9.7-1) unstable; urgency=low
 
