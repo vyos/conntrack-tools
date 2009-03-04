@@ -2,4 +2,8 @@
     weekly
     rotate 2
     missingok
+
+    postrotate
+        /etc/init.d/conntrackd restart
+    endscript
 }

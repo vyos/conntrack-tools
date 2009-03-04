@@ -4,6 +4,7 @@ conntrack (1:0.9.11-1) UNRELEASED; urgency=low
   * moved conntrackd.conf to /etc/conntrackd/conntrackd.conf (Closes: #477679)
   * updated sample configuration file
   * updated home page to http://people.netfilter.org/pablo/conntrack-tools/
+  * restart conntrackd after logrotate (Closes: #513079)
 
  -- Max Kellermann <max@duempel.org>  Wed, 04 Mar 2009 10:09:50 +0100
 
