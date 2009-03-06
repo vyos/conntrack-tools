@@ -20,7 +20,12 @@
 #include <netinet/in.h> /* For htons */
 #include <netinet/icmp6.h>
 #include <libnetfilter_conntrack/libnetfilter_conntrack.h>
-#include <libnetfilter_conntrack/libnetfilter_conntrack_icmp.h>
+
+enum {
+	CT_ICMP_TYPE	= (1 << 0),
+	CT_ICMP_CODE	= (1 << 1),
+	CT_ICMP_ID	= (1 << 2),
+};
 
 static struct option opts[] = {
 	{ "icmpv6-type", 1, 0, '1' },
@@ -76,19 +81,19 @@ static int parse(char c,
 			tmp = atoi(optarg);
 			nfct_set_attr_u8(ct, ATTR_ICMP_TYPE, tmp);
 			nfct_set_attr_u8(ct, ATTR_L4PROTO, IPPROTO_ICMPV6);
-			*flags |= ICMP_TYPE;
+			*flags |= CT_ICMP_TYPE;
 			break;
 		case '2':
 			tmp = atoi(optarg);
 			nfct_set_attr_u8(ct, ATTR_ICMP_CODE, tmp);
 			nfct_set_attr_u8(ct, ATTR_L4PROTO, IPPROTO_ICMPV6);
-			*flags |= ICMP_CODE;
+			*flags |= CT_ICMP_CODE;
 			break;
 		case '3':
 			id = htons(atoi(optarg));
 			nfct_set_attr_u16(ct, ATTR_ICMP_ID, id);
 			nfct_set_attr_u8(ct, ATTR_L4PROTO, IPPROTO_ICMPV6);
-			*flags |= ICMP_ID;
+			*flags |= CT_ICMP_ID;
 			break;
 	}
 	return 1;

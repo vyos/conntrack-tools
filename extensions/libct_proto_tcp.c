@@ -17,6 +17,18 @@
 
 #include "conntrack.h"
 
+enum {
+	CT_TCP_ORIG_SPORT =	(1 << 0),
+	CT_TCP_ORIG_DPORT =	(1 << 1),
+	CT_TCP_REPL_SPORT =	(1 << 2),
+	CT_TCP_REPL_DPORT =	(1 << 3),
+	CT_TCP_MASK_SPORT =	(1 << 4),
+	CT_TCP_MASK_DPORT =	(1 << 5),
+	CT_TCP_STATE =		(1 << 6),
+	CT_TCP_EXPTUPLE_SPORT =	(1 << 7),
+	CT_TCP_EXPTUPLE_DPORT =	(1 << 8)
+};
+
 static struct option opts[] = {
 	{"orig-port-src", 1, 0, '1'},
 	{"sport", 1, 0, '1'},
@@ -100,37 +112,37 @@ static int parse_options(char c,
 			port = htons(atoi(optarg));
 			nfct_set_attr_u16(ct, ATTR_ORIG_PORT_SRC, port);
 			nfct_set_attr_u8(ct, ATTR_ORIG_L4PROTO, IPPROTO_TCP);
-			*flags |= TCP_ORIG_SPORT;
+			*flags |= CT_TCP_ORIG_SPORT;
 			break;
 		case '2':
 			port = htons(atoi(optarg));
 			nfct_set_attr_u16(ct, ATTR_ORIG_PORT_DST, port);
 			nfct_set_attr_u8(ct, ATTR_ORIG_L4PROTO, IPPROTO_TCP);
-			*flags |= TCP_ORIG_DPORT;
+			*flags |= CT_TCP_ORIG_DPORT;
 			break;
 		case '3':
 			port = htons(atoi(optarg));
 			nfct_set_attr_u16(ct, ATTR_REPL_PORT_SRC, port);
 			nfct_set_attr_u8(ct, ATTR_REPL_L4PROTO, IPPROTO_TCP);
-			*flags |= TCP_REPL_SPORT;
+			*flags |= CT_TCP_REPL_SPORT;
 			break;
 		case '4':
 			port = htons(atoi(optarg));
 			nfct_set_attr_u16(ct, ATTR_REPL_PORT_DST, port);
 			nfct_set_attr_u8(ct, ATTR_REPL_L4PROTO, IPPROTO_TCP);
-			*flags |= TCP_REPL_DPORT;
+			*flags |= CT_TCP_REPL_DPORT;
 			break;
 		case '5':
 			port = htons(atoi(optarg));
 			nfct_set_attr_u16(mask, ATTR_ORIG_PORT_SRC, port);
 			nfct_set_attr_u8(mask, ATTR_ORIG_L4PROTO, IPPROTO_TCP);
-			*flags |= TCP_MASK_SPORT;
+			*flags |= CT_TCP_MASK_SPORT;
 			break;
 		case '6':
 			port = htons(atoi(optarg));
 			nfct_set_attr_u16(mask, ATTR_ORIG_PORT_DST, port);
 			nfct_set_attr_u8(mask, ATTR_ORIG_L4PROTO, IPPROTO_TCP);
-			*flags |= TCP_MASK_DPORT;
+			*flags |= CT_TCP_MASK_DPORT;
 			break;
 		case '7':
 			for (i=0; i<10; i++) {
@@ -144,19 +156,19 @@ static int parse_options(char c,
 			if (i == 10)
 				exit_error(PARAMETER_PROBLEM,
 					   "Unknown TCP state %s\n", optarg);
-			*flags |= TCP_STATE;
+			*flags |= CT_TCP_STATE;
 			break;
 		case '8':
 			port = htons(atoi(optarg));
 			nfct_set_attr_u16(exptuple, ATTR_ORIG_PORT_SRC, port);
 			nfct_set_attr_u8(exptuple, ATTR_ORIG_L4PROTO, port);
-			*flags |= TCP_EXPTUPLE_SPORT;
+			*flags |= CT_TCP_EXPTUPLE_SPORT;
 			break;
 		case '9':
 			port = htons(atoi(optarg));
 			nfct_set_attr_u16(exptuple, ATTR_ORIG_PORT_DST, port); 
 			nfct_set_attr_u8(exptuple, ATTR_ORIG_L4PROTO, port);
-			*flags |= TCP_EXPTUPLE_DPORT;
+			*flags |= CT_TCP_EXPTUPLE_DPORT;
 			break;
 	}
 	return 1;
@@ -166,11 +178,28 @@ static void final_check(unsigned int flags,
 			unsigned int cmd,
 			struct nf_conntrack *ct)
 {
-	if ((1 << cmd) & (CT_CREATE|CT_GET) &&
-	    !((flags & TCP_ORIG_SPORT && flags & TCP_ORIG_DPORT) ||
-	      (flags & TCP_REPL_SPORT && flags & TCP_REPL_DPORT)))
-	      	exit_error(PARAMETER_PROBLEM, "missing ports");
-
+	if ((1 << cmd) & (CT_CREATE|CT_GET)) {
+		if (!(flags & CT_TCP_ORIG_SPORT) &&
+		     (flags & CT_TCP_ORIG_DPORT)) {
+			exit_error(PARAMETER_PROBLEM,
+				   "missing `--sport'");
+		}
+		if ((flags & CT_TCP_ORIG_SPORT) &&
+		    !(flags & CT_TCP_ORIG_DPORT)) {
+			exit_error(PARAMETER_PROBLEM,
+				   "missing `--dport'");
+		}
+		if (!(flags & CT_TCP_REPL_SPORT) &&
+		    (flags & CT_TCP_REPL_DPORT)) {
+			exit_error(PARAMETER_PROBLEM,
+				   "missing `--reply-port-src'");
+		}
+		if ((flags & CT_TCP_REPL_SPORT) &&
+		    !(flags & CT_TCP_REPL_DPORT)) {
+			exit_error(PARAMETER_PROBLEM,
+				   "missing `--reply-port-dst'");
+		}
+	}
 	generic_opt_check(flags, 
 			  TCP_NUMBER_OF_OPT,
 			  tcp_commands_v_options[cmd],
