@@ -513,7 +513,7 @@ static int local_handler_sync(int fd, int type, void *data)
 	return ret;
 }
 
-static void mcast_send_sync(struct cache_object *obj, int query)
+static void sync_send(struct cache_object *obj, int query)
 {
 	STATE_SYNC(sync)->enqueue(obj, query);
 }
@@ -539,7 +539,7 @@ static int purge_step(void *data1, void *data2)
 	if (!STATE(get_retval)) {
 		if (obj->status != C_OBJ_DEAD) {
 			cache_object_set_status(obj, C_OBJ_DEAD);
-			mcast_send_sync(obj, NET_T_STATE_DEL);
+			sync_send(obj, NET_T_STATE_DEL);
 			cache_object_put(obj);
 		}
 	}
@@ -576,10 +576,10 @@ static int resync_sync(enum nf_conntrack_msg_type type,
 
 	switch (obj->status) {
 	case C_OBJ_NEW:
-		mcast_send_sync(obj, NET_T_STATE_NEW);
+		sync_send(obj, NET_T_STATE_NEW);
 		break;
 	case C_OBJ_ALIVE:
-		mcast_send_sync(obj, NET_T_STATE_UPD);
+		sync_send(obj, NET_T_STATE_UPD);
 		break;
 	}
 	return NFCT_CB_CONTINUE;
@@ -606,7 +606,7 @@ retry:
 			cache_object_free(obj);
 			return;
 		}
-		mcast_send_sync(obj, NET_T_STATE_NEW);
+		sync_send(obj, NET_T_STATE_NEW);
 	} else {
 		cache_del(STATE_SYNC(internal), obj);
 		cache_object_free(obj);
@@ -622,7 +622,7 @@ static void event_update_sync(struct nf_conntrack *ct)
 	if (obj == NULL)
 		return;
 
-	mcast_send_sync(obj, NET_T_STATE_UPD);
+	sync_send(obj, NET_T_STATE_UPD);
 }
 
 static int event_destroy_sync(struct nf_conntrack *ct)
@@ -636,7 +636,7 @@ static int event_destroy_sync(struct nf_conntrack *ct)
 
 	if (obj->status != C_OBJ_DEAD) {
 		cache_object_set_status(obj, C_OBJ_DEAD);
-		mcast_send_sync(obj, NET_T_STATE_DEL);
+		sync_send(obj, NET_T_STATE_DEL);
 		cache_object_put(obj);
 	}
 	return 1;
