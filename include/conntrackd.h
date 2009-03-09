@@ -165,7 +165,7 @@ struct ct_sync_state {
 
 	struct mcast_sock_multi *mcast_server;  /* multicast incoming */
 	struct mcast_sock_multi *mcast_client;  /* multicast outgoing  */
-	struct nlif_handle	*mcast_iface;
+	struct nlif_handle	*interface;
 	struct queue *tx_queue;
 
 	struct alarm_block		reset_cache_alarm;

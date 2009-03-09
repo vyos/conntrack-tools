@@ -175,7 +175,7 @@ static void mcast_handler(struct mcast_sock *m, int if_idx)
 }
 
 /* select a new interface candidate in a round robin basis */
-static void mcast_iface_candidate(void)
+static void interface_candidate(void)
 {
 	int i, idx;
 	unsigned int flags;
@@ -185,7 +185,7 @@ static void mcast_iface_candidate(void)
 		idx = mcast_get_ifidx(STATE_SYNC(mcast_client), i);
 		if (idx == mcast_get_current_ifidx(STATE_SYNC(mcast_client)))
 			continue;
-		nlif_get_ifflags(STATE_SYNC(mcast_iface), idx, &flags);
+		nlif_get_ifflags(STATE_SYNC(interface), idx, &flags);
 		if (flags & (IFF_RUNNING | IFF_UP)) {
 			mcast_set_current_link(STATE_SYNC(mcast_client), i);
 			dlog(LOG_NOTICE, "device `%s' becomes multicast "
@@ -197,15 +197,15 @@ static void mcast_iface_candidate(void)
 	dlog(LOG_ERR, "no dedicated links available!");
 }
 
-static void mcast_iface_handler(void)
+static void interface_handler(void)
 {
 	int idx = mcast_get_current_ifidx(STATE_SYNC(mcast_client));
 	unsigned int flags;
 
-	nlif_catch(STATE_SYNC(mcast_iface));
-	nlif_get_ifflags(STATE_SYNC(mcast_iface), idx, &flags);
+	nlif_catch(STATE_SYNC(interface));
+	nlif_get_ifflags(STATE_SYNC(interface), idx, &flags);
 	if (!(flags & IFF_RUNNING) || !(flags & IFF_UP))
-		mcast_iface_candidate();
+		interface_candidate();
 }
 
 static void do_reset_cache_alarm(struct alarm_block *a, void *data)
@@ -299,12 +299,12 @@ static int init_sync(void)
 		return -1;
 	}
 
-	STATE_SYNC(mcast_iface) = nl_init_interface_handler();
-	if (!STATE_SYNC(mcast_iface)) {
+	STATE_SYNC(interface) = nl_init_interface_handler();
+	if (!STATE_SYNC(interface)) {
 		dlog(LOG_ERR, "can't open interface watcher");
 		return -1;
 	}
-	if (register_fd(nlif_fd(STATE_SYNC(mcast_iface)), STATE(fds)) == -1)
+	if (register_fd(nlif_fd(STATE_SYNC(interface)), STATE(fds)) == -1)
 		return -1;
 
 	STATE_SYNC(tx_queue) = queue_create(INT_MAX, QUEUE_F_EVFD);
@@ -337,8 +337,8 @@ static void run_sync(fd_set *readfds)
 	if (FD_ISSET(queue_get_eventfd(STATE_SYNC(tx_queue)), readfds))
 		STATE_SYNC(sync)->xmit();
 
-	if (FD_ISSET(nlif_fd(STATE_SYNC(mcast_iface)), readfds))
-		mcast_iface_handler();
+	if (FD_ISSET(nlif_fd(STATE_SYNC(interface)), readfds))
+		interface_handler();
 
 	/* flush pending messages */
 	mcast_buffered_pending_netmsg(STATE_SYNC(mcast_client));
@@ -352,7 +352,7 @@ static void kill_sync(void)
 	mcast_server_destroy_multi(STATE_SYNC(mcast_server));
 	mcast_client_destroy_multi(STATE_SYNC(mcast_client));
 
-	nlif_close(STATE_SYNC(mcast_iface));
+	nlif_close(STATE_SYNC(interface));
 
 	mcast_buffered_destroy();
 	queue_destroy(STATE_SYNC(tx_queue));
@@ -502,7 +502,7 @@ static int local_handler_sync(int fd, int type, void *data)
 	case STATS_MULTICAST:
 		mcast_dump_stats_extended(fd, STATE_SYNC(mcast_client),
 					      STATE_SYNC(mcast_server),
-					      STATE_SYNC(mcast_iface));
+					      STATE_SYNC(interface));
 		break;
 	default:
 		if (STATE_SYNC(sync)->local)
