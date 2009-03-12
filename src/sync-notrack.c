@@ -114,12 +114,12 @@ static int notrack_recv(const struct nethdr *net)
 	int ret;
 	unsigned int exp_seq;
 
-	mcast_track_seq(net->seq, &exp_seq);
+	nethdr_track_seq(net->seq, &exp_seq);
 
 	ret = digest_msg(net);
 
 	if (ret != MSG_BAD)
-		mcast_track_update_seq(net->seq);
+		nethdr_track_update_seq(net->seq);
 
 	return ret;
 }

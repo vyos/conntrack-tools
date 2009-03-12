@@ -100,9 +100,9 @@ enum {
 	SEQ_BEFORE,
 };
 
-int mcast_track_seq(uint32_t seq, uint32_t *exp_seq);
-void mcast_track_update_seq(uint32_t seq);
-int mcast_track_is_seq_set(void);
+int nethdr_track_seq(uint32_t seq, uint32_t *exp_seq);
+void nethdr_track_update_seq(uint32_t seq);
+int nethdr_track_is_seq_set(void);
 
 struct mcast_conf;
 

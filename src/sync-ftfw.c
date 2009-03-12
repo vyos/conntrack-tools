@@ -129,7 +129,7 @@ static void tx_queue_add_ctlmsg2(uint32_t flags)
 /* this function is called from the alarm framework */
 static void do_alive_alarm(struct alarm_block *a, void *data)
 {
-	if (ack_from_set && mcast_track_is_seq_set()) {
+	if (ack_from_set && nethdr_track_is_seq_set()) {
 		/* exp_seq contains the last update received */
 		tx_queue_add_ctlmsg(NET_F_ACK,
 				    ack_from,
@@ -396,7 +396,7 @@ static int ftfw_recv(const struct nethdr *net)
 		goto bypass;
 	}
 
-	switch (mcast_track_seq(net->seq, &exp_seq)) {
+	switch (nethdr_track_seq(net->seq, &exp_seq)) {
 	case SEQ_AFTER:
 		ret = digest_msg(net);
 		if (ret == MSG_BAD) {
@@ -446,7 +446,7 @@ bypass:
 
 out:
 	if ((ret == MSG_DATA || ret == MSG_CTL))
-		mcast_track_update_seq(net->seq);
+		nethdr_track_update_seq(net->seq);
 
 	return ret;
 }

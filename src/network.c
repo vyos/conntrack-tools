@@ -68,7 +68,7 @@ void nethdr_set_ctl(struct nethdr *net)
 static int local_seq_set = 0;
 
 /* this function only tracks, it does not update the last sequence received */
-int mcast_track_seq(uint32_t seq, uint32_t *exp_seq)
+int nethdr_track_seq(uint32_t seq, uint32_t *exp_seq)
 {
 	int ret = SEQ_UNKNOWN;
 
@@ -104,7 +104,7 @@ out:
 	return ret;
 }
 
-void mcast_track_update_seq(uint32_t seq)
+void nethdr_track_update_seq(uint32_t seq)
 {
 	if (!local_seq_set)
 		local_seq_set = 1;
@@ -112,7 +112,7 @@ void mcast_track_update_seq(uint32_t seq)
 	STATE_SYNC(last_seq_recv) = seq;
 }
 
-int mcast_track_is_seq_set()
+int nethdr_track_is_seq_set()
 {
 	return local_seq_set;
 }

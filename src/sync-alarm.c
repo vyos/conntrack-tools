@@ -102,7 +102,7 @@ static int alarm_recv(const struct nethdr *net)
 	 * just joined the cluster, instead they just get resynchronized in
 	 * RefreshTime seconds at worst case.
 	 */
-	mcast_track_seq(net->seq, &exp_seq);
+	nethdr_track_seq(net->seq, &exp_seq);
 
 	return 0;
 }
