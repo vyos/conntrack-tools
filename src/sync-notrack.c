@@ -134,7 +134,7 @@ static int tx_queue_xmit(struct queue_node *n, const void *data2)
 		else
 			nethdr_set_ctl(net);
 		HDR_HOST2NETWORK(net);
-		mcast_buffered_send_netmsg(STATE_SYNC(mcast_client), net);
+		multichannel_send(STATE_SYNC(channel), net);
 		queue_del(n);
 		queue_object_free((struct queue_object *)n);
 		break;
@@ -150,7 +150,7 @@ static int tx_queue_xmit(struct queue_node *n, const void *data2)
 		type = object_status_to_network_type(obj->status);;
 		net = BUILD_NETMSG(obj->ct, type);
 
-		mcast_buffered_send_netmsg(STATE_SYNC(mcast_client), net);
+		multichannel_send(STATE_SYNC(channel), net);
 		queue_del(n);
 		cache_object_put(obj);
 		break;

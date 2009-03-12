@@ -65,67 +65,6 @@ void nethdr_set_ctl(struct nethdr *net)
 	__nethdr_set(net, NETHDR_SIZ);
 }
 
-static size_t tx_buflenmax;
-static size_t tx_buflen = 0;
-static char *tx_buf;
-
-#define HEADERSIZ 28 /* IP header (20 bytes) + UDP header 8 (bytes) */
-
-int mcast_buffered_init(int if_mtu)
-{
-	int mtu = if_mtu - HEADERSIZ;
-
-	/* default to Ethernet MTU 1500 bytes */
-	if (if_mtu == 0)
-		mtu = 1500 - HEADERSIZ;
-
-	tx_buf = malloc(mtu);
-	if (tx_buf == NULL)
-		return -1;
-
-	tx_buflenmax = mtu;
-
-	return 0;
-}
-
-void mcast_buffered_destroy(void)
-{
-	free(tx_buf);
-}
-
-/* return 0 if it is not sent, otherwise return 1 */
-int
-mcast_buffered_send_netmsg(struct mcast_sock_multi *m, const struct nethdr *net)
-{
-	int ret = 0, len = ntohs(net->len);
-
-retry:
-	if (tx_buflen + len < tx_buflenmax) {
-		memcpy(tx_buf + tx_buflen, net, len);
-		tx_buflen += len;
-	} else {
-		mcast_send(mcast_get_current_link(m), tx_buf, tx_buflen);
-		ret = 1;
-		tx_buflen = 0;
-		goto retry;
-	}
-
-	return ret;
-}
-
-ssize_t mcast_buffered_pending_netmsg(struct mcast_sock_multi *m)
-{
-	ssize_t ret;
-
-	if (tx_buflen == 0)
-		return 0;
-
-	ret = mcast_send(mcast_get_current_link(m), tx_buf, tx_buflen);
-	tx_buflen = 0;
-
-	return ret;
-}
-
 static int local_seq_set = 0;
 
 /* this function only tracks, it does not update the last sequence received */

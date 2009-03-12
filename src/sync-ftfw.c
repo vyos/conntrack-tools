@@ -494,7 +494,7 @@ static int tx_queue_xmit(struct queue_node *n, const void *data)
 		dp("tx_queue sq: %u fl:%u len:%u\n",
 	               ntohl(net->seq), net->flags, ntohs(net->len));
 
-		mcast_buffered_send_netmsg(STATE_SYNC(mcast_client), net);
+		multichannel_send(STATE_SYNC(channel), net);
 		HDR_NETWORK2HOST(net);
 
 		if (IS_ACK(net) || IS_NACK(net) || IS_RESYNC(net)) {
@@ -523,7 +523,7 @@ static int tx_queue_xmit(struct queue_node *n, const void *data)
 		dp("tx_list sq: %u fl:%u len:%u\n",
 	                ntohl(net->seq), net->flags, ntohs(net->len));
 
-		mcast_buffered_send_netmsg(STATE_SYNC(mcast_client), net);
+		multichannel_send(STATE_SYNC(channel), net);
 		cn->seq = ntohl(net->seq);
 		if (queue_add(rs_queue, &cn->qnode) < 0) {
 			if (errno == ENOSPC) {

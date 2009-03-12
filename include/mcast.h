@@ -42,38 +42,22 @@ struct mcast_sock {
 	struct mcast_stats stats;
 };
 
-#define MCAST_LINKS_MAX	4
-
-struct mcast_sock_multi {
-	int num_links;
-	int max_mtu;
-	struct mcast_sock *current_link;
-	struct mcast_sock *multi[MCAST_LINKS_MAX];
-};
-
 struct mcast_sock *mcast_server_create(struct mcast_conf *conf);
 void mcast_server_destroy(struct mcast_sock *m);
-struct mcast_sock_multi *mcast_server_create_multi(struct mcast_conf *conf, int conf_len);
-void mcast_server_destroy_multi(struct mcast_sock_multi *m);
 
 struct mcast_sock *mcast_client_create(struct mcast_conf *conf);
 void mcast_client_destroy(struct mcast_sock *m);
-struct mcast_sock_multi *mcast_client_create_multi(struct mcast_conf *conf, int conf_len);
-void mcast_client_destroy_multi(struct mcast_sock_multi*m);
 
 ssize_t mcast_send(struct mcast_sock *m, void *data, int size);
 ssize_t mcast_recv(struct mcast_sock *m, void *data, int size);
 
 int mcast_get_fd(struct mcast_sock *m);
-int mcast_get_ifidx(struct mcast_sock_multi *m, int i);
-int mcast_get_current_ifidx(struct mcast_sock_multi *m);
 
-struct mcast_sock *mcast_get_current_link(struct mcast_sock_multi *m);
-void mcast_set_current_link(struct mcast_sock_multi *m, int i);
+int mcast_snprintf_stats(char *buf, size_t buflen, char *ifname,
+			 struct mcast_stats *s, struct mcast_stats *r);
 
-void mcast_dump_stats(int fd, const struct mcast_sock_multi *s, const struct mcast_sock_multi *r);
+int mcast_snprintf_stats2(char *buf, size_t buflen, const char *ifname,
+			  const char *status, int active,
+			  struct mcast_stats *s, struct mcast_stats *r);
 
-struct nlif_handle;
-
-void mcast_dump_stats_extended(int fd, const struct mcast_sock_multi *s, const struct mcast_sock_multi *r, const struct nlif_handle *h);
 #endif

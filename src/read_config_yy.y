@@ -181,18 +181,18 @@ checksum: T_CHECKSUM T_ON
 	 * XXX: The use of Checksum outside of the Multicast clause is broken
 	 *	if we have more than one dedicated links.
 	 */
-	conf.mcast[0].checksum = 0;
+	conf.channel[0].u.mcast.checksum = 0;
 };
 
 checksum: T_CHECKSUM T_OFF
 {
 	fprintf(stderr, "WARNING: The use of `Checksum' outside the "
 			"`Multicast' clause is ambiguous.\n");
-	/* 
+	/*
 	 * XXX: The use of Checksum outside of the Multicast clause is broken
 	 *	if we have more than one dedicated links.
 	 */
-	conf.mcast[0].checksum = 1;
+	conf.channel[0].u.mcast.checksum = 1;
 };
 
 ignore_traffic : T_IGNORE_TRAFFIC '{' ignore_traffic_options '}'
@@ -256,13 +256,18 @@ ignore_traffic_option : T_IPV6_ADDR T_IP
 
 multicast_line : T_MULTICAST '{' multicast_options '}'
 {
-	conf.mcast_links++;
+	conf.channel[conf.channel_num].channel_type = CHANNEL_MCAST;
+	conf.channel[conf.channel_num].channel_flags = CHANNEL_F_BUFFERED;
+	conf.channel_num++;
 };
 
 multicast_line : T_MULTICAST T_DEFAULT '{' multicast_options '}'
 {
-	conf.mcast_default_link = conf.mcast_links;
-	conf.mcast_links++;
+	conf.channel[conf.channel_num].channel_type = CHANNEL_MCAST;
+	conf.channel[conf.channel_num].channel_flags = CHANNEL_F_DEFAULT |
+						       CHANNEL_F_BUFFERED;
+	conf.channel_default = conf.channel_num;
+	conf.channel_num++;
 };
 
 multicast_options :
@@ -272,19 +277,19 @@ multicast_option : T_IPV4_ADDR T_IP
 {
 	__max_mcast_dedicated_links_reached();
 
-	if (!inet_aton($2, &conf.mcast[conf.mcast_links].in)) {
+	if (!inet_aton($2, &conf.channel[conf.channel_num].u.mcast.in)) {
 		fprintf(stderr, "%s is not a valid IPv4 address\n", $2);
 		break;
 	}
 
-        if (conf.mcast[conf.mcast_links].ipproto == AF_INET6) {
+        if (conf.channel[conf.channel_num].u.mcast.ipproto == AF_INET6) {
 		fprintf(stderr, "Your multicast address is IPv4 but "
 		                "is binded to an IPv6 interface? Surely "
 				"this is not what you want\n");
 		break;
 	}
 
-	conf.mcast[conf.mcast_links].ipproto = AF_INET;
+	conf.channel[conf.channel_num].u.mcast.ipproto = AF_INET;
 };
 
 multicast_option : T_IPV6_ADDR T_IP
@@ -292,7 +297,8 @@ multicast_option : T_IPV6_ADDR T_IP
 	__max_mcast_dedicated_links_reached();
 
 #ifdef HAVE_INET_PTON_IPV6
-	if (inet_pton(AF_INET6, $2, &conf.mcast[conf.mcast_links].in) <= 0) {
+	if (inet_pton(AF_INET6, $2,
+		      &conf.channel[conf.channel_num].u.mcast.in) <= 0) {
 		fprintf(stderr, "%s is not a valid IPv6 address\n", $2);
 		break;
 	}
@@ -301,17 +307,17 @@ multicast_option : T_IPV6_ADDR T_IP
 	break;
 #endif
 
-	if (conf.mcast[conf.mcast_links].ipproto == AF_INET) {
+	if (conf.channel[conf.channel_num].u.mcast.ipproto == AF_INET) {
 		fprintf(stderr, "Your multicast address is IPv6 but "
 				"is binded to an IPv4 interface? Surely "
 				"this is not what you want\n");
 		break;
 	}
 
-	conf.mcast[conf.mcast_links].ipproto = AF_INET6;
+	conf.channel[conf.channel_num].u.mcast.ipproto = AF_INET6;
 
-	if (conf.mcast[conf.mcast_links].iface[0] &&
-	    !conf.mcast[conf.mcast_links].ifa.interface_index6) {
+	if (conf.channel[conf.channel_num].u.mcast.iface[0] &&
+	    !conf.channel[conf.channel_num].u.mcast.ifa.interface_index6) {
 		unsigned int idx;
 
 		idx = if_nametoindex($2);
@@ -320,8 +326,8 @@ multicast_option : T_IPV6_ADDR T_IP
 			break;
 		}
 
-		conf.mcast[conf.mcast_links].ifa.interface_index6 = idx;
-		conf.mcast[conf.mcast_links].ipproto = AF_INET6;
+		conf.channel[conf.channel_num].u.mcast.ifa.interface_index6 = idx;
+		conf.channel[conf.channel_num].u.mcast.ipproto = AF_INET6;
 	}
 };
 
@@ -329,19 +335,19 @@ multicast_option : T_IPV4_IFACE T_IP
 {
 	__max_mcast_dedicated_links_reached();
 
-	if (!inet_aton($2, &conf.mcast[conf.mcast_links].ifa)) {
+	if (!inet_aton($2, &conf.channel[conf.channel_num].u.mcast.ifa)) {
 		fprintf(stderr, "%s is not a valid IPv4 address\n", $2);
 		break;
 	}
 
-        if (conf.mcast[conf.mcast_links].ipproto == AF_INET6) {
+        if (conf.channel[conf.channel_num].u.mcast.ipproto == AF_INET6) {
 		fprintf(stderr, "Your multicast interface is IPv4 but "
 		                "is binded to an IPv6 interface? Surely "
 				"this is not what you want\n");
 		break;
 	}
 
-	conf.mcast[conf.mcast_links].ipproto = AF_INET;
+	conf.channel[conf.channel_num].u.mcast.ipproto = AF_INET;
 };
 
 multicast_option : T_IPV6_IFACE T_IP
@@ -355,18 +361,19 @@ multicast_option : T_IFACE T_STRING
 
 	__max_mcast_dedicated_links_reached();
 
-	strncpy(conf.mcast[conf.mcast_links].iface, $2, IFNAMSIZ);
+	strncpy(conf.channel[conf.channel_num].channel_ifname, $2, IFNAMSIZ);
+	strncpy(conf.channel[conf.channel_num].u.mcast.iface, $2, IFNAMSIZ);
 
 	idx = if_nametoindex($2);
 	if (!idx) {
 		fprintf(stderr, "%s is an invalid interface.\n", $2);
 		break;
 	}
-	conf.mcast[conf.mcast_links].interface_idx = idx;
+	conf.channel[conf.channel_num].u.mcast.interface_idx = idx;
 
-	if (conf.mcast[conf.mcast_links].ipproto == AF_INET6) {
-		conf.mcast[conf.mcast_links].ifa.interface_index6 = idx;
-		conf.mcast[conf.mcast_links].ipproto = AF_INET6;
+	if (conf.channel[conf.channel_num].u.mcast.ipproto == AF_INET6) {
+		conf.channel[conf.channel_num].u.mcast.ifa.interface_index6 = idx;
+		conf.channel[conf.channel_num].u.mcast.ipproto = AF_INET6;
 	}
 };
 
@@ -379,31 +386,31 @@ multicast_option : T_BACKLOG T_NUMBER
 multicast_option : T_GROUP T_NUMBER
 {
 	__max_mcast_dedicated_links_reached();
-	conf.mcast[conf.mcast_links].port = $2;
+	conf.channel[conf.channel_num].u.mcast.port = $2;
 };
 
 multicast_option: T_MCAST_SNDBUFF T_NUMBER
 {
 	__max_mcast_dedicated_links_reached();
-	conf.mcast[conf.mcast_links].sndbuf = $2;
+	conf.channel[conf.channel_num].u.mcast.sndbuf = $2;
 };
 
 multicast_option: T_MCAST_RCVBUFF T_NUMBER
 {
 	__max_mcast_dedicated_links_reached();
-	conf.mcast[conf.mcast_links].rcvbuf = $2;
+	conf.channel[conf.channel_num].u.mcast.rcvbuf = $2;
 };
 
 multicast_option: T_CHECKSUM T_ON 
 {
 	__max_mcast_dedicated_links_reached();
-	conf.mcast[conf.mcast_links].checksum = 0;
+	conf.channel[conf.channel_num].u.mcast.checksum = 0;
 };
 
 multicast_option: T_CHECKSUM T_OFF
 {
 	__max_mcast_dedicated_links_reached();
-	conf.mcast[conf.mcast_links].checksum = 1;
+	conf.channel[conf.channel_num].u.mcast.checksum = 1;
 };
 
 hashsize : T_HASHSIZE T_NUMBER
@@ -1128,10 +1135,10 @@ static void __kernel_filter_add_state(int value)
 
 static void __max_mcast_dedicated_links_reached(void)
 {
-	if (conf.mcast_links >= MCAST_LINKS_MAX) {
+	if (conf.channel_num >= MULTICHANNEL_MAX) {
 		fprintf(stderr, "ERROR: too many dedicated links in "
 				"the configuration file (Maximum: %d).\n",
-				MCAST_LINKS_MAX);
+				MULTICHANNEL_MAX);
 		exit(EXIT_FAILURE);
 	}
 }

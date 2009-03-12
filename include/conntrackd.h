@@ -5,6 +5,7 @@
 #include "local.h"
 #include "alarm.h"
 #include "filter.h"
+#include "channel.h"
 
 #include <stdint.h>
 #include <stdio.h>
@@ -71,9 +72,9 @@ struct ct_conf {
 	int syslog_facility;
 	char lockfile[FILENAME_MAXLEN];
 	int hashsize;			/* hashtable size */
-	int mcast_links;
-	int mcast_default_link;
-	struct mcast_conf mcast[MCAST_LINKS_MAX];
+	int channel_num;
+	int channel_default;
+	struct channel_conf channel[MULTICHANNEL_MAX];
 	struct local_conf local;	/* unix socket facilities */
 	int nice;
 	int limit;
@@ -163,8 +164,7 @@ struct ct_sync_state {
 	struct cache *internal; 	/* internal events cache (netlink) */
 	struct cache *external; 	/* external events cache (mcast) */
 
-	struct mcast_sock_multi *mcast_server;  /* multicast incoming */
-	struct mcast_sock_multi *mcast_client;  /* multicast outgoing  */
+	struct multichannel	*channel;
 	struct nlif_handle	*interface;
 	struct queue *tx_queue;
 

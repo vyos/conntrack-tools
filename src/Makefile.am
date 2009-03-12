@@ -19,6 +19,7 @@ conntrackd_SOURCES = alarm.c main.c run.c hash.c queue.c rbtree.c \
 		    traffic_stats.c stats-mode.c \
 		    network.c cidr.c \
 		    build.c parse.c \
+		    channel.c multichannel.c channel_mcast.c \
 		    read_config_yy.y read_config_lex.l
 
 # yacc and lex generate dirty code

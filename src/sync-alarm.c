@@ -125,7 +125,7 @@ static int tx_queue_xmit(struct queue_node *n, const void *data)
 		net = queue_node_data(n);
 		nethdr_set_ctl(net);
 		HDR_HOST2NETWORK(net);
-		mcast_buffered_send_netmsg(STATE_SYNC(mcast_client), net);
+		multichannel_send(STATE_SYNC(channel), net);
 		queue_object_free((struct queue_object *)n);
 		break;
 	case Q_ELEM_OBJ: {
@@ -137,7 +137,7 @@ static int tx_queue_xmit(struct queue_node *n, const void *data)
 		obj = cache_data_get_object(STATE_SYNC(internal), ca);
 		type = object_status_to_network_type(obj->status);
 		net = BUILD_NETMSG(obj->ct, type);
-		mcast_buffered_send_netmsg(STATE_SYNC(mcast_client), net);
+		multichannel_send(STATE_SYNC(channel), net);
 		cache_object_put(obj);
 		break;
 	}

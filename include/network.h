@@ -106,11 +106,6 @@ int mcast_track_is_seq_set(void);
 
 struct mcast_conf;
 
-int mcast_buffered_init(int mtu);
-void mcast_buffered_destroy(void);
-int mcast_buffered_send_netmsg(struct mcast_sock_multi *m, const struct nethdr *net);
-ssize_t mcast_buffered_pending_netmsg(struct mcast_sock_multi *m);
-
 #define IS_DATA(x)	(x->type <= NET_T_STATE_MAX && \
 			(x->flags & ~(NET_F_HELLO | NET_F_HELLO_BACK)) == 0)
 #define IS_ACK(x)	(x->type == NET_T_CTL && x->flags & NET_F_ACK)

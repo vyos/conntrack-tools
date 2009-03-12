@@ -38,12 +38,12 @@
 static void
 mcast_change_current_link(int if_idx)
 {
-	if (if_idx != mcast_get_current_ifidx(STATE_SYNC(mcast_client)))
-		mcast_set_current_link(STATE_SYNC(mcast_client), if_idx);
+	if (if_idx != multichannel_get_current_ifindex(STATE_SYNC(channel)))
+		multichannel_set_current_channel(STATE_SYNC(channel), if_idx);
 }
 
 static void
-do_mcast_handler_step(int if_idx, struct nethdr *net, size_t remain)
+do_channel_handler_step(int if_idx, struct nethdr *net, size_t remain)
 {
 	char __ct[nfct_maxsize()];
 	struct nf_conntrack *ct = (struct nf_conntrack *)(void*) __ct;
@@ -122,14 +122,14 @@ retry:
 	}
 }
 
-/* handler for multicast messages received */
-static void mcast_handler(struct mcast_sock *m, int if_idx)
+/* handler for messages received */
+static void channel_handler(struct channel *m, int if_idx)
 {
 	ssize_t numbytes;
 	ssize_t remain;
 	char __net[65536], *ptr = __net; /* XXX: maximum MTU for IPv4 */
 
-	numbytes = mcast_recv(m, __net, sizeof(__net));
+	numbytes = channel_recv(m, __net, sizeof(__net));
 	if (numbytes <= 0)
 		return;
 
@@ -168,7 +168,7 @@ static void mcast_handler(struct mcast_sock *m, int if_idx)
 
 		HDR_NETWORK2HOST(net);
 
-		do_mcast_handler_step(if_idx, net, remain);
+		do_channel_handler_step(if_idx, net, remain);
 		ptr += net->len;
 		remain -= net->len;
 	}
@@ -181,13 +181,13 @@ static void interface_candidate(void)
 	unsigned int flags;
 	char buf[IFNAMSIZ];
 
-	for (i=0; i<STATE_SYNC(mcast_client)->num_links; i++) {
-		idx = mcast_get_ifidx(STATE_SYNC(mcast_client), i);
-		if (idx == mcast_get_current_ifidx(STATE_SYNC(mcast_client)))
+	for (i=0; i<STATE_SYNC(channel)->channel_num; i++) {
+		idx = multichannel_get_ifindex(STATE_SYNC(channel), i);
+		if (idx == multichannel_get_current_ifindex(STATE_SYNC(channel)))
 			continue;
 		nlif_get_ifflags(STATE_SYNC(interface), idx, &flags);
 		if (flags & (IFF_RUNNING | IFF_UP)) {
-			mcast_set_current_link(STATE_SYNC(mcast_client), i);
+			multichannel_set_current_channel(STATE_SYNC(channel), i);
 			dlog(LOG_NOTICE, "device `%s' becomes multicast "
 					 "dedicated link", 
 					 if_indextoname(idx, buf));
@@ -199,7 +199,7 @@ static void interface_candidate(void)
 
 static void interface_handler(void)
 {
-	int idx = mcast_get_current_ifidx(STATE_SYNC(mcast_client));
+	int idx = multichannel_get_current_ifindex(STATE_SYNC(channel));
 	unsigned int flags;
 
 	nlif_catch(STATE_SYNC(interface));
@@ -267,36 +267,19 @@ static int init_sync(void)
 		return -1;
 	}
 
-	/* multicast server to receive events from the wire */
-	STATE_SYNC(mcast_server) =
-		mcast_server_create_multi(CONFIG(mcast), CONFIG(mcast_links));
-	if (STATE_SYNC(mcast_server) == NULL) {
-		dlog(LOG_ERR, "can't open multicast server!");
+	channel_init();
+
+	/* channel to send events on the wire */
+	STATE_SYNC(channel) =
+		multichannel_open(CONFIG(channel), CONFIG(channel_num));
+	if (STATE_SYNC(channel) == NULL) {
+		dlog(LOG_ERR, "can't open channel socket");
 		return -1;
 	}
-	for (i=0; i<STATE_SYNC(mcast_server)->num_links; i++) {
-		int fd = mcast_get_fd(STATE_SYNC(mcast_server)->multi[i]);
+	for (i=0; i<STATE_SYNC(channel)->channel_num; i++) {
+		int fd = channel_get_fd(STATE_SYNC(channel)->channel[i]);
 		if (register_fd(fd, STATE(fds)) == -1)
 			return -1;
-	}
-
-	/* multicast client to send events on the wire */
-	STATE_SYNC(mcast_client) =
-		mcast_client_create_multi(CONFIG(mcast), CONFIG(mcast_links));
-	if (STATE_SYNC(mcast_client) == NULL) {
-		dlog(LOG_ERR, "can't open client multicast socket");
-		mcast_server_destroy_multi(STATE_SYNC(mcast_server));
-		return -1;
-	}
-	/* we only use one link to send events, but all to receive them */
-	mcast_set_current_link(STATE_SYNC(mcast_client),
-			       CONFIG(mcast_default_link));
-
-	if (mcast_buffered_init(STATE_SYNC(mcast_client)->max_mtu) == -1) {
-		dlog(LOG_ERR, "can't init tx buffer!");
-		mcast_server_destroy_multi(STATE_SYNC(mcast_server));
-		mcast_client_destroy_multi(STATE_SYNC(mcast_client));
-		return -1;
 	}
 
 	STATE_SYNC(interface) = nl_init_interface_handler();
@@ -328,10 +311,10 @@ static void run_sync(fd_set *readfds)
 {
 	int i;
 
-	for (i=0; i<STATE_SYNC(mcast_server)->num_links; i++) {
-		int fd = mcast_get_fd(STATE_SYNC(mcast_server)->multi[i]);
+	for (i=0; i<STATE_SYNC(channel)->channel_num; i++) {
+		int fd = channel_get_fd(STATE_SYNC(channel)->channel[i]);
 		if (FD_ISSET(fd, readfds))
-			mcast_handler(STATE_SYNC(mcast_server)->multi[i], i);
+			channel_handler(STATE_SYNC(channel)->channel[i], i);
 	}
 
 	if (FD_ISSET(queue_get_eventfd(STATE_SYNC(tx_queue)), readfds))
@@ -341,7 +324,7 @@ static void run_sync(fd_set *readfds)
 		interface_handler();
 
 	/* flush pending messages */
-	mcast_buffered_pending_netmsg(STATE_SYNC(mcast_client));
+	multichannel_send_flush(STATE_SYNC(channel));
 }
 
 static void kill_sync(void)
@@ -349,12 +332,10 @@ static void kill_sync(void)
 	cache_destroy(STATE_SYNC(internal));
 	cache_destroy(STATE_SYNC(external));
 
-	mcast_server_destroy_multi(STATE_SYNC(mcast_server));
-	mcast_client_destroy_multi(STATE_SYNC(mcast_client));
+	multichannel_close(STATE_SYNC(channel));
 
 	nlif_close(STATE_SYNC(interface));
 
-	mcast_buffered_destroy();
 	queue_destroy(STATE_SYNC(tx_queue));
 
 	if (STATE_SYNC(sync)->kill)
@@ -486,23 +467,20 @@ static int local_handler_sync(int fd, int type, void *data)
 		cache_stats(STATE_SYNC(internal), fd);
 		cache_stats(STATE_SYNC(external), fd);
 		dump_traffic_stats(fd);
-		mcast_dump_stats(fd, STATE_SYNC(mcast_client), 
-				     STATE_SYNC(mcast_server));
+		multichannel_stats(STATE_SYNC(channel), fd);
 		dump_stats_sync(fd);
 		break;
 	case STATS_NETWORK:
 		dump_stats_sync_extended(fd);
-		mcast_dump_stats(fd, STATE_SYNC(mcast_client), 
-				     STATE_SYNC(mcast_server));
+		multichannel_stats(STATE_SYNC(channel), fd);
 		break;
 	case STATS_CACHE:
 		cache_stats_extended(STATE_SYNC(internal), fd);
 		cache_stats_extended(STATE_SYNC(external), fd);
 		break;
 	case STATS_MULTICAST:
-		mcast_dump_stats_extended(fd, STATE_SYNC(mcast_client),
-					      STATE_SYNC(mcast_server),
-					      STATE_SYNC(interface));
+		multichannel_stats_extended(STATE_SYNC(channel),
+					    STATE_SYNC(interface), fd);
 		break;
 	default:
 		if (STATE_SYNC(sync)->local)
