@@ -58,11 +58,14 @@ notrack		[N|n][O|o][T|t][R|r][A|a][C|c][K|k]
 "UNIX"				{ return T_UNIX; }
 "IPv4_address"			{ return T_IPV4_ADDR; }
 "IPv6_address"			{ return T_IPV6_ADDR; }
+"IPv4_Destination_Address"	{ return T_IPV4_DEST_ADDR; }
+"IPv6_Destination_Address"	{ return T_IPV6_DEST_ADDR; }
 "IPv4_interface"		{ return T_IPV4_IFACE; }
 "IPv6_interface"		{ return T_IPV6_IFACE; }
 "Interface"			{ return T_IFACE; }
 "Port"				{ return T_PORT; }
 "Multicast"			{ return T_MULTICAST; }
+"UDP"				{ return T_UDP; }
 "HashSize"			{ return T_HASHSIZE; }
 "RefreshTime"			{ return T_REFRESH; }
 "CacheTimeout"			{ return T_EXPIRE; }
@@ -75,6 +78,7 @@ notrack		[N|n][O|o][T|t][R|r][A|a][C|c][K|k]
 "StripNAT"			{ return T_STRIP_NAT; }
 "Backlog"			{ return T_BACKLOG; }
 "Group"				{ return T_GROUP; }
+"Port"				{ return T_PORT; }
 "LogFile"			{ return T_LOG; }
 "Syslog"			{ return T_SYSLOG; }
 "LockFile"			{ return T_LOCK; }
@@ -109,8 +113,10 @@ notrack		[N|n][O|o][T|t][R|r][A|a][C|c][K|k]
 "LISTEN"			{ return T_LISTEN; }
 "LogFileBufferSize"		{ return T_STAT_BUFFER_SIZE; }
 "DestroyTimeout"		{ return T_DESTROY_TIMEOUT; }
-"McastSndSocketBuffer"		{ return T_MCAST_SNDBUFF; }
-"McastRcvSocketBuffer"		{ return T_MCAST_RCVBUFF; }
+"McastSndSocketBuffer"		{ return T_SNDBUFF; /* deprecated */ }
+"McastRcvSocketBuffer"		{ return T_RCVBUFF; /* deprecated */ }
+"SndSocketBuffer"		{ return T_SNDBUFF; }
+"RcvSocketBuffer"		{ return T_RCVBUFF; }
 "Filter"			{ return T_FILTER; }
 "Protocol"			{ return T_PROTOCOL; }
 "Address"			{ return T_ADDRESS; }

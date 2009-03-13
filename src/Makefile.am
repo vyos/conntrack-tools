@@ -11,7 +11,7 @@ conntrack_LDADD = ../extensions/libct_proto_tcp.la ../extensions/libct_proto_udp
 conntrack_LDFLAGS = $(all_libraries) @LIBNETFILTER_CONNTRACK_LIBS@
 
 conntrackd_SOURCES = alarm.c main.c run.c hash.c queue.c rbtree.c \
-		    local.c log.c mcast.c netlink.c vector.c \
+		    local.c log.c mcast.c udp.c netlink.c vector.c \
 		    filter.c fds.c event.c \
 		    cache.c cache_iterators.c \
 		    cache_timer.c cache_wt.c \
@@ -19,7 +19,7 @@ conntrackd_SOURCES = alarm.c main.c run.c hash.c queue.c rbtree.c \
 		    traffic_stats.c stats-mode.c \
 		    network.c cidr.c \
 		    build.c parse.c \
-		    channel.c multichannel.c channel_mcast.c \
+		    channel.c multichannel.c channel_mcast.c channel_udp.c \
 		    read_config_yy.y read_config_lex.l
 
 # yacc and lex generate dirty code

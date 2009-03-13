@@ -38,7 +38,7 @@ struct ct_conf conf;
 
 static void __kernel_filter_start(void);
 static void __kernel_filter_add_state(int value);
-static void __max_mcast_dedicated_links_reached(void);
+static void __max_dedicated_links_reached(void);
 %}
 
 %union {
@@ -58,10 +58,10 @@ static void __max_mcast_dedicated_links_reached(void);
 %token T_ESTABLISHED T_SYN_SENT T_SYN_RECV T_FIN_WAIT 
 %token T_CLOSE_WAIT T_LAST_ACK T_TIME_WAIT T_CLOSE T_LISTEN
 %token T_SYSLOG T_WRITE_THROUGH T_STAT_BUFFER_SIZE T_DESTROY_TIMEOUT
-%token T_MCAST_RCVBUFF T_MCAST_SNDBUFF T_NOTRACK T_POLL_SECS
+%token T_RCVBUFF T_SNDBUFF T_NOTRACK T_POLL_SECS
 %token T_FILTER T_ADDRESS T_PROTOCOL T_STATE T_ACCEPT T_IGNORE
 %token T_FROM T_USERSPACE T_KERNELSPACE T_EVENT_ITER_LIMIT T_DEFAULT
-%token T_NETLINK_OVERRUN_RESYNC T_NICE
+%token T_NETLINK_OVERRUN_RESYNC T_NICE T_IPV4_DEST_ADDR T_IPV6_DEST_ADDR
 
 %token <string> T_IP T_PATH_VAL
 %token <val> T_NUMBER
@@ -256,6 +256,13 @@ ignore_traffic_option : T_IPV6_ADDR T_IP
 
 multicast_line : T_MULTICAST '{' multicast_options '}'
 {
+	if (conf.channel_type_global != CHANNEL_NONE &&
+	    conf.channel_type_global != CHANNEL_MCAST) {
+		fprintf(stderr, "ERROR: Cannot use `Multicast' with other "
+				"dedicated link protocols!\n");
+		exit(EXIT_FAILURE);
+	}
+	conf.channel_type_global = CHANNEL_MCAST;
 	conf.channel[conf.channel_num].channel_type = CHANNEL_MCAST;
 	conf.channel[conf.channel_num].channel_flags = CHANNEL_F_BUFFERED;
 	conf.channel_num++;
@@ -263,6 +270,13 @@ multicast_line : T_MULTICAST '{' multicast_options '}'
 
 multicast_line : T_MULTICAST T_DEFAULT '{' multicast_options '}'
 {
+	if (conf.channel_type_global != CHANNEL_NONE &&
+	    conf.channel_type_global != CHANNEL_MCAST) {
+		fprintf(stderr, "ERROR: Cannot use `Multicast' with other "
+				"dedicated link protocols!\n");
+		exit(EXIT_FAILURE);
+	}
+	conf.channel_type_global = CHANNEL_MCAST;
 	conf.channel[conf.channel_num].channel_type = CHANNEL_MCAST;
 	conf.channel[conf.channel_num].channel_flags = CHANNEL_F_DEFAULT |
 						       CHANNEL_F_BUFFERED;
@@ -275,7 +289,7 @@ multicast_options :
 
 multicast_option : T_IPV4_ADDR T_IP
 {
-	__max_mcast_dedicated_links_reached();
+	__max_dedicated_links_reached();
 
 	if (!inet_aton($2, &conf.channel[conf.channel_num].u.mcast.in)) {
 		fprintf(stderr, "%s is not a valid IPv4 address\n", $2);
@@ -294,7 +308,7 @@ multicast_option : T_IPV4_ADDR T_IP
 
 multicast_option : T_IPV6_ADDR T_IP
 {
-	__max_mcast_dedicated_links_reached();
+	__max_dedicated_links_reached();
 
 #ifdef HAVE_INET_PTON_IPV6
 	if (inet_pton(AF_INET6, $2,
@@ -333,7 +347,7 @@ multicast_option : T_IPV6_ADDR T_IP
 
 multicast_option : T_IPV4_IFACE T_IP
 {
-	__max_mcast_dedicated_links_reached();
+	__max_dedicated_links_reached();
 
 	if (!inet_aton($2, &conf.channel[conf.channel_num].u.mcast.ifa)) {
 		fprintf(stderr, "%s is not a valid IPv4 address\n", $2);
@@ -359,7 +373,7 @@ multicast_option : T_IFACE T_STRING
 {
 	unsigned int idx;
 
-	__max_mcast_dedicated_links_reached();
+	__max_dedicated_links_reached();
 
 	strncpy(conf.channel[conf.channel_num].channel_ifname, $2, IFNAMSIZ);
 	strncpy(conf.channel[conf.channel_num].u.mcast.iface, $2, IFNAMSIZ);
@@ -385,32 +399,157 @@ multicast_option : T_BACKLOG T_NUMBER
 
 multicast_option : T_GROUP T_NUMBER
 {
-	__max_mcast_dedicated_links_reached();
+	__max_dedicated_links_reached();
 	conf.channel[conf.channel_num].u.mcast.port = $2;
 };
 
-multicast_option: T_MCAST_SNDBUFF T_NUMBER
+multicast_option: T_SNDBUFF T_NUMBER
 {
-	__max_mcast_dedicated_links_reached();
+	__max_dedicated_links_reached();
 	conf.channel[conf.channel_num].u.mcast.sndbuf = $2;
 };
 
-multicast_option: T_MCAST_RCVBUFF T_NUMBER
+multicast_option: T_RCVBUFF T_NUMBER
 {
-	__max_mcast_dedicated_links_reached();
+	__max_dedicated_links_reached();
 	conf.channel[conf.channel_num].u.mcast.rcvbuf = $2;
 };
 
 multicast_option: T_CHECKSUM T_ON 
 {
-	__max_mcast_dedicated_links_reached();
+	__max_dedicated_links_reached();
 	conf.channel[conf.channel_num].u.mcast.checksum = 0;
 };
 
 multicast_option: T_CHECKSUM T_OFF
 {
-	__max_mcast_dedicated_links_reached();
+	__max_dedicated_links_reached();
 	conf.channel[conf.channel_num].u.mcast.checksum = 1;
+};
+
+udp_line : T_UDP '{' udp_options '}'
+{
+	if (conf.channel_type_global != CHANNEL_NONE &&
+	    conf.channel_type_global != CHANNEL_UDP) {
+		fprintf(stderr, "ERROR: Cannot use `UDP' with other "
+				"dedicated link protocols!\n");
+		exit(EXIT_FAILURE);
+	}
+	conf.channel_type_global = CHANNEL_UDP;
+	conf.channel[conf.channel_num].channel_type = CHANNEL_UDP;
+	conf.channel[conf.channel_num].channel_flags = CHANNEL_F_BUFFERED;
+	conf.channel_num++;
+};
+
+udp_line : T_UDP T_DEFAULT '{' udp_options '}'
+{
+	if (conf.channel_type_global != CHANNEL_NONE &&
+	    conf.channel_type_global != CHANNEL_UDP) {
+		fprintf(stderr, "ERROR: Cannot use `UDP' with other "
+				"dedicated link protocols!\n");
+		exit(EXIT_FAILURE);
+	}
+	conf.channel_type_global = CHANNEL_UDP;
+	conf.channel[conf.channel_num].channel_type = CHANNEL_UDP;
+	conf.channel[conf.channel_num].channel_flags = CHANNEL_F_DEFAULT |
+						       CHANNEL_F_BUFFERED;
+	conf.channel_default = conf.channel_num;
+	conf.channel_num++;
+};
+
+udp_options :
+	    | udp_options udp_option;
+
+udp_option : T_IPV4_ADDR T_IP
+{
+	__max_dedicated_links_reached();
+
+	if (!inet_aton($2, &conf.channel[conf.channel_num].u.udp.server)) {
+		fprintf(stderr, "%s is not a valid IPv4 address\n", $2);
+		break;
+	}
+	conf.channel[conf.channel_num].u.udp.ipproto = AF_INET;
+};
+
+udp_option : T_IPV6_ADDR T_IP
+{
+	__max_dedicated_links_reached();
+
+#ifdef HAVE_INET_PTON_IPV6
+	if (inet_pton(AF_INET6, $2,
+		      &conf.channel[conf.channel_num].u.udp.server) <= 0) {
+		fprintf(stderr, "%s is not a valid IPv6 address\n", $2);
+		break;
+	}
+#else
+	fprintf(stderr, "Cannot find inet_pton(), IPv6 unsupported!");
+	break;
+#endif
+	conf.channel[conf.channel_num].u.udp.ipproto = AF_INET6;
+};
+
+udp_option : T_IPV4_DEST_ADDR T_IP
+{
+	__max_dedicated_links_reached();
+
+	if (!inet_aton($2, &conf.channel[conf.channel_num].u.udp.client)) {
+		fprintf(stderr, "%s is not a valid IPv4 address\n", $2);
+		break;
+	}
+	conf.channel[conf.channel_num].u.udp.ipproto = AF_INET;
+};
+
+udp_option : T_IPV6_DEST_ADDR T_IP
+{
+	__max_dedicated_links_reached();
+
+#ifdef HAVE_INET_PTON_IPV6
+	if (inet_pton(AF_INET6, $2,
+		      &conf.channel[conf.channel_num].u.udp.client) <= 0) {
+		fprintf(stderr, "%s is not a valid IPv6 address\n", $2);
+		break;
+	}
+#else
+	fprintf(stderr, "Cannot find inet_pton(), IPv6 unsupported!");
+	break;
+#endif
+	conf.channel[conf.channel_num].u.udp.ipproto = AF_INET6;
+};
+
+udp_option : T_IFACE T_STRING
+{
+	__max_dedicated_links_reached();
+	strncpy(conf.channel[conf.channel_num].channel_ifname, $2, IFNAMSIZ);
+};
+
+udp_option : T_PORT T_NUMBER
+{
+	__max_dedicated_links_reached();
+	conf.channel[conf.channel_num].u.udp.port = $2;
+};
+
+udp_option: T_SNDBUFF T_NUMBER
+{
+	__max_dedicated_links_reached();
+	conf.channel[conf.channel_num].u.udp.sndbuf = $2;
+};
+
+udp_option: T_RCVBUFF T_NUMBER
+{
+	__max_dedicated_links_reached();
+	conf.channel[conf.channel_num].u.udp.rcvbuf = $2;
+};
+
+udp_option: T_CHECKSUM T_ON 
+{
+	__max_dedicated_links_reached();
+	conf.channel[conf.channel_num].u.udp.checksum = 0;
+};
+
+udp_option: T_CHECKSUM T_OFF
+{
+	__max_dedicated_links_reached();
+	conf.channel[conf.channel_num].u.udp.checksum = 1;
 };
 
 hashsize : T_HASHSIZE T_NUMBER
@@ -493,6 +632,7 @@ sync_line: refreshtime
 	 | purge
 	 | checksum
 	 | multicast_line
+	 | udp_line
 	 | relax_transitions
 	 | delay_destroy_msgs
 	 | sync_mode_alarm
@@ -1133,7 +1273,7 @@ static void __kernel_filter_add_state(int value)
 			     &filter_proto);
 }
 
-static void __max_mcast_dedicated_links_reached(void)
+static void __max_dedicated_links_reached(void)
 {
 	if (conf.channel_num >= MULTICHANNEL_MAX) {
 		fprintf(stderr, "ERROR: too many dedicated links in "

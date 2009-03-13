@@ -2,12 +2,15 @@
 #define _CHANNEL_H_
 
 #include "mcast.h"
+#include "udp.h"
 
 struct channel;
 struct nethdr;
 
 enum {
+	CHANNEL_NONE,
 	CHANNEL_MCAST,
+	CHANNEL_UDP,
 	CHANNEL_MAX,
 };
 
@@ -16,12 +19,18 @@ struct mcast_channel {
 	struct mcast_sock *server;
 };
 
+struct udp_channel {
+	struct udp_sock *client;
+	struct udp_sock *server;
+};
+
 #define CHANNEL_F_DEFAULT	(1 << 0)
 #define CHANNEL_F_BUFFERED	(1 << 1)
 #define CHANNEL_F_MAX		(1 << 2)
 
 union channel_type_conf {
 	struct mcast_conf mcast;
+	struct udp_conf udp;
 };
 
 struct channel_conf {

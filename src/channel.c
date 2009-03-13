@@ -19,10 +19,12 @@
 
 static struct channel_ops *ops[CHANNEL_MAX];
 extern struct channel_ops channel_mcast;
+extern struct channel_ops channel_udp;
 
 void channel_init(void)
 {
 	ops[CHANNEL_MCAST] = &channel_mcast;
+	ops[CHANNEL_UDP] = &channel_udp;
 }
 
 #define HEADERSIZ 28 /* IP header (20 bytes) + UDP header 8 (bytes) */

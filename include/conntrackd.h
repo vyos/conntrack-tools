@@ -74,6 +74,7 @@ struct ct_conf {
 	int hashsize;			/* hashtable size */
 	int channel_num;
 	int channel_default;
+	int channel_type_global;
 	struct channel_conf channel[MULTICHANNEL_MAX];
 	struct local_conf local;	/* unix socket facilities */
 	int nice;
