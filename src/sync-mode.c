@@ -347,9 +347,9 @@ static void dump_stats_sync(int fd)
 	char buf[512];
 	int size;
 
-	size = sprintf(buf, "multicast sequence tracking:\n"
-			    "%20llu Pckts mfrm "
-			    "%20llu Pckts lost\n\n",
+	size = sprintf(buf, "message sequence tracking:\n"
+			    "%20llu Msgs mfrm "
+			    "%20llu Msgs lost\n\n",
 			(unsigned long long)STATE_SYNC(error).msg_rcv_malformed,
 			(unsigned long long)STATE_SYNC(error).msg_rcv_lost);
 
