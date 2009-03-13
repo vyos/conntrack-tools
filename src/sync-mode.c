@@ -57,20 +57,20 @@ do_channel_handler_step(int if_idx, struct nethdr *net, size_t remain)
 	}
 
 	switch (STATE_SYNC(sync)->recv(net)) {
-		case MSG_DATA:
-			mcast_change_current_link(if_idx);
-			break;
-		case MSG_DROP:
-			return;
-		case MSG_CTL:
-			mcast_change_current_link(if_idx);
-			return;
-		case MSG_BAD:
-			STATE_SYNC(error).msg_rcv_malformed++;
-			STATE_SYNC(error).msg_rcv_bad_header++;
-			return;
-		default:
-			break;
+	case MSG_DATA:
+		mcast_change_current_link(if_idx);
+		break;
+	case MSG_CTL:
+		mcast_change_current_link(if_idx);
+		return;
+	case MSG_BAD:
+		STATE_SYNC(error).msg_rcv_malformed++;
+		STATE_SYNC(error).msg_rcv_bad_header++;
+		return;
+	case MSG_DROP:
+		return;
+	default:
+		break;
 	}
 
 	if (net->type > NET_T_STATE_MAX) {
