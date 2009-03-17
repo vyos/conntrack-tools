@@ -43,7 +43,7 @@ static const char usage_client_commands[] =
 	"  -i, display content of the internal cache\n"
 	"  -e, display the content of the external cache\n"
 	"  -k, kill conntrack daemon\n"
-	"  -s  [|network|cache|runtime|multicast|queue], dump statistics\n"
+	"  -s  [|network|cache|runtime|link|queue], dump statistics\n"
 	"  -R, resync with kernel conntrack table\n"
 	"  -n, request resync with other node (only FT-FW and NOTRACK modes)\n"
 	"  -x, dump cache in XML format (requires -i or -e)\n"
@@ -200,7 +200,14 @@ int main(int argc, char *argv[])
 					i++;
 				} else if (strncmp(argv[i+1], "multicast",
 						 strlen(argv[i+1])) == 0) {
-					action = STATS_MULTICAST;
+					fprintf(stderr, "WARNING: use `link' "
+						"instead of `multicast' as "
+						"parameter.\n");
+					action = STATS_LINK;
+					i++;
+				} else if (strncmp(argv[i+1], "link",
+						 strlen(argv[i+1])) == 0) {
+					action = STATS_LINK;
 					i++;
 				} else if (strncmp(argv[i+1], "queue",
 						strlen(argv[i+1])) == 0) {

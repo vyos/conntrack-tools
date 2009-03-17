@@ -478,7 +478,7 @@ static int local_handler_sync(int fd, int type, void *data)
 		cache_stats_extended(STATE_SYNC(internal), fd);
 		cache_stats_extended(STATE_SYNC(external), fd);
 		break;
-	case STATS_MULTICAST:
+	case STATS_LINK:
 		multichannel_stats_extended(STATE_SYNC(channel),
 					    STATE_SYNC(interface), fd);
 		break;
