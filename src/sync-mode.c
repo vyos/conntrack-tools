@@ -188,7 +188,7 @@ static void interface_candidate(void)
 		nlif_get_ifflags(STATE_SYNC(interface), idx, &flags);
 		if (flags & (IFF_RUNNING | IFF_UP)) {
 			multichannel_set_current_channel(STATE_SYNC(channel), i);
-			dlog(LOG_NOTICE, "device `%s' becomes multicast "
+			dlog(LOG_NOTICE, "device `%s' becomes "
 					 "dedicated link", 
 					 if_indextoname(idx, buf));
 			return;
@@ -301,7 +301,7 @@ static int init_sync(void)
 
 	init_alarm(&STATE_SYNC(reset_cache_alarm), NULL, do_reset_cache_alarm);
 
-	/* initialization of multicast sequence generation */
+	/* initialization of message sequence generation */
 	STATE_SYNC(last_seq_sent) = time(NULL);
 
 	return 0;
