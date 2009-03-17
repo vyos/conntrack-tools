@@ -272,7 +272,7 @@ void mcast_client_destroy(struct mcast_sock *m)
 	free(m);
 }
 
-ssize_t mcast_send(struct mcast_sock *m, void *data, int size)
+ssize_t mcast_send(struct mcast_sock *m, const void *data, int size)
 {
 	ssize_t ret;
 	

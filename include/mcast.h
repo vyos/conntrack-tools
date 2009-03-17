@@ -48,7 +48,7 @@ void mcast_server_destroy(struct mcast_sock *m);
 struct mcast_sock *mcast_client_create(struct mcast_conf *conf);
 void mcast_client_destroy(struct mcast_sock *m);
 
-ssize_t mcast_send(struct mcast_sock *m, void *data, int size);
+ssize_t mcast_send(struct mcast_sock *m, const void *data, int size);
 ssize_t mcast_recv(struct mcast_sock *m, void *data, int size);
 
 int mcast_get_fd(struct mcast_sock *m);
