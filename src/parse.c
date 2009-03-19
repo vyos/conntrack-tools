@@ -114,7 +114,7 @@ static struct parser h[NTA_MAX] = {
 	},
 	[NTA_DPAT_PORT]	= {
 		.parse	= parse_u16,
-		.attr	= ATTR_SNAT_PORT,
+		.attr	= ATTR_DNAT_PORT,
 		.size	= NTA_SIZE(sizeof(uint16_t)),
 	},
 	[NTA_NAT_SEQ_ADJ] = {
