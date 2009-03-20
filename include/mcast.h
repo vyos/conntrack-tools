@@ -18,11 +18,8 @@ struct mcast_conf {
 		struct in_addr interface_addr;
 		unsigned int interface_index6;
 	} ifa;
-	int mtu;
-	int interface_idx;
 	int sndbuf;
 	int rcvbuf;
-	char iface[IFNAMSIZ];
 };
 
 struct mcast_stats {
@@ -38,7 +35,6 @@ struct mcast_sock {
 		struct sockaddr_in6 ipv6;
 	} addr;
 	socklen_t sockaddr_len;
-	int interface_idx;
 	struct mcast_stats stats;
 };
 

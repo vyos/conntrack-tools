@@ -46,8 +46,6 @@ struct mcast_sock *mcast_server_create(struct mcast_conf *conf)
 		return NULL;
 	memset(m, 0, sizeof(struct mcast_sock));
 
-	m->interface_idx = conf->interface_idx;
-
 	switch(conf->ipproto) {
 	case AF_INET:
 		mreq.ipv4.imr_multiaddr.s_addr = conf->in.inet_addr.s_addr;
@@ -76,19 +74,6 @@ struct mcast_sock *mcast_server_create(struct mcast_conf *conf)
 	if ((m->fd = socket(conf->ipproto, SOCK_DGRAM, 0)) == -1) {
 		free(m);
 		return NULL;
-	}
-
-	if(conf->iface[0]) {
-		struct ifreq ifr;
-
-		strncpy(ifr.ifr_name, conf->iface, sizeof(ifr.ifr_name));
-
-		if (ioctl(m->fd, SIOCGIFMTU, &ifr) == -1) {
-			close(m->fd);
-			free(m);
-			return NULL;
-		}
-		conf->mtu = ifr.ifr_mtu;
 	}
 
 	if (setsockopt(m->fd, SOL_SOCKET, SO_REUSEADDR, &yes, 
@@ -213,8 +198,6 @@ struct mcast_sock *mcast_client_create(struct mcast_conf *conf)
 	if (!m)
 		return NULL;
 	memset(m, 0, sizeof(struct mcast_sock));
-
-	m->interface_idx = conf->interface_idx;
 
 	if ((m->fd = socket(conf->ipproto, SOCK_DGRAM, 0)) == -1) {
 		free(m);

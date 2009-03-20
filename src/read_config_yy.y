@@ -330,7 +330,7 @@ multicast_option : T_IPV6_ADDR T_IP
 
 	conf.channel[conf.channel_num].u.mcast.ipproto = AF_INET6;
 
-	if (conf.channel[conf.channel_num].u.mcast.iface[0] &&
+	if (conf.channel[conf.channel_num].channel_ifname[0] &&
 	    !conf.channel[conf.channel_num].u.mcast.ifa.interface_index6) {
 		unsigned int idx;
 
@@ -376,14 +376,12 @@ multicast_option : T_IFACE T_STRING
 	__max_dedicated_links_reached();
 
 	strncpy(conf.channel[conf.channel_num].channel_ifname, $2, IFNAMSIZ);
-	strncpy(conf.channel[conf.channel_num].u.mcast.iface, $2, IFNAMSIZ);
 
 	idx = if_nametoindex($2);
 	if (!idx) {
 		fprintf(stderr, "%s is an invalid interface.\n", $2);
 		break;
 	}
-	conf.channel[conf.channel_num].u.mcast.interface_idx = idx;
 
 	if (conf.channel[conf.channel_num].u.mcast.ipproto == AF_INET6) {
 		conf.channel[conf.channel_num].u.mcast.ifa.interface_index6 = idx;
