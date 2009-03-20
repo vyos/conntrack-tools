@@ -36,14 +36,7 @@
 #include <net/if.h>
 
 static void
-mcast_change_current_link(int if_idx)
-{
-	if (if_idx != multichannel_get_current_ifindex(STATE_SYNC(channel)))
-		multichannel_set_current_channel(STATE_SYNC(channel), if_idx);
-}
-
-static void
-do_channel_handler_step(int if_idx, struct nethdr *net, size_t remain)
+do_channel_handler_step(int i, struct nethdr *net, size_t remain)
 {
 	char __ct[nfct_maxsize()];
 	struct nf_conntrack *ct = (struct nf_conntrack *)(void*) __ct;
@@ -58,10 +51,10 @@ do_channel_handler_step(int if_idx, struct nethdr *net, size_t remain)
 
 	switch (STATE_SYNC(sync)->recv(net)) {
 	case MSG_DATA:
-		mcast_change_current_link(if_idx);
+		multichannel_change_current_channel(STATE_SYNC(channel), i);
 		break;
 	case MSG_CTL:
-		mcast_change_current_link(if_idx);
+		multichannel_change_current_channel(STATE_SYNC(channel), i);
 		return;
 	case MSG_BAD:
 		STATE_SYNC(error).msg_rcv_malformed++;
@@ -123,7 +116,7 @@ retry:
 }
 
 /* handler for messages received */
-static void channel_handler(struct channel *m, int if_idx)
+static void channel_handler(struct channel *m, int i)
 {
 	ssize_t numbytes;
 	ssize_t remain;
@@ -168,7 +161,7 @@ static void channel_handler(struct channel *m, int if_idx)
 
 		HDR_NETWORK2HOST(net);
 
-		do_channel_handler_step(if_idx, net, remain);
+		do_channel_handler_step(i, net, remain);
 		ptr += net->len;
 		remain -= net->len;
 	}

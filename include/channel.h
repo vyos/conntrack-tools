@@ -100,5 +100,6 @@ void multichannel_stats_extended(struct multichannel *m,
 int multichannel_get_ifindex(struct multichannel *m, int i);
 int multichannel_get_current_ifindex(struct multichannel *m);
 void multichannel_set_current_channel(struct multichannel *m, int i);
+void multichannel_change_current_channel(struct multichannel *m, int i);
 
 #endif /* _CHANNEL_H_ */
