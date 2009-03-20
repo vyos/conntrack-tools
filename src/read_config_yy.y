@@ -730,30 +730,8 @@ delay_destroy_msgs: T_DELAY
 
 listen_to: T_LISTEN_TO T_IP
 {
-	union inet_address addr;
-
-#ifdef HAVE_INET_PTON_IPV6
-	if (inet_pton(AF_INET6, $2, &addr.ipv6) <= 0)
-#endif
-		if (inet_aton($2, &addr.ipv4) <= 0) {
-			fprintf(stderr, "%s is not a valid IP address\n", $2);
-			exit(EXIT_FAILURE);
-		}
-
-	if (CONFIG(listen_to_len) == 0 || CONFIG(listen_to_len) % 16) {
-		CONFIG(listen_to) = realloc(CONFIG(listen_to),
-					    sizeof(union inet_address) *
-					    (CONFIG(listen_to_len) + 16));
-		if (CONFIG(listen_to) == NULL) {
-			fprintf(stderr, "cannot init listen_to array\n");
-			exit(EXIT_FAILURE);
-		}
-
-		memset(CONFIG(listen_to) + 
-		       (CONFIG(listen_to_len) * sizeof(union inet_address)),
-		       0, sizeof(union inet_address) * 16);
-
-	}
+	fprintf(stderr, "WARNING: The clause `ListenTo' is obsolete, "
+			"ignoring.\n");
 };
 
 state_replication: T_REPLICATE states T_FOR state_proto

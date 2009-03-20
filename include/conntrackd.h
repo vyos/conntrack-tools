@@ -86,8 +86,6 @@ struct ct_conf {
 	unsigned int netlink_buffer_size;
 	unsigned int netlink_buffer_size_max_grown;
 	int nl_overrun_resync;
-	union inet_address *listen_to;
-	unsigned int listen_to_len;
 	unsigned int flags;
 	int family;			/* protocol family */
 	unsigned int resend_queue_size; /* FTFW protocol */
