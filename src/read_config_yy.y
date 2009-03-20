@@ -464,7 +464,7 @@ udp_option : T_IPV4_ADDR T_IP
 {
 	__max_dedicated_links_reached();
 
-	if (!inet_aton($2, &conf.channel[conf.channel_num].u.udp.server)) {
+	if (!inet_aton($2, &conf.channel[conf.channel_num].u.udp.server.ipv4)) {
 		fprintf(stderr, "%s is not a valid IPv4 address\n", $2);
 		break;
 	}
@@ -477,7 +477,7 @@ udp_option : T_IPV6_ADDR T_IP
 
 #ifdef HAVE_INET_PTON_IPV6
 	if (inet_pton(AF_INET6, $2,
-		      &conf.channel[conf.channel_num].u.udp.server) <= 0) {
+		      &conf.channel[conf.channel_num].u.udp.server.ipv6) <= 0) {
 		fprintf(stderr, "%s is not a valid IPv6 address\n", $2);
 		break;
 	}
@@ -518,8 +518,17 @@ udp_option : T_IPV6_DEST_ADDR T_IP
 
 udp_option : T_IFACE T_STRING
 {
+	int idx;
+
 	__max_dedicated_links_reached();
 	strncpy(conf.channel[conf.channel_num].channel_ifname, $2, IFNAMSIZ);
+
+	idx = if_nametoindex($2);
+	if (!idx) {
+		fprintf(stderr, "%s is an invalid interface.\n", $2);
+		break;
+	}
+	conf.channel[conf.channel_num].u.udp.server.ipv6.scope_id = idx;
 };
 
 udp_option : T_PORT T_NUMBER

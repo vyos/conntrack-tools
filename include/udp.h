@@ -10,8 +10,13 @@ struct udp_conf {
 	int checksum;
 	unsigned short port;
 	union {
-		struct in_addr inet_addr;
-		struct in6_addr inet_addr6;
+		struct {
+			struct in_addr inet_addr;
+		} ipv4;
+		struct {
+			struct in6_addr inet_addr6;
+			int scope_id;
+		} ipv6;
 	} server;
 	union {
 		struct in_addr inet_addr;
