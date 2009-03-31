@@ -58,12 +58,6 @@
 #include <fcntl.h>
 #include <libnetfilter_conntrack/libnetfilter_conntrack.h>
 
-static const char cmdflags[NUMBER_OF_CMD]
-= {'L','I','U','D','G','F','E','V','h','L','I','D','G','F','E','C','C','S'};
-
-static const char cmd_need_param[NUMBER_OF_CMD]
-= { 2,  0,  0,  0,  0,  2,  2,  2,  2,  2,  0,  0,  0,  2,  2,  2,  2,  2};
-
 static const char *optflags[NUMBER_OF_OPT] = {
 "src","dst","reply-src","reply-dst","protonum","timeout","status","zero",
 "event-mask","tuple-src","tuple-dst","mask-src","mask-dst","nat-range","mark",
@@ -71,12 +65,12 @@ static const char *optflags[NUMBER_OF_OPT] = {
 
 static struct option original_opts[] = {
 	{"dump", 2, 0, 'L'},
-	{"create", 1, 0, 'I'},
-	{"delete", 1, 0, 'D'},
-	{"update", 1, 0, 'U'},
-	{"get", 1, 0, 'G'},
-	{"flush", 1, 0, 'F'},
-	{"event", 1, 0, 'E'},
+	{"create", 2, 0, 'I'},
+	{"delete", 2, 0, 'D'},
+	{"update", 2, 0, 'U'},
+	{"get", 2, 0, 'G'},
+	{"flush", 2, 0, 'F'},
+	{"event", 2, 0, 'E'},
 	{"counter", 2, 0, 'C'},
 	{"stats", 0, 0, 'S'},
 	{"version", 0, 0, 'V'},
@@ -253,15 +247,6 @@ exit_error(enum exittype status, const char *msg, ...)
 	if (status == PARAMETER_PROBLEM)
 		exit_tryhelp(status);
 	exit(status);
-}
-
-static void
-generic_cmd_check(int command, int local_options)
-{
-	if (cmd_need_param[command] == 0 && !local_options)
-		exit_error(PARAMETER_PROBLEM,
-			   "You need to supply parameters to `-%c'",
-			   cmdflags[command]);
 }
 
 static int bit2cmd(int command)
@@ -1212,7 +1197,6 @@ int main(int argc, char *argv[])
 		family = AF_INET;
 
 	cmd = bit2cmd(command);
-	generic_cmd_check(cmd, options);
 	generic_opt_check(options,
 			  NUMBER_OF_OPT,
 			  commands_v_options[cmd],
