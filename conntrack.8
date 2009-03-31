@@ -21,6 +21,8 @@ conntrack \- command line interface for netfilter connection tracking
 .BR "conntrack -F [table]"
 .br
 .BR "conntrack -C [table]"
+.br
+.BR "conntrack -S "
 .SH DESCRIPTION
 .B conntrack
 provides a full featured userspace interface to the netfilter connection tracking system that is intended to replace the old /proc/net/ip_conntrack interface. This tool can be used to search, list, inspect and maintain the connection tracking subsystem of the Linux kernel.
@@ -77,6 +79,9 @@ Flush the whole given table
 .TP
 .BI "-C, --count "
 Show the table counter.
+.TP
+.BI "-S, --stats "
+Show the in-kernel connection tracking system statistics.
 .SS PARAMETERS
 .TP
 .BI "-z, --zero "

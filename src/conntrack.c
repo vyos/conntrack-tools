@@ -59,10 +59,10 @@
 #include <libnetfilter_conntrack/libnetfilter_conntrack.h>
 
 static const char cmdflags[NUMBER_OF_CMD]
-= {'L','I','U','D','G','F','E','V','h','L','I','D','G','F','E','C','C'};
+= {'L','I','U','D','G','F','E','V','h','L','I','D','G','F','E','C','C','S'};
 
 static const char cmd_need_param[NUMBER_OF_CMD]
-= { 2,  0,  0,  0,  0,  2,  2,  2,  2,  2,  0,  0,  0,  2,  2,  2,  2};
+= { 2,  0,  0,  0,  0,  2,  2,  2,  2,  2,  0,  0,  0,  2,  2,  2,  2,  2};
 
 static const char *optflags[NUMBER_OF_OPT] = {
 "src","dst","reply-src","reply-dst","protonum","timeout","status","zero",
@@ -78,6 +78,7 @@ static struct option original_opts[] = {
 	{"flush", 1, 0, 'F'},
 	{"event", 1, 0, 'E'},
 	{"counter", 2, 0, 'C'},
+	{"stats", 0, 0, 'S'},
 	{"version", 0, 0, 'V'},
 	{"help", 0, 0, 'h'},
 	{"orig-src", 1, 0, 's'},
@@ -143,6 +144,7 @@ static char commands_v_options[NUMBER_OF_CMD][NUMBER_OF_OPT] =
 /*EXP_EVENT*/ {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
 /*CT_COUNT*/  {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
 /*EXP_COUNT*/ {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+/*X_STATS*/   {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
 };
 
 static LIST_HEAD(proto_list);
@@ -556,7 +558,8 @@ static const char usage_commands[] =
 	"  -U [table] parameters\t\tUpdate a conntrack\n"
 	"  -E [table] [options]\t\tShow events\n"
 	"  -F [table]\t\t\tFlush table\n"
-	"  -C [table]\t\t\tShow counter\n";
+	"  -C [table]\t\t\tShow counter\n"
+	"  -S\t\t\t\tShow statistics\n";
 
 static const char usage_tables[] =
 	"Tables: conntrack, expect\n";
@@ -872,6 +875,75 @@ static int count_exp_cb(enum nf_conntrack_msg_type type,
 	return NFCT_CB_CONTINUE;
 }
 
+#ifndef CT_STATS_PROC
+#define CT_STATS_PROC "/proc/net/stat/nf_conntrack"
+#endif
+
+/* As of 2.6.29, we have 16 entries, this is enough */
+#ifndef CT_STATS_ENTRIES_MAX
+#define CT_STATS_ENTRIES_MAX 64
+#endif
+
+/* maximum string length currently is 13 characters */
+#ifndef CT_STATS_STRING_MAX
+#define CT_STATS_STRING_MAX 64
+#endif
+
+static int display_proc_conntrack_stats(void)
+{
+	int ret = 0;
+	FILE *fd;
+	char buf[4096], *token, *nl;
+	char output[CT_STATS_ENTRIES_MAX][CT_STATS_STRING_MAX];
+	unsigned int value[CT_STATS_ENTRIES_MAX], i, max;
+
+	fd = fopen(CT_STATS_PROC, "r");
+	if (fd == NULL)
+		return -1;
+
+	if (fgets(buf, sizeof(buf), fd) == NULL) {
+		ret = -1;
+		goto out_err;
+	}
+
+	/* trim off trailing \n */
+	nl = strchr(buf, '\n');
+	if (nl != NULL) {
+		*nl = '\0';
+		nl = strchr(buf, '\n');
+	}
+	token = strtok(buf, " ");
+	for (i=0; token != NULL && i<CT_STATS_ENTRIES_MAX; i++) {
+		strncpy(output[i], token, CT_STATS_STRING_MAX);
+		output[i][CT_STATS_STRING_MAX-1]='\0';
+		token = strtok(NULL, " ");
+	}
+	max = i;
+
+	if (fgets(buf, sizeof(buf), fd) == NULL) {
+		ret = -1;
+		goto out_err;
+	}
+
+	nl = strchr(buf, '\n');
+	while (nl != NULL) {
+		*nl = '\0';
+		nl = strchr(buf, '\n');
+	}
+	token = strtok(buf, " ");
+	for (i=0; token != NULL && i<CT_STATS_ENTRIES_MAX; i++) { 
+		value[i] = (unsigned int) strtol(token, (char**) NULL, 16);
+		token = strtok(NULL, " ");
+	}
+
+	for (i=0; i<max; i++)
+		printf("%-10s\t\t%-8u\n", output[i], value[i]);
+
+out_err:
+	fclose(fd);
+	return ret;
+}
+
 static struct ctproto_handler *h;
 
 static const int cmd2type[][2] = {
@@ -970,7 +1042,7 @@ int main(int argc, char *argv[])
 
 	while ((c = getopt_long(argc, argv, "L::I::U::D::G::E::F::hVs:d:r:q:"
 					    "p:t:u:e:a:z[:]:{:}:m:i:f:o:n::"
-					    "g::c:b:C::", 
+					    "g::c:b:C::S", 
 					    opts, NULL)) != -1) {
 	switch(c) {
 		/* commands */
@@ -993,6 +1065,9 @@ int main(int argc, char *argv[])
 			else
 				exit_error(PARAMETER_PROBLEM, 
 					   "Can't update expectations");
+			break;
+		case 'S':
+			add_command(&command, X_STATS);
 			break;
 		/* options */
 		case 's':
@@ -1365,6 +1440,10 @@ int main(int argc, char *argv[])
 		res = nfexp_query(cth, NFCT_Q_DUMP, &family);
 		nfct_close(cth);
 		printf("%d\n", counter);
+		break;
+	case X_STATS:
+		if (display_proc_conntrack_stats() < 0)
+			exit_error(OTHER_PROBLEM, "Can't open /proc interface");
 		break;
 	case CT_VERSION:
 		printf("%s v%s (conntrack-tools)\n", PROGNAME, VERSION);
