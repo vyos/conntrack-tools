@@ -24,6 +24,7 @@
 #include <string.h>
 #include <netdb.h>
 #include <errno.h>
+#include <stdarg.h>
 #include "conntrackd.h"
 #include "bitops.h"
 #include "cidr.h"
@@ -35,6 +36,13 @@ extern char *yytext;
 extern int   yylineno;
 
 struct ct_conf conf;
+
+enum {
+	CTD_CFG_ERROR = 0,
+	CTD_CFG_WARN,
+};
+
+static void print_err(int err, const char *msg, ...);
 
 static void __kernel_filter_start(void);
 static void __kernel_filter_add_state(int value);
@@ -131,15 +139,15 @@ syslog_facility : T_SYSLOG T_STRING
 	else if (!strcmp($2, "local7"))
 		conf.syslog_facility = LOG_LOCAL7;
 	else {
-		fprintf(stderr, "'%s' is not a known syslog facility, "
-				"ignoring.\n", $2);
+		print_err(CTD_CFG_WARN, "'%s' is not a known syslog facility, "
+					"ignoring", $2);
 		break;
 	}
 
 	if (conf.stats.syslog_facility != -1 &&
 	    conf.syslog_facility != conf.stats.syslog_facility)
-	    	fprintf(stderr, "WARNING: Conflicting Syslog facility "
-				"values, defaulting to General.\n");
+	    	print_err(CTD_CFG_WARN, "conflicting Syslog facility "
+					"values, defaulting to General");
 };
 
 lock : T_LOCK T_PATH_VAL
@@ -149,8 +157,7 @@ lock : T_LOCK T_PATH_VAL
 
 strip_nat: T_STRIP_NAT
 {
-	fprintf(stderr, "Notice: StripNAT clause is obsolete. "
-			"Please, remove it from conntrackd.conf\n");
+	print_err(CTD_CFG_WARN, "`StripNAT' clause is obsolete, ignoring");
 };
 
 refreshtime : T_REFRESH T_NUMBER
@@ -175,8 +182,8 @@ purge: T_PURGE T_NUMBER
 
 checksum: T_CHECKSUM T_ON 
 {
-	fprintf(stderr, "WARNING: The use of `Checksum' outside the "
-			"`Multicast' clause is ambiguous.\n");
+	print_err(CTD_CFG_WARN, "the use of `Checksum' outside the "
+				"`Multicast' clause is ambiguous");
 	/* 
 	 * XXX: The use of Checksum outside of the Multicast clause is broken
 	 *	if we have more than one dedicated links.
@@ -186,8 +193,8 @@ checksum: T_CHECKSUM T_ON
 
 checksum: T_CHECKSUM T_OFF
 {
-	fprintf(stderr, "WARNING: The use of `Checksum' outside the "
-			"`Multicast' clause is ambiguous.\n");
+	print_err(CTD_CFG_WARN, "the use of `Checksum' outside the "
+				"`Multicast' clause is ambiguous");
 	/*
 	 * XXX: The use of Checksum outside of the Multicast clause is broken
 	 *	if we have more than one dedicated links.
@@ -201,8 +208,8 @@ ignore_traffic : T_IGNORE_TRAFFIC '{' ignore_traffic_options '}'
 			    CT_FILTER_ADDRESS,
 			    CT_FILTER_NEGATIVE);
 
-	fprintf(stderr, "WARNING: The clause `IgnoreTrafficFor' is obsolete. "
-			"Use `Filter' instead.\n");
+	print_err(CTD_CFG_WARN, "the clause `IgnoreTrafficFor' is obsolete. "
+				"Use `Filter' instead");
 };
 
 ignore_traffic_options :
@@ -215,16 +222,18 @@ ignore_traffic_option : T_IPV4_ADDR T_IP
 	memset(&ip, 0, sizeof(union inet_address));
 
 	if (!inet_aton($2, &ip.ipv4)) {
-		fprintf(stderr, "%s is not a valid IPv4, ignoring", $2);
+		print_err(CTD_CFG_WARN, "%s is not a valid IPv4, "
+					"ignoring", $2);
 		break;
 	}
 
 	if (!ct_filter_add_ip(STATE(us_filter), &ip, AF_INET)) {
 		if (errno == EEXIST)
-			fprintf(stderr, "IP %s is repeated "
-					"in the ignore pool\n", $2);
+			print_err(CTD_CFG_WARN, "IP %s is repeated "
+						"in the ignore pool", $2);
 		if (errno == ENOSPC)
-			fprintf(stderr, "Too many IP in the ignore pool!\n");
+			print_err(CTD_CFG_WARN, "too many IP in the "
+						"ignore pool!");
 	}
 };
 
@@ -236,20 +245,20 @@ ignore_traffic_option : T_IPV6_ADDR T_IP
 
 #ifdef HAVE_INET_PTON_IPV6
 	if (inet_pton(AF_INET6, $2, &ip.ipv6) <= 0) {
-		fprintf(stderr, "%s is not a valid IPv6, ignoring", $2);
+		print_err(CTD_CFG_WARN, "%s is not a valid IPv6, ignoring", $2);
 		break;
 	}
 #else
-	fprintf(stderr, "Cannot find inet_pton(), IPv6 unsupported!");
-	break;
+	print_err(CTD_CFG_WARN, "cannot find inet_pton(), IPv6 unsupported!");
 #endif
 
 	if (!ct_filter_add_ip(STATE(us_filter), &ip, AF_INET6)) {
 		if (errno == EEXIST)
-			fprintf(stderr, "IP %s is repeated "
-					"in the ignore pool\n", $2);
+			print_err(CTD_CFG_WARN, "IP %s is repeated "
+						"in the ignore pool", $2);
 		if (errno == ENOSPC)
-			fprintf(stderr, "Too many IP in the ignore pool!\n");
+			print_err(CTD_CFG_WARN, "too many IP in the "
+						"ignore pool!");
 	}
 
 };
@@ -258,8 +267,8 @@ multicast_line : T_MULTICAST '{' multicast_options '}'
 {
 	if (conf.channel_type_global != CHANNEL_NONE &&
 	    conf.channel_type_global != CHANNEL_MCAST) {
-		fprintf(stderr, "ERROR: Cannot use `Multicast' with other "
-				"dedicated link protocols!\n");
+		print_err(CTD_CFG_ERROR, "cannot use `Multicast' with other "
+					 "dedicated link protocols!");
 		exit(EXIT_FAILURE);
 	}
 	conf.channel_type_global = CHANNEL_MCAST;
@@ -272,8 +281,8 @@ multicast_line : T_MULTICAST T_DEFAULT '{' multicast_options '}'
 {
 	if (conf.channel_type_global != CHANNEL_NONE &&
 	    conf.channel_type_global != CHANNEL_MCAST) {
-		fprintf(stderr, "ERROR: Cannot use `Multicast' with other "
-				"dedicated link protocols!\n");
+		print_err(CTD_CFG_ERROR, "cannot use `Multicast' with other "
+					 "dedicated link protocols!");
 		exit(EXIT_FAILURE);
 	}
 	conf.channel_type_global = CHANNEL_MCAST;
@@ -292,14 +301,14 @@ multicast_option : T_IPV4_ADDR T_IP
 	__max_dedicated_links_reached();
 
 	if (!inet_aton($2, &conf.channel[conf.channel_num].u.mcast.in)) {
-		fprintf(stderr, "%s is not a valid IPv4 address\n", $2);
+		print_err(CTD_CFG_WARN, "%s is not a valid IPv4 address", $2);
 		break;
 	}
 
         if (conf.channel[conf.channel_num].u.mcast.ipproto == AF_INET6) {
-		fprintf(stderr, "Your multicast address is IPv4 but "
-		                "is binded to an IPv6 interface? Surely "
-				"this is not what you want\n");
+		print_err(CTD_CFG_WARN, "your multicast address is IPv4 but "
+					"is binded to an IPv6 interface? "
+					"Surely, this is not what you want");
 		break;
 	}
 
@@ -313,18 +322,18 @@ multicast_option : T_IPV6_ADDR T_IP
 #ifdef HAVE_INET_PTON_IPV6
 	if (inet_pton(AF_INET6, $2,
 		      &conf.channel[conf.channel_num].u.mcast.in) <= 0) {
-		fprintf(stderr, "%s is not a valid IPv6 address\n", $2);
+		print_err(CTD_CFG_WARN, "%s is not a valid IPv6 address", $2);
 		break;
 	}
 #else
-	fprintf(stderr, "Cannot find inet_pton(), IPv6 unsupported!");
+	print_err(CTD_CFG_WARN, "cannot find inet_pton(), IPv6 unsupported!");
 	break;
 #endif
 
 	if (conf.channel[conf.channel_num].u.mcast.ipproto == AF_INET) {
-		fprintf(stderr, "Your multicast address is IPv6 but "
-				"is binded to an IPv4 interface? Surely "
-				"this is not what you want\n");
+		print_err(CTD_CFG_WARN, "your multicast address is IPv6 but "
+					"is binded to an IPv4 interface? "
+					"Surely this is not what you want");
 		break;
 	}
 
@@ -336,7 +345,8 @@ multicast_option : T_IPV6_ADDR T_IP
 
 		idx = if_nametoindex($2);
 		if (!idx) {
-			fprintf(stderr, "%s is an invalid interface.\n", $2);
+			print_err(CTD_CFG_WARN,
+				  "%s is an invalid interface", $2);
 			break;
 		}
 
@@ -350,14 +360,14 @@ multicast_option : T_IPV4_IFACE T_IP
 	__max_dedicated_links_reached();
 
 	if (!inet_aton($2, &conf.channel[conf.channel_num].u.mcast.ifa)) {
-		fprintf(stderr, "%s is not a valid IPv4 address\n", $2);
+		print_err(CTD_CFG_WARN, "%s is not a valid IPv4 address", $2);
 		break;
 	}
 
         if (conf.channel[conf.channel_num].u.mcast.ipproto == AF_INET6) {
-		fprintf(stderr, "Your multicast interface is IPv4 but "
-		                "is binded to an IPv6 interface? Surely "
-				"this is not what you want\n");
+		print_err(CTD_CFG_WARN, "your multicast interface is IPv4 but "
+					"is binded to an IPv6 interface? "
+					"Surely, this is not what you want");
 		break;
 	}
 
@@ -366,7 +376,7 @@ multicast_option : T_IPV4_IFACE T_IP
 
 multicast_option : T_IPV6_IFACE T_IP
 {
-	fprintf(stderr, "IPv6_interface not required for IPv6, ignoring.\n");
+	print_err(CTD_CFG_WARN, "`IPv6_interface' not required, ignoring");
 }
 
 multicast_option : T_IFACE T_STRING
@@ -379,7 +389,7 @@ multicast_option : T_IFACE T_STRING
 
 	idx = if_nametoindex($2);
 	if (!idx) {
-		fprintf(stderr, "%s is an invalid interface.\n", $2);
+		print_err(CTD_CFG_WARN, "%s is an invalid interface", $2);
 		break;
 	}
 
@@ -391,8 +401,9 @@ multicast_option : T_IFACE T_STRING
 
 multicast_option : T_BACKLOG T_NUMBER
 {
-	fprintf(stderr, "Notice: Backlog option inside Multicast clause is "
-			"obsolete. Please, remove it from conntrackd.conf.\n");
+	print_err(CTD_CFG_WARN, "`Backlog' option inside Multicast clause is "
+				"obsolete. Please, remove it from "
+				"conntrackd.conf");
 };
 
 multicast_option : T_GROUP T_NUMBER
@@ -429,8 +440,8 @@ udp_line : T_UDP '{' udp_options '}'
 {
 	if (conf.channel_type_global != CHANNEL_NONE &&
 	    conf.channel_type_global != CHANNEL_UDP) {
-		fprintf(stderr, "ERROR: Cannot use `UDP' with other "
-				"dedicated link protocols!\n");
+		print_err(CTD_CFG_ERROR, "cannot use `UDP' with other "
+					 "dedicated link protocols!");
 		exit(EXIT_FAILURE);
 	}
 	conf.channel_type_global = CHANNEL_UDP;
@@ -443,8 +454,8 @@ udp_line : T_UDP T_DEFAULT '{' udp_options '}'
 {
 	if (conf.channel_type_global != CHANNEL_NONE &&
 	    conf.channel_type_global != CHANNEL_UDP) {
-		fprintf(stderr, "ERROR: Cannot use `UDP' with other "
-				"dedicated link protocols!\n");
+		print_err(CTD_CFG_ERROR, "cannot use `UDP' with other "
+					 "dedicated link protocols!");
 		exit(EXIT_FAILURE);
 	}
 	conf.channel_type_global = CHANNEL_UDP;
@@ -463,7 +474,7 @@ udp_option : T_IPV4_ADDR T_IP
 	__max_dedicated_links_reached();
 
 	if (!inet_aton($2, &conf.channel[conf.channel_num].u.udp.server.ipv4)) {
-		fprintf(stderr, "%s is not a valid IPv4 address\n", $2);
+		print_err(CTD_CFG_WARN, "%s is not a valid IPv4 address", $2);
 		break;
 	}
 	conf.channel[conf.channel_num].u.udp.ipproto = AF_INET;
@@ -476,11 +487,11 @@ udp_option : T_IPV6_ADDR T_IP
 #ifdef HAVE_INET_PTON_IPV6
 	if (inet_pton(AF_INET6, $2,
 		      &conf.channel[conf.channel_num].u.udp.server.ipv6) <= 0) {
-		fprintf(stderr, "%s is not a valid IPv6 address\n", $2);
+		print_err(CTD_CFG_WARN, "%s is not a valid IPv6 address", $2);
 		break;
 	}
 #else
-	fprintf(stderr, "Cannot find inet_pton(), IPv6 unsupported!");
+	print_err(CTD_CFG_WARN, "cannot find inet_pton(), IPv6 unsupported!");
 	break;
 #endif
 	conf.channel[conf.channel_num].u.udp.ipproto = AF_INET6;
@@ -491,7 +502,7 @@ udp_option : T_IPV4_DEST_ADDR T_IP
 	__max_dedicated_links_reached();
 
 	if (!inet_aton($2, &conf.channel[conf.channel_num].u.udp.client)) {
-		fprintf(stderr, "%s is not a valid IPv4 address\n", $2);
+		print_err(CTD_CFG_WARN, "%s is not a valid IPv4 address", $2);
 		break;
 	}
 	conf.channel[conf.channel_num].u.udp.ipproto = AF_INET;
@@ -504,11 +515,11 @@ udp_option : T_IPV6_DEST_ADDR T_IP
 #ifdef HAVE_INET_PTON_IPV6
 	if (inet_pton(AF_INET6, $2,
 		      &conf.channel[conf.channel_num].u.udp.client) <= 0) {
-		fprintf(stderr, "%s is not a valid IPv6 address\n", $2);
+		print_err(CTD_CFG_WARN, "%s is not a valid IPv6 address", $2);
 		break;
 	}
 #else
-	fprintf(stderr, "Cannot find inet_pton(), IPv6 unsupported!");
+	print_err(CTD_CFG_WARN, "cannot find inet_pton(), IPv6 unsupported!");
 	break;
 #endif
 	conf.channel[conf.channel_num].u.udp.ipproto = AF_INET6;
@@ -523,7 +534,7 @@ udp_option : T_IFACE T_STRING
 
 	idx = if_nametoindex($2);
 	if (!idx) {
-		fprintf(stderr, "%s is an invalid interface.\n", $2);
+		print_err(CTD_CFG_WARN, "%s is an invalid interface", $2);
 		break;
 	}
 	conf.channel[conf.channel_num].u.udp.server.ipv6.scope_id = idx;
@@ -591,8 +602,8 @@ ignore_protocol: T_IGNORE_PROTOCOL '{' ignore_proto_list '}'
 			    CT_FILTER_L4PROTO,
 			    CT_FILTER_NEGATIVE);
 
-	fprintf(stderr, "WARNING: The clause `IgnoreProtocol' is obsolete. "
-			"Use `Filter' instead.\n");
+	print_err(CTD_CFG_WARN, "the clause `IgnoreProtocol' is "
+				"obsolete. Use `Filter' instead");
 };
 
 ignore_proto_list:
@@ -604,7 +615,7 @@ ignore_proto: T_NUMBER
 	if ($1 < IPPROTO_MAX)
 		ct_filter_add_proto(STATE(us_filter), $1);
 	else
-		fprintf(stderr, "Protocol number `%d' is freak\n", $1);
+		print_err(CTD_CFG_WARN, "protocol number `%d' is freak", $1);
 };
 
 ignore_proto: T_STRING
@@ -613,8 +624,8 @@ ignore_proto: T_STRING
 
 	pent = getprotobyname($1);
 	if (pent == NULL) {
-		fprintf(stderr, "getprotobyname() cannot find "
-				"protocol `%s' in /etc/protocols.\n", $1);
+		print_err(CTD_CFG_WARN, "getprotobyname() cannot find "
+					"protocol `%s' in /etc/protocols", $1);
 		break;
 	}
 	ct_filter_add_proto(STATE(us_filter), pent->p_proto);
@@ -623,8 +634,8 @@ ignore_proto: T_STRING
 sync: T_SYNC '{' sync_list '}'
 {
 	if (conf.flags & CTD_STATS_MODE) {
-		fprintf(stderr, "ERROR: Cannot use both Stats and Sync "
-				"clauses in conntrackd.conf.\n");
+		print_err(CTD_CFG_ERROR, "cannot use both `Stats' and `Sync' "
+					 "clauses in conntrackd.conf");
 		exit(EXIT_FAILURE);
 	}
 	conf.flags |= CTD_SYNC_MODE;
@@ -696,8 +707,8 @@ sync_mode_notrack_line: timeout
 
 resend_buffer_size: T_RESEND_BUFFER_SIZE T_NUMBER
 {
-	fprintf(stderr, "WARNING: `ResendBufferSize' is deprecated. "
-			"Use `ResendQueueSize' instead\n");
+	print_err(CTD_CFG_WARN, "`ResendBufferSize' is deprecated. "
+				"Use `ResendQueueSize' instead");
 };
 
 resend_queue_size: T_RESEND_QUEUE_SIZE T_NUMBER
@@ -712,26 +723,24 @@ window_size: T_WINDOWSIZE T_NUMBER
 
 destroy_timeout: T_DESTROY_TIMEOUT T_NUMBER
 {
-	fprintf(stderr, "WARNING: `DestroyTimeout' is deprecated. "
-			"Remove it.\n");
+	print_err(CTD_CFG_WARN, "`DestroyTimeout' is deprecated. Remove it");
 };
 
 relax_transitions: T_RELAX_TRANSITIONS
 {
-	fprintf(stderr, "Notice: RelaxTransitions clause is obsolete. "
-			"Please, remove it from conntrackd.conf\n");
+	print_err(CTD_CFG_WARN, "`RelaxTransitions' clause is obsolete. "
+				"Please, remove it from conntrackd.conf");
 };
 
 delay_destroy_msgs: T_DELAY
 {
-	fprintf(stderr, "Notice: DelayDestroyMessages clause is obsolete. "
-			"Please, remove it from conntrackd.conf\n");
+	print_err(CTD_CFG_WARN, "`DelayDestroyMessages' clause is obsolete. "
+				"Please, remove it from conntrackd.conf");
 };
 
 listen_to: T_LISTEN_TO T_IP
 {
-	fprintf(stderr, "WARNING: The clause `ListenTo' is obsolete, "
-			"ignoring.\n");
+	print_err(CTD_CFG_WARN, "the clause `ListenTo' is obsolete, ignoring");
 };
 
 state_replication: T_REPLICATE states T_FOR state_proto
@@ -740,8 +749,8 @@ state_replication: T_REPLICATE states T_FOR state_proto
 			    CT_FILTER_STATE,
 			    CT_FILTER_POSITIVE);
 
-	fprintf(stderr, "WARNING: The clause `Replicate' is obsolete. "
-			"Use `Filter' instead.\n");
+	print_err(CTD_CFG_WARN, "the clause `Replicate' is obsolete. "
+				"Use `Filter' instead");
 };
 
 states:
@@ -750,8 +759,8 @@ states:
 state_proto: T_STRING
 {
 	if (strncmp($1, "TCP", strlen("TCP")) != 0) {
-		fprintf(stderr, "Unsupported protocol `%s' in line %d.\n",
-				$1, yylineno);
+		print_err(CTD_CFG_WARN, "unsupported protocol `%s' in line %d",
+					$1, yylineno);
 	}
 };
 state: tcp_state;
@@ -911,7 +920,7 @@ poll_secs: T_POLL_SECS T_NUMBER
 	conf.flags |= CTD_POLL;
 	conf.poll_kernel_secs = $2;
 	if (conf.poll_kernel_secs == 0) {
-		fprintf(stderr, "ERROR: `PollSecs' clause must be > 0\n");
+		print_err(CTD_CFG_ERROR, "`PollSecs' clause must be > 0");
 		exit(EXIT_FAILURE);
 	}
 };
@@ -965,8 +974,8 @@ filter_protocol_item : T_STRING
 
 	pent = getprotobyname($1);
 	if (pent == NULL) {
-		fprintf(stderr, "getprotobyname() cannot find "
-				"protocol `%s' in /etc/protocols.\n", $1);
+		print_err(CTD_CFG_WARN, "getprotobyname() cannot find "
+					"protocol `%s' in /etc/protocols", $1);
 		break;
 	}
 	ct_filter_add_proto(STATE(us_filter), pent->p_proto);
@@ -1019,14 +1028,14 @@ filter_address_item : T_IPV4_ADDR T_IP
 		*slash = '\0';
 		cidr = atoi(slash+1);
 		if (cidr > 32) {
-			fprintf(stderr, "%s/%d is not a valid network, "
-					"ignoring\n", $2, cidr);
+			print_err(CTD_CFG_WARN, "%s/%d is not a valid network, "
+						"ignoring", $2, cidr);
 			break;
 		}
 	}
 
 	if (!inet_aton($2, &ip.ipv4)) {
-		fprintf(stderr, "%s is not a valid IPv4, ignoring", $2);
+		print_err(CTD_CFG_WARN, "%s is not a valid IPv4, ignoring", $2);
 		break;
 	}
 
@@ -1039,17 +1048,18 @@ filter_address_item : T_IPV4_ADDR T_IP
 
 		if (!ct_filter_add_netmask(STATE(us_filter), &tmp, AF_INET)) {
 			if (errno == EEXIST)
-				fprintf(stderr, "Netmask %s is repeated "
-						"in the ignore pool\n", $2);
+				print_err(CTD_CFG_WARN, "netmask %s is "
+							"repeated in the "
+							"ignore pool", $2);
 		}
 	} else {
 		if (!ct_filter_add_ip(STATE(us_filter), &ip, AF_INET)) {
 			if (errno == EEXIST)
-				fprintf(stderr, "IP %s is repeated "
-						"in the ignore pool\n", $2);
+				print_err(CTD_CFG_WARN, "IP %s is repeated in "
+							"the ignore pool", $2);
 			if (errno == ENOSPC)
-				fprintf(stderr, "Too many IP in the "
-						"ignore pool!\n");
+				print_err(CTD_CFG_WARN, "too many IP in the "
+							"ignore pool!");
 		}
 	}
 	__kernel_filter_start();
@@ -1077,19 +1087,19 @@ filter_address_item : T_IPV6_ADDR T_IP
 		*slash = '\0';
 		cidr = atoi(slash+1);
 		if (cidr > 128) {
-			fprintf(stderr, "%s/%d is not a valid network, "
-					"ignoring\n", $2, cidr);
+			print_err(CTD_CFG_WARN, "%s/%d is not a valid network, "
+						"ignoring", $2, cidr);
 			break;
 		}
 	}
 
 #ifdef HAVE_INET_PTON_IPV6
 	if (inet_pton(AF_INET6, $2, &ip.ipv6) <= 0) {
-		fprintf(stderr, "%s is not a valid IPv6, ignoring", $2);
+		print_err(CTD_CFG_WARN, "%s is not a valid IPv6, ignoring", $2);
 		break;
 	}
 #else
-	fprintf(stderr, "Cannot find inet_pton(), IPv6 unsupported!");
+	print_err(CTD_CFG_WARN, "cannot find inet_pton(), IPv6 unsupported!");
 	break;
 #endif
 	if (slash && cidr < 128) {
@@ -1099,17 +1109,18 @@ filter_address_item : T_IPV6_ADDR T_IP
 		ipv6_cidr2mask_net(cidr, tmp.mask);
 		if (!ct_filter_add_netmask(STATE(us_filter), &tmp, AF_INET6)) {
 			if (errno == EEXIST)
-				fprintf(stderr, "Netmask %s is repeated "
-						"in the ignore pool\n", $2);
+				print_err(CTD_CFG_WARN, "netmask %s is "
+							"repeated in the "
+							"ignore pool", $2);
 		}
 	} else {
 		if (!ct_filter_add_ip(STATE(us_filter), &ip, AF_INET6)) {
 			if (errno == EEXIST)
-				fprintf(stderr, "IP %s is repeated "
-						"in the ignore pool\n", $2);
+				print_err(CTD_CFG_WARN, "IP %s is repeated in "
+							"the ignore pool", $2);
 			if (errno == ENOSPC)
-				fprintf(stderr, "Too many IP in the "
-						"ignore pool!\n");
+				print_err(CTD_CFG_WARN, "too many IP in the "
+							"ignore pool!");
 		}
 	}
 };
@@ -1145,8 +1156,8 @@ filter_state_item : states T_FOR state_proto ;
 stats: T_STATS '{' stats_list '}'
 {
 	if (conf.flags & CTD_SYNC_MODE) {
-		fprintf(stderr, "ERROR: Cannot use both Stats and Sync "
-				"clauses in conntrackd.conf.\n");
+		print_err(CTD_CFG_ERROR, "cannot use both `Stats' and `Sync' "
+					 "clauses in conntrackd.conf");
 		exit(EXIT_FAILURE);
 	}
 	conf.flags |= CTD_STATS_MODE;
@@ -1208,20 +1219,20 @@ stat_syslog_facility : T_SYSLOG T_STRING
 	else if (!strcmp($2, "local7"))
 		conf.stats.syslog_facility = LOG_LOCAL7;
 	else {
-		fprintf(stderr, "'%s' is not a known syslog facility, "
-				"ignoring.\n", $2);
+		print_err(CTD_CFG_WARN, "'%s' is not a known syslog facility, "
+					"ignoring.", $2);
 		break;
 	}
 
 	if (conf.syslog_facility != -1 &&
 	    conf.stats.syslog_facility != conf.syslog_facility)
-		fprintf(stderr, "WARNING: Conflicting Syslog facility "
-				"values, defaulting to General.\n");
+		print_err(CTD_CFG_WARN, "conflicting Syslog facility "
+					"values, defaulting to General");
 };
 
 buffer_size: T_STAT_BUFFER_SIZE T_NUMBER
 {
-	fprintf(stderr, "WARNING: LogFileBufferSize is deprecated.\n");
+	print_err(CTD_CFG_WARN, "`LogFileBufferSize' is deprecated");
 };
 
 %%
@@ -1229,9 +1240,30 @@ buffer_size: T_STAT_BUFFER_SIZE T_NUMBER
 int __attribute__((noreturn))
 yyerror(char *msg)
 {
-	fprintf(stderr, "Error parsing config file: ");
-	fprintf(stderr, "line (%d), symbol '%s': %s\n", yylineno, yytext, msg);
+	print_err(CTD_CFG_ERROR, "parsing config file in "
+				 "line (%d), symbol '%s': %s",
+				 yylineno, yytext, msg);
 	exit(EXIT_FAILURE);
+}
+
+static void print_err(int type, const char *msg, ...)
+{
+	va_list args;
+
+	va_start(args, msg);
+	switch(type) {
+	case CTD_CFG_ERROR:
+		fprintf(stderr, "ERROR: ");
+		break;
+	case CTD_CFG_WARN:
+		fprintf(stderr, "WARNING: ");
+		break;
+	default:
+		fprintf(stderr, "?: ");
+	}
+	vfprintf(stderr, msg, args);
+	va_end(args);
+	fprintf(stderr,"\n");
 }
 
 static void __kernel_filter_start(void)
@@ -1239,7 +1271,7 @@ static void __kernel_filter_start(void)
 	if (!STATE(filter)) {
 		STATE(filter) = nfct_filter_create();
 		if (!STATE(filter)) {
-			fprintf(stderr, "Can't create ignore pool!\n");
+			print_err(CTD_CFG_ERROR, "cannot create ignore pool!");
 			exit(EXIT_FAILURE);
 		}
 	}
@@ -1261,9 +1293,9 @@ static void __kernel_filter_add_state(int value)
 static void __max_dedicated_links_reached(void)
 {
 	if (conf.channel_num >= MULTICHANNEL_MAX) {
-		fprintf(stderr, "ERROR: too many dedicated links in "
-				"the configuration file (Maximum: %d).\n",
-				MULTICHANNEL_MAX);
+		print_err(CTD_CFG_ERROR, "too many dedicated links in "
+					 "the configuration file "
+					 "(Maximum: %d)", MULTICHANNEL_MAX);
 		exit(EXIT_FAILURE);
 	}
 }
