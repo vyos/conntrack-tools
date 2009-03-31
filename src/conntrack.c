@@ -77,6 +77,7 @@ static struct option original_opts[] = {
 	{"get", 1, 0, 'G'},
 	{"flush", 1, 0, 'F'},
 	{"event", 1, 0, 'E'},
+	{"counter", 2, 0, 'C'},
 	{"version", 0, 0, 'V'},
 	{"help", 0, 0, 'h'},
 	{"orig-src", 1, 0, 's'},
@@ -141,6 +142,7 @@ static char commands_v_options[NUMBER_OF_CMD][NUMBER_OF_OPT] =
 /*EXP_FLUSH*/ {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
 /*EXP_EVENT*/ {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
 /*CT_COUNT*/  {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+/*EXP_COUNT*/ {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
 };
 
 static LIST_HEAD(proto_list);
@@ -553,7 +555,8 @@ static const char usage_commands[] =
 	"  -I [table] parameters\t\tCreate a conntrack or expectation\n"
 	"  -U [table] parameters\t\tUpdate a conntrack\n"
 	"  -E [table] [options]\t\tShow events\n"
-	"  -F [table]\t\t\tFlush table\n";
+	"  -F [table]\t\t\tFlush table\n"
+	"  -C [table]\t\t\tShow counter\n";
 
 static const char usage_tables[] =
 	"Tables: conntrack, expect\n";
