@@ -1,7 +1,9 @@
-conntrack (1:0.9.11-1) UNRELEASED; urgency=low
+conntrack (1:0.9.12-1) unstable; urgency=low
 
   * new upstream release
     - build-depend on libnfnetlink 0.0.40, libnetfilter-conntrack 0.0.99
+    - fixes FTBS (undeclared variable) 
+    (Closes: #522181, #518891)
   * moved conntrackd.conf to /etc/conntrackd/conntrackd.conf (Closes: #477679)
   * updated sample configuration file
   * updated home page to http://conntrack-tools.netfilter.org/
