@@ -1,5 +1,6 @@
 conntrack (1:0.9.12-1) unstable; urgency=low
 
+  [ Max Kellermann ]
   * new upstream release
     - build-depend on libnfnetlink 0.0.40, libnetfilter-conntrack 0.0.99
     - fixes FTBS (undeclared variable) 
@@ -9,7 +10,7 @@ conntrack (1:0.9.12-1) unstable; urgency=low
   * updated home page to http://conntrack-tools.netfilter.org/
   * restart conntrackd after logrotate (Closes: #513079)
 
- -- Max Kellermann <max@duempel.org>  Wed, 04 Mar 2009 10:09:50 +0100
+ -- Alexander Wirt <formorer@debian.org>  Thu, 02 Apr 2009 11:27:58 +0200
 
 conntrack (1:0.9.7-1) unstable; urgency=low
 
