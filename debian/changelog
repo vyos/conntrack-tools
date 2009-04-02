@@ -10,7 +10,10 @@ conntrack (1:0.9.12-1) unstable; urgency=low
   * updated home page to http://conntrack-tools.netfilter.org/
   * restart conntrackd after logrotate (Closes: #513079)
 
- -- Alexander Wirt <formorer@debian.org>  Thu, 02 Apr 2009 11:27:58 +0200
+  [ Alexander Wirt ]
+  * Bump standards version 
+
+ -- Alexander Wirt <formorer@debian.org>  Thu, 02 Apr 2009 11:37:25 +0200
 
 conntrack (1:0.9.7-1) unstable; urgency=low
 
