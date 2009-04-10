@@ -72,17 +72,17 @@ static char tcp_commands_v_options[NUMBER_OF_CMD][TCP_NUMBER_OF_OPT] =
 /*EXP_EVENT*/	  {0,0,0,0,0,0,0,0,0},
 };
 
-static const char *states[] = {
-	"NONE",
-	"SYN_SENT",
-	"SYN_RECV",
-	"ESTABLISHED",
-	"FIN_WAIT",
-	"CLOSE_WAIT",
-	"LAST_ACK",
-	"TIME_WAIT",
-	"CLOSE",
-	"LISTEN"
+static const char *tcp_states[TCP_CONNTRACK_MAX] = {
+	[TCP_CONNTRACK_NONE]		= "NONE",
+	[TCP_CONNTRACK_SYN_SENT]	= "SYN_SENT",
+	[TCP_CONNTRACK_SYN_RECV] 	= "SYN_RECV",
+	[TCP_CONNTRACK_ESTABLISHED]	= "ESTABLISHED",
+	[TCP_CONNTRACK_FIN_WAIT]	= "FIN_WAIT",
+	[TCP_CONNTRACK_CLOSE_WAIT]	= "CLOSE_WAIT",
+	[TCP_CONNTRACK_LAST_ACK]	= "LAST_ACK",
+	[TCP_CONNTRACK_TIME_WAIT]	= "TIME_WAIT",
+	[TCP_CONNTRACK_CLOSE]		= "CLOSE",
+	[TCP_CONNTRACK_LISTEN]		= "LISTEN"
 };
 
 static void help(void)
@@ -145,15 +145,15 @@ static int parse_options(char c,
 			*flags |= CT_TCP_MASK_DPORT;
 			break;
 		case '7':
-			for (i=0; i<10; i++) {
-				if (strcmp(optarg, states[i]) == 0) {
+			for (i=0; i<TCP_CONNTRACK_MAX; i++) {
+				if (strcmp(optarg, tcp_states[i]) == 0) {
 					nfct_set_attr_u8(ct,
 							 ATTR_TCP_STATE,
 							 i);
 					break;
 				}
 			}
-			if (i == 10)
+			if (i == TCP_CONNTRACK_MAX)
 				exit_error(PARAMETER_PROBLEM,
 					   "Unknown TCP state %s\n", optarg);
 			*flags |= CT_TCP_STATE;
