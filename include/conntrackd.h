@@ -204,12 +204,6 @@ extern struct ct_conf conf;
 extern union ct_state state;
 extern struct ct_general_state st;
 
-#ifndef IPPROTO_VRRP
-#define IPPROTO_VRRP 112
-#endif
-
-#define STEPS_PER_SECONDS	5
-
 struct ct_mode {
 	int (*init)(void);
 	void (*run)(fd_set *readfds);
