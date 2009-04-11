@@ -1,4 +1,4 @@
-.TH CONNTRACK 8 "Oct 22, 2008" "" ""
+.TH CONNTRACK 8 "Apr 11, 2009" "" ""
 
 .\" Man page written by Harald Welte <laforge@netfilter.org (Jun 2005)
 .\" Maintained by Pablo Neira Ayuso <pablo@netfilter.org (May 2007)
@@ -199,6 +199,21 @@ ICMP Code. Has to be specified numerically.
 .TP
 .BI "--icmp-id " "ID"
 ICMP Id. Has to be specified numerically (non-mandatory)
+.TP
+UDPlite-specific fields:
+.TP
+.BI "--sport, --orig-port-src " "PORT"
+Source port in original direction
+.TP
+.BI "--dport, --orig-port-dst " "PORT"
+Destination port in original direction
+.TP
+.BI "--reply-port-src " "PORT"
+Source port in reply direction
+.TP
+.BI "--reply-port-dst " "PORT"
+Destination port in reply direction
+.TP
 .SH DIAGNOSTICS
 The exit code is 0 for correct function.  Errors which appear to be caused by
 invalid command line parameters cause an exit code of 2.  Any other errors
