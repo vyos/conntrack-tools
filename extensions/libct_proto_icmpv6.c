@@ -103,10 +103,9 @@ static void final_check(unsigned int flags,
 		        unsigned int cmd,
 		        struct nf_conntrack *ct)
 {
-	generic_opt_check(flags,
-			  ICMPV6_NUMBER_OF_OPT,
-			  icmpv6_commands_v_options[cmd],
-			  icmpv6_optflags);
+	generic_opt_check(flags, ICMPV6_NUMBER_OF_OPT,
+			  icmpv6_commands_v_options[cmd], icmpv6_optflags,
+			  NULL, 0, NULL);
 }
 
 static struct ctproto_handler icmpv6 = {

@@ -56,10 +56,10 @@ static char tcp_commands_v_options[NUMBER_OF_CMD][TCP_NUMBER_OF_OPT] =
 {
 	    	/* 1 2 3 4 5 6 7 8 9 */
 /*CT_LIST*/   	  {2,2,2,2,0,0,2,0,0},
-/*CT_CREATE*/	  {2,2,2,2,0,0,1,0,0},
+/*CT_CREATE*/	  {3,3,3,3,0,0,1,0,0},
 /*CT_UPDATE*/	  {2,2,2,2,0,0,2,0,0},
 /*CT_DELETE*/	  {2,2,2,2,0,0,2,0,0},
-/*CT_GET*/	  {2,2,2,2,0,0,2,0,0},
+/*CT_GET*/	  {3,3,3,3,0,0,2,0,0},
 /*CT_FLUSH*/	  {0,0,0,0,0,0,0,0,0},
 /*CT_EVENT*/	  {2,2,2,2,0,0,2,0,0},
 /*CT_VERSION*/	  {0,0,0,0,0,0,0,0,0},
@@ -172,36 +172,36 @@ static int parse_options(char c,
 	return 1;
 }
 
+#define TCP_VALID_FLAGS_MAX   2
+static unsigned int tcp_valid_flags[TCP_VALID_FLAGS_MAX] = {
+       CT_TCP_ORIG_SPORT | CT_TCP_ORIG_DPORT,
+       CT_TCP_REPL_SPORT | CT_TCP_REPL_DPORT,
+};
+
 static void final_check(unsigned int flags,
 			unsigned int cmd,
 			struct nf_conntrack *ct)
 {
-	if ((1 << cmd) & (CT_CREATE|CT_GET)) {
-		if (!(flags & CT_TCP_ORIG_SPORT) &&
-		     (flags & CT_TCP_ORIG_DPORT)) {
-			exit_error(PARAMETER_PROBLEM,
-				   "missing `--sport'");
-		}
-		if ((flags & CT_TCP_ORIG_SPORT) &&
-		    !(flags & CT_TCP_ORIG_DPORT)) {
-			exit_error(PARAMETER_PROBLEM,
-				   "missing `--dport'");
-		}
-		if (!(flags & CT_TCP_REPL_SPORT) &&
-		    (flags & CT_TCP_REPL_DPORT)) {
-			exit_error(PARAMETER_PROBLEM,
-				   "missing `--reply-port-src'");
-		}
-		if ((flags & CT_TCP_REPL_SPORT) &&
-		    !(flags & CT_TCP_REPL_DPORT)) {
-			exit_error(PARAMETER_PROBLEM,
-				   "missing `--reply-port-dst'");
+	int ret, partial;
+
+	ret = generic_opt_check(flags, TCP_NUMBER_OF_OPT,
+				tcp_commands_v_options[cmd], tcp_optflags,
+				tcp_valid_flags, TCP_VALID_FLAGS_MAX, &partial);
+	if (!ret) {
+		switch(partial) {
+		case -1:
+		case 0:
+			exit_error(PARAMETER_PROBLEM, "you have to specify "
+						      "`--sport' and "
+						      "`--dport'");
+			break;
+		case 1:
+			exit_error(PARAMETER_PROBLEM, "you have to specify "
+						      "`--reply-src-port' and "
+						      "`--reply-dst-port'");
+			break;
 		}
 	}
-	generic_opt_check(flags, 
-			  TCP_NUMBER_OF_OPT,
-			  tcp_commands_v_options[cmd],
-			  tcp_optflags);
 }
 
 static struct ctproto_handler tcp = {

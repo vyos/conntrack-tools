@@ -103,7 +103,7 @@ static void final_check(unsigned int flags,
 	generic_opt_check(flags,
 			  ICMP_NUMBER_OF_OPT,
 			  icmp_commands_v_options[cmd],
-			  icmp_optflags);
+			  icmp_optflags, NULL, 0, NULL);
 }
 
 static struct ctproto_handler icmp = {

@@ -115,6 +115,7 @@ static unsigned int global_option_offset = 0;
  *  0  illegal
  *  1  compulsory
  *  2  optional
+ *  3  undecided, see flag combination checkings in generic_opt_check()
  */
 
 static char commands_v_options[NUMBER_OF_CMD][NUMBER_OF_OPT] =
@@ -122,10 +123,10 @@ static char commands_v_options[NUMBER_OF_CMD][NUMBER_OF_OPT] =
 {
           /*   s d r q p t u z e [ ] { } a m i f n g o c b*/
 /*CT_LIST*/   {2,2,2,2,2,0,2,2,0,0,0,0,0,0,2,0,2,2,2,2,2,0},
-/*CT_CREATE*/ {2,2,2,2,1,1,2,0,0,0,0,0,0,2,2,0,0,2,2,0,0,0},
+/*CT_CREATE*/ {3,3,3,3,1,1,2,0,0,0,0,0,0,2,2,0,0,2,2,0,0,0},
 /*CT_UPDATE*/ {2,2,2,2,2,2,2,0,0,0,0,0,0,0,2,2,2,2,2,2,0,0},
 /*CT_DELETE*/ {2,2,2,2,2,2,2,0,0,0,0,0,0,0,2,2,2,2,2,2,0,0},
-/*CT_GET*/    {2,2,2,2,1,0,0,0,0,0,0,0,0,0,0,2,0,0,0,2,0,0},
+/*CT_GET*/    {3,3,3,3,1,0,0,0,0,0,0,0,0,0,0,2,0,0,0,2,0,0},
 /*CT_FLUSH*/  {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
 /*CT_EVENT*/  {2,2,2,2,2,0,0,0,2,0,0,0,0,0,2,0,0,2,2,2,2,2},
 /*VERSION*/   {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
@@ -139,6 +140,12 @@ static char commands_v_options[NUMBER_OF_CMD][NUMBER_OF_OPT] =
 /*CT_COUNT*/  {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
 /*EXP_COUNT*/ {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
 /*X_STATS*/   {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+};
+
+#define ADDR_VALID_FLAGS_MAX   2
+static unsigned int addr_valid_flags[ADDR_VALID_FLAGS_MAX] = {
+	CT_OPT_ORIG_SRC | CT_OPT_ORIG_DST,
+	CT_OPT_REPL_SRC | CT_OPT_REPL_DST,
 };
 
 static LIST_HEAD(proto_list);
@@ -260,12 +267,12 @@ static int bit2cmd(int command)
 	return i;
 }
 
-void generic_opt_check(int local_options, 
-		       int num_opts,
-		       char *optset, 
-		       const char *optflg[])
+int generic_opt_check(int local_options, int num_opts,
+		      char *optset, const char *optflg[],
+		      unsigned int *coupled_flags, int coupled_flags_size,
+		      int *partial)
 {
-	int i;
+	int i, matching = -1, special_case = 0;
 
 	for (i = 0; i < num_opts; i++) {
 		if (!(local_options & (1<<i))) {
@@ -280,7 +287,33 @@ void generic_opt_check(int local_options,
 					   "option `--%s' with this "
 					   "command", optflg[i]);
 		}
+		if (optset[i] == 3)
+			special_case = 1;
 	}
+
+	/* no weird flags combinations, leave */
+	if (!special_case || coupled_flags == NULL)
+		return 1;
+
+	*partial = -1;
+	for (i=0; i<coupled_flags_size; i++) {
+		/* we look for an exact matching to ensure this is correct */
+		if ((local_options & coupled_flags[i]) == coupled_flags[i]) {
+			matching = i;
+			break;
+		}
+		/* ... otherwise look for the first partial matching */
+		if ((local_options & coupled_flags[i]) && *partial < 0) {
+			*partial = i;
+		}
+	}
+
+	/* we found an exact matching, game over */
+	if (matching >= 0)
+		return 1;
+
+	/* report a partial matching to suggest something */
+	return 0;
 }
 
 static struct option *
@@ -995,7 +1028,7 @@ int main(int argc, char *argv[])
 {
 	int c, cmd;
 	unsigned int type = 0, event_mask = 0, l4flags = 0, status = 0;
-	int res = 0;
+	int res = 0, partial;
 	size_t socketbuffersize = 0;
 	int family = AF_UNSPEC;
 	char __obj[nfct_maxsize()];
@@ -1197,16 +1230,24 @@ int main(int argc, char *argv[])
 		family = AF_INET;
 
 	cmd = bit2cmd(command);
-	generic_opt_check(options,
-			  NUMBER_OF_OPT,
-			  commands_v_options[cmd],
-			  optflags);
-
-	if (command & (CT_CREATE|CT_GET) &&
-	    !((options & CT_OPT_ORIG_SRC && options & CT_OPT_ORIG_DST) ||
-	      (options & CT_OPT_REPL_SRC && options & CT_OPT_REPL_DST)))
-	      exit_error(PARAMETER_PROBLEM, "missing IP address");
-
+	res = generic_opt_check(options, NUMBER_OF_OPT,
+				commands_v_options[cmd], optflags,
+				addr_valid_flags, ADDR_VALID_FLAGS_MAX,
+				&partial);
+	if (!res) {
+		switch(partial) {
+		case -1:
+		case 0:
+			exit_error(PARAMETER_PROBLEM, "you have to specify "
+						      "`--src' and `--dst'");
+			break;
+		case 1:
+			exit_error(PARAMETER_PROBLEM, "you have to specify "
+						      "`--reply-src' and "
+						      "`--reply-dst'");
+			break;
+		}
+	}
 	if (!(command & CT_HELP) && h && h->final_check)
 		h->final_check(l4flags, cmd, obj);
 

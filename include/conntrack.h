@@ -188,10 +188,10 @@ enum exittype {
 	VERSION_PROBLEM
 };
 
-void generic_opt_check(int options, 
-		       int nops,
-		       char *optset,
-		       const char *optflg[]);
+int generic_opt_check(int options, int nops,
+		      char *optset, const char *optflg[],
+		      unsigned int *coupled_flags, int coupled_flags_size,
+		      int *partial);
 void exit_error(enum exittype status, const char *msg, ...);
 
 extern void register_proto(struct ctproto_handler *h);
