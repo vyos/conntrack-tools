@@ -155,7 +155,7 @@ static int parse_options(char c,
 			}
 			if (i == TCP_CONNTRACK_MAX)
 				exit_error(PARAMETER_PROBLEM,
-					   "Unknown TCP state %s\n", optarg);
+					   "unknown TCP state `%s'", optarg);
 			*flags |= CT_TCP_STATE;
 			break;
 		case '8':
