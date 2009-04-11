@@ -108,68 +108,66 @@ static int parse_options(char c,
 	u_int16_t port;
 
 	switch(c) {
-		case '1':
-			port = htons(atoi(optarg));
-			nfct_set_attr_u16(ct, ATTR_ORIG_PORT_SRC, port);
-			nfct_set_attr_u8(ct, ATTR_ORIG_L4PROTO, IPPROTO_TCP);
-			*flags |= CT_TCP_ORIG_SPORT;
-			break;
-		case '2':
-			port = htons(atoi(optarg));
-			nfct_set_attr_u16(ct, ATTR_ORIG_PORT_DST, port);
-			nfct_set_attr_u8(ct, ATTR_ORIG_L4PROTO, IPPROTO_TCP);
-			*flags |= CT_TCP_ORIG_DPORT;
-			break;
-		case '3':
-			port = htons(atoi(optarg));
-			nfct_set_attr_u16(ct, ATTR_REPL_PORT_SRC, port);
-			nfct_set_attr_u8(ct, ATTR_REPL_L4PROTO, IPPROTO_TCP);
-			*flags |= CT_TCP_REPL_SPORT;
-			break;
-		case '4':
-			port = htons(atoi(optarg));
-			nfct_set_attr_u16(ct, ATTR_REPL_PORT_DST, port);
-			nfct_set_attr_u8(ct, ATTR_REPL_L4PROTO, IPPROTO_TCP);
-			*flags |= CT_TCP_REPL_DPORT;
-			break;
-		case '5':
-			port = htons(atoi(optarg));
-			nfct_set_attr_u16(mask, ATTR_ORIG_PORT_SRC, port);
-			nfct_set_attr_u8(mask, ATTR_ORIG_L4PROTO, IPPROTO_TCP);
-			*flags |= CT_TCP_MASK_SPORT;
-			break;
-		case '6':
-			port = htons(atoi(optarg));
-			nfct_set_attr_u16(mask, ATTR_ORIG_PORT_DST, port);
-			nfct_set_attr_u8(mask, ATTR_ORIG_L4PROTO, IPPROTO_TCP);
-			*flags |= CT_TCP_MASK_DPORT;
-			break;
-		case '7':
-			for (i=0; i<TCP_CONNTRACK_MAX; i++) {
-				if (strcmp(optarg, tcp_states[i]) == 0) {
-					nfct_set_attr_u8(ct,
-							 ATTR_TCP_STATE,
-							 i);
-					break;
-				}
+	case '1':
+		port = htons(atoi(optarg));
+		nfct_set_attr_u16(ct, ATTR_ORIG_PORT_SRC, port);
+		nfct_set_attr_u8(ct, ATTR_ORIG_L4PROTO, IPPROTO_TCP);
+		*flags |= CT_TCP_ORIG_SPORT;
+		break;
+	case '2':
+		port = htons(atoi(optarg));
+		nfct_set_attr_u16(ct, ATTR_ORIG_PORT_DST, port);
+		nfct_set_attr_u8(ct, ATTR_ORIG_L4PROTO, IPPROTO_TCP);
+		*flags |= CT_TCP_ORIG_DPORT;
+		break;
+	case '3':
+		port = htons(atoi(optarg));
+		nfct_set_attr_u16(ct, ATTR_REPL_PORT_SRC, port);
+		nfct_set_attr_u8(ct, ATTR_REPL_L4PROTO, IPPROTO_TCP);
+		*flags |= CT_TCP_REPL_SPORT;
+		break;
+	case '4':
+		port = htons(atoi(optarg));
+		nfct_set_attr_u16(ct, ATTR_REPL_PORT_DST, port);
+		nfct_set_attr_u8(ct, ATTR_REPL_L4PROTO, IPPROTO_TCP);
+		*flags |= CT_TCP_REPL_DPORT;
+		break;
+	case '5':
+		port = htons(atoi(optarg));
+		nfct_set_attr_u16(mask, ATTR_ORIG_PORT_SRC, port);
+		nfct_set_attr_u8(mask, ATTR_ORIG_L4PROTO, IPPROTO_TCP);
+		*flags |= CT_TCP_MASK_SPORT;
+		break;
+	case '6':
+		port = htons(atoi(optarg));
+		nfct_set_attr_u16(mask, ATTR_ORIG_PORT_DST, port);
+		nfct_set_attr_u8(mask, ATTR_ORIG_L4PROTO, IPPROTO_TCP);
+		*flags |= CT_TCP_MASK_DPORT;
+		break;
+	case '7':
+		for (i=0; i<TCP_CONNTRACK_MAX; i++) {
+			if (strcmp(optarg, tcp_states[i]) == 0) {
+				nfct_set_attr_u8(ct, ATTR_TCP_STATE, i);
+				break;
 			}
-			if (i == TCP_CONNTRACK_MAX)
-				exit_error(PARAMETER_PROBLEM,
-					   "unknown TCP state `%s'", optarg);
-			*flags |= CT_TCP_STATE;
-			break;
-		case '8':
-			port = htons(atoi(optarg));
-			nfct_set_attr_u16(exptuple, ATTR_ORIG_PORT_SRC, port);
-			nfct_set_attr_u8(exptuple, ATTR_ORIG_L4PROTO, port);
-			*flags |= CT_TCP_EXPTUPLE_SPORT;
-			break;
-		case '9':
-			port = htons(atoi(optarg));
-			nfct_set_attr_u16(exptuple, ATTR_ORIG_PORT_DST, port); 
-			nfct_set_attr_u8(exptuple, ATTR_ORIG_L4PROTO, port);
-			*flags |= CT_TCP_EXPTUPLE_DPORT;
-			break;
+		}
+		if (i == TCP_CONNTRACK_MAX)
+			exit_error(PARAMETER_PROBLEM,
+				   "unknown TCP state `%s'", optarg);
+		*flags |= CT_TCP_STATE;
+		break;
+	case '8':
+		port = htons(atoi(optarg));
+		nfct_set_attr_u16(exptuple, ATTR_ORIG_PORT_SRC, port);
+		nfct_set_attr_u8(exptuple, ATTR_ORIG_L4PROTO, port);
+		*flags |= CT_TCP_EXPTUPLE_SPORT;
+		break;
+	case '9':
+		port = htons(atoi(optarg));
+		nfct_set_attr_u16(exptuple, ATTR_ORIG_PORT_DST, port); 
+		nfct_set_attr_u8(exptuple, ATTR_ORIG_L4PROTO, port);
+		*flags |= CT_TCP_EXPTUPLE_DPORT;
+		break;
 	}
 	return 1;
 }
