@@ -214,6 +214,29 @@ Source port in reply direction
 .BI "--reply-port-dst " "PORT"
 Destination port in reply direction
 .TP
+SCTP-specific fields:
+.TP
+.BI "--sport, --orig-port-src " "PORT"
+Source port in original direction
+.TP
+.BI "--dport, --orig-port-dst " "PORT"
+Destination port in original direction
+.TP
+.BI "--reply-port-src " "PORT"
+Source port in reply direction
+.TP
+.BI "--reply-port-dst " "PORT"
+Destination port in reply direction
+.TP
+.BI "--state " "[NONE | CLOSED | COOKIE_WAIT | COOKIE_ECHOED | ESTABLISHED | SHUTDOWN_SENT | SHUTDOWN_RECD | SHUTDOWN_ACK_SENT]"
+SCTP state
+.TP
+.BI "--orig-vtag " "value"
+Verification tag (32-bits value) in the original direction
+.TP
+.BI "--reply-vtag " "value"
+Verification tag (32-bits value) in the reply direction
+.TP
 .SH DIAGNOSTICS
 The exit code is 0 for correct function.  Errors which appear to be caused by
 invalid command line parameters cause an exit code of 2.  Any other errors

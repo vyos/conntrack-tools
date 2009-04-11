@@ -8,9 +8,6 @@
 #define PROGNAME "conntrack"
 
 #include <netinet/in.h>
-#ifndef IPPROTO_SCTP
-#define IPPROTO_SCTP 132
-#endif
 
 enum action {
 	CT_NONE		= 0,
@@ -199,6 +196,7 @@ extern void register_proto(struct ctproto_handler *h);
 extern void register_tcp(void);
 extern void register_udp(void);
 extern void register_udplite(void);
+extern void register_sctp(void);
 extern void register_icmp(void);
 extern void register_icmpv6(void);
 extern void register_unknown(void);
