@@ -1053,6 +1053,7 @@ int main(int argc, char *argv[])
 	register_udp();
 	register_udplite();
 	register_sctp();
+	register_dccp();
 	register_icmp();
 	register_icmpv6();
 	register_unknown();
