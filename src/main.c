@@ -26,6 +26,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <sched.h>
 #include <limits.h>
 
 struct ct_general_state st;
@@ -296,6 +297,23 @@ int main(int argc, char *argv[])
 	close(ret);
 
 	/*
+	 * Setting process priority and scheduler
+	 */
+	nice(CONFIG(nice));
+
+	if (CONFIG(sched).type != SCHED_OTHER) {
+		struct sched_param schedparam = {
+			.sched_priority = CONFIG(sched).prio,
+		};
+
+		ret = sched_setscheduler(0, CONFIG(sched).type, &schedparam);
+		if (ret == -1) {
+			perror("sched");
+			exit(EXIT_FAILURE);
+		}
+	}
+
+	/*
 	 * initialization process
 	 */
 
@@ -309,7 +327,6 @@ int main(int argc, char *argv[])
 
 	chdir("/");
 	close(STDIN_FILENO);
-	nice(CONFIG(nice));
 
 	/* Daemonize conntrackd */
 	if (type == DAEMON) {

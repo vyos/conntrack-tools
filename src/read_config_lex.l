@@ -132,6 +132,9 @@ notrack		[N|n][O|o][T|t][R|r][A|a][C|c][K|k]
 "PollSecs"			{ return T_POLL_SECS; }
 "NetlinkOverrunResync"		{ return T_NETLINK_OVERRUN_RESYNC; }
 "Nice"				{ return T_NICE; }
+"Scheduler"			{ return T_SCHEDULER; }
+"Type"				{ return T_TYPE; }
+"Priority"			{ return T_PRIO; }
 
 {is_on}			{ return T_ON; }
 {is_off}		{ return T_OFF; }

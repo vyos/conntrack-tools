@@ -95,6 +95,10 @@ struct ct_conf {
 	int filter_from_kernelspace;
 	int event_iterations_limit;
 	struct {
+		int type;
+		int prio;
+	} sched;
+	struct {
 		char logfile[FILENAME_MAXLEN];
 		int syslog_facility;
 		size_t buffer_size;

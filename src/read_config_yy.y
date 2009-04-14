@@ -29,6 +29,7 @@
 #include "bitops.h"
 #include "cidr.h"
 #include <syslog.h>
+#include <sched.h>
 #include <libnetfilter_conntrack/libnetfilter_conntrack.h>
 #include <libnetfilter_conntrack/libnetfilter_conntrack_tcp.h>
 
@@ -70,6 +71,7 @@ static void __max_dedicated_links_reached(void);
 %token T_FILTER T_ADDRESS T_PROTOCOL T_STATE T_ACCEPT T_IGNORE
 %token T_FROM T_USERSPACE T_KERNELSPACE T_EVENT_ITER_LIMIT T_DEFAULT
 %token T_NETLINK_OVERRUN_RESYNC T_NICE T_IPV4_DEST_ADDR T_IPV6_DEST_ADDR
+%token T_SCHEDULER T_TYPE T_PRIO
 
 %token <string> T_IP T_PATH_VAL
 %token <val> T_NUMBER
@@ -870,6 +872,7 @@ general_line: hashsize
 	    | filter
 	    | netlink_overrun_resync
 	    | nice
+	    | scheduler
 	    ;
 
 netlink_buffer_size: T_BUFFER_SIZE T_NUMBER
@@ -900,6 +903,33 @@ netlink_overrun_resync : T_NETLINK_OVERRUN_RESYNC T_NUMBER
 nice : T_NICE T_SIGNED_NUMBER
 {
 	conf.nice = $2;
+};
+
+scheduler : T_SCHEDULER '{' scheduler_options '}';
+
+scheduler_options :
+		  | scheduler_options scheduler_line
+		  ;
+
+scheduler_line : T_TYPE T_STRING
+{
+	if (strcasecmp($2, "rr") == 0) {
+		conf.sched.type = SCHED_RR;
+	} else if (strcasecmp($2, "fifo") == 0) {
+		conf.sched.type = SCHED_FIFO;
+	} else {
+		print_err(CTD_CFG_ERROR, "unknown scheduler `%s'", $2);
+		exit(EXIT_FAILURE);
+	}
+};
+
+scheduler_line : T_PRIO T_NUMBER
+{
+	conf.sched.prio = $2;
+	if (conf.sched.prio < 0 || conf.sched.prio > 99) {
+		print_err(CTD_CFG_ERROR, "`Priority' must be [0, 99]\n", $2);
+		exit(EXIT_FAILURE);
+	}
 };
 
 family : T_FAMILY T_STRING
