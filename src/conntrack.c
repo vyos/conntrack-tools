@@ -670,7 +670,7 @@ event_sighandler(int s)
 	}
 
 	fprintf(stderr, "%s v%s (conntrack-tools): ", PROGNAME, VERSION);
-	fprintf(stderr, "%d flow events has been shown.\n", counter);
+	fprintf(stderr, "%d flow events have been shown.\n", counter);
 	nfct_close(cth);
 	exit(0);
 }
@@ -1014,14 +1014,14 @@ static const int opt2attr[] = {
 };
 
 static char exit_msg[NUMBER_OF_CMD][64] = {
-	[CT_LIST_BIT] 		= "%d flow entries has been shown.\n",
-	[CT_CREATE_BIT]		= "%d flow entries has been created.\n",
-	[CT_UPDATE_BIT]		= "%d flow entries has been updated.\n",
-	[CT_DELETE_BIT]		= "%d flow entries has been deleted.\n",
-	[CT_GET_BIT] 		= "%d flow entries has been shown.\n",
-	[CT_EVENT_BIT]		= "%d flow events has been shown.\n",
-	[EXP_LIST_BIT]		= "%d expectations has been shown.\n",
-	[EXP_DELETE_BIT]	= "%d expectations has been shown.\n",
+	[CT_LIST_BIT] 		= "%d flow entries have been shown.\n",
+	[CT_CREATE_BIT]		= "%d flow entries have been created.\n",
+	[CT_UPDATE_BIT]		= "%d flow entries have been updated.\n",
+	[CT_DELETE_BIT]		= "%d flow entries have been deleted.\n",
+	[CT_GET_BIT] 		= "%d flow entries have been shown.\n",
+	[CT_EVENT_BIT]		= "%d flow events have been shown.\n",
+	[EXP_LIST_BIT]		= "%d expectations have been shown.\n",
+	[EXP_DELETE_BIT]	= "%d expectations have been shown.\n",
 };
 
 int main(int argc, char *argv[])
