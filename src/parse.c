@@ -29,6 +29,7 @@ static void parse_u16(struct nf_conntrack *ct, int attr, void *data);
 static void parse_u32(struct nf_conntrack *ct, int attr, void *data);
 static void parse_group(struct nf_conntrack *ct, int attr, void *data);
 static void parse_nat_seq_adj(struct nf_conntrack *ct, int attr, void *data);
+static void parse_sctp(struct nf_conntrack *ct, int attr, void *data);
 
 struct parser {
 	void 	(*parse)(struct nf_conntrack *ct, int attr, void *data);
@@ -57,7 +58,7 @@ static struct parser h[NTA_MAX] = {
 		.attr	= ATTR_L4PROTO,
 		.size	= NTA_SIZE(sizeof(uint8_t)),
 	},
-	[NTA_STATE] = {
+	[NTA_STATE_TCP] = {
 		.parse	= parse_u8,
 		.attr	= ATTR_TCP_STATE,
 		.size	= NTA_SIZE(sizeof(uint8_t)),
@@ -121,6 +122,10 @@ static struct parser h[NTA_MAX] = {
 		.parse	= parse_nat_seq_adj,
 		.size	= NTA_SIZE(sizeof(struct nta_attr_natseqadj)),
 	},
+	[NTA_STATE_SCTP] = {
+		.parse	= parse_sctp,
+		.size	= NTA_SIZE(sizeof(struct nta_attr_sctp)),
+	},
 };
 
 static void
@@ -166,6 +171,15 @@ parse_nat_seq_adj(struct nf_conntrack *ct, int attr, void *data)
 			  ntohl(this->orig_seq_correction_pos));
 	nfct_set_attr_u32(ct, ATTR_REPL_NAT_SEQ_OFFSET_AFTER, 
 			  ntohl(this->orig_seq_correction_pos));
+}
+
+static void
+parse_sctp(struct nf_conntrack *ct, int attr, void *data)
+{
+	struct nta_attr_sctp *this = data;
+	nfct_set_attr_u8(ct, ATTR_SCTP_STATE, this->state);
+	nfct_set_attr_u32(ct, ATTR_SCTP_VTAG_ORIG, ntohl(this->vtag_orig));
+	nfct_set_attr_u32(ct, ATTR_SCTP_VTAG_REPL, ntohl(this->vtag_repl));
 }
 
 int parse_payload(struct nf_conntrack *ct, struct nethdr *net, size_t remain)

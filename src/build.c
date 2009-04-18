@@ -92,6 +92,17 @@ __build_natseqadj(const struct nf_conntrack *ct, struct nethdr *n)
 	addattr(n, NTA_NAT_SEQ_ADJ, &data, sizeof(struct nta_attr_natseqadj));
 }
 
+static inline void 
+__build_sctp(const struct nf_conntrack *ct, struct nethdr *n)
+{
+	struct nta_attr_sctp data = {
+		.state = nfct_get_attr_u8(ct, ATTR_SCTP_STATE),
+		.vtag_orig = htonl(nfct_get_attr_u32(ct, ATTR_SCTP_VTAG_ORIG)),
+		.vtag_repl = htonl(nfct_get_attr_u32(ct, ATTR_SCTP_VTAG_REPL)),
+	};
+	addattr(n, NTA_STATE_SCTP, &data, sizeof(struct nta_attr_sctp));
+}
+
 static enum nf_conntrack_attr nat_type[] =
 	{ ATTR_ORIG_NAT_SEQ_CORRECTION_POS, ATTR_ORIG_NAT_SEQ_OFFSET_BEFORE,
 	  ATTR_ORIG_NAT_SEQ_OFFSET_AFTER, ATTR_REPL_NAT_SEQ_CORRECTION_POS,
@@ -117,7 +128,10 @@ void build_payload(const struct nf_conntrack *ct, struct nethdr *n)
 	__build_u32(ct, ATTR_STATUS, n, NTA_STATUS); 
 
 	if (nfct_attr_is_set(ct, ATTR_TCP_STATE))
-		__build_u8(ct, ATTR_TCP_STATE, n, NTA_STATE);
+		__build_u8(ct, ATTR_TCP_STATE, n, NTA_STATE_TCP);
+	else if (nfct_attr_is_set(ct, ATTR_SCTP_STATE))
+		__build_sctp(ct, n);
+
 	if (!CONFIG(commit_timeout) && nfct_attr_is_set(ct, ATTR_TIMEOUT))
 		__build_u32(ct, ATTR_TIMEOUT, n, NTA_TIMEOUT);
 	if (nfct_attr_is_set(ct, ATTR_MARK))
