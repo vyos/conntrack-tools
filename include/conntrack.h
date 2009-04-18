@@ -200,6 +200,7 @@ extern void register_sctp(void);
 extern void register_dccp(void);
 extern void register_icmp(void);
 extern void register_icmpv6(void);
+extern void register_gre(void);
 extern void register_unknown(void);
 
 #endif

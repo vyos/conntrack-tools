@@ -1056,6 +1056,7 @@ int main(int argc, char *argv[])
 	register_dccp();
 	register_icmp();
 	register_icmpv6();
+	register_gre();
 	register_unknown();
 
 	/* disable explicit missing arguments error output from getopt_long */

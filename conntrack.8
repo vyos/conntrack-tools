@@ -254,6 +254,20 @@ Destination port in reply direction
 .BI "--state " "[NONE | REQUEST | RESPOND | PARTOPEN | OPEN | CLOSEREQ | CLOSING | TIMEWAIT]"
 DCCP state
 .TP
+GRE-specific fields:
+.TP
+.BI "--srckey, --orig-key-src " "KEY"
+Source key in original direction (in hexadecimal or decimal)
+.TP
+.BI "--dstkey, --orig-key-dst " "KEY"
+Destination key in original direction (in hexadecimal or decimal)
+.TP
+.BI "--reply-key-src " "KEY"
+Source key in reply direction (in hexadecimal or decimal)
+.TP
+.BI "--reply-key-dst " "KEY"
+Destination key in reply direction (in hexadecimal or decimal)
+.TP
 .SH DIAGNOSTICS
 The exit code is 0 for correct function.  Errors which appear to be caused by
 invalid command line parameters cause an exit code of 2.  Any other errors
