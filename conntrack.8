@@ -237,7 +237,7 @@ Verification tag (32-bits value) in the original direction
 .BI "--reply-vtag " "value"
 Verification tag (32-bits value) in the reply direction
 .TP
-DCCP-specific fields:
+DCCP-specific fields (needs Linux >= 2.6.30):
 .TP
 .BI "--sport, --orig-port-src " "PORT"
 Source port in original direction
@@ -253,6 +253,8 @@ Destination port in reply direction
 .TP
 .BI "--state " "[NONE | REQUEST | RESPOND | PARTOPEN | OPEN | CLOSEREQ | CLOSING | TIMEWAIT]"
 DCCP state
+.BI "--role " "[client | server]"
+Role that the original conntrack tuple is tracking
 .TP
 GRE-specific fields:
 .TP
