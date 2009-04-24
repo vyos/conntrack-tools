@@ -30,6 +30,7 @@ static void parse_u32(struct nf_conntrack *ct, int attr, void *data);
 static void parse_group(struct nf_conntrack *ct, int attr, void *data);
 static void parse_nat_seq_adj(struct nf_conntrack *ct, int attr, void *data);
 static void parse_sctp(struct nf_conntrack *ct, int attr, void *data);
+static void parse_dccp(struct nf_conntrack *ct, int attr, void *data);
 
 struct parser {
 	void 	(*parse)(struct nf_conntrack *ct, int attr, void *data);
@@ -126,6 +127,10 @@ static struct parser h[NTA_MAX] = {
 		.parse	= parse_sctp,
 		.size	= NTA_SIZE(sizeof(struct nta_attr_sctp)),
 	},
+	[NTA_STATE_DCCP] = {
+		.parse	= parse_dccp,
+		.size	= NTA_SIZE(sizeof(struct nta_attr_dccp)),
+	},
 };
 
 static void
@@ -180,6 +185,14 @@ parse_sctp(struct nf_conntrack *ct, int attr, void *data)
 	nfct_set_attr_u8(ct, ATTR_SCTP_STATE, this->state);
 	nfct_set_attr_u32(ct, ATTR_SCTP_VTAG_ORIG, ntohl(this->vtag_orig));
 	nfct_set_attr_u32(ct, ATTR_SCTP_VTAG_REPL, ntohl(this->vtag_repl));
+}
+
+static void
+parse_dccp(struct nf_conntrack *ct, int attr, void *data)
+{
+	struct nta_attr_dccp *this = data;
+	nfct_set_attr_u8(ct, ATTR_DCCP_STATE, this->state);
+	nfct_set_attr_u8(ct, ATTR_DCCP_ROLE, this->role);
 }
 
 int parse_payload(struct nf_conntrack *ct, struct nethdr *net, size_t remain)

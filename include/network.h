@@ -213,6 +213,7 @@ enum nta_attr {
 	NTA_DPAT_PORT,		/* uint16_t */
 	NTA_NAT_SEQ_ADJ = 16,	/* struct nta_attr_natseqadj */
 	NTA_STATE_SCTP,		/* struct nta_attr_sctp */
+	NTA_STATE_DCCP,		/* struct nta_attr_dccp */
 	NTA_MAX
 };
 
@@ -228,6 +229,10 @@ struct nta_attr_natseqadj {
 struct nta_attr_sctp {
 	uint8_t state;
 	uint32_t vtag_orig, vtag_repl;
+};
+
+struct nta_attr_dccp {
+	uint8_t state, role;
 };
 
 void build_payload(const struct nf_conntrack *ct, struct nethdr *n);
