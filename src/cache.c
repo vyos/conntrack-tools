@@ -95,7 +95,6 @@ static int compare(const void *data1, const void *data2)
 
 struct cache_feature *cache_feature[CACHE_MAX_FEATURE] = {
 	[TIMER_FEATURE]		= &timer_feature,
-	[WRITE_THROUGH_FEATURE] = &writethrough_feature,
 };
 
 struct cache *cache_create(const char *name, 

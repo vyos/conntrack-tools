@@ -274,10 +274,6 @@ static int init_sync(void)
 		return -1;
 	}
 
-	/* straight forward commit of conntrack to kernel space */
-	if (CONFIG(cache_write_through))
-		STATE_SYNC(sync)->external_cache_flags |= WRITE_THROUGH;
-
 	STATE_SYNC(external) = 
 		cache_create("external",
 			     STATE_SYNC(sync)->external_cache_flags,

@@ -842,12 +842,14 @@ tcp_state: T_LISTEN
 
 cache_writethrough: T_WRITE_THROUGH T_ON
 {
-	conf.cache_write_through = 1;
+	print_err(CTD_CFG_WARN, "`CacheWriteThrough' clause is obsolete, "
+				"ignoring");
 };
 
 cache_writethrough: T_WRITE_THROUGH T_OFF
 {
-	conf.cache_write_through = 0;
+	print_err(CTD_CFG_WARN, "`CacheWriteThrough' clause is obsolete, "
+				"ignoring");
 };
 
 general: T_GENERAL '{' general_list '}';

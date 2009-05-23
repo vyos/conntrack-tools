@@ -91,7 +91,6 @@ struct ct_conf {
 	unsigned int resend_queue_size; /* FTFW protocol */
 	unsigned int window_size;
 	int poll_kernel_secs;
-	int cache_write_through;
 	int filter_from_kernelspace;
 	int event_iterations_limit;
 	struct {
