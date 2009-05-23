@@ -26,6 +26,7 @@
 #include "fds.h"
 #include "event.h"
 #include "queue.h"
+#include "process.h"
 
 #include <errno.h>
 #include <unistd.h>
@@ -391,28 +392,28 @@ static int local_handler_sync(int fd, int type, void *data)
 
 	switch(type) {
 	case DUMP_INTERNAL:
-		ret = fork();
+		ret = fork_process_new(NULL, NULL);
 		if (ret == 0) {
 			cache_dump(STATE_SYNC(internal), fd, NFCT_O_PLAIN);
 			exit(EXIT_SUCCESS);
 		}
 		break;
 	case DUMP_EXTERNAL:
-		ret = fork();
+		ret = fork_process_new(NULL, NULL);
 		if (ret == 0) {
 			cache_dump(STATE_SYNC(external), fd, NFCT_O_PLAIN);
 			exit(EXIT_SUCCESS);
 		} 
 		break;
 	case DUMP_INT_XML:
-		ret = fork();
+		ret = fork_process_new(NULL, NULL);
 		if (ret == 0) {
 			cache_dump(STATE_SYNC(internal), fd, NFCT_O_XML);
 			exit(EXIT_SUCCESS);
 		}
 		break;
 	case DUMP_EXT_XML:
-		ret = fork();
+		ret = fork_process_new(NULL, NULL);
 		if (ret == 0) {
 			cache_dump(STATE_SYNC(external), fd, NFCT_O_XML);
 			exit(EXIT_SUCCESS);
@@ -421,7 +422,7 @@ static int local_handler_sync(int fd, int type, void *data)
 	case COMMIT:
 		/* delete the reset alarm if any before committing */
 		del_alarm(&STATE_SYNC(reset_cache_alarm));
-		ret = fork();
+		ret = fork_process_new(NULL, NULL);
 		if (ret == 0) {
 			dlog(LOG_NOTICE, "committing external cache");
 			cache_commit(STATE_SYNC(external));

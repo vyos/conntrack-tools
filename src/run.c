@@ -25,6 +25,7 @@
 #include "alarm.h"
 #include "fds.h"
 #include "traffic_stats.h"
+#include "process.h"
 
 #include <errno.h>
 #include <signal.h>
@@ -77,6 +78,9 @@ static void child(int foo)
 			STATE(stats).wait_failed++;
 			break;
 		}
+		/* delete process from list and run the callback */
+		fork_process_delete(ret);
+
 		if (!WIFSIGNALED(status))
 			continue;
 
