@@ -5,6 +5,7 @@ enum {
 	CTD_ORIGIN_NOT_ME = 0,		/* this event comes from the kernel or
 					   any process, but not conntrackd */
 	CTD_ORIGIN_COMMIT,		/* event comes from committer */
+	CTD_ORIGIN_FLUSH,		/* event comes from flush */
 };
 
 int origin_register(struct nfct_handle *h, int origin_type);
