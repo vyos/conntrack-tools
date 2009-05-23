@@ -175,19 +175,15 @@ static int do_commit_master(void *data, struct hashtable_node *n)
 }
 
 /* no need to clone, called from child process */
-void cache_commit(struct cache *c)
+void cache_commit(struct cache *c, struct nfct_handle *h)
 {
 	unsigned int commit_ok = c->stats.commit_ok;
 	unsigned int commit_fail = c->stats.commit_fail;
-	struct __commit_container tmp;
+	struct __commit_container tmp = {
+		.h = h,
+		.c = c,
+	};
 	struct timeval commit_start, commit_stop, res;
-
-	tmp.h = nfct_open(CONNTRACK, 0);
-	if (tmp.h == NULL) {
-		dlog(LOG_ERR, "can't create handler to commit entries");
-		return;
-	}
-	tmp.c = c;
 
 	gettimeofday(&commit_start, NULL);
 	/* commit master conntrack first, then related ones */
@@ -206,7 +202,6 @@ void cache_commit(struct cache *c)
 	if (commit_fail)
 		dlog(LOG_NOTICE, "%u entries can't be "
 				 "committed", commit_fail);
-	nfct_close(tmp.h);
 
 	dlog(LOG_NOTICE, "commit has taken %lu.%06lu seconds", 
 			res.tv_sec, res.tv_usec);

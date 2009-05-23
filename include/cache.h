@@ -121,8 +121,10 @@ void *cache_get_extra(struct cache *, void *);
 void cache_iterate(struct cache *c, void *data, int (*iterate)(void *data1, void *data2));
 
 /* iterators */
+struct nfct_handle;
+
 void cache_dump(struct cache *c, int fd, int type);
-void cache_commit(struct cache *c);
+void cache_commit(struct cache *c, struct nfct_handle *h);
 void cache_flush(struct cache *c);
 void cache_bulk(struct cache *c);
 

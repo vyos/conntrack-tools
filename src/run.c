@@ -26,6 +26,7 @@
 #include "fds.h"
 #include "traffic_stats.h"
 #include "process.h"
+#include "origin.h"
 
 #include <errno.h>
 #include <signal.h>
@@ -228,10 +229,13 @@ static void do_polling_alarm(struct alarm_block *a, void *data)
 	add_alarm(&STATE(polling_alarm), CONFIG(poll_kernel_secs), 0);
 }
 
-static int event_handler(enum nf_conntrack_msg_type type,
+static int event_handler(const struct nlmsghdr *nlh,
+			 enum nf_conntrack_msg_type type,
 			 struct nf_conntrack *ct,
 			 void *data)
 {
+	int origin_type;
+
 	STATE(stats).nl_events_received++;
 
 	/* skip user-space filtering if already do it in the kernel */
@@ -240,15 +244,17 @@ static int event_handler(enum nf_conntrack_msg_type type,
 		goto out;
 	}
 
+	origin_type = origin_find(nlh);
+
 	switch(type) {
 	case NFCT_T_NEW:
-		STATE(mode)->event_new(ct);
+		STATE(mode)->event_new(ct, origin_type);
 		break;
 	case NFCT_T_UPDATE:
-		STATE(mode)->event_upd(ct);
+		STATE(mode)->event_upd(ct, origin_type);
 		break;
 	case NFCT_T_DESTROY:
-		if (STATE(mode)->event_dst(ct))
+		if (STATE(mode)->event_dst(ct, origin_type))
 			update_traffic_stats(ct);
 		break;
 	default:
@@ -334,8 +340,8 @@ init(void)
 			dlog(LOG_ERR, "no ctnetlink kernel support?");
 			return -1;
 		}
-		nfct_callback_register(STATE(event), NFCT_T_ALL,
-				       event_handler, NULL);
+		nfct_callback_register2(STATE(event), NFCT_T_ALL,
+				        event_handler, NULL);
 		register_fd(nfct_fd(STATE(event)), STATE(fds));
 	}
 

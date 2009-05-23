@@ -218,9 +218,9 @@ struct ct_mode {
 		      struct nf_conntrack *ct,
 		      void *data);
 	int (*purge)(void);
-	void (*event_new)(struct nf_conntrack *ct);
-	void (*event_upd)(struct nf_conntrack *ct);
-	int (*event_dst)(struct nf_conntrack *ct);
+	void (*event_new)(struct nf_conntrack *ct, int origin);
+	void (*event_upd)(struct nf_conntrack *ct, int origin);
+	int (*event_dst)(struct nf_conntrack *ct, int origin);
 };
 
 /* conntrackd modes */

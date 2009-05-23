@@ -27,6 +27,7 @@
 #include "event.h"
 #include "queue.h"
 #include "process.h"
+#include "origin.h"
 
 #include <errno.h>
 #include <unistd.h>
@@ -385,6 +386,14 @@ static void dump_stats_sync_extended(int fd)
 	send(fd, buf, size, 0);
 }
 
+/* this is called once the committer process has finished */
+static void commit_done_cb(void *data)
+{
+	struct nfct_handle *h = data;
+	origin_unregister(h);
+	nfct_close(h);
+}
+
 /* handler for requests coming via UNIX socket */
 static int local_handler_sync(int fd, int type, void *data)
 {
@@ -419,16 +428,29 @@ static int local_handler_sync(int fd, int type, void *data)
 			exit(EXIT_SUCCESS);
 		}
 		break;
-	case COMMIT:
+	case COMMIT: {
+		struct nfct_handle *h;
+
 		/* delete the reset alarm if any before committing */
 		del_alarm(&STATE_SYNC(reset_cache_alarm));
-		ret = fork_process_new(NULL, NULL);
+
+		/* disposable handler for commit operations */
+		h = nfct_open(CONNTRACK, 0);
+		if (h == NULL) {
+			dlog(LOG_ERR, "can't create handler to commit");
+			break;
+		}
+		origin_register(h, CTD_ORIGIN_COMMIT);
+
+		/* fork new process and insert it the process list */
+		ret = fork_process_new(commit_done_cb, h);
 		if (ret == 0) {
 			dlog(LOG_NOTICE, "committing external cache");
-			cache_commit(STATE_SYNC(external));
+			cache_commit(STATE_SYNC(external), h);
 			exit(EXIT_SUCCESS);
 		}
 		break;
+	}
 	case RESET_TIMERS:
 		if (!alarm_pending(&STATE_SYNC(reset_cache_alarm))) {
 			dlog(LOG_NOTICE, "flushing conntrack table in %d secs",
@@ -557,7 +579,8 @@ static int resync_sync(enum nf_conntrack_msg_type type,
 	return NFCT_CB_CONTINUE;
 }
 
-static void event_new_sync(struct nf_conntrack *ct)
+static void
+event_new_sync(struct nf_conntrack *ct, int origin)
 {
 	struct cache_object *obj;
 	int id;
@@ -578,7 +601,11 @@ retry:
 			cache_object_free(obj);
 			return;
 		}
-		sync_send(obj, NET_T_STATE_NEW);
+		/* only synchronize events that have been triggered by other
+		 * processes or the kernel, but don't propagate events that
+		 * have been triggered by conntrackd itself, eg. commits. */
+		if (origin == CTD_ORIGIN_NOT_ME)
+			sync_send(obj, NET_T_STATE_NEW);
 	} else {
 		cache_del(STATE_SYNC(internal), obj);
 		cache_object_free(obj);
@@ -586,7 +613,8 @@ retry:
 	}
 }
 
-static void event_update_sync(struct nf_conntrack *ct)
+static void
+event_update_sync(struct nf_conntrack *ct, int origin)
 {
 	struct cache_object *obj;
 
@@ -594,21 +622,26 @@ static void event_update_sync(struct nf_conntrack *ct)
 	if (obj == NULL)
 		return;
 
-	sync_send(obj, NET_T_STATE_UPD);
+	if (origin == CTD_ORIGIN_NOT_ME)
+		sync_send(obj, NET_T_STATE_UPD);
 }
 
-static int event_destroy_sync(struct nf_conntrack *ct)
+static int
+event_destroy_sync(struct nf_conntrack *ct, int origin)
 {
 	struct cache_object *obj;
 	int id;
 
+	/* we don't synchronize events for objects that are not in the cache */
 	obj = cache_find(STATE_SYNC(internal), ct, &id);
 	if (obj == NULL)
 		return 0;
 
 	if (obj->status != C_OBJ_DEAD) {
 		cache_object_set_status(obj, C_OBJ_DEAD);
-		sync_send(obj, NET_T_STATE_DEL);
+		if (origin == CTD_ORIGIN_NOT_ME) {
+			sync_send(obj, NET_T_STATE_DEL);
+		}
 		cache_object_put(obj);
 	}
 	return 1;

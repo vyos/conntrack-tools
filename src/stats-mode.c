@@ -141,7 +141,8 @@ static int purge_stats(void)
 	return 0;
 }
 
-static void event_new_stats(struct nf_conntrack *ct)
+static void
+event_new_stats(struct nf_conntrack *ct, int origin)
 {
 	int id;
 	struct cache_object *obj;
@@ -162,13 +163,15 @@ static void event_new_stats(struct nf_conntrack *ct)
 	return;
 }
 
-static void event_update_stats(struct nf_conntrack *ct)
+static void
+event_update_stats(struct nf_conntrack *ct, int origin)
 {
 	nfct_attr_unset(ct, ATTR_TIMEOUT);
 	cache_update_force(STATE_STATS(cache), ct);
 }
 
-static int event_destroy_stats(struct nf_conntrack *ct)
+static int
+event_destroy_stats(struct nf_conntrack *ct, int origin)
 {
 	int id;
 	struct cache_object *obj;
