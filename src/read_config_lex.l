@@ -63,7 +63,6 @@ notrack		[N|n][O|o][T|t][R|r][A|a][C|c][K|k]
 "IPv4_interface"		{ return T_IPV4_IFACE; }
 "IPv6_interface"		{ return T_IPV6_IFACE; }
 "Interface"			{ return T_IFACE; }
-"Port"				{ return T_PORT; }
 "Multicast"			{ return T_MULTICAST; }
 "UDP"				{ return T_UDP; }
 "HashSize"			{ return T_HASHSIZE; }
