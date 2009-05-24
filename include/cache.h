@@ -43,7 +43,6 @@ struct cache_feature {
 	int  (*dump)(struct cache_object *obj, void *data, char *buf, int type);
 };
 
-extern struct cache_feature lifetime_feature;
 extern struct cache_feature timer_feature;
 
 #define CACHE_MAX_NAMELEN 32
