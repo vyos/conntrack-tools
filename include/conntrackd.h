@@ -119,7 +119,6 @@ struct ct_general_state {
 	int				event_iterations_limit;
 
 	struct nfct_handle		*dump;		/* dump handler */
-	struct nfct_handle		*request;	/* request handler */
 	struct nfct_handle		*resync;	/* resync handler */
 	struct nfct_handle		*get;		/* get handler */
 	int				get_retval;	/* hackish */

@@ -47,7 +47,6 @@ void killer(int foo)
 
 	nfct_close(STATE(resync));
 	nfct_close(STATE(get));
-	nfct_close(STATE(request));
 
 	if (STATE(us_filter))
 		ct_filter_destroy(STATE(us_filter));
@@ -407,15 +406,6 @@ init(void)
 		return -1;
 	}
 	nfct_callback_register(STATE(get), NFCT_T_ALL, get_handler, NULL);
-
-	/* no callback, it does not do anything with the output */
-	STATE(request) = nfct_open(CONNTRACK, 0);
-	if (STATE(request) == NULL) {
-		dlog(LOG_ERR, "can't open netlink handler: %s",
-		     strerror(errno));
-		dlog(LOG_ERR, "no ctnetlink kernel support?");
-		return -1;
-	}
 
 	if (CONFIG(flags) & CTD_POLL) {
 		init_alarm(&STATE(polling_alarm), NULL, do_polling_alarm);
