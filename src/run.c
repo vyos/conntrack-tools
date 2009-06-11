@@ -47,6 +47,8 @@ void killer(int foo)
 
 	nfct_close(STATE(resync));
 	nfct_close(STATE(get));
+	origin_unregister(STATE(flush));
+	nfct_close(STATE(flush));
 
 	if (STATE(us_filter))
 		ct_filter_destroy(STATE(us_filter));
@@ -180,13 +182,6 @@ static void dump_stats_runtime(int fd)
 	send(fd, buf, size, 0);
 }
 
-static void flush_done_cb(void *data)
-{
-	struct nfct_handle *h = data;
-	origin_unregister(h);
-	nfct_close(h);
-}
-
 void local_handler(int fd, void *data)
 {
 	int ret;
@@ -201,30 +196,18 @@ void local_handler(int fd, void *data)
 		return;
 
 	switch(type) {
-	case FLUSH_MASTER: {
-		struct nfct_handle *h;
-
-		/* disposable flusher handler */
-		h = nfct_open(CONNTRACK, 0);
-		if (h == NULL) {
-			dlog(LOG_ERR, "cannot open flusher handler");
-			return;
-		}
-		/* register this handler as the origin of a flush operation */
-	        origin_register(h, CTD_ORIGIN_FLUSH);
-
+	case FLUSH_MASTER:
 		STATE(stats).nl_kernel_table_flush++;
 		dlog(LOG_NOTICE, "flushing kernel conntrack table");
 
 		/* fork a child process that performs the flush operation,
 		 * meanwhile the parent process handles events. */
 		if (fork_process_new(CTD_PROC_FLUSH, CTD_PROC_F_EXCL,
-				     flush_done_cb, h) == 0) {
-			nl_flush_conntrack_table(h);
+				     NULL, NULL) == 0) {
+			nl_flush_conntrack_table(STATE(flush));
 			exit(EXIT_SUCCESS);
 		}
 		return;
-	}
 	case RESYNC_MASTER:
 		STATE(stats).nl_kernel_table_resync++;
 		dlog(LOG_NOTICE, "resync with master table");
@@ -407,6 +390,14 @@ init(void)
 		return -1;
 	}
 	nfct_callback_register(STATE(get), NFCT_T_ALL, get_handler, NULL);
+
+	STATE(flush) = nfct_open(CONNTRACK, 0);
+	if (STATE(flush) == NULL) {
+		dlog(LOG_ERR, "cannot open flusher handler");
+		return -1;
+	}
+	/* register this handler as the origin of a flush operation */
+	origin_register(STATE(flush), CTD_ORIGIN_FLUSH);
 
 	if (CONFIG(flags) & CTD_POLL) {
 		init_alarm(&STATE(polling_alarm), NULL, do_polling_alarm);

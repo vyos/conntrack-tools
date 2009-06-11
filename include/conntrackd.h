@@ -122,6 +122,7 @@ struct ct_general_state {
 	struct nfct_handle		*resync;	/* resync handler */
 	struct nfct_handle		*get;		/* get handler */
 	int				get_retval;	/* hackish */
+	struct nfct_handle		*flush;		/* flusher */
 
 	struct alarm_block		resync_alarm;
 	struct alarm_block		polling_alarm;

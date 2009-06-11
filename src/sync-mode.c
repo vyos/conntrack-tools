@@ -203,35 +203,16 @@ static void interface_handler(void)
 		interface_candidate();
 }
 
-/* this is called once the flusher process has finished */
-static void flush_done_cb(void *data)
-{
-	struct nfct_handle *h = data;
-	origin_unregister(h);
-	nfct_close(h);
-}
-
 static void do_reset_cache_alarm(struct alarm_block *a, void *data)
 {
-	struct nfct_handle *h;
-
-	/* disposable flusher handler */
-	h = nfct_open(CONNTRACK, 0);
-	if (h == NULL) {
-		dlog(LOG_ERR, "cannot open flusher handler");
-		return;
-	}
-	/* register this handler as the origin of a flush operation */
-	origin_register(h, CTD_ORIGIN_FLUSH);
-
 	STATE(stats).nl_kernel_table_flush++;
 	dlog(LOG_NOTICE, "flushing kernel conntrack table (scheduled)");
 
 	/* fork a child process that performs the flush operation,
 	 * meanwhile the parent process handles events. */
 	if (fork_process_new(CTD_PROC_FLUSH, CTD_PROC_F_EXCL,
-			     flush_done_cb, h) == 0) {
-		nl_flush_conntrack_table(h);
+			     NULL, NULL) == 0) {
+		nl_flush_conntrack_table(STATE(flush));
 		exit(EXIT_SUCCESS);
 	}
 	/* this is not required if events don't get lost */
