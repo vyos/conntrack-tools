@@ -22,20 +22,32 @@
 
 static LIST_HEAD(process_list);
 
-int fork_process_new(void (*cb)(void *data), void *data)
+int fork_process_new(int type, int flags, void (*cb)(void *data), void *data)
 {
-	struct child_process *c;
+	struct child_process *c, *this;
 	int pid;
 
 	/* block SIGCHLD to avoid the access of the list concurrently */
 	sigprocmask(SIG_BLOCK, &STATE(block), NULL);
 
+	/* We only want one process of this type at the same time. This is
+	 * useful if you want to prevent two child processes from accessing
+	 * a shared descriptor at the same time. */
+	if (flags & CTD_PROC_F_EXCL) {
+		list_for_each_entry(this, &process_list, head) {
+			if (this->type == type) {
+				sigprocmask(SIG_UNBLOCK, &STATE(block), NULL);
+				return -1;
+			}
+		}
+	}
 	c = calloc(sizeof(struct child_process), 1);
 	if (c == NULL) {
 		sigprocmask(SIG_UNBLOCK, &STATE(block), NULL);
 		return -1;
 	}
 
+	c->type = type;
 	c->cb = cb;
 	c->data = data;
 	c->pid = pid = fork();

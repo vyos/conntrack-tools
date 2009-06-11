@@ -229,7 +229,8 @@ static void do_reset_cache_alarm(struct alarm_block *a, void *data)
 
 	/* fork a child process that performs the flush operation,
 	 * meanwhile the parent process handles events. */
-	if (fork_process_new(flush_done_cb, h) == 0) {
+	if (fork_process_new(CTD_PROC_FLUSH, CTD_PROC_F_EXCL,
+			     flush_done_cb, h) == 0) {
 		nl_flush_conntrack_table(h);
 		exit(EXIT_SUCCESS);
 	}
@@ -423,28 +424,28 @@ static int local_handler_sync(int fd, int type, void *data)
 
 	switch(type) {
 	case DUMP_INTERNAL:
-		ret = fork_process_new(NULL, NULL);
+		ret = fork_process_new(CTD_PROC_ANY, 0, NULL, NULL);
 		if (ret == 0) {
 			cache_dump(STATE_SYNC(internal), fd, NFCT_O_PLAIN);
 			exit(EXIT_SUCCESS);
 		}
 		break;
 	case DUMP_EXTERNAL:
-		ret = fork_process_new(NULL, NULL);
+		ret = fork_process_new(CTD_PROC_ANY, 0, NULL, NULL);
 		if (ret == 0) {
 			cache_dump(STATE_SYNC(external), fd, NFCT_O_PLAIN);
 			exit(EXIT_SUCCESS);
 		} 
 		break;
 	case DUMP_INT_XML:
-		ret = fork_process_new(NULL, NULL);
+		ret = fork_process_new(CTD_PROC_ANY, 0, NULL, NULL);
 		if (ret == 0) {
 			cache_dump(STATE_SYNC(internal), fd, NFCT_O_XML);
 			exit(EXIT_SUCCESS);
 		}
 		break;
 	case DUMP_EXT_XML:
-		ret = fork_process_new(NULL, NULL);
+		ret = fork_process_new(CTD_PROC_ANY, 0, NULL, NULL);
 		if (ret == 0) {
 			cache_dump(STATE_SYNC(external), fd, NFCT_O_XML);
 			exit(EXIT_SUCCESS);
@@ -465,7 +466,8 @@ static int local_handler_sync(int fd, int type, void *data)
 		origin_register(h, CTD_ORIGIN_COMMIT);
 
 		/* fork new process and insert it the process list */
-		ret = fork_process_new(commit_done_cb, h);
+		ret = fork_process_new(CTD_PROC_COMMIT, CTD_PROC_F_EXCL,
+				       commit_done_cb, h);
 		if (ret == 0) {
 			dlog(LOG_NOTICE, "committing external cache");
 			cache_commit(STATE_SYNC(external), h);
