@@ -76,3 +76,28 @@ int fork_process_delete(int pid)
 	}
 	return 0;
 }
+
+static const char *process_type_to_name[CTD_PROC_MAX] = {
+	[CTD_PROC_ANY]		= "any",
+	[CTD_PROC_FLUSH]	= "flush",
+	[CTD_PROC_COMMIT]	= "commit",
+};
+
+void fork_process_dump(int fd)
+{
+	struct child_process *this;
+	char buf[4096];
+	int size = 0;
+
+	sigprocmask(SIG_BLOCK, &STATE(block), NULL);
+	list_for_each_entry(this, &process_list, head) {
+		size += snprintf(buf+size, sizeof(buf),
+				 "PID=%u type=%s\n",
+				 this->pid,
+				 this->type < CTD_PROC_MAX ?
+				 process_type_to_name[this->type] : "unknown");
+	}
+	sigprocmask(SIG_UNBLOCK, &STATE(block), NULL);
+
+	send(fd, buf, size, 0);
+}

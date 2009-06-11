@@ -214,6 +214,10 @@ int main(int argc, char *argv[])
 						strlen(argv[i+1])) == 0) {
 					action = STATS_QUEUE;
 					i++;
+				} else if (strncmp(argv[i+1], "process",
+						 strlen(argv[i+1])) == 0) {
+					action = STATS_PROCESS;
+					i++;
 				} else {
 					fprintf(stderr, "ERROR: unknown "
 							"parameter `%s' for "

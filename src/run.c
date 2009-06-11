@@ -216,6 +216,9 @@ void local_handler(int fd, void *data)
 	case STATS_RUNTIME:
 		dump_stats_runtime(fd);
 		return;
+	case STATS_PROCESS:
+		fork_process_dump(fd);
+		return;
 	}
 
 	if (!STATE(mode)->local(fd, type, data))
