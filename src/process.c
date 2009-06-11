@@ -24,6 +24,7 @@ static LIST_HEAD(process_list);
 int fork_process_new(void (*cb)(void *data), void *data)
 {
 	struct child_process *c;
+	int pid;
 
 	c = calloc(sizeof(struct child_process), 1);
 	if (c == NULL)
@@ -31,10 +32,12 @@ int fork_process_new(void (*cb)(void *data), void *data)
 
 	c->cb = cb;
 	c->data = data;
+	c->pid = pid = fork();
 
-	list_add(&c->head, &process_list);
+	if (c->pid > 0)
+		list_add(&c->head, &process_list);
 
-	return fork();
+	return pid;
 }
 
 int fork_process_delete(int pid)
