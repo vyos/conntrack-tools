@@ -166,6 +166,8 @@ struct ct_sync_state {
 	struct cache *internal; 	/* internal events cache (netlink) */
 	struct cache *external; 	/* external events cache (mcast) */
 
+	struct nfct_handle *commit;
+
 	struct multichannel	*channel;
 	struct nlif_handle	*interface;
 	struct queue *tx_queue;

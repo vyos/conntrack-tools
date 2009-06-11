@@ -298,6 +298,13 @@ static int init_sync(void)
 							STATE(fds)) == -1)
 		return -1;
 
+	STATE_SYNC(commit) = nfct_open(CONNTRACK, 0);
+	if (STATE_SYNC(commit) == NULL) {
+		dlog(LOG_ERR, "can't create handler to commit");
+		return -1;
+	}
+	origin_register(STATE_SYNC(commit), CTD_ORIGIN_COMMIT);
+
 	init_alarm(&STATE_SYNC(reset_cache_alarm), NULL, do_reset_cache_alarm);
 
 	/* initialization of message sequence generation */
@@ -336,6 +343,9 @@ static void kill_sync(void)
 	nlif_close(STATE_SYNC(interface));
 
 	queue_destroy(STATE_SYNC(tx_queue));
+
+	origin_unregister(STATE_SYNC(commit));
+	nfct_close(STATE_SYNC(commit));
 
 	if (STATE_SYNC(sync)->kill)
 		STATE_SYNC(sync)->kill();
@@ -390,14 +400,6 @@ static void dump_stats_sync_extended(int fd)
 	send(fd, buf, size, 0);
 }
 
-/* this is called once the committer process has finished */
-static void commit_done_cb(void *data)
-{
-	struct nfct_handle *h = data;
-	origin_unregister(h);
-	nfct_close(h);
-}
-
 /* handler for requests coming via UNIX socket */
 static int local_handler_sync(int fd, int type, void *data)
 {
@@ -432,30 +434,19 @@ static int local_handler_sync(int fd, int type, void *data)
 			exit(EXIT_SUCCESS);
 		}
 		break;
-	case COMMIT: {
-		struct nfct_handle *h;
-
+	case COMMIT:
 		/* delete the reset alarm if any before committing */
 		del_alarm(&STATE_SYNC(reset_cache_alarm));
 
-		/* disposable handler for commit operations */
-		h = nfct_open(CONNTRACK, 0);
-		if (h == NULL) {
-			dlog(LOG_ERR, "can't create handler to commit");
-			break;
-		}
-		origin_register(h, CTD_ORIGIN_COMMIT);
-
 		/* fork new process and insert it the process list */
 		ret = fork_process_new(CTD_PROC_COMMIT, CTD_PROC_F_EXCL,
-				       commit_done_cb, h);
+				       NULL, NULL);
 		if (ret == 0) {
 			dlog(LOG_NOTICE, "committing external cache");
-			cache_commit(STATE_SYNC(external), h);
+			cache_commit(STATE_SYNC(external), STATE_SYNC(commit));
 			exit(EXIT_SUCCESS);
 		}
 		break;
-	}
 	case RESET_TIMERS:
 		if (!alarm_pending(&STATE_SYNC(reset_cache_alarm))) {
 			dlog(LOG_NOTICE, "flushing conntrack table in %d secs",
