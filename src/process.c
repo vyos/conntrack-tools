@@ -16,6 +16,7 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#include <signal.h>
 #include "conntrackd.h"
 #include "process.h"
 
@@ -26,9 +27,14 @@ int fork_process_new(void (*cb)(void *data), void *data)
 	struct child_process *c;
 	int pid;
 
+	/* block SIGCHLD to avoid the access of the list concurrently */
+	sigprocmask(SIG_BLOCK, &STATE(block), NULL);
+
 	c = calloc(sizeof(struct child_process), 1);
-	if (c == NULL)
+	if (c == NULL) {
+		sigprocmask(SIG_UNBLOCK, &STATE(block), NULL);
 		return -1;
+	}
 
 	c->cb = cb;
 	c->data = data;
@@ -36,6 +42,8 @@ int fork_process_new(void (*cb)(void *data), void *data)
 
 	if (c->pid > 0)
 		list_add(&c->head, &process_list);
+
+	sigprocmask(SIG_UNBLOCK, &STATE(block), NULL);
 
 	return pid;
 }
