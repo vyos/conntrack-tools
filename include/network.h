@@ -199,7 +199,7 @@ enum nta_attr {
 	NTA_IPV6,		/* struct nfct_attr_grp_ipv6 */
 	NTA_L4PROTO,		/* uint8_t */
 	NTA_PORT,		/* struct nfct_attr_grp_port */
-	NTA_STATE_TCP = 4,	/* uint8_t */
+	NTA_TCP_STATE = 4,	/* uint8_t */
 	NTA_STATUS,		/* uint32_t */
 	NTA_TIMEOUT,		/* uint32_t */
 	NTA_MARK,		/* uint32_t */
@@ -212,8 +212,11 @@ enum nta_attr {
 	NTA_SPAT_PORT,		/* uint16_t */
 	NTA_DPAT_PORT,		/* uint16_t */
 	NTA_NAT_SEQ_ADJ = 16,	/* struct nta_attr_natseqadj */
-	NTA_STATE_SCTP,		/* struct nta_attr_sctp */
-	NTA_STATE_DCCP,		/* struct nta_attr_dccp */
+	NTA_SCTP_STATE,		/* uint8_t */
+	NTA_SCTP_VTAG_ORIG,	/* uint32_t */
+	NTA_SCTP_VTAG_REPL,	/* uint32_t */
+	NTA_DCCP_STATE = 20,	/* uint8_t */
+	NTA_DCCP_ROLE,		/* uint8_t */
 	NTA_MAX
 };
 
@@ -224,15 +227,6 @@ struct nta_attr_natseqadj {
 	uint32_t repl_seq_correction_pos;
 	uint32_t repl_seq_offset_before;
 	uint32_t repl_seq_offset_after;
-};
-
-struct nta_attr_sctp {
-	uint8_t state;
-	uint32_t vtag_orig, vtag_repl;
-};
-
-struct nta_attr_dccp {
-	uint8_t state, role;
 };
 
 void build_payload(const struct nf_conntrack *ct, struct nethdr *n);
