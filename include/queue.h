@@ -32,6 +32,7 @@ struct evfd;
 #define QUEUE_NAMELEN	16
 
 struct queue {
+	struct list_head	list;
 	unsigned int		max_elems;
 	unsigned int		num_elems;
 	uint32_t		flags;
@@ -45,6 +46,7 @@ struct queue {
 struct queue *queue_create(const char *name,
 			   int max_objects, unsigned int flags);
 void queue_destroy(struct queue *b);
+void queue_stats_show(int fd);
 unsigned int queue_len(const struct queue *b);
 int queue_add(struct queue *b, struct queue_node *n);
 int queue_del(struct queue_node *n);

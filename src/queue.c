@@ -20,8 +20,12 @@
 #include "event.h"
 
 #include <errno.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/socket.h>
+
+static LIST_HEAD(queue_list);	/* list of existing queues */
 
 struct queue *
 queue_create(const char *name, int max_objects, unsigned int flags)
@@ -45,15 +49,35 @@ queue_create(const char *name, int max_objects, unsigned int flags)
 	}
 	strncpy(b->name, name, QUEUE_NAMELEN);
 	b->name[QUEUE_NAMELEN-1]='\0';
+	list_add(&b->list, &queue_list);
 
 	return b;
 }
 
 void queue_destroy(struct queue *b)
 {
+	list_del(&b->list);
 	if (b->flags & QUEUE_F_EVFD)
 		destroy_evfd(b->evfd);
 	free(b);
+}
+
+void queue_stats_show(int fd)
+{
+	struct queue *this;
+	int size = 0;
+	char buf[512];
+
+	list_for_each_entry(this, &queue_list, list) {
+		size += snprintf(buf+size, sizeof(buf),
+				 "queue %s:\n"
+				 "current elements:\t\t%12u\n"
+				 "maximum elements:\t\t%12u\n\n",
+				 this->name,
+				 this->num_elems,
+				 this->max_elems);
+	}
+	send(fd, buf, size, 0);
 }
 
 void queue_node_init(struct queue_node *n, int type)

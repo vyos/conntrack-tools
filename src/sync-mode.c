@@ -494,6 +494,9 @@ static int local_handler_sync(int fd, int type, void *data)
 		multichannel_stats_extended(STATE_SYNC(channel),
 					    STATE_SYNC(interface), fd);
 		break;
+	case STATS_QUEUE:
+		queue_stats_show(fd);
+		break;
 	default:
 		if (STATE_SYNC(sync)->local)
 			ret = STATE_SYNC(sync)->local(fd, type, data);

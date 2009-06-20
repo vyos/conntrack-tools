@@ -35,6 +35,7 @@
 #define FLUSH_INT_CACHE	33	/* flush internal cache			*/
 #define FLUSH_EXT_CACHE	34	/* flush external cache			*/
 #define STATS_PROCESS	35	/* child process stats			*/
+#define STATS_QUEUE	36	/* queue stats				*/
 
 #define DEFAULT_CONFIGFILE	"/etc/conntrackd/conntrackd.conf"
 #define DEFAULT_LOCKFILE	"/var/lock/conntrackd.lock"
