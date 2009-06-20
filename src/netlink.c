@@ -257,7 +257,7 @@ int nl_update_conntrack(struct nfct_handle *h,
 				IP_CT_TCP_FLAG_SACK_PERM;
 
 		/* FIXME: workaround, we should send TCP flags in updates */
-		if (nfct_get_attr_u32(ct, ATTR_TCP_STATE) ==
+		if (nfct_get_attr_u8(ct, ATTR_TCP_STATE) >=
 						TCP_CONNTRACK_TIME_WAIT) {
 			flags |= IP_CT_TCP_FLAG_CLOSE_INIT;
 		}
