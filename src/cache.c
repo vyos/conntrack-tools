@@ -340,8 +340,10 @@ cache_update_force(struct cache *c, struct nf_conntrack *ct)
 	if (obj == NULL)
 		return NULL;
 
-	if (cache_add(c, obj, id) == -1)
+	if (cache_add(c, obj, id) == -1) {
+		cache_object_free(obj);
 		return NULL;
+	}
 
 	return obj;
 }
