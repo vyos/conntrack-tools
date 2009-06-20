@@ -26,6 +26,7 @@
 #include <sys/socket.h>
 
 static LIST_HEAD(queue_list);	/* list of existing queues */
+static uint32_t qobjects_num;	/* number of active queue objects */
 
 struct queue *
 queue_create(const char *name, int max_objects, unsigned int flags)
@@ -68,6 +69,10 @@ void queue_stats_show(int fd)
 	int size = 0;
 	char buf[512];
 
+	size += snprintf(buf+size, sizeof(buf),
+			 "allocated queue nodes:\t\t%12u\n\n",
+			 qobjects_num);
+
 	list_for_each_entry(this, &queue_list, list) {
 		size += snprintf(buf+size, sizeof(buf),
 				 "queue %s:\n"
@@ -101,6 +106,7 @@ struct queue_object *queue_object_new(int type, size_t size)
 
 	obj->qnode.size = size;
 	queue_node_init(&obj->qnode, type);
+	qobjects_num++;
 
 	return obj;
 }
@@ -108,6 +114,7 @@ struct queue_object *queue_object_new(int type, size_t size)
 void queue_object_free(struct queue_object *obj)
 {
 	free(obj);
+	qobjects_num--;
 }
 
 int queue_add(struct queue *b, struct queue_node *n)
