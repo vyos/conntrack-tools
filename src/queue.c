@@ -77,10 +77,12 @@ void queue_stats_show(int fd)
 		size += snprintf(buf+size, sizeof(buf),
 				 "queue %s:\n"
 				 "current elements:\t\t%12u\n"
-				 "maximum elements:\t\t%12u\n\n",
+				 "maximum elements:\t\t%12u\n"
+				 "not enough space errors:\t%12u\n\n",
 				 this->name,
 				 this->num_elems,
-				 this->max_elems);
+				 this->max_elems,
+				 this->enospc_err);
 	}
 	send(fd, buf, size, 0);
 }
@@ -123,6 +125,7 @@ int queue_add(struct queue *b, struct queue_node *n)
 		return 0;
 
 	if (b->num_elems >= b->max_elems) {
+		b->enospc_err++;
 		errno = ENOSPC;
 		return -1;
 	}

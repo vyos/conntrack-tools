@@ -35,6 +35,7 @@ struct queue {
 	struct list_head	list;
 	unsigned int		max_elems;
 	unsigned int		num_elems;
+	uint32_t		enospc_err;
 	uint32_t		flags;
 	struct list_head	head;
 	struct evfd		*evfd;
