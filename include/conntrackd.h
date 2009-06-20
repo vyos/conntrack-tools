@@ -31,7 +31,7 @@
 #define STATS_CACHE	29	/* extended cache stats			*/
 #define STATS_RUNTIME	30	/* extended runtime stats		*/
 #define STATS_LINK	31	/* dedicated link stats			*/
-#define STATS_QUEUE	32	/* queue stats				*/
+#define STATS_RSQUEUE	32	/* resend queue stats			*/
 #define FLUSH_INT_CACHE	33	/* flush internal cache			*/
 #define FLUSH_EXT_CACHE	34	/* flush external cache			*/
 #define STATS_PROCESS	35	/* child process stats			*/

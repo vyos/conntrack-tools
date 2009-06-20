@@ -226,7 +226,7 @@ static int ftfw_local(int fd, int type, void *data)
 		dlog(LOG_NOTICE, "sending bulk update");
 		cache_iterate(STATE_SYNC(internal), NULL, do_cache_to_tx);
 		break;
-	case STATS_QUEUE:
+	case STATS_RSQUEUE:
 		ftfw_local_queue(fd);
 		break;
 	default:
