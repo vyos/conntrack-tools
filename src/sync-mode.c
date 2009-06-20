@@ -289,7 +289,7 @@ static int init_sync(void)
 	if (register_fd(nlif_fd(STATE_SYNC(interface)), STATE(fds)) == -1)
 		return -1;
 
-	STATE_SYNC(tx_queue) = queue_create(INT_MAX, QUEUE_F_EVFD);
+	STATE_SYNC(tx_queue) = queue_create("txqueue", INT_MAX, QUEUE_F_EVFD);
 	if (STATE_SYNC(tx_queue) == NULL) {
 		dlog(LOG_ERR, "cannot create tx queue");
 		return -1;

@@ -143,7 +143,7 @@ static void do_alive_alarm(struct alarm_block *a, void *data)
 
 static int ftfw_init(void)
 {
-	rs_queue = queue_create(CONFIG(resend_queue_size), 0);
+	rs_queue = queue_create("rsqueue", CONFIG(resend_queue_size), 0);
 	if (rs_queue == NULL) {
 		dlog(LOG_ERR, "cannot create rs queue");
 		return -1;

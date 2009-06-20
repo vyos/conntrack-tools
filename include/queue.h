@@ -29,17 +29,21 @@ void queue_object_free(struct queue_object *obj);
 
 struct evfd;
 
+#define QUEUE_NAMELEN	16
+
 struct queue {
 	unsigned int		max_elems;
 	unsigned int		num_elems;
 	uint32_t		flags;
 	struct list_head	head;
 	struct evfd		*evfd;
+	char			name[QUEUE_NAMELEN];
 };
 
 #define QUEUE_F_EVFD (1U << 0)
 
-struct queue *queue_create(int max_objects, unsigned int flags);
+struct queue *queue_create(const char *name,
+			   int max_objects, unsigned int flags);
 void queue_destroy(struct queue *b);
 unsigned int queue_len(const struct queue *b);
 int queue_add(struct queue *b, struct queue_node *n);

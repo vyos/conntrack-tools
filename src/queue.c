@@ -23,7 +23,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-struct queue *queue_create(int max_objects, unsigned int flags)
+struct queue *
+queue_create(const char *name, int max_objects, unsigned int flags)
 {
 	struct queue *b;
 
@@ -42,6 +43,8 @@ struct queue *queue_create(int max_objects, unsigned int flags)
 			return NULL;
 		}
 	}
+	strncpy(b->name, name, QUEUE_NAMELEN);
+	b->name[QUEUE_NAMELEN-1]='\0';
 
 	return b;
 }
