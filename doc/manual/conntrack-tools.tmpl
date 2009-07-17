@@ -181,14 +181,14 @@
  # conntrack -L
  tcp      6 431982 ESTABLISHED src=192.168.2.100 dst=123.59.27.117 sport=34846 dport=993 packets=169 bytes=14322 src=123.59.27.117 dst=192.168.2.100 sport=993 dport=34846 packets=113 bytes=34787 [ASSURED] mark=0 secmark=0 use=1
  tcp      6 431698 ESTABLISHED src=192.168.2.100 dst=123.59.27.117 sport=34849 dport=993 packets=244 bytes=18723 src=123.59.27.117 dst=192.168.2.100 sport=993 dport=34849 packets=203 bytes=144731 [ASSURED] mark=0 secmark=0 use=1
-conntrack v0.9.7 (conntrack-tools): 2 flow entries has been shown.
+conntrack v0.9.7 (conntrack-tools): 2 flow entries have been shown.
  </programlisting>
 
 <para>You can natively filter the output without using <emphasis>grep</emphasis>:</para>
 <programlisting>
  # conntrack -L -p tcp --dport 34856
  tcp      6 431982 ESTABLISHED src=192.168.2.100 dst=123.59.27.117 sport=34846 dport=993 packets=169 bytes=14322 src=123.59.27.117 dst=192.168.2.100 sport=993 dport=34846 packets=113 bytes=34787 [ASSURED] mark=0 secmark=0 use=1
-conntrack v0.9.7 (conntrack-tools): 1 flow entries has been shown.
+conntrack v0.9.7 (conntrack-tools): 1 flow entries have been shown.
  </programlisting>
 
 <para>Update the mark based on a selection, this allows you to change the mark of an entry without using the CONNMARK target:</para>
