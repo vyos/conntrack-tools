@@ -403,7 +403,7 @@ static void dump_stats_sync_extended(int fd)
 /* handler for requests coming via UNIX socket */
 static int local_handler_sync(int fd, int type, void *data)
 {
-	int ret = 1;
+	int ret = LOCAL_RET_OK;
 
 	switch(type) {
 	case DUMP_INTERNAL:

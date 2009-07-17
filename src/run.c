@@ -182,18 +182,18 @@ static void dump_stats_runtime(int fd)
 	send(fd, buf, size, 0);
 }
 
-void local_handler(int fd, void *data)
+static int local_handler(int fd, void *data)
 {
-	int ret;
+	int ret = LOCAL_RET_OK;
 	int type;
 
 	ret = read(fd, &type, sizeof(type));
 	if (ret == -1) {
 		STATE(stats).local_read_failed++;
-		return;
+		return LOCAL_RET_OK;
 	}
 	if (ret == 0)
-		return;
+		return LOCAL_RET_OK;
 
 	switch(type) {
 	case FLUSH_MASTER:
@@ -207,22 +207,26 @@ void local_handler(int fd, void *data)
 			nl_flush_conntrack_table(STATE(flush));
 			exit(EXIT_SUCCESS);
 		}
-		return;
+		break;
 	case RESYNC_MASTER:
 		STATE(stats).nl_kernel_table_resync++;
 		dlog(LOG_NOTICE, "resync with master table");
 		nl_dump_conntrack_table(STATE(dump));
-		return;
+		break;
 	case STATS_RUNTIME:
 		dump_stats_runtime(fd);
-		return;
+		break;
 	case STATS_PROCESS:
 		fork_process_dump(fd);
-		return;
+		break;
 	}
 
-	if (!STATE(mode)->local(fd, type, data))
+	ret = STATE(mode)->local(fd, type, data);
+	if (ret == LOCAL_RET_ERROR) {
 		STATE(stats).local_unknown_request++;
+		return LOCAL_RET_ERROR;
+	}
+	return ret;
 }
 
 static void do_overrun_resync_alarm(struct alarm_block *a, void *data)

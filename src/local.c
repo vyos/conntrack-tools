@@ -72,7 +72,7 @@ void local_server_destroy(struct local_server *server)
 }
 
 int do_local_server_step(struct local_server *server, void *data, 
-			 void (*process)(int fd, void *data))
+			 int (*process)(int fd, void *data))
 {
 	int rfd;
 	struct sockaddr_un local;
@@ -82,8 +82,9 @@ int do_local_server_step(struct local_server *server, void *data,
 	if (rfd == -1)
 		return -1;
 
-	process(rfd, data);
-	close(rfd);
+	/* This descriptor will be closed later, we ignore OK and errors */
+	if (process(rfd, data) != LOCAL_RET_STOLEN)
+		close(rfd);
 
 	return 0;
 }

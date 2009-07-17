@@ -215,7 +215,7 @@ static void ftfw_local_queue(int fd)
 
 static int ftfw_local(int fd, int type, void *data)
 {
-	int ret = 1;
+	int ret = LOCAL_RET_OK;
 
 	switch(type) {
 	case REQUEST_DUMP:
@@ -228,9 +228,6 @@ static int ftfw_local(int fd, int type, void *data)
 		break;
 	case STATS_RSQUEUE:
 		ftfw_local_queue(fd);
-		break;
-	default:
-		ret = 0;
 		break;
 	}
 

@@ -234,7 +234,6 @@ extern struct ct_mode stats_mode;
 
 /* These live in run.c */
 void killer(int foo);
-void local_handler(int fd, void *data);
 int init(void);
 void run(void);
 
