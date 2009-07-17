@@ -33,12 +33,12 @@ struct __dump_container {
 	int type;
 };
 
-static int do_dump(void *data1, struct hashtable_node *n)
+static int do_dump(void *data1, void *n)
 {
 	char buf[1024];
 	int size;
 	struct __dump_container *container = data1;
-	struct cache_object *obj = (struct cache_object *)n;
+	struct cache_object *obj = n;
 	char *data = obj->data;
 	unsigned i;
 
@@ -152,9 +152,9 @@ retry:
 	}
 }
 
-static int do_commit_related(void *data, struct hashtable_node *n)
+static int do_commit_related(void *data, void *n)
 {
-	struct cache_object *obj = (struct cache_object *)n;
+	struct cache_object *obj = n;
 
 	if (ct_is_related(obj->ct))
 		__do_commit_step(data, obj);
@@ -163,9 +163,9 @@ static int do_commit_related(void *data, struct hashtable_node *n)
 	return 0;
 }
 
-static int do_commit_master(void *data, struct hashtable_node *n)
+static int do_commit_master(void *data, void *n)
 {
-	struct cache_object *obj = (struct cache_object *)n;
+	struct cache_object *obj = n;
 
 	if (ct_is_related(obj->ct))
 		return 0;
@@ -207,10 +207,10 @@ void cache_commit(struct cache *c, struct nfct_handle *h)
 			res.tv_sec, res.tv_usec);
 }
 
-static int do_flush(void *data, struct hashtable_node *n)
+static int do_flush(void *data, void *n)
 {
 	struct cache *c = data;
-	struct cache_object *obj = (struct cache_object *)n;
+	struct cache_object *obj = n;
 
 	cache_del(c, obj);
 	cache_object_free(obj);

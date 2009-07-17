@@ -114,6 +114,7 @@ void cache_stats_extended(const struct cache *c, int fd);
 struct cache_object *cache_data_get_object(struct cache *c, void *data);
 void *cache_get_extra(struct cache *, void *);
 void cache_iterate(struct cache *c, void *data, int (*iterate)(void *data1, void *data2));
+void cache_iterate_limit(struct cache *c, void *data, uint32_t from, uint32_t steps, int (*iterate)(void *data1, void *data2));
 
 /* iterators */
 struct nfct_handle;

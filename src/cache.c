@@ -423,3 +423,10 @@ void cache_iterate(struct cache *c,
 {
 	hashtable_iterate(c->h, data, iterate);
 }
+
+void cache_iterate_limit(struct cache *c, void *data,
+			 uint32_t from, uint32_t steps,
+			 int (*iterate)(void *data1, void *data2))
+{
+	hashtable_iterate_limit(c->h, data, from, steps, iterate);
+}

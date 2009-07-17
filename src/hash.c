@@ -23,6 +23,7 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
+#include <limits.h>
 
 struct hashtable *
 hashtable_create(int hashsize, int limit,
@@ -111,21 +112,29 @@ int hashtable_flush(struct hashtable *table)
 	return 0;
 }
 
-int hashtable_iterate(struct hashtable *table, void *data,
-		      int (*iterate)(void *data1, struct hashtable_node *n))
+int
+hashtable_iterate_limit(struct hashtable *table, void *data,
+			uint32_t from, uint32_t steps,
+		        int (*iterate)(void *data1, void *n))
 {
 	uint32_t i;
 	struct list_head *e, *tmp;
 	struct hashtable_node *n;
 
-	for (i=0; i < table->hashsize; i++) {
+	for (i=from; i < table->hashsize && i < from+steps; i++) {
 		list_for_each_safe(e, tmp, &table->members[i]) {
 			n = list_entry(e, struct hashtable_node, head);
 			if (iterate(data, n) == -1)
 				return -1;
 		}
 	}
-	return 0;
+	return i;
+}
+
+int hashtable_iterate(struct hashtable *table, void *data,
+		      int (*iterate)(void *data1, void *n))
+{
+	return hashtable_iterate_limit(table, data, 0, UINT_MAX, iterate);
 }
 
 unsigned int hashtable_counter(const struct hashtable *table)

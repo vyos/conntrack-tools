@@ -37,7 +37,8 @@ int hashtable_add(struct hashtable *table, struct hashtable_node *n, int id);
 void hashtable_del(struct hashtable *table, struct hashtable_node *node);
 int hashtable_flush(struct hashtable *table);
 int hashtable_iterate(struct hashtable *table, void *data,
-		      int (*iterate)(void *data, struct hashtable_node *n));
+		      int (*iterate)(void *data, void *n));
+int hashtable_iterate_limit(struct hashtable *table, void *data, uint32_t from, uint32_t steps, int (*iterate)(void *data1, void *n));
 unsigned int hashtable_counter(const struct hashtable *table);
 
 #endif
