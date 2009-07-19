@@ -36,6 +36,7 @@
 #include <stdlib.h>
 #include <limits.h>
 #include <net/if.h>
+#include <fcntl.h>
 
 static void
 do_channel_handler_step(int i, struct nethdr *net, size_t remain)
@@ -118,7 +119,7 @@ retry:
 }
 
 /* handler for messages received */
-static void channel_handler(struct channel *m, int i)
+static int channel_handler_routine(struct channel *m, int i)
 {
 	ssize_t numbytes;
 	ssize_t remain;
@@ -126,7 +127,7 @@ static void channel_handler(struct channel *m, int i)
 
 	numbytes = channel_recv(m, __net, sizeof(__net));
 	if (numbytes <= 0)
-		return;
+		return -1;
 
 	remain = numbytes;
 	while (remain > 0) {
@@ -166,6 +167,19 @@ static void channel_handler(struct channel *m, int i)
 		do_channel_handler_step(i, net, remain);
 		ptr += net->len;
 		remain -= net->len;
+	}
+	return 0;
+}
+
+/* handler for messages received */
+static void channel_handler(struct channel *m, int i)
+{
+	int k;
+
+	for (k=0; k<CONFIG(event_iterations_limit); k++) {
+		if (channel_handler_routine(m, i) == -1) {
+			break;
+		}
 	}
 }
 
@@ -277,6 +291,7 @@ static int init_sync(void)
 	}
 	for (i=0; i<STATE_SYNC(channel)->channel_num; i++) {
 		int fd = channel_get_fd(STATE_SYNC(channel)->channel[i]);
+		fcntl(fd, F_SETFL, O_NONBLOCK);
 		if (register_fd(fd, STATE(fds)) == -1)
 			return -1;
 	}

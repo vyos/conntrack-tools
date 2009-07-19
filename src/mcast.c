@@ -288,7 +288,8 @@ ssize_t mcast_recv(struct mcast_sock *m, void *data, int size)
 		       (struct sockaddr *)&m->addr,
 		       &sin_size);
 	if (ret == -1) {
-		m->stats.error++;
+		if (errno != EAGAIN)
+			m->stats.error++;
 		return ret;
 	}
 
