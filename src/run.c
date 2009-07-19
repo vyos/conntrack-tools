@@ -466,6 +466,9 @@ static void __run(struct timeval *next_alarm)
 		/* conntrack event has happened */
 		if (FD_ISSET(nfct_fd(STATE(event)), &readfds)) {
 			ret = nfct_catch(STATE(event));
+			/* reset event iteration limit counter */
+			STATE(event_iterations_limit) =
+					CONFIG(event_iterations_limit);
 			if (ret == -1) {
 			switch(errno) {
 			case ENOBUFS:
