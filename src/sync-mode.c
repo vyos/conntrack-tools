@@ -298,12 +298,22 @@ static int init_sync(void)
 							STATE(fds)) == -1)
 		return -1;
 
-	STATE_SYNC(commit) = nfct_open(CONNTRACK, 0);
-	if (STATE_SYNC(commit) == NULL) {
+	STATE_SYNC(commit).h = nfct_open(CONNTRACK, 0);
+	if (STATE_SYNC(commit).h == NULL) {
 		dlog(LOG_ERR, "can't create handler to commit");
 		return -1;
 	}
-	origin_register(STATE_SYNC(commit), CTD_ORIGIN_COMMIT);
+	origin_register(STATE_SYNC(commit).h, CTD_ORIGIN_COMMIT);
+
+	STATE_SYNC(commit).evfd = create_evfd();
+	if (STATE_SYNC(commit).evfd == NULL) {
+		dlog(LOG_ERR, "can't create eventfd to commit");
+		return -1;
+	}
+	if (register_fd(get_read_evfd(STATE_SYNC(commit).evfd),
+							STATE(fds)) == -1) {
+		return -1;
+	}
 
 	init_alarm(&STATE_SYNC(reset_cache_alarm), NULL, do_reset_cache_alarm);
 
@@ -329,6 +339,11 @@ static void run_sync(fd_set *readfds)
 	if (FD_ISSET(nlif_fd(STATE_SYNC(interface)), readfds))
 		interface_handler();
 
+	if (FD_ISSET(get_read_evfd(STATE_SYNC(commit).evfd), readfds)) {
+		read_evfd(STATE_SYNC(commit).evfd);
+		cache_commit(STATE_SYNC(external), STATE_SYNC(commit).h, 0);
+	}
+
 	/* flush pending messages */
 	multichannel_send_flush(STATE_SYNC(channel));
 }
@@ -344,8 +359,9 @@ static void kill_sync(void)
 
 	queue_destroy(STATE_SYNC(tx_queue));
 
-	origin_unregister(STATE_SYNC(commit));
-	nfct_close(STATE_SYNC(commit));
+	origin_unregister(STATE_SYNC(commit).h);
+	nfct_close(STATE_SYNC(commit).h);
+	destroy_evfd(STATE_SYNC(commit).evfd);
 
 	if (STATE_SYNC(sync)->kill)
 		STATE_SYNC(sync)->kill();
@@ -438,14 +454,10 @@ static int local_handler_sync(int fd, int type, void *data)
 		/* delete the reset alarm if any before committing */
 		del_alarm(&STATE_SYNC(reset_cache_alarm));
 
-		/* fork new process and insert it the process list */
-		ret = fork_process_new(CTD_PROC_COMMIT, CTD_PROC_F_EXCL,
-				       NULL, NULL);
-		if (ret == 0) {
-			dlog(LOG_NOTICE, "committing external cache");
-			cache_commit(STATE_SYNC(external), STATE_SYNC(commit));
-			exit(EXIT_SUCCESS);
-		}
+		dlog(LOG_NOTICE, "committing external cache");
+		cache_commit(STATE_SYNC(external), STATE_SYNC(commit).h, fd);
+		/* Keep the client socket open, we want synchronous commits. */
+		ret = LOCAL_RET_STOLEN;
 		break;
 	case RESET_TIMERS:
 		if (!alarm_pending(&STATE_SYNC(reset_cache_alarm))) {

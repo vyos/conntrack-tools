@@ -96,6 +96,9 @@ struct ct_conf {
 	int filter_from_kernelspace;
 	int event_iterations_limit;
 	struct {
+		int commit_steps;
+	} general;
+	struct {
 		int type;
 		int prio;
 	} sched;
@@ -168,11 +171,26 @@ struct ct_sync_state {
 	struct cache *internal; 	/* internal events cache (netlink) */
 	struct cache *external; 	/* external events cache (mcast) */
 
-	struct nfct_handle *commit;
-
 	struct multichannel	*channel;
 	struct nlif_handle	*interface;
 	struct queue *tx_queue;
+
+#define COMMIT_STATE_INACTIVE	0
+#define COMMIT_STATE_MASTER	1
+#define COMMIT_STATE_RELATED	2
+
+	struct {
+		int			state;
+		int			clientfd;
+		struct nfct_handle	*h;
+		struct evfd		*evfd;
+		int			current;
+		struct {
+			int 		ok;
+			int		fail;
+			struct timeval	start;
+		} stats;
+	} commit;
 
 	struct alarm_block		reset_cache_alarm;
 

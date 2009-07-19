@@ -1379,6 +1379,11 @@ init_config(char *filename)
 	if (CONFIG(event_iterations_limit) == 0)
 		CONFIG(event_iterations_limit) = 100;
 
+	/* default number of bucket of the hashtable that are committed in
+	   one run loop. XXX: no option available to tune this value yet. */
+	if (CONFIG(general).commit_steps == 0)
+		CONFIG(general).commit_steps = 64;
+
 	/* if overrun, automatically resync with kernel after 30 seconds */
 	if (CONFIG(nl_overrun_resync) == 0)
 		CONFIG(nl_overrun_resync) = 30;

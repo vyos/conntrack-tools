@@ -21,6 +21,7 @@
 #include "log.h"
 #include "conntrackd.h"
 #include "netlink.h"
+#include "event.h"
 
 #include <libnetfilter_conntrack/libnetfilter_conntrack.h>
 #include <sched.h>
@@ -174,37 +175,73 @@ static int do_commit_master(void *data, void *n)
 	return 0;
 }
 
-/* no need to clone, called from child process */
-void cache_commit(struct cache *c, struct nfct_handle *h)
+void cache_commit(struct cache *c, struct nfct_handle *h, int clientfd)
 {
-	unsigned int commit_ok = c->stats.commit_ok;
-	unsigned int commit_fail = c->stats.commit_fail;
+	unsigned int commit_ok, commit_fail;
 	struct __commit_container tmp = {
 		.h = h,
 		.c = c,
 	};
-	struct timeval commit_start, commit_stop, res;
+	struct timeval commit_stop, res;
 
-	gettimeofday(&commit_start, NULL);
-	/* commit master conntrack first, then related ones */
-	hashtable_iterate(c->h, &tmp, do_commit_master);
-	hashtable_iterate(c->h, &tmp, do_commit_related);
-	gettimeofday(&commit_stop, NULL);
-	timersub(&commit_stop, &commit_start, &res);
+	switch(STATE_SYNC(commit).state) {
+	case COMMIT_STATE_INACTIVE:
+		gettimeofday(&STATE_SYNC(commit).stats.start, NULL);
+		STATE_SYNC(commit).stats.ok = c->stats.commit_ok;
+		STATE_SYNC(commit).stats.fail = c->stats.commit_fail;
+		STATE_SYNC(commit).clientfd = clientfd;
+	case COMMIT_STATE_MASTER:
+		STATE_SYNC(commit).current =
+			hashtable_iterate_limit(c->h, &tmp,
+						STATE_SYNC(commit).current,
+						CONFIG(general).commit_steps,
+						do_commit_master);
+		if (STATE_SYNC(commit).current < CONFIG(hashsize)) {
+			STATE_SYNC(commit).state = COMMIT_STATE_MASTER;
+			/* give it another step as soon as possible */
+			write_evfd(STATE_SYNC(commit).evfd);
+			return;
+		}
+		STATE_SYNC(commit).current = 0;
+		STATE_SYNC(commit).state = COMMIT_STATE_RELATED;
+	case COMMIT_STATE_RELATED:
+		STATE_SYNC(commit).current =
+			hashtable_iterate_limit(c->h, &tmp,
+						STATE_SYNC(commit).current,
+						CONFIG(general).commit_steps,
+						do_commit_related);
+		if (STATE_SYNC(commit).current < CONFIG(hashsize)) {
+			STATE_SYNC(commit).state = COMMIT_STATE_RELATED;
+			/* give it another step as soon as possible */
+			write_evfd(STATE_SYNC(commit).evfd);
+			return;
+		}
+		/* calculate the time that commit has taken */
+		gettimeofday(&commit_stop, NULL);
+		timersub(&commit_stop, &STATE_SYNC(commit).stats.start, &res);
 
-	/* calculate new entries committed */
-	commit_ok = c->stats.commit_ok - commit_ok;
-	commit_fail = c->stats.commit_fail - commit_fail;
+		/* calculate new entries committed */
+		commit_ok = c->stats.commit_ok - STATE_SYNC(commit).stats.ok;
+		commit_fail = 
+			c->stats.commit_fail - STATE_SYNC(commit).stats.fail;
 
-	/* log results */
-	dlog(LOG_NOTICE, "Committed %u new entries", commit_ok);
+		/* log results */
+		dlog(LOG_NOTICE, "Committed %u new entries", commit_ok);
 
-	if (commit_fail)
-		dlog(LOG_NOTICE, "%u entries can't be "
-				 "committed", commit_fail);
+		if (commit_fail)
+			dlog(LOG_NOTICE, "%u entries can't be "
+					 "committed", commit_fail);
 
-	dlog(LOG_NOTICE, "commit has taken %lu.%06lu seconds", 
-			res.tv_sec, res.tv_usec);
+		dlog(LOG_NOTICE, "commit has taken %lu.%06lu seconds", 
+				res.tv_sec, res.tv_usec);
+
+		/* prepare the state machine for new commits */
+		STATE_SYNC(commit).current = 0;
+		STATE_SYNC(commit).state = COMMIT_STATE_INACTIVE;
+
+		/* Close the client socket now that we're done. */
+		close(STATE_SYNC(commit).clientfd);
+	}
 }
 
 static int do_flush(void *data, void *n)
