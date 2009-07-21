@@ -96,6 +96,9 @@ struct ct_conf {
 	int filter_from_kernelspace;
 	int event_iterations_limit;
 	struct {
+		int events_reliable;
+	} netlink;
+	struct {
 		int commit_steps;
 	} general;
 	struct {

@@ -71,7 +71,7 @@ static void __max_dedicated_links_reached(void);
 %token T_FILTER T_ADDRESS T_PROTOCOL T_STATE T_ACCEPT T_IGNORE
 %token T_FROM T_USERSPACE T_KERNELSPACE T_EVENT_ITER_LIMIT T_DEFAULT
 %token T_NETLINK_OVERRUN_RESYNC T_NICE T_IPV4_DEST_ADDR T_IPV6_DEST_ADDR
-%token T_SCHEDULER T_TYPE T_PRIO
+%token T_SCHEDULER T_TYPE T_PRIO T_NETLINK_EVENTS_RELIABLE
 
 %token <string> T_IP T_PATH_VAL
 %token <val> T_NUMBER
@@ -873,6 +873,7 @@ general_line: hashsize
 	    | poll_secs
 	    | filter
 	    | netlink_overrun_resync
+	    | netlink_events_reliable
 	    | nice
 	    | scheduler
 	    ;
@@ -900,6 +901,16 @@ netlink_overrun_resync : T_NETLINK_OVERRUN_RESYNC T_OFF
 netlink_overrun_resync : T_NETLINK_OVERRUN_RESYNC T_NUMBER
 {
 	conf.nl_overrun_resync = $2;
+};
+
+netlink_events_reliable : T_NETLINK_EVENTS_RELIABLE T_ON
+{
+	conf.netlink.events_reliable = 1;
+};
+
+netlink_events_reliable : T_NETLINK_EVENTS_RELIABLE T_OFF
+{
+	conf.netlink.events_reliable = 0;
 };
 
 nice : T_NICE T_SIGNED_NUMBER

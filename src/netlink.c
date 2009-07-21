@@ -75,6 +75,18 @@ struct nfct_handle *nl_init_event_handler(void)
 		CONFIG(netlink_buffer_size_max_grown) =
 					CONFIG(netlink_buffer_size);
 
+	if (CONFIG(netlink).events_reliable) {
+		int on = 1;
+
+		setsockopt(nfct_fd(h), SOL_NETLINK,
+			   NETLINK_BROADCAST_SEND_ERROR, &on, sizeof(int));
+
+		setsockopt(nfct_fd(h), SOL_NETLINK,
+			   NETLINK_NO_ENOBUFS, &on, sizeof(int));
+
+		dlog(LOG_NOTICE, "reliable ctnetlink event delivery "
+				 "is ENABLED.");
+	}
 	return h;
 }
 

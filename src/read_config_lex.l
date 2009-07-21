@@ -134,6 +134,7 @@ notrack		[N|n][O|o][T|t][R|r][A|a][C|c][K|k]
 "Scheduler"			{ return T_SCHEDULER; }
 "Type"				{ return T_TYPE; }
 "Priority"			{ return T_PRIO; }
+"NetlinkEventsReliable"		{ return T_NETLINK_EVENTS_RELIABLE; }
 
 {is_on}			{ return T_ON; }
 {is_off}		{ return T_OFF; }
