@@ -57,3 +57,14 @@ void ipv6_cidr2mask_net(uint8_t cidr, uint32_t *res)
 		res[i] = htonl(res[i]);
 }
 
+/* I need this function because I initially defined an IPv6 address as
+ * uint32 u[4]. Using char u[16] instead would allow to remove this. */
+void ipv6_addr2addr_host(uint32_t *addr, uint32_t *res)
+{
+	int i;
+
+	memset(res, 0, sizeof(uint32_t)*4);
+	for (i = 0;  i < 4; i++) {
+		res[i] = ntohl(addr[i]);
+	}
+}

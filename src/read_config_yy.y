@@ -1053,6 +1053,12 @@ filter_item : T_ADDRESS T_IGNORE '{' filter_address_list '}'
 	nfct_filter_set_logic(STATE(filter),
 			      NFCT_FILTER_DST_IPV4,
 			      NFCT_FILTER_LOGIC_NEGATIVE);
+	nfct_filter_set_logic(STATE(filter),
+			      NFCT_FILTER_SRC_IPV6,
+			      NFCT_FILTER_LOGIC_NEGATIVE);
+	nfct_filter_set_logic(STATE(filter),
+			      NFCT_FILTER_DST_IPV6,
+			      NFCT_FILTER_LOGIC_NEGATIVE);
 };
 
 filter_address_list :
@@ -1121,7 +1127,8 @@ filter_address_item : T_IPV6_ADDR T_IP
 {
 	union inet_address ip;
 	char *slash;
-	int cidr;
+	int cidr = 128;
+	struct nfct_filter_ipv6 filter_ipv6;
 
 	memset(&ip, 0, sizeof(union inet_address));
 
@@ -1166,6 +1173,14 @@ filter_address_item : T_IPV6_ADDR T_IP
 							"ignore pool!");
 		}
 	}
+	__kernel_filter_start();
+
+	/* host byte order */
+	ipv6_addr2addr_host(ip.ipv6, filter_ipv6.addr);
+	ipv6_cidr2mask_host(cidr, filter_ipv6.mask);
+
+	nfct_filter_add_attr(STATE(filter), NFCT_FILTER_SRC_IPV6, &filter_ipv6);
+	nfct_filter_add_attr(STATE(filter), NFCT_FILTER_DST_IPV6, &filter_ipv6);
 };
 
 filter_item : T_STATE T_ACCEPT '{' filter_state_list '}'
