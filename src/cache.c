@@ -90,7 +90,9 @@ static int compare(const void *data1, const void *data2)
 	const struct cache_object *obj = data1;
 	const struct nf_conntrack *ct = data2;
 
-	return nfct_cmp(obj->ct, ct, NFCT_CMP_ORIG);
+	return nfct_cmp(obj->ct, ct, NFCT_CMP_ORIG) &&
+	       nfct_get_attr_u32(obj->ct, ATTR_ID) ==
+	       nfct_get_attr_u32(ct, ATTR_ID);
 }
 
 struct cache_feature *cache_feature[CACHE_MAX_FEATURE] = {
