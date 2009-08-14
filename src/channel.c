@@ -57,6 +57,9 @@ channel_buffer_open(int mtu)
 static void
 channel_buffer_close(struct channel_buffer *b)
 {
+	if (b == NULL)
+		return;
+
 	free(b->data);
 	free(b);
 }
