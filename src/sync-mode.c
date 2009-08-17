@@ -132,6 +132,7 @@ static int channel_handler_routine(struct channel *m, int i)
 	remain = numbytes;
 	while (remain > 0) {
 		struct nethdr *net = (struct nethdr *) ptr;
+		int len;
 
 		if (remain < NETHDR_SIZ) {
 			STATE_SYNC(error).msg_rcv_malformed++;
@@ -139,7 +140,8 @@ static int channel_handler_routine(struct channel *m, int i)
 			break;
 		}
 
-		if (ntohs(net->len) > remain) {
+		len = ntohs(net->len);
+		if (len > remain || len <= 0) {
 			STATE_SYNC(error).msg_rcv_malformed++;
 			STATE_SYNC(error).msg_rcv_bad_size++;
 			break;
@@ -149,16 +151,19 @@ static int channel_handler_routine(struct channel *m, int i)
 			if (remain < NETHDR_ACK_SIZ) {
 				STATE_SYNC(error).msg_rcv_malformed++;
 				STATE_SYNC(error).msg_rcv_truncated++;
+				break;
 			}
 
-			if (ntohs(net->len) < NETHDR_ACK_SIZ) {
+			if (len < NETHDR_ACK_SIZ) {
 				STATE_SYNC(error).msg_rcv_malformed++;
 				STATE_SYNC(error).msg_rcv_bad_size++;
+				break;
 			}
 		} else {
-			if (ntohs(net->len) < NETHDR_SIZ) {
+			if (len < NETHDR_SIZ) {
 				STATE_SYNC(error).msg_rcv_malformed++;
 				STATE_SYNC(error).msg_rcv_bad_size++;
+				break;
 			}
 		}
 
