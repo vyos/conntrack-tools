@@ -6,6 +6,7 @@ enum {
 					   any process, but not conntrackd */
 	CTD_ORIGIN_COMMIT,		/* event comes from committer */
 	CTD_ORIGIN_FLUSH,		/* event comes from flush */
+	CTD_ORIGIN_INJECT,		/* event comes from direct inject */
 };
 
 int origin_register(struct nfct_handle *h, int origin_type);

@@ -28,6 +28,7 @@
 #include "queue.h"
 #include "process.h"
 #include "origin.h"
+#include "external.h"
 
 #include <errno.h>
 #include <unistd.h>
@@ -43,8 +44,6 @@ do_channel_handler_step(int i, struct nethdr *net, size_t remain)
 {
 	char __ct[nfct_maxsize()];
 	struct nf_conntrack *ct = (struct nf_conntrack *)(void*) __ct;
-	struct cache_object *obj;
-	int id;
 
 	if (net->version != CONNTRACKD_PROTOCOL_VERSION) {
 		STATE_SYNC(error).msg_rcv_malformed++;
@@ -84,32 +83,13 @@ do_channel_handler_step(int i, struct nethdr *net, size_t remain)
 
 	switch(net->type) {
 	case NET_T_STATE_NEW:
-		obj = cache_find(STATE_SYNC(external), ct, &id);
-		if (obj == NULL) {
-retry:
-			obj = cache_object_new(STATE_SYNC(external), ct);
-			if (obj == NULL)
-				return;
-
-			if (cache_add(STATE_SYNC(external), obj, id) == -1) {
-				cache_object_free(obj);
-				return;
-			}
-		} else {
-			cache_del(STATE_SYNC(external), obj);
-			cache_object_free(obj);
-			goto retry;
-		}
+		STATE_SYNC(external)->new(ct);
 		break;
 	case NET_T_STATE_UPD:
-		cache_update_force(STATE_SYNC(external), ct);
+		STATE_SYNC(external)->update(ct);
 		break;
 	case NET_T_STATE_DEL:
-		obj = cache_find(STATE_SYNC(external), ct, &id);
-		if (obj) {
-			cache_del(STATE_SYNC(external), obj);
-			cache_object_free(obj);
-		}
+		STATE_SYNC(external)->destroy(ct);
 		break;
 	default:
 		STATE_SYNC(error).msg_rcv_malformed++;
@@ -275,15 +255,14 @@ static int init_sync(void)
 		return -1;
 	}
 
-	STATE_SYNC(external) = 
-		cache_create("external",
-			     STATE_SYNC(sync)->external_cache_flags,
-			     NULL);
-
-	if (!STATE_SYNC(external)) {
-		dlog(LOG_ERR, "can't allocate memory for the external cache");
-		return -1;
+	if (CONFIG(sync).external_cache_disable == 0) {
+		STATE_SYNC(external) = &external_cache;
+	} else {
+		STATE_SYNC(external) = &external_inject;
+		dlog(LOG_NOTICE, "disabling external cache");
 	}
+	if (STATE_SYNC(external)->init() == -1)
+		return -1;
 
 	channel_init();
 
@@ -361,7 +340,7 @@ static void run_sync(fd_set *readfds)
 
 	if (FD_ISSET(get_read_evfd(STATE_SYNC(commit).evfd), readfds)) {
 		read_evfd(STATE_SYNC(commit).evfd);
-		cache_commit(STATE_SYNC(external), STATE_SYNC(commit).h, 0);
+		STATE_SYNC(external)->commit(STATE_SYNC(commit).h, 0);
 	}
 
 	/* flush pending messages */
@@ -371,7 +350,7 @@ static void run_sync(fd_set *readfds)
 static void kill_sync(void)
 {
 	cache_destroy(STATE_SYNC(internal));
-	cache_destroy(STATE_SYNC(external));
+	STATE_SYNC(external)->close();
 
 	multichannel_close(STATE_SYNC(channel));
 
@@ -452,7 +431,7 @@ static int local_handler_sync(int fd, int type, void *data)
 	case DUMP_EXTERNAL:
 		ret = fork_process_new(CTD_PROC_ANY, 0, NULL, NULL);
 		if (ret == 0) {
-			cache_dump(STATE_SYNC(external), fd, NFCT_O_PLAIN);
+			STATE_SYNC(external)->dump(fd, NFCT_O_PLAIN);
 			exit(EXIT_SUCCESS);
 		} 
 		break;
@@ -466,7 +445,7 @@ static int local_handler_sync(int fd, int type, void *data)
 	case DUMP_EXT_XML:
 		ret = fork_process_new(CTD_PROC_ANY, 0, NULL, NULL);
 		if (ret == 0) {
-			cache_dump(STATE_SYNC(external), fd, NFCT_O_XML);
+			STATE_SYNC(external)->dump(fd, NFCT_O_XML);
 			exit(EXIT_SUCCESS);
 		}
 		break;
@@ -475,7 +454,7 @@ static int local_handler_sync(int fd, int type, void *data)
 		del_alarm(&STATE_SYNC(reset_cache_alarm));
 
 		dlog(LOG_NOTICE, "committing external cache");
-		cache_commit(STATE_SYNC(external), STATE_SYNC(commit).h, fd);
+		STATE_SYNC(external)->commit(STATE_SYNC(commit).h, fd);
 		/* Keep the client socket open, we want synchronous commits. */
 		ret = LOCAL_RET_STOLEN;
 		break;
@@ -492,7 +471,7 @@ static int local_handler_sync(int fd, int type, void *data)
 		del_alarm(&STATE_SYNC(reset_cache_alarm));
 		dlog(LOG_NOTICE, "flushing caches");
 		cache_flush(STATE_SYNC(internal));
-		cache_flush(STATE_SYNC(external));
+		STATE_SYNC(external)->flush();
 		break;
 	case FLUSH_INT_CACHE:
 		/* inmediate flush, remove pending flush scheduled if any */
@@ -502,14 +481,14 @@ static int local_handler_sync(int fd, int type, void *data)
 		break;
 	case FLUSH_EXT_CACHE:
 		dlog(LOG_NOTICE, "flushing external cache");
-		cache_flush(STATE_SYNC(external));
+		STATE_SYNC(external)->flush();
 		break;
 	case KILL:
 		killer(0);
 		break;
 	case STATS:
 		cache_stats(STATE_SYNC(internal), fd);
-		cache_stats(STATE_SYNC(external), fd);
+		STATE_SYNC(external)->stats(fd);
 		dump_traffic_stats(fd);
 		multichannel_stats(STATE_SYNC(channel), fd);
 		dump_stats_sync(fd);
@@ -520,7 +499,7 @@ static int local_handler_sync(int fd, int type, void *data)
 		break;
 	case STATS_CACHE:
 		cache_stats_extended(STATE_SYNC(internal), fd);
-		cache_stats_extended(STATE_SYNC(external), fd);
+		STATE_SYNC(external)->stats_ext(fd);
 		break;
 	case STATS_LINK:
 		multichannel_stats_extended(STATE_SYNC(channel),
@@ -616,6 +595,10 @@ event_new_sync(struct nf_conntrack *ct, int origin)
 	struct cache_object *obj;
 	int id;
 
+	/* this event has been triggered by a direct inject, skip */
+	if (origin == CTD_ORIGIN_INJECT)
+		return;
+
 	/* required by linux kernel <= 2.6.20 */
 	nfct_attr_unset(ct, ATTR_ORIG_COUNTER_BYTES);
 	nfct_attr_unset(ct, ATTR_ORIG_COUNTER_PACKETS);
@@ -649,6 +632,10 @@ event_update_sync(struct nf_conntrack *ct, int origin)
 {
 	struct cache_object *obj;
 
+	/* this event has been triggered by a direct inject, skip */
+	if (origin == CTD_ORIGIN_INJECT)
+		return;
+
 	obj = cache_update_force(STATE_SYNC(internal), ct);
 	if (obj == NULL)
 		return;
@@ -662,6 +649,10 @@ event_destroy_sync(struct nf_conntrack *ct, int origin)
 {
 	struct cache_object *obj;
 	int id;
+
+	/* this event has been triggered by a direct inject, skip */
+	if (origin == CTD_ORIGIN_INJECT)
+		return 0;
 
 	/* we don't synchronize events for objects that are not in the cache */
 	obj = cache_find(STATE_SYNC(internal), ct, &id);

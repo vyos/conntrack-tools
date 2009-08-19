@@ -96,6 +96,9 @@ struct ct_conf {
 	int filter_from_kernelspace;
 	int event_iterations_limit;
 	struct {
+		int external_cache_disable;
+	} sync;
+	struct {
 		int events_reliable;
 	} netlink;
 	struct {
@@ -172,7 +175,7 @@ struct ct_general_state {
 
 struct ct_sync_state {
 	struct cache *internal; 	/* internal events cache (netlink) */
-	struct cache *external; 	/* external events cache (mcast) */
+	struct external_handler *external;
 
 	struct multichannel	*channel;
 	struct nlif_handle	*interface;
