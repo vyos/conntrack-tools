@@ -27,20 +27,66 @@ struct fds *create_fds(void)
 	if (fds == NULL)
 		return NULL;
 
+	INIT_LIST_HEAD(&fds->list);
+
 	return fds;
 }
 
 void destroy_fds(struct fds *fds)
 {
+	struct fds_item *this, *tmp;
+
+	list_for_each_entry_safe(this, tmp, &fds->list, head) {
+		list_del(&this->head);
+		FD_CLR(this->fd, &fds->readfds);
+		free(this);
+	}
 	free(fds);
 }
 
 int register_fd(int fd, struct fds *fds)
 {
+	struct fds_item *item;
+	
 	FD_SET(fd, &fds->readfds);
 
 	if (fd > fds->maxfd)
 		fds->maxfd = fd;
 
+	item = calloc(sizeof(struct fds_item), 1);
+	if (item == NULL)
+		return -1;
+
+	item->fd = fd;
+	list_add(&item->head, &fds->list);
+
 	return 0;
 }
+
+int unregister_fd(int fd, struct fds *fds)
+{
+	int found = 0, maxfd = -1;
+	struct fds_item *this, *tmp;
+
+	list_for_each_entry_safe(this, tmp, &fds->list, head) {
+		if (this->fd == fd) {
+			list_del(&this->head);
+			FD_CLR(this->fd, &fds->readfds);
+			free(this);
+			found = 1;
+			/* ... and recalculate maxfd, see below. */
+		}
+	}
+	/* not found, report an error. */
+	if (!found)
+		return -1;
+
+	/* calculate the new maximum fd. */
+	list_for_each_entry(this, &fds->list, head) {
+		if (maxfd < this->fd) {
+			maxfd = this->fd;
+		}
+	}
+	return 0;
+}
+
