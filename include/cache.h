@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include "hash.h"
+#include "date.h"
 
 /* cache features */
 enum {

@@ -27,6 +27,7 @@
 #include "traffic_stats.h"
 #include "process.h"
 #include "origin.h"
+#include "date.h"
 
 #include <errno.h>
 #include <signal.h>
@@ -545,6 +546,8 @@ run(void)
 	struct timeval *next = NULL;
 
 	while(1) {
+		do_gettimeofday();
+
 		sigprocmask(SIG_BLOCK, &STATE(block), NULL);
 		if (next != NULL && !timerisset(next))
 			next = do_alarm_run(&next_alarm);

@@ -12,7 +12,7 @@ conntrack_LDFLAGS = $(all_libraries) @LIBNETFILTER_CONNTRACK_LIBS@
 
 conntrackd_SOURCES = alarm.c main.c run.c hash.c queue.c rbtree.c \
 		    local.c log.c mcast.c udp.c netlink.c vector.c \
-		    filter.c fds.c event.c process.c origin.c \
+		    filter.c fds.c event.c process.c origin.c date.c \
 		    cache.c cache_iterators.c \
 		    cache_timer.c \
 		    sync-mode.c sync-alarm.c sync-ftfw.c sync-notrack.c \

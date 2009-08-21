@@ -17,6 +17,7 @@
  */
 
 #include "alarm.h"
+#include "date.h"
 #include <stdlib.h>
 #include <limits.h>
 
@@ -61,7 +62,7 @@ void add_alarm(struct alarm_block *alarm, unsigned long sc, unsigned long usc)
 	del_alarm(alarm);
 	alarm->tv.tv_sec = sc;
 	alarm->tv.tv_usec = usc;
-	gettimeofday(&tv, NULL);
+	gettimeofday_cached(&tv);
 	timeradd(&alarm->tv, &tv, &alarm->tv);
 	__add_alarm(alarm);
 }
@@ -107,7 +108,7 @@ get_next_alarm_run(struct timeval *next_run)
 	struct rb_node *node;
 	struct timeval tv;
 
-	gettimeofday(&tv, NULL);
+	gettimeofday_cached(&tv);
 
 	node = rb_first(&alarm_root);
 	if (node) {
@@ -126,7 +127,7 @@ do_alarm_run(struct timeval *next_run)
 	struct alarm_block *this, *tmp;
 	struct timeval tv;
 
-	gettimeofday(&tv, NULL);
+	gettimeofday_cached(&tv);
 
 	INIT_LIST_HEAD(&alarm_run_queue);
 	for (node = rb_first(&alarm_root); node; node = rb_next(node)) {
