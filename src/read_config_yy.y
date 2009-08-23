@@ -58,7 +58,7 @@ static void __max_dedicated_links_reached(void);
 %token T_IPV4_ADDR T_IPV4_IFACE T_PORT T_HASHSIZE T_HASHLIMIT T_MULTICAST
 %token T_PATH T_UNIX T_REFRESH T_IPV6_ADDR T_IPV6_IFACE
 %token T_IGNORE_UDP T_IGNORE_ICMP T_IGNORE_TRAFFIC T_BACKLOG T_GROUP
-%token T_LOG T_UDP T_ICMP T_IGMP T_VRRP T_IGNORE_PROTOCOL
+%token T_LOG T_UDP T_ICMP T_IGMP T_VRRP T_TCP T_IGNORE_PROTOCOL
 %token T_LOCK T_STRIP_NAT T_BUFFER_SIZE_MAX_GROWN T_EXPIRE T_TIMEOUT
 %token T_GENERAL T_SYNC T_STATS T_RELAX_TRANSITIONS T_BUFFER_SIZE T_DELAY
 %token T_SYNC_MODE T_LISTEN_TO T_FAMILY T_RESEND_BUFFER_SIZE
@@ -573,6 +573,142 @@ udp_option: T_CHECKSUM T_OFF
 	conf.channel[conf.channel_num].u.udp.checksum = 1;
 };
 
+tcp_line : T_TCP '{' tcp_options '}'
+{
+	if (conf.channel_type_global != CHANNEL_NONE &&
+	    conf.channel_type_global != CHANNEL_TCP) {
+		print_err(CTD_CFG_ERROR, "cannot use `TCP' with other "
+					 "dedicated link protocols!");
+		exit(EXIT_FAILURE);
+	}
+	conf.channel_type_global = CHANNEL_TCP;
+	conf.channel[conf.channel_num].channel_type = CHANNEL_TCP;
+	conf.channel[conf.channel_num].channel_flags = CHANNEL_F_BUFFERED |
+						       CHANNEL_F_STREAM;
+	conf.channel_num++;
+};
+
+tcp_line : T_TCP T_DEFAULT '{' tcp_options '}'
+{
+	if (conf.channel_type_global != CHANNEL_NONE &&
+	    conf.channel_type_global != CHANNEL_TCP) {
+		print_err(CTD_CFG_ERROR, "cannot use `TCP' with other "
+					 "dedicated link protocols!");
+		exit(EXIT_FAILURE);
+	}
+	conf.channel_type_global = CHANNEL_TCP;
+	conf.channel[conf.channel_num].channel_type = CHANNEL_TCP;
+	conf.channel[conf.channel_num].channel_flags = CHANNEL_F_DEFAULT |
+						       CHANNEL_F_BUFFERED |
+						       CHANNEL_F_STREAM;
+	conf.channel_default = conf.channel_num;
+	conf.channel_num++;
+};
+
+tcp_options :
+	    | tcp_options tcp_option;
+
+tcp_option : T_IPV4_ADDR T_IP
+{
+	__max_dedicated_links_reached();
+
+	if (!inet_aton($2, &conf.channel[conf.channel_num].u.tcp.server.ipv4)) {
+		print_err(CTD_CFG_WARN, "%s is not a valid IPv4 address", $2);
+		break;
+	}
+	conf.channel[conf.channel_num].u.tcp.ipproto = AF_INET;
+};
+
+tcp_option : T_IPV6_ADDR T_IP
+{
+	__max_dedicated_links_reached();
+
+#ifdef HAVE_INET_PTON_IPV6
+	if (inet_pton(AF_INET6, $2,
+		      &conf.channel[conf.channel_num].u.tcp.server.ipv6) <= 0) {
+		print_err(CTD_CFG_WARN, "%s is not a valid IPv6 address", $2);
+		break;
+	}
+#else
+	print_err(CTD_CFG_WARN, "cannot find inet_pton(), IPv6 unsupported!");
+	break;
+#endif
+	conf.channel[conf.channel_num].u.tcp.ipproto = AF_INET6;
+};
+
+tcp_option : T_IPV4_DEST_ADDR T_IP
+{
+	__max_dedicated_links_reached();
+
+	if (!inet_aton($2, &conf.channel[conf.channel_num].u.tcp.client)) {
+		print_err(CTD_CFG_WARN, "%s is not a valid IPv4 address", $2);
+		break;
+	}
+	conf.channel[conf.channel_num].u.tcp.ipproto = AF_INET;
+};
+
+tcp_option : T_IPV6_DEST_ADDR T_IP
+{
+	__max_dedicated_links_reached();
+
+#ifdef HAVE_INET_PTON_IPV6
+	if (inet_pton(AF_INET6, $2,
+		      &conf.channel[conf.channel_num].u.tcp.client) <= 0) {
+		print_err(CTD_CFG_WARN, "%s is not a valid IPv6 address", $2);
+		break;
+	}
+#else
+	print_err(CTD_CFG_WARN, "cannot find inet_pton(), IPv6 unsupported!");
+	break;
+#endif
+	conf.channel[conf.channel_num].u.tcp.ipproto = AF_INET6;
+};
+
+tcp_option : T_IFACE T_STRING
+{
+	int idx;
+
+	__max_dedicated_links_reached();
+	strncpy(conf.channel[conf.channel_num].channel_ifname, $2, IFNAMSIZ);
+
+	idx = if_nametoindex($2);
+	if (!idx) {
+		print_err(CTD_CFG_WARN, "%s is an invalid interface", $2);
+		break;
+	}
+	conf.channel[conf.channel_num].u.tcp.server.ipv6.scope_id = idx;
+};
+
+tcp_option : T_PORT T_NUMBER
+{
+	__max_dedicated_links_reached();
+	conf.channel[conf.channel_num].u.tcp.port = $2;
+};
+
+tcp_option: T_SNDBUFF T_NUMBER
+{
+	__max_dedicated_links_reached();
+	conf.channel[conf.channel_num].u.tcp.sndbuf = $2;
+};
+
+tcp_option: T_RCVBUFF T_NUMBER
+{
+	__max_dedicated_links_reached();
+	conf.channel[conf.channel_num].u.tcp.rcvbuf = $2;
+};
+
+tcp_option: T_CHECKSUM T_ON 
+{
+	__max_dedicated_links_reached();
+	conf.channel[conf.channel_num].u.tcp.checksum = 0;
+};
+
+tcp_option: T_CHECKSUM T_OFF
+{
+	__max_dedicated_links_reached();
+	conf.channel[conf.channel_num].u.tcp.checksum = 1;
+};
+
 hashsize : T_HASHSIZE T_NUMBER
 {
 	conf.hashsize = $2;
@@ -654,6 +790,7 @@ sync_line: refreshtime
 	 | checksum
 	 | multicast_line
 	 | udp_line
+	 | tcp_line
 	 | relax_transitions
 	 | delay_destroy_msgs
 	 | sync_mode_alarm
@@ -1032,6 +1169,25 @@ filter_protocol_item : T_STRING
 	if (pent == NULL) {
 		print_err(CTD_CFG_WARN, "getprotobyname() cannot find "
 					"protocol `%s' in /etc/protocols", $1);
+		break;
+	}
+	ct_filter_add_proto(STATE(us_filter), pent->p_proto);
+
+	__kernel_filter_start();
+
+	nfct_filter_add_attr_u32(STATE(filter),
+				 NFCT_FILTER_L4PROTO,
+				 pent->p_proto);
+};
+
+filter_protocol_item : T_TCP
+{
+	struct protoent *pent;
+
+	pent = getprotobyname("tcp");
+	if (pent == NULL) {
+		print_err(CTD_CFG_WARN, "getprotobyname() cannot find "
+					"protocol `tcp' in /etc/protocols");
 		break;
 	}
 	ct_filter_add_proto(STATE(us_filter), pent->p_proto);

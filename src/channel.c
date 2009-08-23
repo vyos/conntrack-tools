@@ -20,11 +20,13 @@
 static struct channel_ops *ops[CHANNEL_MAX];
 extern struct channel_ops channel_mcast;
 extern struct channel_ops channel_udp;
+extern struct channel_ops channel_tcp;
 
 void channel_init(void)
 {
 	ops[CHANNEL_MCAST] = &channel_mcast;
 	ops[CHANNEL_UDP] = &channel_udp;
+	ops[CHANNEL_TCP] = &channel_tcp;
 }
 
 #define HEADERSIZ 28 /* IP header (20 bytes) + UDP header 8 (bytes) */
@@ -182,4 +184,19 @@ void channel_stats_extended(struct channel *c, int active,
 			    struct nlif_handle *h, int fd)
 {
 	return c->ops->stats_extended(c, active, h, fd);
+}
+
+int channel_accept_isset(struct channel *c, fd_set *readfds)
+{
+	return c->ops->accept_isset(c, readfds);
+}
+
+int channel_isset(struct channel *c, fd_set *readfds)
+{
+	return c->ops->isset(c, readfds);
+}
+
+int channel_accept(struct channel *c)
+{
+	return c->ops->accept(c);
 }

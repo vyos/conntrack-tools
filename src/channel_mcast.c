@@ -112,12 +112,27 @@ channel_mcast_stats_extended(struct channel *c, int active,
 	send(fd, buf, size, 0);
 }
 
+static int
+channel_mcast_isset(struct channel *c, fd_set *readfds)
+{
+	struct mcast_channel *m = c->data;
+	return mcast_isset(m->server, readfds);
+}
+
+static int
+channel_mcast_accept_isset(struct channel *c, fd_set *readfds)
+{
+	return 0;
+}
+
 struct channel_ops channel_mcast = {
 	.open		= channel_mcast_open,
 	.close		= channel_mcast_close,
 	.send		= channel_mcast_send,
 	.recv		= channel_mcast_recv,
 	.get_fd		= channel_mcast_get_fd,
+	.isset		= channel_mcast_isset,
+	.accept_isset	= channel_mcast_accept_isset,
 	.stats		= channel_mcast_stats,
 	.stats_extended = channel_mcast_stats_extended,
 };

@@ -112,12 +112,27 @@ channel_udp_stats_extended(struct channel *c, int active,
 	send(fd, buf, size, 0);
 }
 
+static int
+channel_udp_isset(struct channel *c, fd_set *readfds)
+{
+	struct udp_channel *m = c->data;
+	return udp_isset(m->server, readfds);
+}
+
+static int
+channel_udp_accept_isset(struct channel *c, fd_set *readfds)
+{
+	return 0;
+}
+
 struct channel_ops channel_udp = {
 	.open		= channel_udp_open,
 	.close		= channel_udp_close,
 	.send		= channel_udp_send,
 	.recv		= channel_udp_recv,
 	.get_fd		= channel_udp_get_fd,
+	.isset		= channel_udp_isset,
+	.accept_isset	= channel_udp_accept_isset,
 	.stats		= channel_udp_stats,
 	.stats_extended = channel_udp_stats_extended,
 };

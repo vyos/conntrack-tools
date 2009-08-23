@@ -65,6 +65,7 @@ notrack		[N|n][O|o][T|t][R|r][A|a][C|c][K|k]
 "Interface"			{ return T_IFACE; }
 "Multicast"			{ return T_MULTICAST; }
 "UDP"				{ return T_UDP; }
+"TCP"				{ return T_TCP; }
 "HashSize"			{ return T_HASHSIZE; }
 "RefreshTime"			{ return T_REFRESH; }
 "CacheTimeout"			{ return T_EXPIRE; }

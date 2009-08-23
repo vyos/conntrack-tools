@@ -48,6 +48,7 @@ ssize_t mcast_send(struct mcast_sock *m, const void *data, int size);
 ssize_t mcast_recv(struct mcast_sock *m, void *data, int size);
 
 int mcast_get_fd(struct mcast_sock *m);
+int mcast_isset(struct mcast_sock *m, fd_set *readfds);
 
 int mcast_snprintf_stats(char *buf, size_t buflen, char *ifname,
 			 struct mcast_stats *s, struct mcast_stats *r);

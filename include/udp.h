@@ -52,6 +52,7 @@ ssize_t udp_send(struct udp_sock *m, const void *data, int size);
 ssize_t udp_recv(struct udp_sock *m, void *data, int size);
 
 int udp_get_fd(struct udp_sock *m);
+int udp_isset(struct udp_sock *m, fd_set *readfds);
 
 int udp_snprintf_stats(char *buf, size_t buflen, char *ifname,
 		       struct udp_stats *s, struct udp_stats *r);

@@ -214,6 +214,11 @@ int udp_get_fd(struct udp_sock *m)
 	return m->fd;
 }
 
+int udp_isset(struct udp_sock *m, fd_set *readfds)
+{
+	return FD_ISSET(m->fd, readfds);
+}
+
 int
 udp_snprintf_stats(char *buf, size_t buflen, char *ifname,
 		   struct udp_stats *s, struct udp_stats *r)
