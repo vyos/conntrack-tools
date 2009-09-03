@@ -81,7 +81,7 @@ enum {
 
 #define BUILD_NETMSG(ct, query)					\
 ({								\
-	char __net[4096];					\
+	static char __net[4096];				\
 	struct nethdr *__hdr = (struct nethdr *) __net;		\
 	memset(__hdr, 0, NETHDR_SIZ);				\
 	nethdr_set(__hdr, query);				\
