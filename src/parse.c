@@ -208,6 +208,8 @@ int parse_payload(struct nf_conntrack *ct, struct nethdr *net, size_t remain)
 		ATTR_NETWORK2HOST(attr);
 		if (attr->nta_len > len)
 			return -1;
+		if (attr->nta_attr > NTA_MAX)
+			return -1;
 		if (attr->nta_len != h[attr->nta_attr].size)
 			return -1;
 		if (h[attr->nta_attr].parse == NULL) {
