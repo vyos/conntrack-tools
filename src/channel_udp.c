@@ -126,6 +126,7 @@ channel_udp_accept_isset(struct channel *c, fd_set *readfds)
 }
 
 struct channel_ops channel_udp = {
+	.headersiz	= 28, /* IP header (20 bytes) + UDP header 8 (bytes) */
 	.open		= channel_udp_open,
 	.close		= channel_udp_close,
 	.send		= channel_udp_send,

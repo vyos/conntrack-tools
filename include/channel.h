@@ -52,6 +52,7 @@ struct channel_conf {
 struct nlif_handle;
 
 struct channel_ops {
+	int	headersiz;
 	void *	(*open)(void *conf);
 	void	(*close)(void *channel);
 	int	(*send)(void *channel, const void *data, int len);

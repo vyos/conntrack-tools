@@ -29,8 +29,6 @@ void channel_init(void)
 	ops[CHANNEL_TCP] = &channel_tcp;
 }
 
-#define HEADERSIZ 28 /* IP header (20 bytes) + UDP header 8 (bytes) */
-
 struct channel_buffer {
 	char	*data;
 	int	size;
@@ -38,7 +36,7 @@ struct channel_buffer {
 };
 
 static struct channel_buffer *
-channel_buffer_open(int mtu)
+channel_buffer_open(int mtu, int headersiz)
 {
 	struct channel_buffer *b;
 
@@ -46,7 +44,7 @@ channel_buffer_open(int mtu)
 	if (b == NULL)
 		return NULL;
 
-	b->size = mtu - HEADERSIZ;
+	b->size = mtu - headersiz;
 
 	b->data = malloc(b->size);
 	if (b->data == NULL) {
@@ -108,7 +106,8 @@ channel_open(struct channel_conf *conf)
 	c->ops = ops[conf->channel_type];
 
 	if (conf->channel_flags & CHANNEL_F_BUFFERED) {
-		c->buffer = channel_buffer_open(c->channel_ifmtu);
+		c->buffer = channel_buffer_open(c->channel_ifmtu,
+						c->ops->headersiz);
 		if (c->buffer == NULL) {
 			free(c);
 			return NULL;

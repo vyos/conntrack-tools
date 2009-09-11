@@ -136,6 +136,7 @@ channel_tcp_accept(struct channel *c)
 }
 
 struct channel_ops channel_tcp = {
+	.headersiz	= 40, /* IP header (20 bytes) + TCP header 20 (bytes) */
 	.open		= channel_tcp_open,
 	.close		= channel_tcp_close,
 	.send		= channel_tcp_send,

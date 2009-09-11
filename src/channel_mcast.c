@@ -126,6 +126,7 @@ channel_mcast_accept_isset(struct channel *c, fd_set *readfds)
 }
 
 struct channel_ops channel_mcast = {
+	.headersiz	= 28, /* IP header (20 bytes) + UDP header 8 (bytes) */
 	.open		= channel_mcast_open,
 	.close		= channel_mcast_close,
 	.send		= channel_mcast_send,
