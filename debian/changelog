@@ -4,6 +4,8 @@ conntrack (1:0.9.13-1) UNRELEASED; urgency=low
     - require libnfnetlink 1.0.0, libnetfilter_conntrack 0.0.100
     - ChangeLog was removed by upstream
   * updated home page in the copyright file (Closes: #533583)
+  * correct LSB dependencies in init script, patch by Petter Reinholdtsen
+    (Closes: #541079)
 
  -- Max Kellermann <max@duempel.org>  Fri, 11 Sep 2009 13:47:42 +0200
 
