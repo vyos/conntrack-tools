@@ -2,6 +2,7 @@ conntrack (1:0.9.13-1) UNRELEASED; urgency=low
 
   * new upstream release (Closes: #537896, #545918)
     - require libnfnetlink 1.0.0, libnetfilter_conntrack 0.0.100
+    - ChangeLog was removed by upstream
 
  -- Max Kellermann <mk@cm4all.com>  Fri, 11 Sep 2009 13:47:42 +0200
 

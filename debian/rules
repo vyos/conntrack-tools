@@ -60,7 +60,7 @@ binary-arch: build install
 	dh_testdir -a
 	dh_testroot -a
 	dh_installdocs -a -A AUTHORS
-	dh_installchangelogs -a ChangeLog
+	dh_installchangelogs -a
 	dh_installlogrotate -a
 	dh_installinit -a
 	dh_install -a -X.svn
