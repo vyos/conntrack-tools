@@ -1,5 +1,6 @@
 conntrack (1:0.9.13-1) UNRELEASED; urgency=low
 
+  [ Max Kellermann ]
   * new upstream release (Closes: #537896, #545918)
     - require libnfnetlink 1.0.0, libnetfilter_conntrack 0.0.100
     - ChangeLog was removed by upstream
@@ -7,7 +8,10 @@ conntrack (1:0.9.13-1) UNRELEASED; urgency=low
   * correct LSB dependencies in init script, patch by Petter Reinholdtsen
     (Closes: #541079)
 
- -- Max Kellermann <max@duempel.org>  Fri, 11 Sep 2009 13:47:42 +0200
+  [ Alexander Wirt ]
+  * Bump standards version 
+
+ -- Alexander Wirt <formorer@debian.org>  Sun, 13 Sep 2009 20:56:54 +0200
 
 conntrack (1:0.9.12-1) unstable; urgency=low
 
