@@ -77,7 +77,7 @@ static int do_cache_to_tx(void *data1, void *data2)
 
 static int notrack_local(int fd, int type, void *data)
 {
-	int ret = 1;
+	int ret = LOCAL_RET_OK;
 
 	switch(type) {
 	case REQUEST_DUMP:
