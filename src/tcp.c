@@ -301,9 +301,11 @@ ssize_t tcp_send(struct tcp_sock *m, const void *data, int size)
 			} else if (errno == ECONNREFUSED) {
 				/* connection refused. */
 				m->state = TCP_CLIENT_DISCONNECTED;
+				m->stats.error++;
 			} else {
 				/* unexpected error, give up. */
 				m->state = TCP_CLIENT_DISCONNECTED;
+				m->stats.error++;
 			}
 			break;
 		} else {
@@ -318,9 +320,10 @@ ssize_t tcp_send(struct tcp_sock *m, const void *data, int size)
 				close(m->fd);
 				tcp_client_init(m, tcp_client_conf);
 				m->state = TCP_CLIENT_DISCONNECTED;
+				m->stats.error++;
 			} else {
 				m->stats.error++;
-				return 0;
+				return -1;
 			}
 		}
 	}
