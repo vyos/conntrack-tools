@@ -65,31 +65,31 @@ channel_buffer_close(struct channel_buffer *b)
 }
 
 struct channel *
-channel_open(struct channel_conf *conf)
+channel_open(struct channel_conf *cfg)
 {
 	struct channel *c;
 	struct ifreq ifr;
 	int fd;
 
-	if (conf->channel_type >= CHANNEL_MAX)
+	if (cfg->channel_type >= CHANNEL_MAX)
 		return NULL;
-	if (!conf->channel_ifname[0])
+	if (!cfg->channel_ifname[0])
 		return NULL;
-	if (conf->channel_flags >= CHANNEL_F_MAX)
+	if (cfg->channel_flags >= CHANNEL_F_MAX)
 		return NULL;
 
 	c = calloc(sizeof(struct channel), 1);
 	if (c == NULL)
 		return NULL;
 
-	c->channel_type = conf->channel_type;
+	c->channel_type = cfg->channel_type;
 
 	fd = socket(AF_INET, SOCK_DGRAM, 0);
 	if (fd == -1) {
 		free(c);
 		return NULL;
 	}
-	strncpy(ifr.ifr_name, conf->channel_ifname, sizeof(ifr.ifr_name));
+	strncpy(ifr.ifr_name, cfg->channel_ifname, sizeof(ifr.ifr_name));
 
 	if (ioctl(fd, SIOCGIFMTU, &ifr) == -1) {
 		free(c);
@@ -98,14 +98,14 @@ channel_open(struct channel_conf *conf)
 	close(fd);
 	c->channel_ifmtu = ifr.ifr_mtu;
 
-	c->channel_ifindex = if_nametoindex(conf->channel_ifname);
+	c->channel_ifindex = if_nametoindex(cfg->channel_ifname);
 	if (c->channel_ifindex == 0) {
 		free(c);
 		return NULL;
 	}
-	c->ops = ops[conf->channel_type];
+	c->ops = ops[cfg->channel_type];
 
-	if (conf->channel_flags & CHANNEL_F_BUFFERED) {
+	if (cfg->channel_flags & CHANNEL_F_BUFFERED) {
 		c->buffer = channel_buffer_open(c->channel_ifmtu,
 						c->ops->headersiz);
 		if (c->buffer == NULL) {
@@ -113,9 +113,9 @@ channel_open(struct channel_conf *conf)
 			return NULL;
 		}
 	}
-	c->channel_flags = conf->channel_flags;
+	c->channel_flags = cfg->channel_flags;
 
-	c->data = c->ops->open(&conf->u);
+	c->data = c->ops->open(&cfg->u);
 	if (c->data == NULL) {
 		channel_buffer_close(c->buffer);
 		free(c);
