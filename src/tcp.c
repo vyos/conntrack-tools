@@ -35,6 +35,8 @@ struct tcp_sock *tcp_server_create(struct tcp_conf *c)
 	if (m == NULL)
 		return NULL;
 
+	m->conf = c;
+
 	switch(c->ipproto) {
 	case AF_INET:
 	        m->addr.ipv4.sin_family = AF_INET;
@@ -222,17 +224,15 @@ tcp_client_init(struct tcp_sock *m, struct tcp_conf *c)
 	return 0;
 }
 
-static struct tcp_conf *tcp_client_conf; /* XXX: need this to re-connect. */
-
 struct tcp_sock *tcp_client_create(struct tcp_conf *c)
 {
 	struct tcp_sock *m;
 
-	tcp_client_conf = c;
-
 	m = calloc(sizeof(struct tcp_sock), 1);
 	if (m == NULL)
 		return NULL;
+
+	m->conf = c;
 
 	if (tcp_client_init(m, c) == -1) {
 		free(m);
@@ -318,7 +318,7 @@ ssize_t tcp_send(struct tcp_sock *m, const void *data, int size)
 		if (ret == -1) {
 			if (errno == EPIPE || errno == ECONNRESET) {
 				close(m->fd);
-				tcp_client_init(m, tcp_client_conf);
+				tcp_client_init(m, m->conf);
 				m->state = TCP_CLIENT_DISCONNECTED;
 				m->stats.error++;
 			} else {

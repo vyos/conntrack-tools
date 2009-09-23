@@ -49,6 +49,7 @@ struct tcp_sock {
 	} addr;
 	socklen_t sockaddr_len;
 	struct tcp_stats stats;
+	struct tcp_conf *conf;
 };
 
 struct tcp_sock *tcp_server_create(struct tcp_conf *conf);
