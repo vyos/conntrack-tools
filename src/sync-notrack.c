@@ -26,6 +26,11 @@
 
 #include <string.h>
 
+static struct alarm_block alive_alarm;
+
+/* XXX: alive message expiration configurable */
+#define ALIVE_INT 1
+
 struct cache_notrack {
 	struct queue_node	qnode;
 };
@@ -106,6 +111,9 @@ static int digest_msg(const struct nethdr *net)
 		return MSG_CTL;
 	}
 
+	if (IS_ALIVE(net))
+		return MSG_CTL;
+
 	return MSG_BAD;
 }
 
@@ -162,6 +170,7 @@ static int tx_queue_xmit(struct queue_node *n, const void *data2)
 static void notrack_xmit(void)
 {
 	queue_iterate(STATE_SYNC(tx_queue), NULL, tx_queue_xmit);
+	add_alarm(&alive_alarm, ALIVE_INT, 0);
 }
 
 static void notrack_enqueue(struct cache_object *obj, int query)
@@ -171,10 +180,40 @@ static void notrack_enqueue(struct cache_object *obj, int query)
 		cache_object_get(obj);
 }
 
+static void tx_queue_add_ctlmsg2(uint32_t flags)
+{
+	struct queue_object *qobj;
+	struct nethdr *ctl;
+
+	qobj = queue_object_new(Q_ELEM_CTL, sizeof(struct nethdr_ack));
+	if (qobj == NULL)
+		return;
+
+	ctl		= (struct nethdr *)qobj->data;
+	ctl->type	= NET_T_CTL;
+	ctl->flags	= flags;
+
+	queue_add(STATE_SYNC(tx_queue), &qobj->qnode);
+}
+
+static void do_alive_alarm(struct alarm_block *a, void *data)
+{
+	tx_queue_add_ctlmsg2(NET_F_ALIVE);
+	add_alarm(&alive_alarm, ALIVE_INT, 0);
+}
+
+static int notrack_init(void)
+{
+	init_alarm(&alive_alarm, NULL, do_alive_alarm);
+	add_alarm(&alive_alarm, ALIVE_INT, 0);
+	return 0;
+}
+
 struct sync_mode sync_notrack = {
 	.internal_cache_flags	= NO_FEATURES,
 	.external_cache_flags	= NO_FEATURES,
 	.internal_cache_extra	= &cache_notrack_extra,
+	.init			= notrack_init,
 	.local			= notrack_local,
 	.recv			= notrack_recv,
 	.enqueue		= notrack_enqueue,
