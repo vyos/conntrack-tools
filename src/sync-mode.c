@@ -295,7 +295,8 @@ static int init_sync(void)
 	if (STATE_SYNC(external)->init() == -1)
 		return -1;
 
-	channel_init();
+	if (channel_init() == -1)
+		return -1;
 
 	/* channel to send events on the wire */
 	STATE_SYNC(channel) =
@@ -396,6 +397,8 @@ static void kill_sync(void)
 	nlif_close(STATE_SYNC(interface));
 
 	queue_destroy(STATE_SYNC(tx_queue));
+
+	channel_end();
 
 	origin_unregister(STATE_SYNC(commit).h);
 	nfct_close(STATE_SYNC(commit).h);

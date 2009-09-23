@@ -96,6 +96,9 @@ struct ct_conf {
 	int filter_from_kernelspace;
 	int event_iterations_limit;
 	struct {
+		int error_queue_length;
+	} channelc;
+	struct {
 		int external_cache_disable;
 	} sync;
 	struct {

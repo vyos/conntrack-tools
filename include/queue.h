@@ -13,7 +13,8 @@ struct queue_node {
 
 enum {
 	Q_ELEM_OBJ = 0,
-	Q_ELEM_CTL = 1
+	Q_ELEM_CTL = 1,
+	Q_ELEM_ERR = 2,
 };
 
 void queue_node_init(struct queue_node *n, int type);

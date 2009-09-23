@@ -137,6 +137,7 @@ notrack		[N|n][O|o][T|t][R|r][A|a][C|c][K|k]
 "Priority"			{ return T_PRIO; }
 "NetlinkEventsReliable"		{ return T_NETLINK_EVENTS_RELIABLE; }
 "DisableExternalCache"		{ return T_DISABLE_EXTERNAL_CACHE; }
+"ErrorQueueLength"		{ return T_ERROR_QUEUE_LENGTH; }
 
 {is_on}			{ return T_ON; }
 {is_off}		{ return T_OFF; }

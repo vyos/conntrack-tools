@@ -34,7 +34,8 @@ struct tcp_channel {
 #define CHANNEL_F_DEFAULT	(1 << 0)
 #define CHANNEL_F_BUFFERED	(1 << 1)
 #define CHANNEL_F_STREAM	(1 << 2)
-#define CHANNEL_F_MAX		(1 << 3)
+#define CHANNEL_F_ERRORS	(1 << 3)
+#define CHANNEL_F_MAX		(1 << 4)
 
 union channel_type_conf {
 	struct mcast_conf mcast;
@@ -78,7 +79,8 @@ struct channel {
 	void			*data;
 };
 
-void channel_init(void);
+int channel_init(void);
+void channel_end(void);
 struct channel *channel_open(struct channel_conf *conf);
 void channel_close(struct channel *c);
 

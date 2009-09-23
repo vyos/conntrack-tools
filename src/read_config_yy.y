@@ -72,7 +72,7 @@ static void __max_dedicated_links_reached(void);
 %token T_FROM T_USERSPACE T_KERNELSPACE T_EVENT_ITER_LIMIT T_DEFAULT
 %token T_NETLINK_OVERRUN_RESYNC T_NICE T_IPV4_DEST_ADDR T_IPV6_DEST_ADDR
 %token T_SCHEDULER T_TYPE T_PRIO T_NETLINK_EVENTS_RELIABLE
-%token T_DISABLE_EXTERNAL_CACHE
+%token T_DISABLE_EXTERNAL_CACHE T_ERROR_QUEUE_LENGTH
 
 %token <string> T_IP T_PATH_VAL
 %token <val> T_NUMBER
@@ -584,7 +584,8 @@ tcp_line : T_TCP '{' tcp_options '}'
 	conf.channel_type_global = CHANNEL_TCP;
 	conf.channel[conf.channel_num].channel_type = CHANNEL_TCP;
 	conf.channel[conf.channel_num].channel_flags = CHANNEL_F_BUFFERED |
-						       CHANNEL_F_STREAM;
+						       CHANNEL_F_STREAM |
+						       CHANNEL_F_ERRORS;
 	conf.channel_num++;
 };
 
@@ -600,7 +601,8 @@ tcp_line : T_TCP T_DEFAULT '{' tcp_options '}'
 	conf.channel[conf.channel_num].channel_type = CHANNEL_TCP;
 	conf.channel[conf.channel_num].channel_flags = CHANNEL_F_DEFAULT |
 						       CHANNEL_F_BUFFERED |
-						       CHANNEL_F_STREAM;
+						       CHANNEL_F_STREAM |
+						       CHANNEL_F_ERRORS;
 	conf.channel_default = conf.channel_num;
 	conf.channel_num++;
 };
@@ -707,6 +709,12 @@ tcp_option: T_CHECKSUM T_OFF
 {
 	__max_dedicated_links_reached();
 	conf.channel[conf.channel_num].u.tcp.checksum = 1;
+};
+
+tcp_option: T_ERROR_QUEUE_LENGTH T_NUMBER
+{
+	__max_dedicated_links_reached();
+	CONFIG(channelc).error_queue_length = $2;
 };
 
 hashsize : T_HASHSIZE T_NUMBER
@@ -1582,6 +1590,10 @@ init_config(char *filename)
 	/* if overrun, automatically resync with kernel after 30 seconds */
 	if (CONFIG(nl_overrun_resync) == 0)
 		CONFIG(nl_overrun_resync) = 30;
+
+	/* default to 128 elements in the channel error queue */
+	if (CONFIG(channelc).error_queue_length == 0)
+		CONFIG(channelc).error_queue_length = 128;
 
 	return 0;
 }
