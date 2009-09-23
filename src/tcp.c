@@ -224,6 +224,10 @@ tcp_client_init(struct tcp_sock *m, struct tcp_conf *c)
 	return 0;
 }
 
+/* We use this to rate-limit the amount of connect() calls per second. */
+static struct alarm_block tcp_connect_alarm;
+static void tcp_connect_alarm_cb(struct alarm_block *a, void *data) {}
+
 struct tcp_sock *tcp_client_create(struct tcp_conf *c)
 {
 	struct tcp_sock *m;
@@ -238,6 +242,8 @@ struct tcp_sock *tcp_client_create(struct tcp_conf *c)
 		free(m);
 		return NULL;
 	}
+
+	init_alarm(&tcp_connect_alarm, NULL, tcp_connect_alarm_cb);
 
 	return m;
 }
@@ -286,12 +292,20 @@ int tcp_accept(struct tcp_sock *m)
 	return m->client_fd;
 }
 
+#define TCP_CONNECT_TIMEOUT	1
+
 ssize_t tcp_send(struct tcp_sock *m, const void *data, int size)
 {
 	ssize_t ret = 0;
 
 	switch(m->state) {
 	case TCP_CLIENT_DISCONNECTED:
+		/* We rate-limit the amount of connect() calls. */
+		if (alarm_pending(&tcp_connect_alarm)) {
+			ret = -1;
+			break;
+		}
+		add_alarm(&tcp_connect_alarm, TCP_CONNECT_TIMEOUT, 0);
 		ret = connect(m->fd, (struct sockaddr *)&m->addr,
 			      m->sockaddr_len);
 		if (ret == -1) {
