@@ -87,6 +87,8 @@ int unregister_fd(int fd, struct fds *fds)
 			maxfd = this->fd;
 		}
 	}
+	fds->maxfd = maxfd;
+
 	return 0;
 }
 
