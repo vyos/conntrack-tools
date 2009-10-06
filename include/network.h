@@ -217,6 +217,9 @@ enum nta_attr {
 	NTA_SCTP_VTAG_REPL,	/* uint32_t */
 	NTA_DCCP_STATE = 20,	/* uint8_t */
 	NTA_DCCP_ROLE,		/* uint8_t */
+	NTA_ICMP_TYPE,		/* uint8_t */
+	NTA_ICMP_CODE,		/* uint8_t */
+	NTA_ICMP_ID,		/* uint16_t */
 	NTA_MAX
 };
 

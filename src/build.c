@@ -124,6 +124,13 @@ static void build_l4proto_dccp(const struct nf_conntrack *ct, struct nethdr *n)
 	__build_u8(ct, ATTR_DCCP_ROLE, n, NTA_DCCP_ROLE);
 }
 
+static void build_l4proto_icmp(const struct nf_conntrack *ct, struct nethdr *n)
+{
+	__build_u8(ct, ATTR_ICMP_TYPE, n, NTA_ICMP_TYPE);
+	__build_u8(ct, ATTR_ICMP_CODE, n, NTA_ICMP_CODE);
+	__build_u16(ct, ATTR_ICMP_ID, n, NTA_ICMP_ID);
+}
+
 #ifndef IPPROTO_DCCP
 #define IPPROTO_DCCP 33
 #endif
@@ -134,9 +141,9 @@ static struct build_l4proto {
 	[IPPROTO_TCP]		= { .build = build_l4proto_tcp },
 	[IPPROTO_SCTP]		= { .build = build_l4proto_sctp },
 	[IPPROTO_DCCP]		= { .build = build_l4proto_dccp },
+	[IPPROTO_ICMP]		= { .build = build_l4proto_icmp },
 };
 
-/* XXX: ICMP not supported */
 void build_payload(const struct nf_conntrack *ct, struct nethdr *n)
 {
 	uint8_t l4proto = nfct_get_attr_u8(ct, ATTR_L4PROTO);

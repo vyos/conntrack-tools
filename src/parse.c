@@ -146,6 +146,21 @@ static struct parser h[NTA_MAX] = {
 		.attr	= ATTR_DCCP_ROLE,
 		.size	= NTA_SIZE(sizeof(uint8_t)),
 	},
+	[NTA_ICMP_TYPE] = {
+		.parse	= parse_u8,
+		.attr	= ATTR_ICMP_TYPE,
+		.size	= NTA_SIZE(sizeof(uint8_t)),
+	},
+	[NTA_ICMP_CODE] = {
+		.parse	= parse_u8,
+		.attr	= ATTR_ICMP_CODE,
+		.size	= NTA_SIZE(sizeof(uint8_t)),
+	},
+	[NTA_ICMP_ID] = {
+		.parse	= parse_u16,
+		.attr	= ATTR_ICMP_ID,
+		.size	= NTA_SIZE(sizeof(uint16_t)),
+	},
 };
 
 static void
