@@ -1493,7 +1493,7 @@ int main(int argc, char *argv[])
 
 	free_options();
 
-	if (exit_msg[cmd][0]) {
+	if (command && exit_msg[cmd][0]) {
 		fprintf(stderr, "%s v%s (conntrack-tools): ",PROGNAME,VERSION);
 		fprintf(stderr, exit_msg[cmd], counter);
 		if (counter == 0 && !(command & (CT_LIST | EXP_LIST)))
