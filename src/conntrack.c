@@ -1401,7 +1401,8 @@ int main(int argc, char *argv[])
 		
 	case CT_EVENT:
 		if (options & CT_OPT_EVENT_MASK)
-			cth = nfct_open(CONNTRACK, event_mask);
+			cth = nfct_open(CONNTRACK,
+					event_mask & NFCT_ALL_CT_GROUPS);
 		else
 			cth = nfct_open(CONNTRACK, NFCT_ALL_CT_GROUPS);
 
