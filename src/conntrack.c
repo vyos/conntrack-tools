@@ -1445,19 +1445,18 @@ int main(int argc, char *argv[])
 		break;
 	case CT_COUNT: {
 #define NF_CONNTRACK_COUNT_PROC "/proc/sys/net/netfilter/nf_conntrack_count"
-		int fd, count;
-		char buf[strlen("2147483647")];	/* INT_MAX */
-		fd = open(NF_CONNTRACK_COUNT_PROC, O_RDONLY);
-		if (fd == -1) {
+		FILE *fd;
+		int count;
+		fd = fopen(NF_CONNTRACK_COUNT_PROC, "r");
+		if (fd == NULL) {
 			exit_error(OTHER_PROBLEM, "Can't open %s",
 				   NF_CONNTRACK_COUNT_PROC);
 		}
-		if (read(fd, buf, sizeof(buf)) == -1) {
+		if (fscanf(fd, "%d", &count) != 1) {
 			exit_error(OTHER_PROBLEM, "Can't read %s",
 				   NF_CONNTRACK_COUNT_PROC);
 		}
-		close(fd);
-		count = atoi(buf);
+		fclose(fd);
 		printf("%d\n", count);
 		break;
 	}
