@@ -82,6 +82,8 @@ retry:
 		external_inject_stat.add_fail++;
 		dlog(LOG_ERR, "inject-add2: %s", strerror(errno));
 		dlog_ct(STATE(log), ct, NFCT_O_PLAIN);
+	} else {
+		external_inject_stat.add_ok++;
 	}
 }
 
@@ -90,8 +92,10 @@ static void external_inject_upd(struct nf_conntrack *ct)
 	int ret;
 
 	/* if we successfully update the entry, everything is OK */
-	if (nl_update_conntrack(inject, ct, 0) != -1)
+	if (nl_update_conntrack(inject, ct, 0) != -1) {
+		external_inject_stat.upd_ok++;
 		return;
+	}
 
 	/* state entries does not exist, we have to create it */
 	if (errno == ENOENT) {
@@ -99,6 +103,8 @@ static void external_inject_upd(struct nf_conntrack *ct)
 			external_inject_stat.upd_fail++;
 			dlog(LOG_ERR, "inject-upd1: %s", strerror(errno));
 			dlog_ct(STATE(log), ct, NFCT_O_PLAIN);
+		} else {
+			external_inject_stat.upd_ok++;
 		}
 		return;
 	}
@@ -112,6 +118,8 @@ static void external_inject_upd(struct nf_conntrack *ct)
 			external_inject_stat.upd_fail++;
 			dlog(LOG_ERR, "inject-upd2: %s", strerror(errno));
 			dlog_ct(STATE(log), ct, NFCT_O_PLAIN);
+		} else {
+			external_inject_stat.upd_ok++;
 		}
 		return;
 	}
@@ -128,6 +136,8 @@ static void external_inject_del(struct nf_conntrack *ct)
 			dlog(LOG_ERR, "inject-del: %s", strerror(errno));
 			dlog_ct(STATE(log), ct, NFCT_O_PLAIN);
 		}
+	} else {
+		external_inject_stat.del_ok++;
 	}
 }
 
