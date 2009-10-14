@@ -29,6 +29,15 @@
 
 static struct nfct_handle *inject;
 
+struct {
+	uint32_t	add_ok;
+	uint32_t	add_fail;
+	uint32_t	upd_ok;
+	uint32_t	upd_fail;
+	uint32_t	del_ok;
+	uint32_t	del_fail;
+} external_inject_stat;
+
 static int external_inject_init(void)
 {
 	/* handler to directly inject conntracks into kernel-space */
@@ -65,10 +74,12 @@ retry:
 					goto retry;
 				}
 			}
+			external_inject_stat.add_fail++;
 			dlog(LOG_ERR, "inject-add1: %s", strerror(errno));
 			dlog_ct(STATE(log), ct, NFCT_O_PLAIN);
 			return;
 		}
+		external_inject_stat.add_fail++;
 		dlog(LOG_ERR, "inject-add2: %s", strerror(errno));
 		dlog_ct(STATE(log), ct, NFCT_O_PLAIN);
 	}
@@ -85,6 +96,7 @@ static void external_inject_upd(struct nf_conntrack *ct)
 	/* state entries does not exist, we have to create it */
 	if (errno == ENOENT) {
 		if (nl_create_conntrack(inject, ct, 0) == -1) {
+			external_inject_stat.upd_fail++;
 			dlog(LOG_ERR, "inject-upd1: %s", strerror(errno));
 			dlog_ct(STATE(log), ct, NFCT_O_PLAIN);
 		}
@@ -97,11 +109,13 @@ static void external_inject_upd(struct nf_conntrack *ct)
 	ret = nl_destroy_conntrack(inject, ct);
 	if (ret == 0 || (ret == -1 && errno == ENOENT)) {
 		if (nl_create_conntrack(inject, ct, 0) == -1) {
+			external_inject_stat.upd_fail++;
 			dlog(LOG_ERR, "inject-upd2: %s", strerror(errno));
 			dlog_ct(STATE(log), ct, NFCT_O_PLAIN);
 		}
 		return;
 	}
+	external_inject_stat.upd_fail++;
 	dlog(LOG_ERR, "inject-upd3: %s", strerror(errno));
 	dlog_ct(STATE(log), ct, NFCT_O_PLAIN);
 }
@@ -110,6 +124,7 @@ static void external_inject_del(struct nf_conntrack *ct)
 {
 	if (nl_destroy_conntrack(inject, ct) == -1) {
 		if (errno != ENOENT) {
+			external_inject_stat.del_fail++;
 			dlog(LOG_ERR, "inject-del: %s", strerror(errno));
 			dlog_ct(STATE(log), ct, NFCT_O_PLAIN);
 		}
@@ -130,10 +145,21 @@ static void external_inject_flush(void)
 
 static void external_inject_stats(int fd)
 {
-}
+	char buf[512];
+	int size;
 
-static void external_inject_stats_ext(int fd)
-{
+	size = sprintf(buf, "external inject:\n"
+			    "connections created:\t\t%12u\tfailed:\t%12u\n"
+			    "connections updated:\t\t%12u\tfailed:\t%12u\n"
+			    "connections destroyed:\t\t%12u\tfailed:\t%12u\n\n",
+			    external_inject_stat.add_ok,
+			    external_inject_stat.add_fail,
+			    external_inject_stat.upd_ok,
+			    external_inject_stat.upd_fail,
+			    external_inject_stat.del_ok,
+			    external_inject_stat.del_fail);
+
+	send(fd, buf, size, 0);
 }
 
 struct external_handler external_inject = {
@@ -146,5 +172,5 @@ struct external_handler external_inject = {
 	.commit		= external_inject_commit,
 	.flush		= external_inject_flush,
 	.stats		= external_inject_stats,
-	.stats_ext	= external_inject_stats_ext,
+	.stats_ext	= external_inject_stats,
 };
