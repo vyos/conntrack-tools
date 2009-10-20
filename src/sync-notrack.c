@@ -74,10 +74,42 @@ static void tx_queue_add_ctlmsg(uint32_t flags, uint32_t from, uint32_t to)
 static int do_cache_to_tx(void *data1, void *data2)
 {
 	struct cache_object *obj = data2;
-	struct cache_notrack *cn = cache_get_extra(STATE_SYNC(internal), obj);
+	struct cache_notrack *cn =
+		cache_get_extra(STATE(mode)->internal->data, obj);
 	if (queue_add(STATE_SYNC(tx_queue), &cn->qnode))
 		cache_object_get(obj);
 	return 0;
+}
+
+static int kernel_resync_cb(enum nf_conntrack_msg_type type,
+			    struct nf_conntrack *ct, void *data)
+{
+	struct nethdr *net;
+
+	net = BUILD_NETMSG(ct, NET_T_STATE_NEW);
+	multichannel_send(STATE_SYNC(channel), net);
+
+	return NFCT_CB_CONTINUE;
+}
+
+/* Only used if the internal cache is disabled. */
+static void kernel_resync(void)
+{
+	struct nfct_handle *h;
+	u_int32_t family = AF_UNSPEC;
+	int ret;
+
+	h = nfct_open(CONNTRACK, 0);
+	if (h == NULL) {
+		dlog(LOG_ERR, "can't allocate memory for the internal cache");
+		return;
+	}
+	nfct_callback_register(h, NFCT_T_ALL, kernel_resync_cb, NULL);
+	ret = nfct_query(h, NFCT_Q_DUMP, &family);
+	if (ret == -1) {
+		dlog(LOG_ERR, "can't dump kernel table");
+	}
+	nfct_close(h);
 }
 
 static int notrack_local(int fd, int type, void *data)
@@ -91,7 +123,12 @@ static int notrack_local(int fd, int type, void *data)
 		break;
 	case SEND_BULK:
 		dlog(LOG_NOTICE, "sending bulk update");
-		cache_iterate(STATE_SYNC(internal), NULL, do_cache_to_tx);
+		if (CONFIG(sync).internal_cache_disable) {
+			kernel_resync();
+		} else {
+			cache_iterate(STATE(mode)->internal->data,
+				      NULL, do_cache_to_tx);
+		}
 		break;
 	default:
 		ret = 0;
@@ -107,7 +144,12 @@ static int digest_msg(const struct nethdr *net)
 		return MSG_DATA;
 
 	if (IS_RESYNC(net)) {
-		cache_iterate(STATE_SYNC(internal), NULL, do_cache_to_tx);
+		if (CONFIG(sync).internal_cache_disable) {
+			kernel_resync();
+		} else {
+			cache_iterate(STATE(mode)->internal->data,
+				      NULL, do_cache_to_tx);
+		}
 		return MSG_CTL;
 	}
 
@@ -154,7 +196,7 @@ static int tx_queue_xmit(struct queue_node *n, const void *data2)
 		struct nethdr *net;
 
 		cn = (struct cache_ftfw *)n;
-		obj = cache_data_get_object(STATE_SYNC(internal), cn);
+		obj = cache_data_get_object(STATE(mode)->internal->data, cn);
 		type = object_status_to_network_type(obj->status);;
 		net = BUILD_NETMSG(obj->ct, type);
 
@@ -175,7 +217,8 @@ static void notrack_xmit(void)
 
 static void notrack_enqueue(struct cache_object *obj, int query)
 {
-	struct cache_notrack *cn = cache_get_extra(STATE_SYNC(internal), obj);
+	struct cache_notrack *cn =
+		cache_get_extra(STATE(mode)->internal->data, obj);
 	if (queue_add(STATE_SYNC(tx_queue), &cn->qnode))
 		cache_object_get(obj);
 }

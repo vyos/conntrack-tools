@@ -109,7 +109,8 @@ static int alarm_recv(const struct nethdr *net)
 
 static void alarm_enqueue(struct cache_object *obj, int query)
 {
-	struct cache_alarm *ca = cache_get_extra(STATE_SYNC(internal), obj);
+	struct cache_alarm *ca =
+		cache_get_extra(STATE(mode)->internal->data, obj);
 	if (queue_add(STATE_SYNC(tx_queue), &ca->qnode))
 		cache_object_get(obj);
 }
@@ -134,7 +135,7 @@ static int tx_queue_xmit(struct queue_node *n, const void *data)
 		int type;
 
 		ca = (struct cache_alarm *)n;
-		obj = cache_data_get_object(STATE_SYNC(internal), ca);
+		obj = cache_data_get_object(STATE(mode)->internal->data, ca);
 		type = object_status_to_network_type(obj->status);
 		net = BUILD_NETMSG(obj->ct, type);
 		multichannel_send(STATE_SYNC(channel), net);

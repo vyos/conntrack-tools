@@ -136,6 +136,7 @@ notrack		[N|n][O|o][T|t][R|r][A|a][C|c][K|k]
 "Type"				{ return T_TYPE; }
 "Priority"			{ return T_PRIO; }
 "NetlinkEventsReliable"		{ return T_NETLINK_EVENTS_RELIABLE; }
+"DisableInternalCache"		{ return T_DISABLE_INTERNAL_CACHE; }
 "DisableExternalCache"		{ return T_DISABLE_EXTERNAL_CACHE; }
 "ErrorQueueLength"		{ return T_ERROR_QUEUE_LENGTH; }
 

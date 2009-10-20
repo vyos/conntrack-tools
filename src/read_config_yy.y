@@ -72,7 +72,7 @@ static void __max_dedicated_links_reached(void);
 %token T_FROM T_USERSPACE T_KERNELSPACE T_EVENT_ITER_LIMIT T_DEFAULT
 %token T_NETLINK_OVERRUN_RESYNC T_NICE T_IPV4_DEST_ADDR T_IPV6_DEST_ADDR
 %token T_SCHEDULER T_TYPE T_PRIO T_NETLINK_EVENTS_RELIABLE
-%token T_DISABLE_EXTERNAL_CACHE T_ERROR_QUEUE_LENGTH
+%token T_DISABLE_INTERNAL_CACHE T_DISABLE_EXTERNAL_CACHE T_ERROR_QUEUE_LENGTH
 
 %token <string> T_IP T_PATH_VAL
 %token <val> T_NUMBER
@@ -852,8 +852,19 @@ sync_mode_notrack_list:
 
 sync_mode_notrack_line: timeout
 		      | purge
+		      | disable_internal_cache
 		      | disable_external_cache
 		      ;
+
+disable_internal_cache: T_DISABLE_INTERNAL_CACHE T_ON
+{
+	conf.sync.internal_cache_disable = 1;
+};
+
+disable_internal_cache: T_DISABLE_INTERNAL_CACHE T_OFF
+{
+	conf.sync.internal_cache_disable = 0;
+};
 
 disable_external_cache: T_DISABLE_EXTERNAL_CACHE T_ON
 {

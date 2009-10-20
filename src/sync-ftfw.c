@@ -166,7 +166,8 @@ static void ftfw_kill(void)
 static int do_cache_to_tx(void *data1, void *data2)
 {
 	struct cache_object *obj = data2;
-	struct cache_ftfw *cn = cache_get_extra(STATE_SYNC(internal), obj);
+	struct cache_ftfw *cn =
+		cache_get_extra(STATE(mode)->internal->data, obj);
 
 	if (queue_in(rs_queue, &cn->qnode)) {
 		queue_del(&cn->qnode);
@@ -224,7 +225,8 @@ static int ftfw_local(int fd, int type, void *data)
 		break;
 	case SEND_BULK:
 		dlog(LOG_NOTICE, "sending bulk update");
-		cache_iterate(STATE_SYNC(internal), NULL, do_cache_to_tx);
+		cache_iterate(STATE(mode)->internal->data,
+			      NULL, do_cache_to_tx);
 		break;
 	case STATS_RSQUEUE:
 		ftfw_local_queue(fd);
@@ -303,7 +305,7 @@ static int rs_queue_empty(struct queue_node *n, const void *data)
 		cn = (struct cache_ftfw *) n;
 		if (h == NULL) {
 			queue_del(n);
-			obj = cache_data_get_object(STATE_SYNC(internal), cn);
+			obj = cache_data_get_object(STATE(mode)->internal->data, cn);
 			cache_object_put(obj);
 			return 0;
 		}
@@ -314,7 +316,7 @@ static int rs_queue_empty(struct queue_node *n, const void *data)
 
 		dp("queue: deleting from queue (seq=%u)\n", cn->seq);
 		queue_del(n);
-		obj = cache_data_get_object(STATE_SYNC(internal), cn);
+		obj = cache_data_get_object(STATE(mode)->internal->data, cn);
 		cache_object_put(obj);
 		break;
 	}
@@ -347,7 +349,7 @@ static int digest_msg(const struct nethdr *net)
 
 	} else if (IS_RESYNC(net)) {
 		dp("RESYNC ALL\n");
-		cache_iterate(STATE_SYNC(internal), NULL, do_cache_to_tx);
+		cache_iterate(STATE(mode)->internal->data, NULL, do_cache_to_tx);
 		return MSG_CTL;
 
 	} else if (IS_ALIVE(net))
@@ -464,7 +466,7 @@ static void rs_queue_purge_full(void)
 		struct cache_object *obj;
 
 		cn = (struct cache_ftfw *)n;
-		obj = cache_data_get_object(STATE_SYNC(internal), cn);
+		obj = cache_data_get_object(STATE(mode)->internal->data, cn);
 		cache_object_put(obj);
 		break;
 	}
@@ -512,7 +514,7 @@ static int tx_queue_xmit(struct queue_node *n, const void *data)
 		struct nethdr *net;
 
 		cn = (struct cache_ftfw *)n;
-		obj = cache_data_get_object(STATE_SYNC(internal), cn);
+		obj = cache_data_get_object(STATE(mode)->internal->data, cn);
 		type = object_status_to_network_type(obj->status);
 		net = BUILD_NETMSG(obj->ct, type);
 		nethdr_set_hello(net);
@@ -546,7 +548,8 @@ static void ftfw_xmit(void)
 
 static void ftfw_enqueue(struct cache_object *obj, int type)
 {
-	struct cache_ftfw *cn = cache_get_extra(STATE_SYNC(internal), obj);
+	struct cache_ftfw *cn =
+		cache_get_extra(STATE(mode)->internal->data, obj);
 	if (queue_in(rs_queue, &cn->qnode)) {
 		queue_del(&cn->qnode);
 		queue_add(STATE_SYNC(tx_queue), &cn->qnode);

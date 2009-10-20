@@ -28,6 +28,7 @@
 #include "queue.h"
 #include "process.h"
 #include "origin.h"
+#include "internal.h"
 #include "external.h"
 
 #include <errno.h>
@@ -246,7 +247,7 @@ static void do_reset_cache_alarm(struct alarm_block *a, void *data)
 		exit(EXIT_SUCCESS);
 	}
 	/* this is not required if events don't get lost */
-	cache_flush(STATE_SYNC(internal));
+	STATE(mode)->internal->flush();
 }
 
 static int init_sync(void)
@@ -276,15 +277,15 @@ static int init_sync(void)
 	if (STATE_SYNC(sync)->init)
 		STATE_SYNC(sync)->init();
 
-	STATE_SYNC(internal) =
-		cache_create("internal", 
-			     STATE_SYNC(sync)->internal_cache_flags,
-			     STATE_SYNC(sync)->internal_cache_extra);
+	if (CONFIG(sync).internal_cache_disable == 0) {
+		STATE(mode)->internal = &internal_cache;
+	} else {
+		STATE(mode)->internal = &internal_bypass;
+		dlog(LOG_NOTICE, "disabling internal cache");
 
-	if (!STATE_SYNC(internal)) {
-		dlog(LOG_ERR, "can't allocate memory for the internal cache");
-		return -1;
 	}
+	if (STATE(mode)->internal->init() == -1)
+		return -1;
 
 	if (CONFIG(sync).external_cache_disable == 0) {
 		STATE_SYNC(external) = &external_cache;
@@ -389,7 +390,7 @@ static void run_sync(fd_set *readfds)
 
 static void kill_sync(void)
 {
-	cache_destroy(STATE_SYNC(internal));
+	STATE(mode)->internal->close();
 	STATE_SYNC(external)->close();
 
 	multichannel_close(STATE_SYNC(channel));
@@ -466,7 +467,7 @@ static int local_handler_sync(int fd, int type, void *data)
 	case DUMP_INTERNAL:
 		ret = fork_process_new(CTD_PROC_ANY, 0, NULL, NULL);
 		if (ret == 0) {
-			cache_dump(STATE_SYNC(internal), fd, NFCT_O_PLAIN);
+			STATE(mode)->internal->dump(fd, NFCT_O_PLAIN);
 			exit(EXIT_SUCCESS);
 		}
 		break;
@@ -480,7 +481,7 @@ static int local_handler_sync(int fd, int type, void *data)
 	case DUMP_INT_XML:
 		ret = fork_process_new(CTD_PROC_ANY, 0, NULL, NULL);
 		if (ret == 0) {
-			cache_dump(STATE_SYNC(internal), fd, NFCT_O_XML);
+			STATE(mode)->internal->dump(fd, NFCT_O_XML);
 			exit(EXIT_SUCCESS);
 		}
 		break;
@@ -512,14 +513,14 @@ static int local_handler_sync(int fd, int type, void *data)
 		/* inmediate flush, remove pending flush scheduled if any */
 		del_alarm(&STATE_SYNC(reset_cache_alarm));
 		dlog(LOG_NOTICE, "flushing caches");
-		cache_flush(STATE_SYNC(internal));
+		STATE(mode)->internal->flush();
 		STATE_SYNC(external)->flush();
 		break;
 	case FLUSH_INT_CACHE:
 		/* inmediate flush, remove pending flush scheduled if any */
 		del_alarm(&STATE_SYNC(reset_cache_alarm));
 		dlog(LOG_NOTICE, "flushing internal cache");
-		cache_flush(STATE_SYNC(internal));
+		STATE(mode)->internal->flush();
 		break;
 	case FLUSH_EXT_CACHE:
 		dlog(LOG_NOTICE, "flushing external cache");
@@ -529,7 +530,7 @@ static int local_handler_sync(int fd, int type, void *data)
 		killer(0);
 		break;
 	case STATS:
-		cache_stats(STATE_SYNC(internal), fd);
+		STATE(mode)->internal->stats(fd);
 		STATE_SYNC(external)->stats(fd);
 		dump_traffic_stats(fd);
 		multichannel_stats(STATE_SYNC(channel), fd);
@@ -540,7 +541,7 @@ static int local_handler_sync(int fd, int type, void *data)
 		multichannel_stats(STATE_SYNC(channel), fd);
 		break;
 	case STATS_CACHE:
-		cache_stats_extended(STATE_SYNC(internal), fd);
+		STATE(mode)->internal->stats_ext(fd);
 		STATE_SYNC(external)->stats_ext(fd);
 		break;
 	case STATS_LINK:
@@ -559,167 +560,10 @@ static int local_handler_sync(int fd, int type, void *data)
 	return ret;
 }
 
-static void sync_send(struct cache_object *obj, int query)
-{
-	STATE_SYNC(sync)->enqueue(obj, query);
-}
-
-static void dump_sync(struct nf_conntrack *ct)
-{
-	/* This is required by kernels < 2.6.20 */
-	nfct_attr_unset(ct, ATTR_ORIG_COUNTER_BYTES);
-	nfct_attr_unset(ct, ATTR_ORIG_COUNTER_PACKETS);
-	nfct_attr_unset(ct, ATTR_REPL_COUNTER_BYTES);
-	nfct_attr_unset(ct, ATTR_REPL_COUNTER_PACKETS);
-	nfct_attr_unset(ct, ATTR_USE);
-
-	cache_update_force(STATE_SYNC(internal), ct);
-}
-
-static int purge_step(void *data1, void *data2)
-{
-	struct cache_object *obj = data2;
-
-	STATE(get_retval) = 0;
-	nl_get_conntrack(STATE(get), obj->ct);	/* modifies STATE(get_reval) */
-	if (!STATE(get_retval)) {
-		if (obj->status != C_OBJ_DEAD) {
-			cache_object_set_status(obj, C_OBJ_DEAD);
-			sync_send(obj, NET_T_STATE_DEL);
-			cache_object_put(obj);
-		}
-	}
-
-	return 0;
-}
-
-static int purge_sync(void)
-{
-	cache_iterate(STATE_SYNC(internal), NULL, purge_step);
-
-	return 0;
-}
-
-static int resync_sync(enum nf_conntrack_msg_type type,
-		       struct nf_conntrack *ct,
-		       void *data)
-{
-	struct cache_object *obj;
-
-	if (ct_filter_conntrack(ct, 1))
-		return NFCT_CB_CONTINUE;
-
-	/* This is required by kernels < 2.6.20 */
-	nfct_attr_unset(ct, ATTR_ORIG_COUNTER_BYTES);
-	nfct_attr_unset(ct, ATTR_ORIG_COUNTER_PACKETS);
-	nfct_attr_unset(ct, ATTR_REPL_COUNTER_BYTES);
-	nfct_attr_unset(ct, ATTR_REPL_COUNTER_PACKETS);
-	nfct_attr_unset(ct, ATTR_USE);
-
-	obj = cache_update_force(STATE_SYNC(internal), ct);
-	if (obj == NULL)
-		return NFCT_CB_CONTINUE;
-
-	switch (obj->status) {
-	case C_OBJ_NEW:
-		sync_send(obj, NET_T_STATE_NEW);
-		break;
-	case C_OBJ_ALIVE:
-		sync_send(obj, NET_T_STATE_UPD);
-		break;
-	}
-	return NFCT_CB_CONTINUE;
-}
-
-static void
-event_new_sync(struct nf_conntrack *ct, int origin)
-{
-	struct cache_object *obj;
-	int id;
-
-	/* this event has been triggered by a direct inject, skip */
-	if (origin == CTD_ORIGIN_INJECT)
-		return;
-
-	/* required by linux kernel <= 2.6.20 */
-	nfct_attr_unset(ct, ATTR_ORIG_COUNTER_BYTES);
-	nfct_attr_unset(ct, ATTR_ORIG_COUNTER_PACKETS);
-	nfct_attr_unset(ct, ATTR_REPL_COUNTER_BYTES);
-	nfct_attr_unset(ct, ATTR_REPL_COUNTER_PACKETS);
-
-	obj = cache_find(STATE_SYNC(internal), ct, &id);
-	if (obj == NULL) {
-retry:
-		obj = cache_object_new(STATE_SYNC(internal), ct);
-		if (obj == NULL)
-			return;
-		if (cache_add(STATE_SYNC(internal), obj, id) == -1) {
-			cache_object_free(obj);
-			return;
-		}
-		/* only synchronize events that have been triggered by other
-		 * processes or the kernel, but don't propagate events that
-		 * have been triggered by conntrackd itself, eg. commits. */
-		if (origin == CTD_ORIGIN_NOT_ME)
-			sync_send(obj, NET_T_STATE_NEW);
-	} else {
-		cache_del(STATE_SYNC(internal), obj);
-		cache_object_free(obj);
-		goto retry;
-	}
-}
-
-static void
-event_update_sync(struct nf_conntrack *ct, int origin)
-{
-	struct cache_object *obj;
-
-	/* this event has been triggered by a direct inject, skip */
-	if (origin == CTD_ORIGIN_INJECT)
-		return;
-
-	obj = cache_update_force(STATE_SYNC(internal), ct);
-	if (obj == NULL)
-		return;
-
-	if (origin == CTD_ORIGIN_NOT_ME)
-		sync_send(obj, NET_T_STATE_UPD);
-}
-
-static int
-event_destroy_sync(struct nf_conntrack *ct, int origin)
-{
-	struct cache_object *obj;
-	int id;
-
-	/* this event has been triggered by a direct inject, skip */
-	if (origin == CTD_ORIGIN_INJECT)
-		return 0;
-
-	/* we don't synchronize events for objects that are not in the cache */
-	obj = cache_find(STATE_SYNC(internal), ct, &id);
-	if (obj == NULL)
-		return 0;
-
-	if (obj->status != C_OBJ_DEAD) {
-		cache_object_set_status(obj, C_OBJ_DEAD);
-		if (origin == CTD_ORIGIN_NOT_ME) {
-			sync_send(obj, NET_T_STATE_DEL);
-		}
-		cache_object_put(obj);
-	}
-	return 1;
-}
-
 struct ct_mode sync_mode = {
 	.init 			= init_sync,
 	.run			= run_sync,
 	.local			= local_handler_sync,
 	.kill			= kill_sync,
-	.dump			= dump_sync,
-	.resync			= resync_sync,
-	.purge			= purge_sync,
-	.event_new		= event_new_sync,
-	.event_upd		= event_update_sync,
-	.event_dst		= event_destroy_sync
+	/* the internal handler is set in run-time. */
 };

@@ -21,6 +21,7 @@
 #include "cache.h"
 #include "log.h"
 #include "conntrackd.h"
+#include "internal.h"
 
 #include <errno.h>
 #include <string.h>
@@ -87,7 +88,7 @@ static int local_handler_stats(int fd, int type, void *data)
 	return ret;
 }
 
-static void dump_stats(struct nf_conntrack *ct)
+static void populate_stats(struct nf_conntrack *ct)
 {
 	nfct_attr_unset(ct, ATTR_ORIG_COUNTER_BYTES);
 	nfct_attr_unset(ct, ATTR_ORIG_COUNTER_PACKETS);
@@ -134,11 +135,9 @@ static int purge_step(void *data1, void *data2)
 	return 0;
 }
 
-static int purge_stats(void)
+static void purge_stats(void)
 {
 	cache_iterate(STATE_STATS(cache), NULL, purge_step);
-
-	return 0;
 }
 
 static void
@@ -188,15 +187,20 @@ event_destroy_stats(struct nf_conntrack *ct, int origin)
 	return 0;
 }
 
+static struct internal_handler internal_cache_stats = {
+	.flags			= INTERNAL_F_POPULATE | INTERNAL_F_RESYNC,
+	.populate		= populate_stats,
+	.resync			= resync_stats,
+	.purge			= purge_stats,
+	.new			= event_new_stats,
+	.update			= event_update_stats,
+	.destroy		= event_destroy_stats
+};
+
 struct ct_mode stats_mode = {
 	.init 			= init_stats,
 	.run			= NULL,
 	.local			= local_handler_stats,
 	.kill			= kill_stats,
-	.dump			= dump_stats,
-	.resync			= resync_stats,
-	.purge			= purge_stats,
-	.event_new		= event_new_stats,
-	.event_upd		= event_update_stats,
-	.event_dst		= event_destroy_stats
+	.internal		= &internal_cache_stats,
 };

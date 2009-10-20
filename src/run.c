@@ -28,6 +28,7 @@
 #include "process.h"
 #include "origin.h"
 #include "date.h"
+#include "internal.h"
 
 #include <errno.h>
 #include <signal.h>
@@ -56,7 +57,9 @@ void killer(int foo)
 	local_server_destroy(&STATE(local));
 	STATE(mode)->kill();
 
-	nfct_close(STATE(dump));	/* cache_wt needs this here */
+	if (STATE(mode)->internal->flags & INTERNAL_F_POPULATE) {
+		nfct_close(STATE(dump));
+	}
 	destroy_fds(STATE(fds)); 
 
 	unlink(CONFIG(lockfile));
@@ -210,9 +213,13 @@ static int local_handler(int fd, void *data)
 		}
 		break;
 	case RESYNC_MASTER:
-		STATE(stats).nl_kernel_table_resync++;
-		dlog(LOG_NOTICE, "resync with master table");
-		nl_dump_conntrack_table(STATE(dump));
+		if (STATE(mode)->internal->flags & INTERNAL_F_POPULATE) {
+			STATE(stats).nl_kernel_table_resync++;
+			dlog(LOG_NOTICE, "resync with master table");
+			nl_dump_conntrack_table(STATE(dump));
+		} else {
+			dlog(LOG_NOTICE, "resync is unsupported in this mode");
+		}
 		break;
 	case STATS_RUNTIME:
 		dump_stats_runtime(fd);
@@ -238,8 +245,8 @@ static void do_overrun_resync_alarm(struct alarm_block *a, void *data)
 
 static void do_polling_alarm(struct alarm_block *a, void *data)
 {
-	if (STATE(mode)->purge)
-		STATE(mode)->purge();
+	if (STATE(mode)->internal->purge)
+		STATE(mode)->internal->purge();
 
 	nl_send_resync(STATE(resync));
 	add_alarm(&STATE(polling_alarm), CONFIG(poll_kernel_secs), 0);
@@ -264,13 +271,13 @@ static int event_handler(const struct nlmsghdr *nlh,
 
 	switch(type) {
 	case NFCT_T_NEW:
-		STATE(mode)->event_new(ct, origin_type);
+		STATE(mode)->internal->new(ct, origin_type);
 		break;
 	case NFCT_T_UPDATE:
-		STATE(mode)->event_upd(ct, origin_type);
+		STATE(mode)->internal->update(ct, origin_type);
 		break;
 	case NFCT_T_DESTROY:
-		if (STATE(mode)->event_dst(ct, origin_type))
+		if (STATE(mode)->internal->destroy(ct, origin_type))
 			update_traffic_stats(ct);
 		break;
 	default:
@@ -295,7 +302,7 @@ static int dump_handler(enum nf_conntrack_msg_type type,
 
 	switch(type) {
 	case NFCT_T_UPDATE:
-		STATE(mode)->dump(ct);
+		STATE(mode)->internal->populate(ct);
 		break;
 	default:
 		STATE(stats).nl_dump_unknown_type++;
@@ -371,23 +378,26 @@ init(void)
 	}
 	nfct_callback_register(STATE(resync),
 			       NFCT_T_ALL,
-			       STATE(mode)->resync,
+			       STATE(mode)->internal->resync,
 			       NULL);
 	register_fd(nfct_fd(STATE(resync)), STATE(fds));
 	fcntl(nfct_fd(STATE(resync)), F_SETFL, O_NONBLOCK);
 
-	STATE(dump) = nfct_open(CONNTRACK, 0);
-	if (STATE(dump) == NULL) {
-		dlog(LOG_ERR, "can't open netlink handler: %s",
-		     strerror(errno));
-		dlog(LOG_ERR, "no ctnetlink kernel support?");
-		return -1;
-	}
-	nfct_callback_register(STATE(dump), NFCT_T_ALL, dump_handler, NULL);
+	if (STATE(mode)->internal->flags & INTERNAL_F_POPULATE) {
+		STATE(dump) = nfct_open(CONNTRACK, 0);
+		if (STATE(dump) == NULL) {
+			dlog(LOG_ERR, "can't open netlink handler: %s",
+			     strerror(errno));
+			dlog(LOG_ERR, "no ctnetlink kernel support?");
+			return -1;
+		}
+		nfct_callback_register(STATE(dump), NFCT_T_ALL,
+				       dump_handler, NULL);
 
-	if (nl_dump_conntrack_table(STATE(dump)) == -1) {
-		dlog(LOG_ERR, "can't get kernel conntrack table");
-		return -1;
+		if (nl_dump_conntrack_table(STATE(dump)) == -1) {
+			dlog(LOG_ERR, "can't get kernel conntrack table");
+			return -1;
+		}
 	}
 
 	STATE(get) = nfct_open(CONNTRACK, 0);
@@ -499,7 +509,9 @@ static void __run(struct timeval *next_alarm)
 				 *    we resync ourselves.
 				 */
 				nl_resize_socket_buffer(STATE(event));
-				if (CONFIG(nl_overrun_resync) > 0) {
+				if (CONFIG(nl_overrun_resync) > 0 &&
+				    STATE(mode)->internal->flags &
+				    			INTERNAL_F_RESYNC) {
 					add_alarm(&STATE(resync_alarm),
 						  CONFIG(nl_overrun_resync),0);
 				}
@@ -523,8 +535,8 @@ static void __run(struct timeval *next_alarm)
 		}
 		if (FD_ISSET(nfct_fd(STATE(resync)), &readfds)) {
 			nfct_catch(STATE(resync));
-			if (STATE(mode)->purge)
-				STATE(mode)->purge();
+			if (STATE(mode)->internal->purge)
+				STATE(mode)->internal->purge();
 		}
 	} else {
 		/* using polling mode */

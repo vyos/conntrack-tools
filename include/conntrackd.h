@@ -6,6 +6,7 @@
 #include "alarm.h"
 #include "filter.h"
 #include "channel.h"
+#include "internal.h"
 
 #include <stdint.h>
 #include <stdio.h>
@@ -99,6 +100,7 @@ struct ct_conf {
 		int error_queue_length;
 	} channelc;
 	struct {
+		int internal_cache_disable;
 		int external_cache_disable;
 	} sync;
 	struct {
@@ -177,7 +179,6 @@ struct ct_general_state {
 #define STATE_SYNC(x) state.sync->x
 
 struct ct_sync_state {
-	struct cache *internal; 	/* internal events cache (netlink) */
 	struct external_handler *external;
 
 	struct multichannel	*channel;
@@ -239,18 +240,11 @@ extern union ct_state state;
 extern struct ct_general_state st;
 
 struct ct_mode {
+	struct internal_handler *internal;
 	int (*init)(void);
 	void (*run)(fd_set *readfds);
 	int (*local)(int fd, int type, void *data);
 	void (*kill)(void);
-	void (*dump)(struct nf_conntrack *ct);
-	int (*resync)(enum nf_conntrack_msg_type type,
-		      struct nf_conntrack *ct,
-		      void *data);
-	int (*purge)(void);
-	void (*event_new)(struct nf_conntrack *ct, int origin);
-	void (*event_upd)(struct nf_conntrack *ct, int origin);
-	int (*event_dst)(struct nf_conntrack *ct, int origin);
 };
 
 /* conntrackd modes */
