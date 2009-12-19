@@ -97,9 +97,50 @@ static enum nf_conntrack_attr nat_type[] =
 	  ATTR_ORIG_NAT_SEQ_OFFSET_AFTER, ATTR_REPL_NAT_SEQ_CORRECTION_POS,
 	  ATTR_REPL_NAT_SEQ_OFFSET_BEFORE, ATTR_REPL_NAT_SEQ_OFFSET_AFTER };
 
+static void build_l4proto_tcp(const struct nf_conntrack *ct, struct nethdr *n)
+{
+	if (!nfct_attr_is_set(ct, ATTR_TCP_STATE))
+		return;
+
+	__build_u8(ct, ATTR_TCP_STATE, n, NTA_TCP_STATE);
+}
+
+static void build_l4proto_sctp(const struct nf_conntrack *ct, struct nethdr *n)
+{
+	if (!nfct_attr_is_set(ct, ATTR_SCTP_STATE))
+		return;
+
+	__build_u8(ct, ATTR_SCTP_STATE, n, NTA_SCTP_STATE);
+	__build_u32(ct, ATTR_SCTP_VTAG_ORIG, n, NTA_SCTP_VTAG_ORIG);
+	__build_u32(ct, ATTR_SCTP_VTAG_REPL, n, NTA_SCTP_VTAG_REPL);
+}
+
+static void build_l4proto_dccp(const struct nf_conntrack *ct, struct nethdr *n)
+{
+	if (!nfct_attr_is_set(ct, ATTR_DCCP_STATE))
+		return;
+
+	__build_u8(ct, ATTR_DCCP_STATE, n, NTA_DCCP_STATE);
+	__build_u8(ct, ATTR_DCCP_ROLE, n, NTA_DCCP_ROLE);
+}
+
+#ifndef IPPROTO_DCCP
+#define IPPROTO_DCCP 33
+#endif
+
+static struct build_l4proto {
+	void (*build)(const struct nf_conntrack *, struct nethdr *n);
+} l4proto_fcn[IPPROTO_MAX] = {
+	[IPPROTO_TCP]		= { .build = build_l4proto_tcp },
+	[IPPROTO_SCTP]		= { .build = build_l4proto_sctp },
+	[IPPROTO_DCCP]		= { .build = build_l4proto_dccp },
+};
+
 /* XXX: ICMP not supported */
 void build_payload(const struct nf_conntrack *ct, struct nethdr *n)
 {
+	uint8_t l4proto = nfct_get_attr_u8(ct, ATTR_L4PROTO);
+
 	if (nfct_attr_grp_is_set(ct, ATTR_GRP_ORIG_IPV4)) {
 		__build_group(ct, ATTR_GRP_ORIG_IPV4, n, NTA_IPV4, 
 			      sizeof(struct nfct_attr_grp_ipv4));
@@ -116,16 +157,8 @@ void build_payload(const struct nf_conntrack *ct, struct nethdr *n)
 
 	__build_u32(ct, ATTR_STATUS, n, NTA_STATUS); 
 
-	if (nfct_attr_is_set(ct, ATTR_TCP_STATE))
-		__build_u8(ct, ATTR_TCP_STATE, n, NTA_TCP_STATE);
-	else if (nfct_attr_is_set(ct, ATTR_SCTP_STATE)) {
-		__build_u8(ct, ATTR_SCTP_STATE, n, NTA_SCTP_STATE);
-		__build_u32(ct, ATTR_SCTP_VTAG_ORIG, n, NTA_SCTP_VTAG_ORIG);
-		__build_u32(ct, ATTR_SCTP_VTAG_REPL, n, NTA_SCTP_VTAG_REPL);
-	} else if (nfct_attr_is_set(ct, ATTR_DCCP_STATE)) {
-		__build_u8(ct, ATTR_DCCP_STATE, n, NTA_DCCP_STATE);
-		__build_u8(ct, ATTR_DCCP_ROLE, n, NTA_DCCP_ROLE);
-	}
+	if (l4proto_fcn[l4proto].build)
+		l4proto_fcn[l4proto].build(ct, n);
 
 	if (!CONFIG(commit_timeout) && nfct_attr_is_set(ct, ATTR_TIMEOUT))
 		__build_u32(ct, ATTR_TIMEOUT, n, NTA_TIMEOUT);
