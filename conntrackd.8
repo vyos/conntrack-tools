@@ -41,6 +41,10 @@ Flush the internal and/or external cache
 Flush the kernel conntrack table (if you use a Linux kernel >= 2.6.29, this
 option will not flush your internal and external cache).
 .TP
+.BI "-B "
+Force a bulk send to other replica firewalls. With this command, you will
+ask conntrackd to send the state-entries that it owns to others.
+.TP
 .BI "-k "
 Kill the daemon
 .TP
