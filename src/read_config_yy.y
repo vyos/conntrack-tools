@@ -936,6 +936,9 @@ state_proto: T_STRING
 };
 state: tcp_state;
 
+tcp_states:
+	  | tcp_states tcp_state;
+
 tcp_state: T_SYN_SENT
 {
 	ct_filter_add_state(STATE(us_filter),
@@ -1397,7 +1400,7 @@ filter_item : T_STATE T_IGNORE '{' filter_state_list '}'
 filter_state_list :
 		  | filter_state_list filter_state_item;
 
-filter_state_item : states T_FOR state_proto ;
+filter_state_item : tcp_states T_FOR T_TCP;
 
 stats: T_STATS '{' stats_list '}'
 {
