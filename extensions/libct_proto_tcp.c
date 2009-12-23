@@ -202,6 +202,20 @@ static void final_check(unsigned int flags,
 			break;
 		}
 	}
+	/* Disable TCP window tracking for manually created TCP entries,
+	 * otherwise this will not work. */
+	uint8_t tcp_flags = IP_CT_TCP_FLAG_BE_LIBERAL |
+			    IP_CT_TCP_FLAG_SACK_PERM;
+
+	/* This allows to reopen a new connection directly from TIME-WAIT
+	 * as RFC 1122 states. See nf_conntrack_proto_tcp.c for more info. */
+	if (nfct_get_attr_u8(ct, ATTR_TCP_STATE) >= TCP_CONNTRACK_TIME_WAIT)
+		tcp_flags |= IP_CT_TCP_FLAG_CLOSE_INIT;
+
+	nfct_set_attr_u8(ct, ATTR_TCP_FLAGS_ORIG, tcp_flags);
+	nfct_set_attr_u8(ct, ATTR_TCP_MASK_ORIG, tcp_flags);
+	nfct_set_attr_u8(ct, ATTR_TCP_FLAGS_REPL, tcp_flags);
+	nfct_set_attr_u8(ct, ATTR_TCP_MASK_REPL, tcp_flags);
 }
 
 static struct ctproto_handler tcp = {
