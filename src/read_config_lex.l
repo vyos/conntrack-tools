@@ -138,6 +138,8 @@ notrack		[N|n][O|o][T|t][R|r][A|a][C|c][K|k]
 "NetlinkEventsReliable"		{ return T_NETLINK_EVENTS_RELIABLE; }
 "DisableInternalCache"		{ return T_DISABLE_INTERNAL_CACHE; }
 "DisableExternalCache"		{ return T_DISABLE_EXTERNAL_CACHE; }
+"Options"			{ return T_OPTIONS; }
+"TCPWindowTracking"		{ return T_TCP_WINDOW_TRACKING; }
 "ErrorQueueLength"		{ return T_ERROR_QUEUE_LENGTH; }
 
 {is_on}			{ return T_ON; }

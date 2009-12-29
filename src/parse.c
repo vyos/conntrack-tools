@@ -161,6 +161,16 @@ static struct parser h[NTA_MAX] = {
 		.attr	= ATTR_ICMP_ID,
 		.size	= NTA_SIZE(sizeof(uint16_t)),
 	},
+	[NTA_TCP_WSCALE_ORIG] = {
+		.parse	= parse_u8,
+		.attr	= ATTR_TCP_WSCALE_ORIG,
+		.size	= NTA_SIZE(sizeof(uint8_t)),
+	},
+	[NTA_TCP_WSCALE_REPL] = {
+		.parse	= parse_u8,
+		.attr	= ATTR_TCP_WSCALE_REPL,
+		.size	= NTA_SIZE(sizeof(uint8_t)),
+	},
 };
 
 static void

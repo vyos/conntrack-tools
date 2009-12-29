@@ -73,6 +73,7 @@ static void __max_dedicated_links_reached(void);
 %token T_NETLINK_OVERRUN_RESYNC T_NICE T_IPV4_DEST_ADDR T_IPV6_DEST_ADDR
 %token T_SCHEDULER T_TYPE T_PRIO T_NETLINK_EVENTS_RELIABLE
 %token T_DISABLE_INTERNAL_CACHE T_DISABLE_EXTERNAL_CACHE T_ERROR_QUEUE_LENGTH
+%token T_OPTIONS T_TCP_WINDOW_TRACKING
 
 %token <string> T_IP T_PATH_VAL
 %token <val> T_NUMBER
@@ -808,7 +809,24 @@ sync_line: refreshtime
 	 | state_replication
 	 | cache_writethrough
 	 | destroy_timeout
+	 | option_line
 	 ;
+
+option_line: T_OPTIONS '{' options '}';
+
+options:
+       | options option 
+       ;
+
+option: T_TCP_WINDOW_TRACKING T_ON
+{
+	CONFIG(sync).tcp_window_tracking = 1;
+};
+
+option: T_TCP_WINDOW_TRACKING T_OFF
+{
+	CONFIG(sync).tcp_window_tracking = 0;
+};
 
 sync_mode_alarm: T_SYNC_MODE T_ALARM '{' sync_mode_alarm_list '}'
 {

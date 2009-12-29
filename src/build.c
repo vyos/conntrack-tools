@@ -103,6 +103,10 @@ static void build_l4proto_tcp(const struct nf_conntrack *ct, struct nethdr *n)
 		return;
 
 	__build_u8(ct, ATTR_TCP_STATE, n, NTA_TCP_STATE);
+	if (CONFIG(sync).tcp_window_tracking) {
+		__build_u8(ct, ATTR_TCP_WSCALE_ORIG, n, NTA_TCP_WSCALE_ORIG);
+		__build_u8(ct, ATTR_TCP_WSCALE_REPL, n, NTA_TCP_WSCALE_REPL);
+	}
 }
 
 static void build_l4proto_sctp(const struct nf_conntrack *ct, struct nethdr *n)

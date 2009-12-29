@@ -220,6 +220,8 @@ enum nta_attr {
 	NTA_ICMP_TYPE,		/* uint8_t */
 	NTA_ICMP_CODE,		/* uint8_t */
 	NTA_ICMP_ID,		/* uint16_t */
+	NTA_TCP_WSCALE_ORIG,	/* uint8_t */
+	NTA_TCP_WSCALE_REPL,	/* uint8_t */
 	NTA_MAX
 };
 

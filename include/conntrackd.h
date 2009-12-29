@@ -102,6 +102,7 @@ struct ct_conf {
 	struct {
 		int internal_cache_disable;
 		int external_cache_disable;
+		int tcp_window_tracking;
 	} sync;
 	struct {
 		int events_reliable;

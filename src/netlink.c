@@ -196,12 +196,12 @@ int nl_create_conntrack(struct nfct_handle *h,
 
 	nfct_setobjopt(ct, NFCT_SOPT_SETUP_REPLY);
 
-	/*
-	 * TCP flags to overpass window tracking for recovered connections
-	 */
+	/* disable TCP window tracking for recovered connections if required */
 	if (nfct_attr_is_set(ct, ATTR_TCP_STATE)) {
-		uint8_t flags = IP_CT_TCP_FLAG_BE_LIBERAL |
-				IP_CT_TCP_FLAG_SACK_PERM;
+		uint8_t flags = IP_CT_TCP_FLAG_SACK_PERM;
+
+		if (!CONFIG(sync).tcp_window_tracking)
+			flags |= IP_CT_TCP_FLAG_BE_LIBERAL;
 
 		/* FIXME: workaround, we should send TCP flags in updates */
 		if (nfct_get_attr_u8(ct, ATTR_TCP_STATE) >=
@@ -261,12 +261,12 @@ int nl_update_conntrack(struct nfct_handle *h,
 		nfct_attr_unset(ct, ATTR_MASTER_PORT_DST);
 	}
 
-	/*
-	 * TCP flags to overpass window tracking for recovered connections
-	 */
+	/* disable TCP window tracking for recovered connections if required */
 	if (nfct_attr_is_set(ct, ATTR_TCP_STATE)) {
-		uint8_t flags = IP_CT_TCP_FLAG_BE_LIBERAL |
-				IP_CT_TCP_FLAG_SACK_PERM;
+		uint8_t flags = IP_CT_TCP_FLAG_SACK_PERM;
+
+		if (!CONFIG(sync).tcp_window_tracking)
+			flags |= IP_CT_TCP_FLAG_BE_LIBERAL;
 
 		/* FIXME: workaround, we should send TCP flags in updates */
 		if (nfct_get_attr_u8(ct, ATTR_TCP_STATE) >=
