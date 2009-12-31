@@ -355,19 +355,6 @@ init(void)
 	}
 	register_fd(STATE(local).fd, STATE(fds));
 
-	if (!(CONFIG(flags) & CTD_POLL)) {
-		STATE(event) = nl_init_event_handler();
-		if (STATE(event) == NULL) {
-			dlog(LOG_ERR, "can't open netlink handler: %s",
-			     strerror(errno));
-			dlog(LOG_ERR, "no ctnetlink kernel support?");
-			return -1;
-		}
-		nfct_callback_register2(STATE(event), NFCT_T_ALL,
-				        event_handler, NULL);
-		register_fd(nfct_fd(STATE(event)), STATE(fds));
-	}
-
 	/* resynchronize (like 'dump' socket) but it also purges old entries */
 	STATE(resync) = nfct_open(CONNTRACK, 0);
 	if (STATE(resync)== NULL) {
@@ -423,6 +410,24 @@ init(void)
 		dlog(LOG_NOTICE, "running in polling mode");
 	} else {
 		init_alarm(&STATE(resync_alarm), NULL, do_overrun_resync_alarm);
+		/*
+		 * The last nfct handler that we register is the event handler.
+		 * The reason to do this is that we may receive events while
+		 * populating the internal cache. Thus, we hit ENOBUFS
+		 * prematurely. However, if we open the event handler before
+		 * populating the internal cache, we may still lose events
+		 * that have occured during the population.
+		 */
+		STATE(event) = nl_init_event_handler();
+		if (STATE(event) == NULL) {
+			dlog(LOG_ERR, "can't open netlink handler: %s",
+			     strerror(errno));
+			dlog(LOG_ERR, "no ctnetlink kernel support?");
+			return -1;
+		}
+		nfct_callback_register2(STATE(event), NFCT_T_ALL,
+				        event_handler, NULL);
+		register_fd(nfct_fd(STATE(event)), STATE(fds));
 	}
 
 	/* Signals handling */
