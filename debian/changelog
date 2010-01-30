@@ -1,3 +1,9 @@
+conntrack (1:0.9.14-1) unstable; urgency=low
+
+  * New upstream version 
+
+ -- Alexander Wirt <formorer@debian.org>  Sat, 30 Jan 2010 18:34:09 +0100
+
 conntrack (1:0.9.13-1) unstable; urgency=low
 
   [ Max Kellermann ]
