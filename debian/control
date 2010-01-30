@@ -10,7 +10,7 @@ Standards-Version: 3.8.3
 
 Package: conntrack
 Architecture: any
-Depends: ${shlibs:Depends}
+Depends: ${shlibs:Depends}, ${misc:Depends}
 Description: Program to modify the conntrack tables
  conntrack is a userspace command line program targeted at system
  administrators. It enables them to view and manage the in-kernel
@@ -18,7 +18,7 @@ Description: Program to modify the conntrack tables
 
 Package: conntrackd
 Architecture: any
-Depends: ${shlibs:Depends}
+Depends: ${shlibs:Depends}, ${misc:Depends}
 Description: Connection tracking daemon
  Conntrackd can replicate the status of the connections that are
  currently being processed by your stateful firewall based on Linux.
