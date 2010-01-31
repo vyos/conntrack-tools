@@ -99,6 +99,9 @@ static enum nf_conntrack_attr nat_type[] =
 
 static void build_l4proto_tcp(const struct nf_conntrack *ct, struct nethdr *n)
 {
+	__build_group(ct, ATTR_GRP_ORIG_PORT, n, NTA_PORT,
+		      sizeof(struct nfct_attr_grp_port));
+
 	if (!nfct_attr_is_set(ct, ATTR_TCP_STATE))
 		return;
 
@@ -111,6 +114,9 @@ static void build_l4proto_tcp(const struct nf_conntrack *ct, struct nethdr *n)
 
 static void build_l4proto_sctp(const struct nf_conntrack *ct, struct nethdr *n)
 {
+	__build_group(ct, ATTR_GRP_ORIG_PORT, n, NTA_PORT,
+		      sizeof(struct nfct_attr_grp_port));
+
 	if (!nfct_attr_is_set(ct, ATTR_SCTP_STATE))
 		return;
 
@@ -121,6 +127,9 @@ static void build_l4proto_sctp(const struct nf_conntrack *ct, struct nethdr *n)
 
 static void build_l4proto_dccp(const struct nf_conntrack *ct, struct nethdr *n)
 {
+	__build_group(ct, ATTR_GRP_ORIG_PORT, n, NTA_PORT,
+		      sizeof(struct nfct_attr_grp_port));
+
 	if (!nfct_attr_is_set(ct, ATTR_DCCP_STATE))
 		return;
 
@@ -135,6 +144,12 @@ static void build_l4proto_icmp(const struct nf_conntrack *ct, struct nethdr *n)
 	__build_u16(ct, ATTR_ICMP_ID, n, NTA_ICMP_ID);
 }
 
+static void build_l4proto_udp(const struct nf_conntrack *ct, struct nethdr *n)
+{
+	__build_group(ct, ATTR_GRP_ORIG_PORT, n, NTA_PORT,
+		      sizeof(struct nfct_attr_grp_port));
+}
+
 #ifndef IPPROTO_DCCP
 #define IPPROTO_DCCP 33
 #endif
@@ -146,6 +161,7 @@ static struct build_l4proto {
 	[IPPROTO_SCTP]		= { .build = build_l4proto_sctp },
 	[IPPROTO_DCCP]		= { .build = build_l4proto_dccp },
 	[IPPROTO_ICMP]		= { .build = build_l4proto_icmp },
+	[IPPROTO_UDP]		= { .build = build_l4proto_udp },
 };
 
 void build_payload(const struct nf_conntrack *ct, struct nethdr *n)
@@ -160,13 +176,8 @@ void build_payload(const struct nf_conntrack *ct, struct nethdr *n)
 			      sizeof(struct nfct_attr_grp_ipv6));
 	}
 
-	__build_u8(ct, ATTR_L4PROTO, n, NTA_L4PROTO);
-	if (nfct_attr_grp_is_set(ct, ATTR_GRP_ORIG_PORT)) {
-		__build_group(ct, ATTR_GRP_ORIG_PORT, n, NTA_PORT,
-			      sizeof(struct nfct_attr_grp_port));
-	}
-
 	__build_u32(ct, ATTR_STATUS, n, NTA_STATUS); 
+	__build_u8(ct, ATTR_L4PROTO, n, NTA_L4PROTO);
 
 	if (l4proto_fcn[l4proto].build)
 		l4proto_fcn[l4proto].build(ct, n);
