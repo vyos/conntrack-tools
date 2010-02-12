@@ -6,7 +6,7 @@ Uploaders: Max Kellermann <max@duempel.org>, Alexander Wirt <formorer@debian.org
 Homepage: http://conntrack-tools.netfilter.org/
 Build-Depends: debhelper (>= 5), libnfnetlink-dev (>= 1.0.0),
  libnetfilter-conntrack-dev (>= 0.0.100), bison, flex, dpatch
-Standards-Version: 3.8.3
+Standards-Version: 3.8.4
 
 Package: conntrack
 Architecture: any

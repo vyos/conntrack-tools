@@ -2,6 +2,8 @@ conntrack (1:0.9.14-1) unstable; urgency=low
 
   * New upstream version 
   * Add ${misc:Depends} to all binary packages
+  * Add dpatch support
+  * Bump standards version (no changes)
 
  -- Alexander Wirt <formorer@debian.org>  Sat, 30 Jan 2010 18:34:09 +0100
 
