@@ -1,0 +1,48 @@
+#! /bin/sh /usr/share/dpatch/dpatch-run
+## 10-fix_udp_support.dpatch by Pablo Neira Ayuso <pablo@netfilter.org>
+##
+## All lines beginning with `## DP:' are a description of the patch.
+## DP: conntrackd: fix UDP filtering in configuration file
+## DP: picked from the conntrack mailinglist
+
+@DPATCH@
+diff -urNad conntrack-0.9.14~/doc/sync/ftfw/conntrackd.conf conntrack-0.9.14/doc/sync/ftfw/conntrackd.conf
+--- conntrack-0.9.14~/doc/sync/ftfw/conntrackd.conf	2009-12-23 18:14:01.000000000 +0100
++++ conntrack-0.9.14/doc/sync/ftfw/conntrackd.conf	2010-02-12 16:23:53.000000000 +0100
+@@ -357,6 +357,7 @@
+ 			TCP
+ 			SCTP
+ 			DCCP
++			# UDP
+ 			# ICMP # This requires a Linux kernel >= 2.6.31
+ 		}
+ 
+diff -urNad conntrack-0.9.14~/src/read_config_yy.y conntrack-0.9.14/src/read_config_yy.y
+--- conntrack-0.9.14~/src/read_config_yy.y	2009-12-23 19:45:51.000000000 +0100
++++ conntrack-0.9.14/src/read_config_yy.y	2010-02-12 16:23:53.000000000 +0100
+@@ -1221,6 +1221,25 @@
+ 				 pent->p_proto);
+ };
+ 
++filter_protocol_item : T_UDP
++{
++	struct protoent *pent;
++
++	pent = getprotobyname("udp");
++	if (pent == NULL) {
++		print_err(CTD_CFG_WARN, "getprotobyname() cannot find "
++					"protocol `udp' in /etc/protocols");
++		break;
++	}
++	ct_filter_add_proto(STATE(us_filter), pent->p_proto);
++
++	__kernel_filter_start();
++
++	nfct_filter_add_attr_u32(STATE(filter),
++				 NFCT_FILTER_L4PROTO,
++				 pent->p_proto);
++};
++
+ filter_item : T_ADDRESS T_ACCEPT '{' filter_address_list '}'
+ {
+ 	ct_filter_set_logic(STATE(us_filter),
