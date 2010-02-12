@@ -4,7 +4,7 @@ Priority: optional
 Maintainer: Alexander Wirt <formorer@debian.org>
 Homepage: http://conntrack-tools.netfilter.org/
 Build-Depends: debhelper (>= 5), libnfnetlink-dev (>= 1.0.0),
- libnetfilter-conntrack-dev (>= 0.0.100), bison, flex, dpatch
+ libnetfilter-conntrack-dev (>= 0.0.101), bison, flex, dpatch
 Standards-Version: 3.8.4
 
 Package: conntrack
