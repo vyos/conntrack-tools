@@ -6,8 +6,8 @@
 #
 ### BEGIN INIT INFO
 # Provides:          conntrackd
-# Required-Start:    $network $syslog
-# Required-Stop:     $network $syslog
+# Required-Start:    $network $syslog $remote_fs
+# Required-Stop:     $network $syslog $remote_fs
 # Default-Start:     2 3 4 5 
 # Default-Stop:	     0 1 6 
 # Description: Starts conntrackd
