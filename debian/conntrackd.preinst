@@ -11,7 +11,15 @@ if [ "$action" = upgrade -a -n "$version" ] &&
     # package versions < 0.9.8-1 had the configuration file in a
     # non-standard location
     mkdir -p /etc/conntrackd
-    mv /etc/conntrackd.conf /etc/conntrackd/conntrackd.conf
+    if md5sum /etc/conntrackd.conf 2> /dev/null |
+        grep -q 9e463d9bb7902e513da1b90b326bd43d
+    then
+        # unmodified version, dpkg should not prompt, delete in postinst
+        mv /etc/conntrackd.conf /etc/conntrackd.conf.dpkg-updating
+    else
+	# move to new location to make dpkg prompt
+        mv /etc/conntrackd.conf /etc/conntrackd/conntrackd.conf
+    fi
 fi
 
 #DEBHELPER#
