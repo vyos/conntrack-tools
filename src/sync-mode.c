@@ -497,9 +497,7 @@ static int local_handler_sync(int fd, int type, void *data)
 		del_alarm(&STATE_SYNC(reset_cache_alarm));
 
 		dlog(LOG_NOTICE, "committing external cache");
-		STATE_SYNC(external)->commit(STATE_SYNC(commit).h, fd);
-		/* Keep the client socket open, we want synchronous commits. */
-		ret = LOCAL_RET_STOLEN;
+		ret = STATE_SYNC(external)->commit(STATE_SYNC(commit).h, fd);
 		break;
 	case RESET_TIMERS:
 		if (!alarm_pending(&STATE_SYNC(reset_cache_alarm))) {

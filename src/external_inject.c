@@ -145,8 +145,10 @@ static void external_inject_dump(int fd, int type)
 {
 }
 
-static void external_inject_commit(struct nfct_handle *h, int fd)
+static int external_inject_commit(struct nfct_handle *h, int fd)
 {
+	/* close the commit socket. */
+	return LOCAL_RET_OK;
 }
 
 static void external_inject_flush(void)

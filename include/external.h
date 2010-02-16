@@ -13,7 +13,7 @@ struct external_handler {
 
 	void	(*dump)(int fd, int type);
 	void	(*flush)(void);
-	void	(*commit)(struct nfct_handle *h, int fd);
+	int	(*commit)(struct nfct_handle *h, int fd);
 	void	(*stats)(int fd);
 	void	(*stats_ext)(int fd);
 };

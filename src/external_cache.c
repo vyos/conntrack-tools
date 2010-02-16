@@ -88,9 +88,11 @@ static void external_cache_dump(int fd, int type)
 	cache_dump(external, fd, type);
 }
 
-static void external_cache_commit(struct nfct_handle *h, int fd)
+static int external_cache_commit(struct nfct_handle *h, int fd)
 {
 	cache_commit(external, h, fd);
+	/* Keep the client socket open, we want synchronous commits. */
+	return LOCAL_RET_STOLEN;
 }
 
 static void external_cache_flush(void)
