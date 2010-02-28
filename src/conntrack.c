@@ -58,6 +58,145 @@
 #include <fcntl.h>
 #include <libnetfilter_conntrack/libnetfilter_conntrack.h>
 
+enum ct_command {
+	CT_NONE		= 0,
+
+	CT_LIST_BIT 	= 0,
+	CT_LIST 	= (1 << CT_LIST_BIT),
+
+	CT_CREATE_BIT	= 1,
+	CT_CREATE	= (1 << CT_CREATE_BIT),
+
+	CT_UPDATE_BIT	= 2,
+	CT_UPDATE	= (1 << CT_UPDATE_BIT),
+
+	CT_DELETE_BIT	= 3,
+	CT_DELETE	= (1 << CT_DELETE_BIT),
+
+	CT_GET_BIT	= 4,
+	CT_GET		= (1 << CT_GET_BIT),
+
+	CT_FLUSH_BIT	= 5,
+	CT_FLUSH	= (1 << CT_FLUSH_BIT),
+
+	CT_EVENT_BIT	= 6,
+	CT_EVENT	= (1 << CT_EVENT_BIT),
+
+	CT_VERSION_BIT	= 7,
+	CT_VERSION	= (1 << CT_VERSION_BIT),
+
+	CT_HELP_BIT	= 8,
+	CT_HELP		= (1 << CT_HELP_BIT),
+
+	EXP_LIST_BIT 	= 9,
+	EXP_LIST 	= (1 << EXP_LIST_BIT),
+
+	EXP_CREATE_BIT	= 10,
+	EXP_CREATE	= (1 << EXP_CREATE_BIT),
+
+	EXP_DELETE_BIT	= 11,
+	EXP_DELETE	= (1 << EXP_DELETE_BIT),
+
+	EXP_GET_BIT	= 12,
+	EXP_GET		= (1 << EXP_GET_BIT),
+
+	EXP_FLUSH_BIT	= 13,
+	EXP_FLUSH	= (1 << EXP_FLUSH_BIT),
+
+	EXP_EVENT_BIT	= 14,
+	EXP_EVENT	= (1 << EXP_EVENT_BIT),
+
+	CT_COUNT_BIT	= 15,
+	CT_COUNT	= (1 << CT_COUNT_BIT),
+
+	EXP_COUNT_BIT	= 16,
+	EXP_COUNT	= (1 << EXP_COUNT_BIT),
+
+	X_STATS_BIT	= 17,
+	X_STATS		= (1 << X_STATS_BIT),
+};
+/* If you add a new command, you have to update NUMBER_OF_CMD in conntrack.h */
+
+enum ct_options {
+	CT_OPT_ORIG_SRC_BIT	= 0,
+	CT_OPT_ORIG_SRC 	= (1 << CT_OPT_ORIG_SRC_BIT),
+
+	CT_OPT_ORIG_DST_BIT	= 1,
+	CT_OPT_ORIG_DST		= (1 << CT_OPT_ORIG_DST_BIT),
+
+	CT_OPT_ORIG		= (CT_OPT_ORIG_SRC | CT_OPT_ORIG_DST),
+
+	CT_OPT_REPL_SRC_BIT	= 2,
+	CT_OPT_REPL_SRC		= (1 << CT_OPT_REPL_SRC_BIT),
+
+	CT_OPT_REPL_DST_BIT	= 3,
+	CT_OPT_REPL_DST		= (1 << CT_OPT_REPL_DST_BIT),
+
+	CT_OPT_REPL		= (CT_OPT_REPL_SRC | CT_OPT_REPL_DST),
+
+	CT_OPT_PROTO_BIT	= 4,
+	CT_OPT_PROTO		= (1 << CT_OPT_PROTO_BIT),
+
+	CT_OPT_TUPLE_ORIG	= (CT_OPT_ORIG | CT_OPT_PROTO),
+	CT_OPT_TUPLE_REPL	= (CT_OPT_REPL | CT_OPT_PROTO),
+
+	CT_OPT_TIMEOUT_BIT	= 5,
+	CT_OPT_TIMEOUT		= (1 << CT_OPT_TIMEOUT_BIT),
+
+	CT_OPT_STATUS_BIT	= 6,
+	CT_OPT_STATUS		= (1 << CT_OPT_STATUS_BIT),
+
+	CT_OPT_ZERO_BIT		= 7,
+	CT_OPT_ZERO		= (1 << CT_OPT_ZERO_BIT),
+
+	CT_OPT_EVENT_MASK_BIT	= 8,
+	CT_OPT_EVENT_MASK	= (1 << CT_OPT_EVENT_MASK_BIT),
+
+	CT_OPT_EXP_SRC_BIT	= 9,
+	CT_OPT_EXP_SRC		= (1 << CT_OPT_EXP_SRC_BIT),
+
+	CT_OPT_EXP_DST_BIT	= 10,
+	CT_OPT_EXP_DST		= (1 << CT_OPT_EXP_DST_BIT),
+
+	CT_OPT_MASK_SRC_BIT	= 11,
+	CT_OPT_MASK_SRC		= (1 << CT_OPT_MASK_SRC_BIT),
+
+	CT_OPT_MASK_DST_BIT	= 12,
+	CT_OPT_MASK_DST		= (1 << CT_OPT_MASK_DST_BIT),
+
+	CT_OPT_NATRANGE_BIT	= 13,
+	CT_OPT_NATRANGE		= (1 << CT_OPT_NATRANGE_BIT),
+
+	CT_OPT_MARK_BIT		= 14,
+	CT_OPT_MARK		= (1 << CT_OPT_MARK_BIT),
+
+	CT_OPT_ID_BIT		= 15,
+	CT_OPT_ID		= (1 << CT_OPT_ID_BIT),
+
+	CT_OPT_FAMILY_BIT	= 16,
+	CT_OPT_FAMILY		= (1 << CT_OPT_FAMILY_BIT),
+
+	CT_OPT_SRC_NAT_BIT	= 17,
+	CT_OPT_SRC_NAT		= (1 << CT_OPT_SRC_NAT_BIT),
+
+	CT_OPT_DST_NAT_BIT	= 18,
+	CT_OPT_DST_NAT		= (1 << CT_OPT_DST_NAT_BIT),
+
+	CT_OPT_OUTPUT_BIT	= 19,
+	CT_OPT_OUTPUT		= (1 << CT_OPT_OUTPUT_BIT),
+
+	CT_OPT_SECMARK_BIT	= 20,
+	CT_OPT_SECMARK		= (1 << CT_OPT_SECMARK_BIT),
+
+	CT_OPT_BUFFERSIZE_BIT	= 21,
+	CT_OPT_BUFFERSIZE	= (1 << CT_OPT_BUFFERSIZE_BIT),
+};
+/* If you add a new option, you have to update NUMBER_OF_OPT in conntrack.h */
+
+/* Update this mask to allow to filter based on new options. */
+#define CT_COMPARISON (CT_OPT_PROTO | CT_OPT_ORIG | CT_OPT_REPL | CT_OPT_MARK |\
+		       CT_OPT_SECMARK |  CT_OPT_STATUS | CT_OPT_ID)
+
 static const char *optflags[NUMBER_OF_OPT] = {
 	[CT_OPT_ORIG_SRC_BIT] 	= "src",
 	[CT_OPT_ORIG_DST_BIT]	= "dst",
@@ -122,11 +261,9 @@ static struct option original_opts[] = {
 	{0, 0, 0, 0}
 };
 
-#define OPTION_OFFSET 256
-
-static struct nfct_handle *cth, *ith;
-static struct option *opts = original_opts;
-static unsigned int global_option_offset = 0;
+static const char *getopt_str = "L::I::U::D::G::E::F::hVs:d:r:q:"
+				"p:t:u:e:a:z[:]:{:}:m:i:f:o:n::"
+				"g::c:b:C::S";
 
 /* Table of legal combinations of commands and options.  If any of the
  * given commands make an option legal, that option is legal (applies to
@@ -162,6 +299,117 @@ static char commands_v_options[NUMBER_OF_CMD][NUMBER_OF_OPT] =
 /*X_STATS*/   {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
 };
 
+static const int cmd2type[][2] = {
+	['L']	= { CT_LIST, 	EXP_LIST },
+	['I']	= { CT_CREATE,	EXP_CREATE },
+	['D']	= { CT_DELETE,	EXP_DELETE },
+	['G']	= { CT_GET,	EXP_GET },
+	['F']	= { CT_FLUSH,	EXP_FLUSH },
+	['E']	= { CT_EVENT,	EXP_EVENT },
+	['V']	= { CT_VERSION,	CT_VERSION },
+	['h']	= { CT_HELP,	CT_HELP },
+	['C']	= { CT_COUNT,	EXP_COUNT },
+};
+
+static const int opt2type[] = {
+	['s']	= CT_OPT_ORIG_SRC,
+	['d']	= CT_OPT_ORIG_DST,
+	['r']	= CT_OPT_REPL_SRC,
+	['q']	= CT_OPT_REPL_DST,
+	['{']	= CT_OPT_MASK_SRC,
+	['}']	= CT_OPT_MASK_DST,
+	['[']	= CT_OPT_EXP_SRC,
+	[']']	= CT_OPT_EXP_DST,
+	['n']	= CT_OPT_SRC_NAT,
+	['g']	= CT_OPT_DST_NAT,
+	['m']	= CT_OPT_MARK,
+	['c']	= CT_OPT_SECMARK,
+	['i']	= CT_OPT_ID,
+};
+
+static const int opt2family_attr[][2] = {
+	['s']	= { ATTR_ORIG_IPV4_SRC,	ATTR_ORIG_IPV6_SRC },
+	['d']	= { ATTR_ORIG_IPV4_DST,	ATTR_ORIG_IPV6_DST },
+	['r']	= { ATTR_REPL_IPV4_SRC, ATTR_REPL_IPV6_SRC },
+	['q']	= { ATTR_REPL_IPV4_DST, ATTR_REPL_IPV6_DST },
+	['{']	= { ATTR_ORIG_IPV4_SRC,	ATTR_ORIG_IPV6_SRC },
+	['}']	= { ATTR_ORIG_IPV4_DST,	ATTR_ORIG_IPV6_DST },
+	['[']	= { ATTR_ORIG_IPV4_SRC, ATTR_ORIG_IPV6_SRC },
+	[']']	= { ATTR_ORIG_IPV4_DST, ATTR_ORIG_IPV6_DST },
+};
+
+static const int opt2attr[] = {
+	['s']	= ATTR_ORIG_L3PROTO,
+	['d']	= ATTR_ORIG_L3PROTO,
+	['r']	= ATTR_REPL_L3PROTO,
+	['q']	= ATTR_REPL_L3PROTO,
+	['m']	= ATTR_MARK,
+	['c']	= ATTR_SECMARK,
+	['i']	= ATTR_ID,
+};
+
+static char exit_msg[NUMBER_OF_CMD][64] = {
+	[CT_LIST_BIT] 		= "%d flow entries have been shown.\n",
+	[CT_CREATE_BIT]		= "%d flow entries have been created.\n",
+	[CT_UPDATE_BIT]		= "%d flow entries have been updated.\n",
+	[CT_DELETE_BIT]		= "%d flow entries have been deleted.\n",
+	[CT_GET_BIT] 		= "%d flow entries have been shown.\n",
+	[CT_EVENT_BIT]		= "%d flow events have been shown.\n",
+	[EXP_LIST_BIT]		= "%d expectations have been shown.\n",
+	[EXP_DELETE_BIT]	= "%d expectations have been shown.\n",
+};
+
+static const char usage_commands[] =
+	"Commands:\n"
+	"  -L [table] [options]\t\tList conntrack or expectation table\n"
+	"  -G [table] parameters\t\tGet conntrack or expectation\n"
+	"  -D [table] parameters\t\tDelete conntrack or expectation\n"
+	"  -I [table] parameters\t\tCreate a conntrack or expectation\n"
+	"  -U [table] parameters\t\tUpdate a conntrack\n"
+	"  -E [table] [options]\t\tShow events\n"
+	"  -F [table]\t\t\tFlush table\n"
+	"  -C [table]\t\t\tShow counter\n"
+	"  -S\t\t\t\tShow statistics\n";
+
+static const char usage_tables[] =
+	"Tables: conntrack, expect\n";
+
+static const char usage_conntrack_parameters[] =
+	"Conntrack parameters and options:\n"
+	"  -n, --src-nat ip\t\t\tsource NAT ip\n"
+	"  -g, --dst-nat ip\t\t\tdestination NAT ip\n"
+	"  -m, --mark mark\t\t\tSet mark\n"
+	"  -c, --secmark secmark\t\t\tSet selinux secmark\n"
+	"  -e, --event-mask eventmask\t\tEvent mask, eg. NEW,DESTROY\n"
+	"  -z, --zero \t\t\t\tZero counters while listing\n"
+	"  -o, --output type[,...]\t\tOutput format, eg. xml\n";
+
+static const char usage_expectation_parameters[] =
+	"Expectation parameters and options:\n"
+	"  --tuple-src ip\tSource address in expect tuple\n"
+	"  --tuple-dst ip\tDestination address in expect tuple\n"
+	"  --mask-src ip\t\tSource mask address\n"
+	"  --mask-dst ip\t\tDestination mask address\n";
+
+static const char usage_parameters[] =
+	"Common parameters and options:\n"
+	"  -s, --orig-src ip\t\tSource address from original direction\n"
+	"  -d, --orig-dst ip\t\tDestination address from original direction\n"
+	"  -r, --reply-src ip\t\tSource addres from reply direction\n"
+	"  -q, --reply-dst ip\t\tDestination address from reply direction\n"
+	"  -p, --protonum proto\t\tLayer 4 Protocol, eg. 'tcp'\n"
+	"  -f, --family proto\t\tLayer 3 Protocol, eg. 'ipv6'\n"
+	"  -t, --timeout timeout\t\tSet timeout\n"
+	"  -u, --status status\t\tSet status, eg. ASSURED\n"
+	"  -b, --buffer-size\t\tNetlink socket buffer size\n"
+	;
+
+#define OPTION_OFFSET 256
+
+static struct nfct_handle *cth, *ith;
+static struct option *opts = original_opts;
+static unsigned int global_option_offset = 0;
+
 #define ADDR_VALID_FLAGS_MAX   2
 static unsigned int addr_valid_flags[ADDR_VALID_FLAGS_MAX] = {
 	CT_OPT_ORIG_SRC | CT_OPT_ORIG_DST,
@@ -171,9 +419,6 @@ static unsigned int addr_valid_flags[ADDR_VALID_FLAGS_MAX] = {
 static LIST_HEAD(proto_list);
 
 static unsigned int options;
-
-#define CT_COMPARISON (CT_OPT_PROTO | CT_OPT_ORIG | CT_OPT_REPL | CT_OPT_MARK |\
-		       CT_OPT_SECMARK |  CT_OPT_STATUS | CT_OPT_ID)
 
 void register_proto(struct ctproto_handler *h)
 {
@@ -368,11 +613,11 @@ merge_options(struct option *oldopts, const struct option *newopts,
 
 /* Translates errno numbers into more human-readable form than strerror. */
 static const char *
-err2str(int err, enum action command)
+err2str(int err, enum ct_command command)
 {
 	unsigned int i;
 	struct table_struct {
-		enum action act;
+		enum ct_command act;
 		int err;
 		const char *message;
 	} table [] =
@@ -402,6 +647,13 @@ err2str(int err, enum action command)
 #define PARSE_EVENT 1
 #define PARSE_OUTPUT 2
 #define PARSE_MAX 3
+
+enum {
+	_O_XML	= (1 << 0),
+	_O_EXT	= (1 << 1),
+	_O_TMS	= (1 << 2),
+	_O_ID	= (1 << 3),
+};
 
 static struct parse_parameter {
 	const char	*parameter[6];
@@ -586,52 +838,6 @@ nat_parse(char *arg, int portok, struct nf_conntrack *obj, int type)
 	else if (type == CT_OPT_DST_NAT)
 		nfct_set_attr_u32(obj, ATTR_DNAT_IPV4, parse.v4);
 }
-
-static const char usage_commands[] =
-	"Commands:\n"
-	"  -L [table] [options]\t\tList conntrack or expectation table\n"
-	"  -G [table] parameters\t\tGet conntrack or expectation\n"
-	"  -D [table] parameters\t\tDelete conntrack or expectation\n"
-	"  -I [table] parameters\t\tCreate a conntrack or expectation\n"
-	"  -U [table] parameters\t\tUpdate a conntrack\n"
-	"  -E [table] [options]\t\tShow events\n"
-	"  -F [table]\t\t\tFlush table\n"
-	"  -C [table]\t\t\tShow counter\n"
-	"  -S\t\t\t\tShow statistics\n";
-
-static const char usage_tables[] =
-	"Tables: conntrack, expect\n";
-
-static const char usage_conntrack_parameters[] =
-	"Conntrack parameters and options:\n"
-	"  -n, --src-nat ip\t\t\tsource NAT ip\n"
-	"  -g, --dst-nat ip\t\t\tdestination NAT ip\n"
-	"  -m, --mark mark\t\t\tSet mark\n"
-	"  -c, --secmark secmark\t\t\tSet selinux secmark\n"
-	"  -e, --event-mask eventmask\t\tEvent mask, eg. NEW,DESTROY\n"
-	"  -z, --zero \t\t\t\tZero counters while listing\n"
-	"  -o, --output type[,...]\t\tOutput format, eg. xml\n";
-
-static const char usage_expectation_parameters[] =
-	"Expectation parameters and options:\n"
-	"  --tuple-src ip\tSource address in expect tuple\n"
-	"  --tuple-dst ip\tDestination address in expect tuple\n"
-	"  --mask-src ip\t\tSource mask address\n"
-	"  --mask-dst ip\t\tDestination mask address\n";
-
-static const char usage_parameters[] =
-	"Common parameters and options:\n"
-	"  -s, --orig-src ip\t\tSource address from original direction\n"
-	"  -d, --orig-dst ip\t\tDestination address from original direction\n"
-	"  -r, --reply-src ip\t\tSource addres from reply direction\n"
-	"  -q, --reply-dst ip\t\tDestination address from reply direction\n"
-	"  -p, --protonum proto\t\tLayer 4 Protocol, eg. 'tcp'\n"
-	"  -f, --family proto\t\tLayer 3 Protocol, eg. 'ipv6'\n"
-	"  -t, --timeout timeout\t\tSet timeout\n"
-	"  -u, --status status\t\tSet status, eg. ASSURED\n"
-	"  -b, --buffer-size\t\tNetlink socket buffer size\n"
-	;
-  
 
 static void
 usage(char *prog)
@@ -994,66 +1200,6 @@ out_err:
 
 static struct ctproto_handler *h;
 
-static const int cmd2type[][2] = {
-	['L']	= { CT_LIST, 	EXP_LIST },
-	['I']	= { CT_CREATE,	EXP_CREATE },
-	['D']	= { CT_DELETE,	EXP_DELETE },
-	['G']	= { CT_GET,	EXP_GET },
-	['F']	= { CT_FLUSH,	EXP_FLUSH },
-	['E']	= { CT_EVENT,	EXP_EVENT },
-	['V']	= { CT_VERSION,	CT_VERSION },
-	['h']	= { CT_HELP,	CT_HELP },
-	['C']	= { CT_COUNT,	EXP_COUNT },
-};
-
-static const int opt2type[] = {
-	['s']	= CT_OPT_ORIG_SRC,
-	['d']	= CT_OPT_ORIG_DST,
-	['r']	= CT_OPT_REPL_SRC,
-	['q']	= CT_OPT_REPL_DST,
-	['{']	= CT_OPT_MASK_SRC,
-	['}']	= CT_OPT_MASK_DST,
-	['[']	= CT_OPT_EXP_SRC,
-	[']']	= CT_OPT_EXP_DST,
-	['n']	= CT_OPT_SRC_NAT,
-	['g']	= CT_OPT_DST_NAT,
-	['m']	= CT_OPT_MARK,
-	['c']	= CT_OPT_SECMARK,
-	['i']	= CT_OPT_ID,
-};
-
-static const int opt2family_attr[][2] = {
-	['s']	= { ATTR_ORIG_IPV4_SRC,	ATTR_ORIG_IPV6_SRC },
-	['d']	= { ATTR_ORIG_IPV4_DST,	ATTR_ORIG_IPV6_DST },
-	['r']	= { ATTR_REPL_IPV4_SRC, ATTR_REPL_IPV6_SRC },
-	['q']	= { ATTR_REPL_IPV4_DST, ATTR_REPL_IPV6_DST },
-	['{']	= { ATTR_ORIG_IPV4_SRC,	ATTR_ORIG_IPV6_SRC },
-	['}']	= { ATTR_ORIG_IPV4_DST,	ATTR_ORIG_IPV6_DST },
-	['[']	= { ATTR_ORIG_IPV4_SRC, ATTR_ORIG_IPV6_SRC },
-	[']']	= { ATTR_ORIG_IPV4_DST, ATTR_ORIG_IPV6_DST },
-};
-
-static const int opt2attr[] = {
-	['s']	= ATTR_ORIG_L3PROTO,
-	['d']	= ATTR_ORIG_L3PROTO,
-	['r']	= ATTR_REPL_L3PROTO,
-	['q']	= ATTR_REPL_L3PROTO,
-	['m']	= ATTR_MARK,
-	['c']	= ATTR_SECMARK,
-	['i']	= ATTR_ID,
-};
-
-static char exit_msg[NUMBER_OF_CMD][64] = {
-	[CT_LIST_BIT] 		= "%d flow entries have been shown.\n",
-	[CT_CREATE_BIT]		= "%d flow entries have been created.\n",
-	[CT_UPDATE_BIT]		= "%d flow entries have been updated.\n",
-	[CT_DELETE_BIT]		= "%d flow entries have been deleted.\n",
-	[CT_GET_BIT] 		= "%d flow entries have been shown.\n",
-	[CT_EVENT_BIT]		= "%d flow events have been shown.\n",
-	[EXP_LIST_BIT]		= "%d expectations have been shown.\n",
-	[EXP_DELETE_BIT]	= "%d expectations have been shown.\n",
-};
-
 int main(int argc, char *argv[])
 {
 	int c, cmd;
@@ -1092,10 +1238,7 @@ int main(int argc, char *argv[])
 	/* disable explicit missing arguments error output from getopt_long */
 	opterr = 0;
 
-	while ((c = getopt_long(argc, argv, "L::I::U::D::G::E::F::hVs:d:r:q:"
-					    "p:t:u:e:a:z[:]:{:}:m:i:f:o:n::"
-					    "g::c:b:C::S", 
-					    opts, NULL)) != -1) {
+	while ((c = getopt_long(argc, argv, getopt_str, opts, NULL)) != -1) {
 	switch(c) {
 		/* commands */
 		case 'L':
