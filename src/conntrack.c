@@ -59,9 +59,29 @@
 #include <libnetfilter_conntrack/libnetfilter_conntrack.h>
 
 static const char *optflags[NUMBER_OF_OPT] = {
-"src","dst","reply-src","reply-dst","protonum","timeout","status","zero",
-"event-mask","tuple-src","tuple-dst","mask-src","mask-dst","nat-range","mark",
-"id","family","src-nat","dst-nat","output","secmark","buffersize"};
+	[CT_OPT_ORIG_SRC_BIT] 	= "src",
+	[CT_OPT_ORIG_DST_BIT]	= "dst",
+	[CT_OPT_REPL_SRC_BIT]	= "reply-src",
+	[CT_OPT_REPL_DST_BIT]	= "reply-dst",
+	[CT_OPT_PROTO_BIT]	= "protonum",
+	[CT_OPT_TIMEOUT_BIT]	= "timeout",
+	[CT_OPT_STATUS_BIT]	= "status",
+	[CT_OPT_ZERO_BIT]	= "zero",
+	[CT_OPT_EVENT_MASK_BIT]	= "event-mask",
+	[CT_OPT_EXP_SRC_BIT]	= "tuple-src",
+	[CT_OPT_EXP_DST_BIT]	= "tuple-dst",
+	[CT_OPT_MASK_SRC_BIT]	= "mask-src",
+	[CT_OPT_MASK_DST_BIT]	= "mask-dst",
+	[CT_OPT_NATRANGE_BIT]	= "nat-range",
+	[CT_OPT_MARK_BIT]	= "mark",
+	[CT_OPT_ID_BIT]		= "id",
+	[CT_OPT_FAMILY_BIT]	= "family",
+	[CT_OPT_SRC_NAT_BIT]	= "src-nat",
+	[CT_OPT_DST_NAT_BIT]	= "dst-nat",
+	[CT_OPT_OUTPUT_BIT]	= "output",
+	[CT_OPT_SECMARK_BIT]	= "secmark",
+	[CT_OPT_BUFFERSIZE_BIT]	= "buffer-size"
+};
 
 static struct option original_opts[] = {
 	{"dump", 2, 0, 'L'},
