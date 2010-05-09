@@ -19,7 +19,7 @@
   </authorgroup>
 
   <copyright>
-   <year>2008</year>
+   <year>2008-2010</year>
    <holder>Pablo Neira Ayuso</holder>
   </copyright>
 
@@ -198,7 +198,12 @@ conntrack v0.9.7 (conntrack-tools): 1 flow entries have been shown.
 conntrack v0.9.7 (conntrack-tools): 1 flow entries has been updated.
  </programlisting>
 
-<para>Delete one entry, this can be used to block traffic (you have to set <emphasis>/proc/sys/net/ipv4/netfilter/ip_conntrack_tcp_be_liberal</emphasis> to zero).</para>
+<para>Delete one entry, this can be used to block traffic if:</para>
+<itemizedlist>
+ <listitem><para>You have a stateful rule-set that blocks traffic in INVALID state.</para></listitem>
+ <listitem><para>You have set <emphasis>/proc/sys/net/ipv4/netfilter/ip_conntrack_tcp_loose</emphasis> or <emphasis>/proc/sys/net/netfilter/nf_conntrack_tcp_loose</emphasis>, depending on your kernel version, to zero.</para></listitem>
+</itemizedlist>
+
 <programlisting>
  # conntrack -D -p tcp --dport 3486
  tcp      6 431982 ESTABLISHED src=192.168.2.100 dst=123.59.27.117 sport=34846 dport=993 packets=169 bytes=14322 src=123.59.27.117 dst=192.168.2.100 sport=993 dport=34846 packets=113 bytes=34787 [ASSURED] mark=1 secmark=0 use=1
