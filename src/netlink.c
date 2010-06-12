@@ -202,6 +202,8 @@ int nl_create_conntrack(struct nfct_handle *h,
 
 		if (!CONFIG(sync).tcp_window_tracking)
 			flags |= IP_CT_TCP_FLAG_BE_LIBERAL;
+		else
+			flags |= IP_CT_TCP_FLAG_WINDOW_SCALE;
 
 		/* FIXME: workaround, we should send TCP flags in updates */
 		if (nfct_get_attr_u8(ct, ATTR_TCP_STATE) >=
@@ -267,6 +269,8 @@ int nl_update_conntrack(struct nfct_handle *h,
 
 		if (!CONFIG(sync).tcp_window_tracking)
 			flags |= IP_CT_TCP_FLAG_BE_LIBERAL;
+		else
+			flags |= IP_CT_TCP_FLAG_WINDOW_SCALE;
 
 		/* FIXME: workaround, we should send TCP flags in updates */
 		if (nfct_get_attr_u8(ct, ATTR_TCP_STATE) >=
