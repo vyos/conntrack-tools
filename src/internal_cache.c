@@ -40,7 +40,7 @@ static void _close(void)
 
 static void dump(int fd, int type)
 {
-	cache_dump(STATE(mode)->internal->data, fd, NFCT_O_PLAIN);
+	cache_dump(STATE(mode)->internal->data, fd, type);
 }
 
 static void flush(void)
