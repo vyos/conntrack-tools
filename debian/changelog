@@ -1,3 +1,12 @@
+conntrack (0.9.14-2+vyatta3) unstable; urgency=low
+
+  * add missing m4 files
+  * update .gitignore
+  * remove generated files, apply debian patch 10-fix_udp_support.dpatch
+  * remove files for applied patch
+
+ -- Mohit Mehta <mohit.mehta@vyatta.com>  Mon, 14 Jun 2010 20:34:06 -0700
+
 conntrack (0.9.14-2+vyatta2) unstable; urgency=low
 
   * UNRELEASED
