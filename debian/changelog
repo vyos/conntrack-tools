@@ -1,3 +1,18 @@
+conntrack (0.9.14-2+vyatta4) unstable; urgency=low
+
+  [ Pablo Neira Ayuso ]
+  * fix `conntrack -L --src-nat --dst-nat`
+
+  [ Mohit Mehta ]
+  * fix `conntrackd -i -x`
+
+  [ Pablo Neira Ayuso ]
+  * This patch move the ports addition to the layer 4 functions, instead
+
+  [ Mohit Mehta ]
+
+ -- Mohit Mehta <mohit.mehta@vyatta.com>  Tue, 15 Jun 2010 12:23:35 -0700
+
 conntrack (0.9.14-2+vyatta3) unstable; urgency=low
 
   * add missing m4 files
