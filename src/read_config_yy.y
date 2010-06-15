@@ -1221,6 +1221,25 @@ filter_protocol_item : T_TCP
 				 pent->p_proto);
 };
 
+filter_protocol_item : T_UDP
+{
+	struct protoent *pent;
+
+	pent = getprotobyname("udp");
+	if (pent == NULL) {
+		print_err(CTD_CFG_WARN, "getprotobyname() cannot find "
+					"protocol `udp' in /etc/protocols");
+		break;
+	}
+	ct_filter_add_proto(STATE(us_filter), pent->p_proto);
+
+	__kernel_filter_start();
+
+	nfct_filter_add_attr_u32(STATE(filter),
+				 NFCT_FILTER_L4PROTO,
+				 pent->p_proto);
+};
+
 filter_item : T_ADDRESS T_ACCEPT '{' filter_address_list '}'
 {
 	ct_filter_set_logic(STATE(us_filter),

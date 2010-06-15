@@ -38,3 +38,4 @@ src/conntrack
 src/conntrackd
 src/read_config_lex.c
 src/read_config_yy.c
+src/read_config_yy.h
