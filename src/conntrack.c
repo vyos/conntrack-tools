@@ -634,15 +634,29 @@ filter_nat(const struct nf_conntrack *obj, const struct nf_conntrack *ct)
 {
 	uint32_t ip;
 
-	if (options & CT_OPT_SRC_NAT) {
+	if ((options & CT_OPT_SRC_NAT) && (options & CT_OPT_DST_NAT)) {
+		if (nfct_attr_is_set(obj, ATTR_SNAT_IPV4) &&
+		    nfct_attr_is_set(obj, ATTR_DNAT_IPV4)) {
+			uint32_t ip2;
+
+			ip = nfct_get_attr_u32(obj, ATTR_SNAT_IPV4);
+			ip2 = nfct_get_attr_u32(obj, ATTR_DNAT_IPV4);
+			if (ip == nfct_get_attr_u32(ct, ATTR_REPL_IPV4_DST) &&
+			    ip2 == nfct_get_attr_u32(ct, ATTR_REPL_IPV4_SRC)) {
+				return 0;
+			}
+		} else if (nfct_getobjopt(ct, NFCT_GOPT_IS_SNAT) &&
+			   nfct_getobjopt(ct, NFCT_GOPT_IS_DNAT)) {
+		  	return 0;
+		}
+	} else if (options & CT_OPT_SRC_NAT) {
 		if (nfct_attr_is_set(obj, ATTR_SNAT_IPV4)) {
 			ip = nfct_get_attr_u32(obj, ATTR_SNAT_IPV4);
 			if (ip == nfct_get_attr_u32(ct, ATTR_REPL_IPV4_DST))
 				return 0;
 		} else if (nfct_getobjopt(ct, NFCT_GOPT_IS_SNAT))
 		  	return 0;
-	}
-	if (options & CT_OPT_DST_NAT) {
+	} else if (options & CT_OPT_DST_NAT) {
 		if (nfct_attr_is_set(obj, ATTR_DNAT_IPV4)) {
 			ip = nfct_get_attr_u32(obj, ATTR_DNAT_IPV4);
 			if (ip == nfct_get_attr_u32(ct, ATTR_REPL_IPV4_SRC))
