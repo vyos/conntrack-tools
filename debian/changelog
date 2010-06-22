@@ -1,3 +1,17 @@
+conntrack (0.9.14-2+vyatta5) unstable; urgency=low
+
+  [ Mohit Mehta ]
+  * Revert "fix `conntrack -L --src-nat --dst-nat`"
+
+  [ Pablo Neira Ayuso ]
+  * conntrack: fix `conntrack -L -n -g` (second try)
+  * conntrack: fix `conntrack -L -n -g` filter using AND, not OR logic
+
+  [ Mohit Mehta ]
+  * update dh_gencontrol for dev build
+
+ -- Mohit Mehta <mohit.mehta@vyatta.com>  Tue, 22 Jun 2010 11:53:55 -0700
+
 conntrack (0.9.14-2+vyatta4) unstable; urgency=low
 
   [ Pablo Neira Ayuso ]
