@@ -190,6 +190,9 @@ enum ct_options {
 
 	CT_OPT_BUFFERSIZE_BIT	= 21,
 	CT_OPT_BUFFERSIZE	= (1 << CT_OPT_BUFFERSIZE_BIT),
+
+	CT_OPT_ANY_NAT_BIT	= 22,
+	CT_OPT_ANY_NAT		= (1 << CT_OPT_ANY_NAT_BIT),
 };
 /* If you add a new option, you have to update NUMBER_OF_OPT in conntrack.h */
 
@@ -219,7 +222,8 @@ static const char *optflags[NUMBER_OF_OPT] = {
 	[CT_OPT_DST_NAT_BIT]	= "dst-nat",
 	[CT_OPT_OUTPUT_BIT]	= "output",
 	[CT_OPT_SECMARK_BIT]	= "secmark",
-	[CT_OPT_BUFFERSIZE_BIT]	= "buffer-size"
+	[CT_OPT_BUFFERSIZE_BIT]	= "buffer-size",
+	[CT_OPT_ANY_NAT_BIT]	= "any-nat",
 };
 
 static struct option original_opts[] = {
@@ -258,12 +262,13 @@ static struct option original_opts[] = {
 	{"dst-nat", 2, 0, 'g'},
 	{"output", 1, 0, 'o'},
 	{"buffer-size", 1, 0, 'b'},
+	{"any-nat", 2, 0, 'j'},
 	{0, 0, 0, 0}
 };
 
 static const char *getopt_str = "L::I::U::D::G::E::F::hVs:d:r:q:"
 				"p:t:u:e:a:z[:]:{:}:m:i:f:o:n::"
-				"g::c:b:C::S";
+				"g::c:b:C::Sj::";
 
 /* Table of legal combinations of commands and options.  If any of the
  * given commands make an option legal, that option is legal (applies to
@@ -278,25 +283,25 @@ static const char *getopt_str = "L::I::U::D::G::E::F::hVs:d:r:q:"
 static char commands_v_options[NUMBER_OF_CMD][NUMBER_OF_OPT] =
 /* Well, it's better than "Re: Linux vs FreeBSD" */
 {
-          /*   s d r q p t u z e [ ] { } a m i f n g o c b*/
-/*CT_LIST*/   {2,2,2,2,2,0,2,2,0,0,0,0,0,0,2,0,2,2,2,2,2,0},
-/*CT_CREATE*/ {3,3,3,3,1,1,2,0,0,0,0,0,0,2,2,0,0,2,2,0,0,0},
-/*CT_UPDATE*/ {2,2,2,2,2,2,2,0,0,0,0,0,0,0,2,2,2,2,2,2,0,0},
-/*CT_DELETE*/ {2,2,2,2,2,2,2,0,0,0,0,0,0,0,2,2,2,2,2,2,0,0},
-/*CT_GET*/    {3,3,3,3,1,0,0,0,0,0,0,0,0,0,0,2,0,0,0,2,0,0},
-/*CT_FLUSH*/  {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-/*CT_EVENT*/  {2,2,2,2,2,0,0,0,2,0,0,0,0,0,2,0,0,2,2,2,2,2},
-/*VERSION*/   {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-/*HELP*/      {0,0,0,0,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-/*EXP_LIST*/  {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,0,0,0,0,0},
-/*EXP_CREATE*/{1,1,2,2,1,1,2,0,0,1,1,1,1,0,0,0,0,0,0,0,0,0},
-/*EXP_DELETE*/{1,1,2,2,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-/*EXP_GET*/   {1,1,2,2,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-/*EXP_FLUSH*/ {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-/*EXP_EVENT*/ {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-/*CT_COUNT*/  {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-/*EXP_COUNT*/ {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-/*X_STATS*/   {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+          /*   s d r q p t u z e [ ] { } a m i f n g o c b j*/
+/*CT_LIST*/   {2,2,2,2,2,0,2,2,0,0,0,0,0,0,2,0,2,2,2,2,2,0,2},
+/*CT_CREATE*/ {3,3,3,3,1,1,2,0,0,0,0,0,0,2,2,0,0,2,2,0,0,0,0},
+/*CT_UPDATE*/ {2,2,2,2,2,2,2,0,0,0,0,0,0,0,2,2,2,2,2,2,0,0,0},
+/*CT_DELETE*/ {2,2,2,2,2,2,2,0,0,0,0,0,0,0,2,2,2,2,2,2,0,0,0},
+/*CT_GET*/    {3,3,3,3,1,0,0,0,0,0,0,0,0,0,0,2,0,0,0,2,0,0,0},
+/*CT_FLUSH*/  {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+/*CT_EVENT*/  {2,2,2,2,2,0,0,0,2,0,0,0,0,0,2,0,0,2,2,2,2,2,2},
+/*VERSION*/   {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+/*HELP*/      {0,0,0,0,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+/*EXP_LIST*/  {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,0,0,0,0,0,0},
+/*EXP_CREATE*/{1,1,2,2,1,1,2,0,0,1,1,1,1,0,0,0,0,0,0,0,0,0,0},
+/*EXP_DELETE*/{1,1,2,2,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+/*EXP_GET*/   {1,1,2,2,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+/*EXP_FLUSH*/ {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+/*EXP_EVENT*/ {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+/*CT_COUNT*/  {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+/*EXP_COUNT*/ {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+/*X_STATS*/   {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
 };
 
 static const int cmd2type[][2] = {
@@ -325,6 +330,7 @@ static const int opt2type[] = {
 	['m']	= CT_OPT_MARK,
 	['c']	= CT_OPT_SECMARK,
 	['i']	= CT_OPT_ID,
+	['j']	= CT_OPT_ANY_NAT,
 };
 
 static const int opt2family_attr[][2] = {
@@ -378,6 +384,7 @@ static const char usage_conntrack_parameters[] =
 	"Conntrack parameters and options:\n"
 	"  -n, --src-nat ip\t\t\tsource NAT ip\n"
 	"  -g, --dst-nat ip\t\t\tdestination NAT ip\n"
+	"  -j, --any-nat ip\t\t\tsource or destination NAT ip\n"
 	"  -m, --mark mark\t\t\tSet mark\n"
 	"  -c, --secmark secmark\t\t\tSet selinux secmark\n"
 	"  -e, --event-mask eventmask\t\tEvent mask, eg. NEW,DESTROY\n"
@@ -827,6 +834,10 @@ nat_parse(char *arg, int portok, struct nf_conntrack *obj, int type)
 			nfct_set_attr_u16(obj, ATTR_SNAT_PORT, ntohs(port));
 		else if (type == CT_OPT_DST_NAT)
 			nfct_set_attr_u16(obj, ATTR_DNAT_PORT, ntohs(port));
+		else if (type == CT_OPT_ANY_NAT) {
+			nfct_set_attr_u16(obj, ATTR_SNAT_PORT, ntohs(port));
+			nfct_set_attr_u16(obj, ATTR_DNAT_PORT, ntohs(port));
+		}
 	}
 
 	if (parse_addr(arg, &parse) == AF_UNSPEC)
@@ -889,6 +900,36 @@ filter_nat(const struct nf_conntrack *obj, const struct nf_conntrack *ct)
 		if (!nfct_getobjopt(ct, NFCT_GOPT_IS_DNAT) &&
 		    !nfct_getobjopt(ct, NFCT_GOPT_IS_DPAT))
 			return 1;
+	}
+	if (options & CT_OPT_ANY_NAT) {
+		if (nfct_attr_is_set(obj, ATTR_SNAT_IPV4) &&
+		    nfct_attr_is_set(obj, ATTR_DNAT_IPV4)) {
+			uint32_t ip2;
+
+			ip = nfct_get_attr_u32(obj, ATTR_SNAT_IPV4);
+			ip2 = nfct_get_attr_u32(obj, ATTR_DNAT_IPV4);
+			if (ip != nfct_get_attr_u32(ct, ATTR_REPL_IPV4_DST) &&
+			    ip2 != nfct_get_attr_u32(ct, ATTR_REPL_IPV4_SRC)) {
+				return 1;
+			}
+		}
+		if (nfct_attr_is_set(obj, ATTR_SNAT_PORT) &&
+		    nfct_attr_is_set(obj, ATTR_DNAT_PORT)) {
+			uint16_t p1, p2;
+
+			p1 = nfct_get_attr_u16(obj, ATTR_SNAT_PORT);
+			p2 = nfct_get_attr_u16(obj, ATTR_DNAT_PORT);
+			if (p1 != nfct_get_attr_u16(ct, ATTR_REPL_PORT_DST) &&
+			    p2 != nfct_get_attr_u16(ct, ATTR_REPL_PORT_SRC)) {
+				return 1;
+			}
+		}
+		if (!nfct_getobjopt(ct, NFCT_GOPT_IS_SNAT) &&
+		    !nfct_getobjopt(ct, NFCT_GOPT_IS_DNAT) &&
+		    !nfct_getobjopt(ct, NFCT_GOPT_IS_SPAT) &&
+		    !nfct_getobjopt(ct, NFCT_GOPT_IS_DPAT)) {
+			return 1;
+		}
 	}
 
 	return 0;
@@ -1346,7 +1387,8 @@ int main(int argc, char *argv[])
 			options |= CT_OPT_ZERO;
 			break;
 		case 'n':
-		case 'g': {
+		case 'g':
+		case 'j': {
 			char *tmp = NULL;
 
 			options |= opt2type[c];
@@ -1414,6 +1456,12 @@ int main(int argc, char *argv[])
 	if (family == AF_UNSPEC)
 		family = AF_INET;
 
+	/* we cannot check this combination with generic_opt_check. */
+	if (options & CT_OPT_ANY_NAT &&
+	   ((options & CT_OPT_SRC_NAT) || (options & CT_OPT_DST_NAT))) {
+		exit_error(PARAMETER_PROBLEM, "cannot specify `--src-nat' or "
+					      "`--dst-nat' with `--any-nat'");
+	}
 	cmd = bit2cmd(command);
 	res = generic_opt_check(options, NUMBER_OF_OPT,
 				commands_v_options[cmd], optflags,
