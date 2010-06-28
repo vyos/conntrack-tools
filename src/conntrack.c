@@ -775,8 +775,7 @@ parse_inetaddr(const char *cp, struct addr_parse *parse)
 	else if (inet_pton(AF_INET6, cp, &parse->addr6) > 0)
 		return AF_INET6;
 #endif
-
-	exit_error(PARAMETER_PROBLEM, "Invalid IP address `%s'", cp);
+	return AF_UNSPEC;
 }
 
 union ct_address {
@@ -825,12 +824,12 @@ nat_parse(char *arg, int portok, struct nf_conntrack *obj, int type)
 				   "Invalid port:port syntax");
 
 		if (type == CT_OPT_SRC_NAT)
-			nfct_set_attr_u16(obj, ATTR_SNAT_PORT, port);
+			nfct_set_attr_u16(obj, ATTR_SNAT_PORT, ntohs(port));
 		else if (type == CT_OPT_DST_NAT)
-			nfct_set_attr_u16(obj, ATTR_DNAT_PORT, port);
+			nfct_set_attr_u16(obj, ATTR_DNAT_PORT, ntohs(port));
 	}
 
-	if (parse_addr(arg, &parse) != AF_INET)
+	if (parse_addr(arg, &parse) == AF_UNSPEC)
 		return;
 
 	if (type == CT_OPT_SRC_NAT)
@@ -859,39 +858,40 @@ static int
 filter_nat(const struct nf_conntrack *obj, const struct nf_conntrack *ct)
 {
 	uint32_t ip;
+	uint16_t port;
 
-	if ((options & CT_OPT_SRC_NAT) && (options & CT_OPT_DST_NAT)) {
-		if (nfct_attr_is_set(obj, ATTR_SNAT_IPV4) &&
-		    nfct_attr_is_set(obj, ATTR_DNAT_IPV4)) {
-			uint32_t ip2;
-
-			ip = nfct_get_attr_u32(obj, ATTR_SNAT_IPV4);
-			ip2 = nfct_get_attr_u32(obj, ATTR_DNAT_IPV4);
-			if (ip == nfct_get_attr_u32(ct, ATTR_REPL_IPV4_DST) &&
-			    ip2 == nfct_get_attr_u32(ct, ATTR_REPL_IPV4_SRC)) {
-				return 0;
-			}
-		} else if (nfct_getobjopt(ct, NFCT_GOPT_IS_SNAT) &&
-			   nfct_getobjopt(ct, NFCT_GOPT_IS_DNAT)) {
-		  	return 0;
-		}
-	} else if (options & CT_OPT_SRC_NAT) {
+	if (options & CT_OPT_SRC_NAT) {
 		if (nfct_attr_is_set(obj, ATTR_SNAT_IPV4)) {
 			ip = nfct_get_attr_u32(obj, ATTR_SNAT_IPV4);
-			if (ip == nfct_get_attr_u32(ct, ATTR_REPL_IPV4_DST))
-				return 0;
-		} else if (nfct_getobjopt(ct, NFCT_GOPT_IS_SNAT))
-		  	return 0;
-	} else if (options & CT_OPT_DST_NAT) {
+			if (ip != nfct_get_attr_u32(ct, ATTR_REPL_IPV4_DST))
+				return 1;
+		}
+		if (nfct_attr_is_set(obj, ATTR_SNAT_PORT)) {
+			port = nfct_get_attr_u16(obj, ATTR_SNAT_PORT);
+			if (port != nfct_get_attr_u16(ct, ATTR_REPL_PORT_DST))
+				return 1;
+		}
+		if (!nfct_getobjopt(ct, NFCT_GOPT_IS_SNAT) &&
+		    !nfct_getobjopt(ct, NFCT_GOPT_IS_SPAT))
+		  	return 1;
+	}
+	if (options & CT_OPT_DST_NAT) {
 		if (nfct_attr_is_set(obj, ATTR_DNAT_IPV4)) {
 			ip = nfct_get_attr_u32(obj, ATTR_DNAT_IPV4);
-			if (ip == nfct_get_attr_u32(ct, ATTR_REPL_IPV4_SRC))
-				return 0;
-		} else if (nfct_getobjopt(ct, NFCT_GOPT_IS_DNAT))
-			return 0;
+			if (ip != nfct_get_attr_u32(ct, ATTR_REPL_IPV4_SRC))
+				return 1;
+		}
+		if (nfct_attr_is_set(obj, ATTR_DNAT_PORT)) {
+			port = nfct_get_attr_u16(obj, ATTR_DNAT_PORT);
+			if (port != nfct_get_attr_u16(ct, ATTR_REPL_PORT_SRC))
+				return 1;
+		}
+		if (!nfct_getobjopt(ct, NFCT_GOPT_IS_DNAT) &&
+		    !nfct_getobjopt(ct, NFCT_GOPT_IS_DPAT))
+			return 1;
 	}
 
-	return (options & (CT_OPT_SRC_NAT | CT_OPT_DST_NAT)) ? 1 : 0;
+	return 0;
 }
 
 static int counter;
@@ -1272,6 +1272,10 @@ int main(int argc, char *argv[])
 			options |= opt2type[c];
 
 			l3protonum = parse_addr(optarg, &ad);
+			if (l3protonum == AF_UNSPEC) {
+				exit_error(PARAMETER_PROBLEM,
+					   "Invalid IP address `%s'", optarg);
+			}
 			set_family(&family, l3protonum);
 			if (l3protonum == AF_INET) {
 				nfct_set_attr_u32(obj,
@@ -1290,6 +1294,10 @@ int main(int argc, char *argv[])
 		case ']':
 			options |= opt2type[c];
 			l3protonum = parse_addr(optarg, &ad);
+			if (l3protonum == AF_UNSPEC) {
+				exit_error(PARAMETER_PROBLEM,
+					   "Invalid IP address `%s'", optarg);
+			}
 			set_family(&family, l3protonum);
 			if (l3protonum == AF_INET) {
 				nfct_set_attr_u32(mask, 
