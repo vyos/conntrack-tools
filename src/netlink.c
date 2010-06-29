@@ -124,8 +124,8 @@ void nl_resize_socket_buffer(struct nfct_handle *h)
 		     "be losing events, this may lead to "
 		     "unsynchronized replicas. Please, consider "
 		     "increasing netlink socket buffer size via "
-		     "SocketBufferSize and "
-		     "SocketBufferSizeMaxGrowth clauses in "
+		     "NetlinkBufferSize and "
+		     "NetlinkBufferSizeMaxGrowth clauses in "
 		     "conntrackd.conf");
 		s = CONFIG(netlink_buffer_size_max_grown);
 		warned = 1;
