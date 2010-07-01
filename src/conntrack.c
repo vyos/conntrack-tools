@@ -894,9 +894,9 @@ filter_nat(const struct nf_conntrack *obj, const struct nf_conntrack *ct)
 			    port == nfct_get_attr_u16(ct, ATTR_REPL_PORT_DST))
 				has_srcnat = 1;
 		}
-		if (!check_address && nfct_getobjopt(ct, NFCT_GOPT_IS_SNAT))
-		  	has_srcnat = 1;
-		if (!check_port && nfct_getobjopt(ct, NFCT_GOPT_IS_SPAT))
+		if (!check_address && !check_port &&
+		    (nfct_getobjopt(ct, NFCT_GOPT_IS_SNAT) ||
+		     nfct_getobjopt(ct, NFCT_GOPT_IS_SPAT)))
 		  	has_srcnat = 1;
 	}
 	if (check_dstnat) {
@@ -916,9 +916,9 @@ filter_nat(const struct nf_conntrack *obj, const struct nf_conntrack *ct)
 			    port == nfct_get_attr_u16(ct, ATTR_REPL_PORT_SRC))
 				has_dstnat = 1;
 		}
-		if (!check_address && nfct_getobjopt(ct, NFCT_GOPT_IS_DNAT))
-			has_dstnat = 1;
-		if (!check_port && nfct_getobjopt(ct, NFCT_GOPT_IS_DPAT))
+		if (!check_address && !check_port &&
+		    (nfct_getobjopt(ct, NFCT_GOPT_IS_DNAT) ||
+		     nfct_getobjopt(ct, NFCT_GOPT_IS_DPAT)))
 			has_dstnat = 1;
 	}
 	if (options & CT_OPT_ANY_NAT)
