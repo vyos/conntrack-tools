@@ -878,37 +878,47 @@ filter_nat(const struct nf_conntrack *obj, const struct nf_conntrack *ct)
 		check_srcnat = check_dstnat = 1;
 
 	if (check_srcnat) {
+		int check_address = 0, check_port = 0;
+
 		if (nfct_attr_is_set(obj, ATTR_SNAT_IPV4)) {
+			check_address = 1;
 			ip = nfct_get_attr_u32(obj, ATTR_SNAT_IPV4);
 			if (nfct_getobjopt(ct, NFCT_GOPT_IS_SNAT) &&
 			    ip == nfct_get_attr_u32(ct, ATTR_REPL_IPV4_DST))
 				has_srcnat = 1;
 		}
 		if (nfct_attr_is_set(obj, ATTR_SNAT_PORT)) {
+			check_port = 1;
 			port = nfct_get_attr_u16(obj, ATTR_SNAT_PORT);
 			if (nfct_getobjopt(ct, NFCT_GOPT_IS_SPAT) &&
 			    port == nfct_get_attr_u16(ct, ATTR_REPL_PORT_DST))
 				has_srcnat = 1;
 		}
-		if (nfct_getobjopt(ct, NFCT_GOPT_IS_SNAT) ||
-		    nfct_getobjopt(ct, NFCT_GOPT_IS_SPAT))
+		if (!check_address && nfct_getobjopt(ct, NFCT_GOPT_IS_SNAT))
+		  	has_srcnat = 1;
+		if (!check_port && nfct_getobjopt(ct, NFCT_GOPT_IS_SPAT))
 		  	has_srcnat = 1;
 	}
 	if (check_dstnat) {
+		int check_address = 0, check_port = 0;
+
 		if (nfct_attr_is_set(obj, ATTR_DNAT_IPV4)) {
+			check_address = 1;
 			ip = nfct_get_attr_u32(obj, ATTR_DNAT_IPV4);
 			if (nfct_getobjopt(ct, NFCT_GOPT_IS_DNAT) &&
 			    ip == nfct_get_attr_u32(ct, ATTR_REPL_IPV4_SRC))
 				has_dstnat = 1;
 		}
 		if (nfct_attr_is_set(obj, ATTR_DNAT_PORT)) {
+			check_port = 1;
 			port = nfct_get_attr_u16(obj, ATTR_DNAT_PORT);
 			if (nfct_getobjopt(ct, NFCT_GOPT_IS_DPAT) &&
 			    port == nfct_get_attr_u16(ct, ATTR_REPL_PORT_SRC))
 				has_dstnat = 1;
 		}
-		if (nfct_getobjopt(ct, NFCT_GOPT_IS_DNAT) ||
-		    nfct_getobjopt(ct, NFCT_GOPT_IS_DPAT))
+		if (!check_address && nfct_getobjopt(ct, NFCT_GOPT_IS_DNAT))
+			has_dstnat = 1;
+		if (!check_port && nfct_getobjopt(ct, NFCT_GOPT_IS_DPAT))
 			has_dstnat = 1;
 	}
 	if (options & CT_OPT_ANY_NAT)
