@@ -1,0 +1,36 @@
+# create dummy
+-I -s 1.1.1.1 -d 2.2.2.2 --dst-nat 3.3.3.3 -p tcp --sport 10 --dport 20 --state LISTEN -u SEEN_REPLY -t 50 ; OK
+# show
+-L --dst-nat ; OK
+# show
+-L --dst-nat 3.3.3.3 ; OK
+# show
+-L --src-nat ; OK
+# delete
+-D -s 1.1.1.1 ; OK
+# create dummy again
+-I -s 1.1.1.1 -d 2.2.2.2 --src-nat 3.3.3.3 -p tcp --sport 10 --dport 20 --state LISTEN -u SEEN_REPLY -t 50 ; OK
+# show
+-L --src-nat ; OK
+# show
+-L --src-nat 3.3.3.3 ; OK
+# show
+-L --dst-nat ; OK
+# show any-nat
+-L --any-nat ; OK
+# delete
+-D -s 1.1.1.1 ; OK
+# bad combination
+-L --dst-nat --any-nat ; BAD
+# bad combination
+-L --src-nat --any-nat ; BAD
+# bad combination
+-L --src-nat --dst-nat --any-nat ; BAD
+# create
+-I -s 1.1.1.1 -d 2.2.2.2 --dst-nat 3.3.3.3:80 -p tcp --sport 10 --dport 20 --state LISTEN -u SEEN_REPLY -t 50 ; OK
+# show
+-L --dst-nat :80 ; OK
+# show
+-L --any-nat :80 ; OK
+# delete
+-D -s 1.1.1.1 ; OK
