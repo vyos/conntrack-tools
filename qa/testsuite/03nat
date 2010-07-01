@@ -32,5 +32,9 @@
 -L --dst-nat 3.3.3.3:80 ; OK
 # show
 -L --any-nat 3.3.3.3:80 ; OK
+# show
+-L --dst-nat 3.3.3.3:81 ; OK
+# show
+-L --dst-nat 1.1.1.1:80 ; OK
 # delete
 -D -s 1.1.1.1 ; OK

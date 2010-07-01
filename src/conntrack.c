@@ -890,10 +890,18 @@ filter_nat(const struct nf_conntrack *obj, const struct nf_conntrack *ct)
 				has_srcnat = 1;
 		}
 		if (nfct_attr_is_set(obj, ATTR_SNAT_PORT)) {
+			int ret = 0;
+
 			check_port = 1;
 			port = nfct_get_attr_u16(obj, ATTR_SNAT_PORT);
 			if (nfct_getobjopt(ct, NFCT_GOPT_IS_SPAT) &&
 			    port == nfct_get_attr_u16(ct, ATTR_REPL_PORT_DST))
+				ret = 1;
+
+			/* the address matches but the port does not. */
+			if (check_address && has_srcnat && !ret)
+				has_srcnat = 0;
+			if (!check_address && ret)
 				has_srcnat = 1;
 		}
 		if (!check_address && !check_port &&
@@ -912,10 +920,18 @@ filter_nat(const struct nf_conntrack *obj, const struct nf_conntrack *ct)
 				has_dstnat = 1;
 		}
 		if (nfct_attr_is_set(obj, ATTR_DNAT_PORT)) {
+			int ret = 0;
+
 			check_port = 1;
 			port = nfct_get_attr_u16(obj, ATTR_DNAT_PORT);
 			if (nfct_getobjopt(ct, NFCT_GOPT_IS_DPAT) &&
 			    port == nfct_get_attr_u16(ct, ATTR_REPL_PORT_SRC))
+				ret = 1;
+
+			/* the address matches but the port does not. */
+			if (check_address && has_dstnat && !ret)
+				has_dstnat = 0;
+			if (!check_address && ret)
 				has_dstnat = 1;
 		}
 		if (!check_address && !check_port &&
