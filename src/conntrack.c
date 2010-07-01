@@ -843,9 +843,9 @@ nat_parse(char *arg, int portok, struct nf_conntrack *obj, int type)
 	if (parse_addr(arg, &parse) == AF_UNSPEC)
 		return;
 
-	if (type == CT_OPT_SRC_NAT)
+	if (type == CT_OPT_SRC_NAT || type == CT_OPT_ANY_NAT)
 		nfct_set_attr_u32(obj, ATTR_SNAT_IPV4, parse.v4);
-	else if (type == CT_OPT_DST_NAT)
+	else if (type == CT_OPT_DST_NAT || type == CT_OPT_ANY_NAT)
 		nfct_set_attr_u32(obj, ATTR_DNAT_IPV4, parse.v4);
 }
 
