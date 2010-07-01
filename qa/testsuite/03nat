@@ -29,8 +29,8 @@
 # create
 -I -s 1.1.1.1 -d 2.2.2.2 --dst-nat 3.3.3.3:80 -p tcp --sport 10 --dport 20 --state LISTEN -u SEEN_REPLY -t 50 ; OK
 # show
--L --dst-nat :80 ; OK
+-L --dst-nat 3.3.3.3:80 ; OK
 # show
--L --any-nat :80 ; OK
+-L --any-nat 3.3.3.3:80 ; OK
 # delete
 -D -s 1.1.1.1 ; OK

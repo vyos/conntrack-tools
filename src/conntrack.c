@@ -816,6 +816,8 @@ nat_parse(char *arg, int portok, struct nf_conntrack *obj, int type)
 	if (colon) {
 		uint16_t port;
 
+		*colon = '\0';
+
 		if (!portok)
 			exit_error(PARAMETER_PROBLEM,
 				   "Need TCP or UDP with port specification");
@@ -841,7 +843,7 @@ nat_parse(char *arg, int portok, struct nf_conntrack *obj, int type)
 	}
 
 	if (parse_addr(arg, &parse) == AF_UNSPEC)
-		return;
+		exit_error(PARAMETER_PROBLEM, "Invalid IP address `%s'", arg);
 
 	if (type == CT_OPT_SRC_NAT || type == CT_OPT_ANY_NAT)
 		nfct_set_attr_u32(obj, ATTR_SNAT_IPV4, parse.v4);
