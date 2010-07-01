@@ -804,9 +804,8 @@ parse_addr(const char *cp, union ct_address *address)
 	return ret;
 }
 
-/* Shamelessly stolen from libipt_DNAT ;). Ranges expected in network order. */
 static void
-nat_parse(char *arg, int portok, struct nf_conntrack *obj, int type)
+nat_parse(char *arg, struct nf_conntrack *obj, int type)
 {
 	char *colon, *error;
 	union ct_address parse;
@@ -818,14 +817,16 @@ nat_parse(char *arg, int portok, struct nf_conntrack *obj, int type)
 
 		*colon = '\0';
 
-		if (!portok)
-			exit_error(PARAMETER_PROBLEM,
-				   "Need TCP or UDP with port specification");
-
 		port = (uint16_t)atoi(colon+1);
-		if (port == 0)
-			exit_error(PARAMETER_PROBLEM,
-				   "Port `%s' not valid", colon+1);
+		if (port == 0) {
+			if (strlen(colon+1) == 0) {
+				exit_error(PARAMETER_PROBLEM,
+					   "No port specified after `:'");
+			} else {
+				exit_error(PARAMETER_PROBLEM,
+					   "Port `%s' not valid", colon+1);
+			}
+		}
 
 		error = strchr(colon+1, ':');
 		if (error)
@@ -842,8 +843,14 @@ nat_parse(char *arg, int portok, struct nf_conntrack *obj, int type)
 		}
 	}
 
-	if (parse_addr(arg, &parse) == AF_UNSPEC)
-		exit_error(PARAMETER_PROBLEM, "Invalid IP address `%s'", arg);
+	if (parse_addr(arg, &parse) == AF_UNSPEC) {
+		if (strlen(arg) == 0) {
+			exit_error(PARAMETER_PROBLEM, "No IP specified");
+		} else {
+			exit_error(PARAMETER_PROBLEM,
+					"Invalid IP address `%s'", arg);
+		}
+	}
 
 	if (type == CT_OPT_SRC_NAT || type == CT_OPT_ANY_NAT)
 		nfct_set_attr_u32(obj, ATTR_SNAT_IPV4, parse.v4);
@@ -1419,7 +1426,7 @@ int main(int argc, char *argv[])
 				continue;
 
 			set_family(&family, AF_INET);
-			nat_parse(tmp, 1, obj, opt2type[c]);
+			nat_parse(tmp, obj, opt2type[c]);
 			break;
 		}
 		case 'i':
