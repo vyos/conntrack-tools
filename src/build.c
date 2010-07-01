@@ -161,6 +161,7 @@ static struct build_l4proto {
 	[IPPROTO_SCTP]		= { .build = build_l4proto_sctp },
 	[IPPROTO_DCCP]		= { .build = build_l4proto_dccp },
 	[IPPROTO_ICMP]		= { .build = build_l4proto_icmp },
+	[IPPROTO_ICMPV6]	= { .build = build_l4proto_icmp },
 	[IPPROTO_UDP]		= { .build = build_l4proto_udp },
 };
 
