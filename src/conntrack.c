@@ -880,12 +880,14 @@ filter_nat(const struct nf_conntrack *obj, const struct nf_conntrack *ct)
 	if (check_srcnat) {
 		if (nfct_attr_is_set(obj, ATTR_SNAT_IPV4)) {
 			ip = nfct_get_attr_u32(obj, ATTR_SNAT_IPV4);
-			if (ip == nfct_get_attr_u32(ct, ATTR_REPL_IPV4_DST))
+			if (nfct_getobjopt(ct, NFCT_GOPT_IS_SNAT) &&
+			    ip == nfct_get_attr_u32(ct, ATTR_REPL_IPV4_DST))
 				has_srcnat = 1;
 		}
 		if (nfct_attr_is_set(obj, ATTR_SNAT_PORT)) {
 			port = nfct_get_attr_u16(obj, ATTR_SNAT_PORT);
-			if (port == nfct_get_attr_u16(ct, ATTR_REPL_PORT_DST))
+			if (nfct_getobjopt(ct, NFCT_GOPT_IS_SPAT) &&
+			    port == nfct_get_attr_u16(ct, ATTR_REPL_PORT_DST))
 				has_srcnat = 1;
 		}
 		if (nfct_getobjopt(ct, NFCT_GOPT_IS_SNAT) ||
@@ -895,12 +897,14 @@ filter_nat(const struct nf_conntrack *obj, const struct nf_conntrack *ct)
 	if (check_dstnat) {
 		if (nfct_attr_is_set(obj, ATTR_DNAT_IPV4)) {
 			ip = nfct_get_attr_u32(obj, ATTR_DNAT_IPV4);
-			if (ip == nfct_get_attr_u32(ct, ATTR_REPL_IPV4_SRC))
+			if (nfct_getobjopt(ct, NFCT_GOPT_IS_DNAT) &&
+			    ip == nfct_get_attr_u32(ct, ATTR_REPL_IPV4_SRC))
 				has_dstnat = 1;
 		}
 		if (nfct_attr_is_set(obj, ATTR_DNAT_PORT)) {
 			port = nfct_get_attr_u16(obj, ATTR_DNAT_PORT);
-			if (port == nfct_get_attr_u16(ct, ATTR_REPL_PORT_SRC))
+			if (nfct_getobjopt(ct, NFCT_GOPT_IS_DPAT) &&
+			    port == nfct_get_attr_u16(ct, ATTR_REPL_PORT_SRC))
 				has_dstnat = 1;
 		}
 		if (nfct_getobjopt(ct, NFCT_GOPT_IS_DNAT) ||
