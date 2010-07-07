@@ -53,10 +53,18 @@ struct nfct_handle *nl_init_event_handler(void)
 	fcntl(nfct_fd(h), F_SETFL, O_NONBLOCK);
 
 	/* set up socket buffer size */
-	if (CONFIG(netlink_buffer_size)) {
-		CONFIG(netlink_buffer_size) = 
-		    nfnl_rcvbufsiz(nfct_nfnlh(h), CONFIG(netlink_buffer_size));
+	if (CONFIG(netlink_buffer_size) &&
+	    CONFIG(netlink_buffer_size) <=
+			CONFIG(netlink_buffer_size_max_grown)) {
+		/* we divide netlink_buffer_size by 2 here since value passed
+		   to kernel gets doubled in SO_RCVBUF; see net/core/sock.c */
+		CONFIG(netlink_buffer_size) =
+		  nfnl_rcvbufsiz(nfct_nfnlh(h), CONFIG(netlink_buffer_size)/2);
 	} else {
+		dlog(LOG_NOTICE, "NetlinkBufferSize is either not set or "
+				 "is greater than NetlinkBufferSizeMaxGrowth. "
+				 "Using current system buffer size");
+
 		socklen_t socklen = sizeof(unsigned int);
 		unsigned int read_size;
 
@@ -69,11 +77,6 @@ struct nfct_handle *nl_init_event_handler(void)
 
 	dlog(LOG_NOTICE, "netlink event socket buffer size has been set "
 			 "to %u bytes", CONFIG(netlink_buffer_size));
-
-	/* ensure that maximum grown size is >= than maximum size */
-	if (CONFIG(netlink_buffer_size_max_grown) < CONFIG(netlink_buffer_size))
-		CONFIG(netlink_buffer_size_max_grown) =
-					CONFIG(netlink_buffer_size);
 
 	if (CONFIG(netlink).events_reliable) {
 		int on = 1;
@@ -110,31 +113,34 @@ static int warned = 0;
 
 void nl_resize_socket_buffer(struct nfct_handle *h)
 {
-	/* sock_setsockopt in net/core/sock.c doubles the size of the buffer */
 	unsigned int s = CONFIG(netlink_buffer_size);
 
 	/* already warned that we have reached the maximum buffer size */
 	if (warned)
 		return;
 
-	if (s > CONFIG(netlink_buffer_size_max_grown)) {
+	/* since sock_setsockopt in net/core/sock.c doubles the size of socket
+	   buffer passed to it using nfnl_rcvbufsiz, only call nfnl_rcvbufsiz
+	   if new value is not greater than netlink_buffer_size_max_grown */
+	if (s*2 > CONFIG(netlink_buffer_size_max_grown)) {
 		dlog(LOG_WARNING,
-		     "maximum netlink socket buffer "
-		     "size has been reached. We are likely to "
+		     "netlink event socket buffer size cannot "
+		     "be doubled further since it will exceed "
+		     "NetlinkBufferSizeMaxGrowth. We are likely to "
 		     "be losing events, this may lead to "
 		     "unsynchronized replicas. Please, consider "
 		     "increasing netlink socket buffer size via "
 		     "NetlinkBufferSize and "
 		     "NetlinkBufferSizeMaxGrowth clauses in "
 		     "conntrackd.conf");
-		s = CONFIG(netlink_buffer_size_max_grown);
 		warned = 1;
+		return;
 	}
 
 	CONFIG(netlink_buffer_size) = nfnl_rcvbufsiz(nfct_nfnlh(h), s);
 
 	/* notify the sysadmin */
-	dlog(LOG_NOTICE, "netlink socket buffer size has been increased "
+	dlog(LOG_NOTICE, "netlink event socket buffer size has been doubled "
 			 "to %u bytes", CONFIG(netlink_buffer_size));
 }
 
