@@ -1,3 +1,10 @@
+conntrack (0.9.14-2+vyatta7) unstable; urgency=low
+
+  * Enforce strict logic for NetlinkBufferSize,
+    NetlinkBufferSizeMaxGrowth clauses
+
+ -- Mohit Mehta <mohit.mehta@vyatta.com>  Wed, 07 Jul 2010 12:01:52 -0700
+
 conntrack (0.9.14-2+vyatta6) unstable; urgency=low
 
   * update error message for max netlink socket size reached
