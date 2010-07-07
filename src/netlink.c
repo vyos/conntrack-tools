@@ -36,6 +36,19 @@ struct nfct_handle *nl_init_event_handler(void)
 	if (h == NULL)
 		return NULL;
 
+	if (CONFIG(netlink).events_reliable) {
+		int on = 1;
+
+		setsockopt(nfct_fd(h), SOL_NETLINK,
+			   NETLINK_BROADCAST_SEND_ERROR, &on, sizeof(int));
+
+		setsockopt(nfct_fd(h), SOL_NETLINK,
+			   NETLINK_NO_ENOBUFS, &on, sizeof(int));
+
+		dlog(LOG_NOTICE, "reliable ctnetlink event delivery "
+				 "is ENABLED.");
+	}
+
 	if (STATE(filter)) {
 		if (CONFIG(filter_from_kernelspace)) {
 			if (nfct_filter_attach(nfct_fd(h),
@@ -78,18 +91,6 @@ struct nfct_handle *nl_init_event_handler(void)
 	dlog(LOG_NOTICE, "netlink event socket buffer size has been set "
 			 "to %u bytes", CONFIG(netlink_buffer_size));
 
-	if (CONFIG(netlink).events_reliable) {
-		int on = 1;
-
-		setsockopt(nfct_fd(h), SOL_NETLINK,
-			   NETLINK_BROADCAST_SEND_ERROR, &on, sizeof(int));
-
-		setsockopt(nfct_fd(h), SOL_NETLINK,
-			   NETLINK_NO_ENOBUFS, &on, sizeof(int));
-
-		dlog(LOG_NOTICE, "reliable ctnetlink event delivery "
-				 "is ENABLED.");
-	}
 	return h;
 }
 
