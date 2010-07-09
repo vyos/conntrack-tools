@@ -1,3 +1,9 @@
+conntrack (0.9.14-2+vyatta8) unstable; urgency=low
+
+  * conntrackd: replace cyptic 'mfrm' with 'malformed' in '-s'
+
+ -- Mohit Mehta <mohit.mehta@vyatta.com>  Fri, 09 Jul 2010 10:35:04 -0700
+
 conntrack (0.9.14-2+vyatta7) unstable; urgency=low
 
   * Enforce strict logic for NetlinkBufferSize,
