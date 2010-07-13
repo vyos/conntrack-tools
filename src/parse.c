@@ -207,15 +207,15 @@ parse_nat_seq_adj(struct nf_conntrack *ct, int attr, void *data)
 	nfct_set_attr_u32(ct, ATTR_ORIG_NAT_SEQ_CORRECTION_POS, 
 			  ntohl(this->orig_seq_correction_pos));
 	nfct_set_attr_u32(ct, ATTR_ORIG_NAT_SEQ_OFFSET_BEFORE, 
-			  ntohl(this->orig_seq_correction_pos));
+			  ntohl(this->orig_seq_offset_before));
 	nfct_set_attr_u32(ct, ATTR_ORIG_NAT_SEQ_OFFSET_AFTER, 
-			  ntohl(this->orig_seq_correction_pos));
+			  ntohl(this->orig_seq_offset_after));
 	nfct_set_attr_u32(ct, ATTR_REPL_NAT_SEQ_CORRECTION_POS, 
-			  ntohl(this->orig_seq_correction_pos));
+			  ntohl(this->repl_seq_correction_pos));
 	nfct_set_attr_u32(ct, ATTR_REPL_NAT_SEQ_OFFSET_BEFORE, 
-			  ntohl(this->orig_seq_correction_pos));
+			  ntohl(this->repl_seq_offset_before));
 	nfct_set_attr_u32(ct, ATTR_REPL_NAT_SEQ_OFFSET_AFTER, 
-			  ntohl(this->orig_seq_correction_pos));
+			  ntohl(this->repl_seq_offset_after));
 }
 
 int parse_payload(struct nf_conntrack *ct, struct nethdr *net, size_t remain)
