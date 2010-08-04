@@ -37,7 +37,7 @@
   <releaseinfo>
   This document details how to install and configure the
   <ulink url="http://conntrack-tools.netfilter.org">conntrack-tools</ulink>
-  0.9.8. This software is under development, for that reason, it is likely
+  &gt;= 0.9.8. This software is under development, for that reason, it is likely
   that this document will evolve in the future to cover new features and
   changes.</releaseinfo>
 
@@ -567,6 +567,32 @@ conntrack v0.9.7 (conntrack-tools): 1 flow entries has been deleted.
    <answer>
     <para>
     Absolutely, you can. But before reporting issues, make sure that your HA manager is not the source of the problems.
+    </para>
+   </answer>
+  </qandaentry>
+
+ <qandaentry>
+   <question>
+    <para>
+    Does conntrackd support TCP flow-recovery with window tracking enabled?
+    </para>
+   </question>
+   <answer>
+    <para>
+    Yes, but you require a Linux kernel &gt;= 2.6.36 and the conntrack-tools &gt;= 0.9.15. To enable it, check the TCPWindowTracking clause in the example configuration files.
+    </para>
+   </answer>
+  </qandaentry>
+
+ <qandaentry>
+   <question>
+    <para>
+    Does conntrackd support the H.323, SIP and NetBios connection tracking helpers?
+    </para>
+   </question>
+   <answer>
+    <para>
+    No. This is not implemented yet, sorry.
     </para>
    </answer>
   </qandaentry>
