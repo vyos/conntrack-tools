@@ -19,7 +19,7 @@ endif
 CFLAGS += -DYY_NO_INPUT
 
 build: debian/stamp-build
-debian/stamp-build: patch
+debian/stamp-build:
 	dh_testdir
 
 	# ./configure
@@ -32,7 +32,7 @@ debian/stamp-build: patch
 
 	touch $@
 
-clean: clean1 unpatch
+clean: clean1
 clean1:
 	dh_testdir
 	dh_testroot
@@ -52,20 +52,6 @@ debian/stamp-install: debian/stamp-build
 	$(MAKE) DESTDIR=`pwd`/debian/tmp install
 
 	touch $@
-
-# And now the simple things for dpatch. Here we only apply/unapply the patches.
-# You can do more things with dpatch, like having patches only applied on
-# a special architecture - see the non-dh version of the sample for this!
-patch: patch-stamp
-patch-stamp:
-	dpatch apply-all
-	dpatch cat-all >patch-stamp
-	touch patch-stamp
-
-unpatch:
-	dpatch deapply-all
-	rm -rf patch-stamp debian/patched
-
 
 
 # Build architecture-independent files here.
@@ -98,5 +84,5 @@ source diff:
 	@echo >&2 'source and diff are obsolete - use dpkg-source -b'; false
 
 binary: binary-indep binary-arch
-.PHONY: build clean binary-indep binary-arch binary install patch unpatch \
+.PHONY: build clean binary-indep binary-arch binary install \
 	clean1 
