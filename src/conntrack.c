@@ -671,6 +671,13 @@ enum {
 	_O_ID	= (1 << 3),
 };
 
+enum {
+	CT_EVENT_F_NEW	= (1 << 0),
+	CT_EVENT_F_UPD	= (1 << 1),
+	CT_EVENT_F_DEL 	= (1 << 2),
+	CT_EVENT_F_ALL	= CT_EVENT_F_NEW | CT_EVENT_F_UPD | CT_EVENT_F_DEL,
+};
+
 static struct parse_parameter {
 	const char	*parameter[6];
 	size_t  size;
@@ -679,8 +686,7 @@ static struct parse_parameter {
 	{ {"ASSURED", "SEEN_REPLY", "UNSET", "FIXED_TIMEOUT", "EXPECTED"}, 5,
 	  { IPS_ASSURED, IPS_SEEN_REPLY, 0, IPS_FIXED_TIMEOUT, IPS_EXPECTED} },
 	{ {"ALL", "NEW", "UPDATES", "DESTROY"}, 4,
-	  {~0U, NF_NETLINK_CONNTRACK_NEW, NF_NETLINK_CONNTRACK_UPDATE, 
-	   NF_NETLINK_CONNTRACK_DESTROY} },
+	  { CT_EVENT_F_ALL, CT_EVENT_F_NEW, CT_EVENT_F_UPD, CT_EVENT_F_DEL } },
 	{ {"xml", "extended", "timestamp", "id" }, 4, 
 	  { _O_XML, _O_EXT, _O_TMS, _O_ID },
 	},
@@ -1194,6 +1200,18 @@ static int dump_exp_cb(enum nf_conntrack_msg_type type,
 	return NFCT_CB_CONTINUE;
 }
 
+static int event_exp_cb(enum nf_conntrack_msg_type type,
+			struct nf_expect *exp, void *data)
+{
+	char buf[1024];
+
+	nfexp_snprintf(buf,sizeof(buf), exp, type, NFCT_O_DEFAULT, 0);
+	printf("%s\n", buf);
+	counter++;
+
+	return NFCT_CB_CONTINUE;
+}
+
 static int count_exp_cb(enum nf_conntrack_msg_type type,
 			struct nf_expect *exp,
 			void *data)
@@ -1667,11 +1685,23 @@ int main(int argc, char *argv[])
 		break;
 		
 	case CT_EVENT:
-		if (options & CT_OPT_EVENT_MASK)
+		if (options & CT_OPT_EVENT_MASK) {
+			unsigned int nl_events = 0;
+
+			if (event_mask & CT_EVENT_F_NEW)
+				nl_events |= NF_NETLINK_CONNTRACK_NEW;
+			if (event_mask & CT_EVENT_F_UPD)
+				nl_events |= NF_NETLINK_CONNTRACK_UPDATE;
+			if (event_mask & CT_EVENT_F_DEL)
+				nl_events |= NF_NETLINK_CONNTRACK_DESTROY;
+
+			cth = nfct_open(CONNTRACK, nl_events);
+		} else {
 			cth = nfct_open(CONNTRACK,
-					event_mask & NFCT_ALL_CT_GROUPS);
-		else
-			cth = nfct_open(CONNTRACK, NFCT_ALL_CT_GROUPS);
+					NF_NETLINK_CONNTRACK_NEW |
+					NF_NETLINK_CONNTRACK_UPDATE |
+					NF_NETLINK_CONNTRACK_DESTROY);
+		}
 
 		if (!cth)
 			exit_error(OTHER_PROBLEM, "Can't open handler");
@@ -1701,12 +1731,29 @@ int main(int argc, char *argv[])
 		break;
 
 	case EXP_EVENT:
-		cth = nfct_open(EXPECT, NF_NETLINK_CONNTRACK_EXP_NEW);
+		if (options & CT_OPT_EVENT_MASK) {
+			unsigned int nl_events = 0;
+
+			if (event_mask & CT_EVENT_F_NEW)
+				nl_events |= NF_NETLINK_CONNTRACK_EXP_NEW;
+			if (event_mask & CT_EVENT_F_UPD)
+				nl_events |= NF_NETLINK_CONNTRACK_EXP_UPDATE;
+			if (event_mask & CT_EVENT_F_DEL)
+				nl_events |= NF_NETLINK_CONNTRACK_EXP_DESTROY;
+
+			cth = nfct_open(CONNTRACK, nl_events);
+		} else {
+			cth = nfct_open(EXPECT,
+					NF_NETLINK_CONNTRACK_EXP_NEW |
+					NF_NETLINK_CONNTRACK_EXP_UPDATE |
+					NF_NETLINK_CONNTRACK_EXP_DESTROY);
+		}
+
 		if (!cth)
 			exit_error(OTHER_PROBLEM, "Can't open handler");
 		signal(SIGINT, event_sighandler);
 		signal(SIGTERM, event_sighandler);
-		nfexp_callback_register(cth, NFCT_T_ALL, dump_exp_cb, NULL);
+		nfexp_callback_register(cth, NFCT_T_ALL, event_exp_cb, NULL);
 		res = nfexp_catch(cth);
 		nfct_close(cth);
 		break;
