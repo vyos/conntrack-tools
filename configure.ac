@@ -18,22 +18,8 @@ case "$host" in
 esac
 
 dnl Dependencies
-LIBNFNETLINK_REQUIRED=1.0.0
-LIBNETFILTER_CONNTRACK_REQUIRED=0.0.102
-
-AC_CHECK_PROG(HAVE_PKG_CONFIG, pkg-config, yes)
-if test "x$HAVE_PKG_CONFIG" = "x"
-then
-	echo "*** Error: No suitable pkg-config found. ***"
-	echo "    Please install the 'pkg-config' package."
-	exit 1
-fi
-
-PKG_CHECK_MODULES(LIBNFNETLINK, libnfnetlink >= $LIBNFNETLINK_REQUIRED,,
-        AC_MSG_ERROR(Cannot find libnfnetlink >= $LIBNFNETLINK_REQUIRED))
-
-PKG_CHECK_MODULES(LIBNETFILTER_CONNTRACK, libnetfilter_conntrack >= $LIBNETFILTER_CONNTRACK_REQUIRED,,
-        AC_MSG_ERROR(Cannot find libnetfilter_conntrack >= $LIBNETFILTER_CONNTRACK_REQUIRED))
+PKG_CHECK_MODULES([LIBNFNETLINK], [libnfnetlink >= 1.0.0])
+PKG_CHECK_MODULES([LIBNETFILTER_CONNTRACK], [libnetfilter_conntrack >= 0.0.102])
 
 AC_CHECK_PROGS(XYACC,$YACC bison yacc,none)
 if test "$XYACC" = "none"
@@ -71,9 +57,6 @@ AC_CHECK_HEADERS([linux/capability.h],, [AC_MSG_ERROR([Cannot find linux/capabib
 # FIXME: Replace `main' with a function in `-lc':
 dnl AC_CHECK_LIB([c], [main])
 # FIXME: Replace `main' with a function in `-ldl':
-
-AC_CHECK_LIB([nfnetlink], [nfnl_query] ,,,[-lnfnetlink])
-AC_CHECK_LIB([netfilter_conntrack], [nfct_query] ,,,[-lnetfilter_conntrack])
 
 AC_CHECK_HEADERS(arpa/inet.h)
 dnl check for inet_pton
@@ -126,10 +109,6 @@ dnl                  debug/Makefile
 dnl                  debug/src/Makefile
 dnl                  extensions/Makefile
 dnl                  src/Makefile])
-
-CFLAGS="$CFLAGS $LIBNETFILTER_CONNTRACK_CFLAGS"
-
-AC_SUBST(LIBNETFILTER_CONNTRACK_LIBS)
 
 AC_CONFIG_FILES([Makefile src/Makefile include/Makefile extensions/Makefile])
 AC_OUTPUT
