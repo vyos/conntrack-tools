@@ -9,9 +9,5 @@ SUBDIRS   = extensions src
 DIST_SUBDIRS = include src extensions
 LIBS = @LIBNETFILTER_CONNTRACK_LIBS@
 
-$(OBJECTS): libtool
-libtool: $(LIBTOOL_DEPS)
-	$(SHELL) ./config.status --recheck
-
 dist-hook:
 	rm -rf `find $(distdir)/doc -name .svn`

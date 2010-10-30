@@ -1,6 +1,6 @@
 AC_INIT(conntrack-tools, 0.9.15, pablo@netfilter.org)
 
-AC_CANONICAL_SYSTEM
+AC_CANONICAL_HOST
 
 AC_CONFIG_MACRO_DIR([m4])
 AM_INIT_AUTOMAKE([-Wall foreign subdir-objects dist-bzip2 1.6])
@@ -12,7 +12,7 @@ AC_PROG_LN_S
 AM_PROG_LEX
 AC_PROG_YACC
 
-case $target in
+case "$host" in
 *-*-linux*) ;;
 *) AC_MSG_ERROR([Linux only, dude!]);;
 esac
