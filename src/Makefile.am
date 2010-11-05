@@ -1,6 +1,6 @@
 include $(top_srcdir)/Make_global.am
 
-YACC=@YACC@ -d
+AM_YFLAGS = -d
 
 CLEANFILES = read_config_yy.c read_config_lex.c
 
