@@ -19,18 +19,13 @@ case "$host" in
 esac
 
 dnl Dependencies
-PKG_CHECK_MODULES([LIBNFNETLINK], [libnfnetlink >= 1.0.0])
-PKG_CHECK_MODULES([LIBNETFILTER_CONNTRACK], [libnetfilter_conntrack >= 0.0.102])
-
-AC_CHECK_PROGS(XYACC,$YACC bison yacc,none)
-if test "$XYACC" = "none"
+if test -z "$ac_cv_prog_YACC"
 then
 	echo "*** Error: No suitable bison/yacc found. ***"
 	echo "    Please install the 'bison' package."
 	exit 1
 fi
-AC_CHECK_PROGS(XLEX,$LEX flex lex,none)
-if test "$XLEX" = "none"
+if test -z "$ac_cv_prog_LEX"
 then
 	echo "*** Error: No suitable flex/lex found. ***"
 	echo "    Please install the 'flex' package."
@@ -38,7 +33,7 @@ then
 fi
 
 AC_MSG_CHECKING(flex version)
-flex_version=`$LEX --version | sed 's/version//g' | awk '/flex/ {print $2}'`
+flex_version=`$ac_cv_prog_LEX --version | sed 's/version//g' | awk '/flex/ {print $2}'`
 flex_major=`echo $flex_version| cut -d . -f 1`
 flex_minor=`echo $flex_version| cut -d . -f 2`
 flex_rev=`echo $flex_version| cut -d . -f 3`
@@ -51,6 +46,9 @@ else
 	while compilating the conntrack-tools. Please, consider to upgrade 
 	flex.])
 fi
+
+PKG_CHECK_MODULES([LIBNFNETLINK], [libnfnetlink >= 1.0.0])
+PKG_CHECK_MODULES([LIBNETFILTER_CONNTRACK], [libnetfilter_conntrack >= 0.0.102])
 
 AC_CHECK_HEADERS([linux/capability.h],, [AC_MSG_ERROR([Cannot find linux/capabibility.h])])
 
