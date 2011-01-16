@@ -19,7 +19,7 @@
   </authorgroup>
 
   <copyright>
-   <year>2008-2010</year>
+   <year>2008-2011</year>
    <holder>Pablo Neira Ayuso</holder>
   </copyright>
 
@@ -37,9 +37,9 @@
   <releaseinfo>
   This document details how to install and configure the
   <ulink url="http://conntrack-tools.netfilter.org">conntrack-tools</ulink>
-  &gt;= 0.9.8. This software is under development, for that reason, it is likely
-  that this document will evolve in the future to cover new features and
-  changes.</releaseinfo>
+  &gt;= 0.9.15. This software is under development, for that reason, it is
+  likely that this document will evolve in the future to cover new features
+  and changes.</releaseinfo>
 
  </bookinfo>
 
@@ -346,6 +346,11 @@ conntrack v0.9.7 (conntrack-tools): 1 flow entries has been deleted.
 
 <sect2 id="sync-pb"><title>Active-Backup setup</title>
 
+ <note><title>Stateful firewall architectures</title>
+  <para>A good reading to extend the information about firewall architectures is <ulink url="http://1984.lsi.us.es/~pablo/docs/intcomp09.pdf">Demystifying cluster-based fault-tolerant firewalls</ulink> published in IEEE Internet Computing magazine.
+  </para>
+ </note>
+
  <para>In the Active-Backup setup, one of the stateful firewall replicas 
  filters traffic and the other acts as backup. If you use this approach, 
  you have to copy the script <emphasis>primary-backup.sh</emphasis> to:
@@ -512,6 +517,106 @@ conntrack v0.9.7 (conntrack-tools): 1 flow entries has been deleted.
 
 </sect2>
 
+<sect2 id="sync-options"><title>Other configuration options</title>
+
+ <para>The daemon allows several configuration options that you may want to
+ enable. This section contains some information about them.</para>
+
+<sect3 id="sync-disable-external"><title>Disabling external cache</title>
+
+ <para>It is possible to disable the external cache. Thus,
+ <emphasis>conntrackd</emphasis> directly injects the flow-states into the
+ in-kernel Connection Tracking System of the backup firewall. You can do it
+ by enabling the <emphasis>DisableExternalCache</emphasis> option in the
+ <emphasis>conntrackd.conf</emphasis> configuration file:
+ </para>
+
+ <programlisting>
+Sync {
+	Mode FTFW {
+		 [...]
+		 DisableExternalCache Off
+	}
+}
+ </programlisting>
+
+ <para>You can also use this option with the NOTRACK and ALARM modes. This
+ increases CPU consumption in the backup firewall but now you do not need
+ to commit the flow-states during the master failures since they are already
+ in the in-kernel Connection Tracking table. Moreover, you save memory in
+ the backup firewall since you do not need to store the foreign flow-states
+ anymore.
+ </para>
+
+</sect3>
+
+<sect3 id="sync-disable-internal"><title>Disabling internal cache</title>
+
+ <para>You can also disable the internal cache by means of the
+ <emphasis>DisableInternalCache</emphasis> option in the
+ <emphasis>conntrackd.conf</emphasis> configuration file:
+ </para>
+
+ <programlisting>
+Sync {
+	Mode NOTRACK {
+		 [...]
+		 DisableInternalCache Off
+	}
+}
+ </programlisting>
+
+ <para>However, this option is only available for the NOTRACK mode. This
+ mode provides unreliable flow-state synchronization between firewalls.
+ Thus, if flow-states are lost during the synchronization, the protocol
+ provides no way to recover them.</para>
+
+</sect3>
+
+<sect3 id="sync-transport-protocol">
+<title>Using UDP, TCP or multicast for flow-state synchronization</title>
+
+ <para>You can use up to three different transport layer protocols to
+ synchronize flow-state changes between the firewalls: UDP, TCP and
+ Multicast. UDP and multicast are unreliable but together with the FT-FW
+ mode provide partial reliable flow-state synchronization.
+ </para>
+
+ <para>The preferred choice is FT-FW over UDP, or multicast alternatively.
+ TCP introduces latency in the flow-state synchronization due to the
+ congestion control. Under flow-state message are lost, the FIFO delivery
+ becomes also a problem since the backup firewall quickly gets out of
+ sync. For that reason, its use is discouraged. Note that using TCP only
+ makes sense with the NOTRACK mode.
+ </para>
+
+</sect3>
+
+<sect3 id="sync-iptables-filtering">
+<title>Filtering Connection tracking events with iptables</title>
+
+ <para>Since Linux kernel &gt;= 2.6.34, iptables provides the
+ <emphasis>CT</emphasis> iptables target that allows to reduce the
+ amount of Connection Tracking events that are delivered to user-space.
+ The following example shows how to only generate the
+ <emphasis>assured</emphasis> event:</para>
+
+ <programlisting>
+ # iptables -I PREROUTING -t raw -j CT --ctevents assured
+ </programlisting>
+
+ <note><title>Assured flows</title>
+ <para>One flow is assured if the firewall has seen traffic for it in
+ both directions.</para>
+ </note>
+
+ <para>Reducing the amount of events generated helps to reduce CPU
+ consumption in the active firewall.</para>
+
+</sect3>
+
+</sect2>
+
 <sect2 id="sync-trouble"><title>Troubleshooting</title>
 
  <para>Problems with <emphasis>conntrackd</emphasis>? The following list 
@@ -587,12 +692,13 @@ conntrack v0.9.7 (conntrack-tools): 1 flow entries has been deleted.
  <qandaentry>
    <question>
     <para>
-    Does conntrackd support the H.323, SIP and NetBios connection tracking helpers?
+    Does conntrackd support the H.323 and SIP connection tracking helpers?
     </para>
    </question>
    <answer>
     <para>
-    No. This is not implemented yet, sorry.
+    No. This is not implemented yet, sorry. If you are interested in
+    sponsoring this support, please contact me.
     </para>
    </answer>
   </qandaentry>
