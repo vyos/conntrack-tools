@@ -465,29 +465,25 @@ static int local_handler_sync(int fd, int type, void *data)
 
 	switch(type) {
 	case DUMP_INTERNAL:
-		ret = fork_process_new(CTD_PROC_ANY, 0, NULL, NULL);
-		if (ret == 0) {
+		if (fork_process_new(CTD_PROC_ANY, 0, NULL, NULL) == 0) {
 			STATE(mode)->internal->dump(fd, NFCT_O_PLAIN);
 			exit(EXIT_SUCCESS);
 		}
 		break;
 	case DUMP_EXTERNAL:
-		ret = fork_process_new(CTD_PROC_ANY, 0, NULL, NULL);
-		if (ret == 0) {
+		if (fork_process_new(CTD_PROC_ANY, 0, NULL, NULL) == 0) {
 			STATE_SYNC(external)->dump(fd, NFCT_O_PLAIN);
 			exit(EXIT_SUCCESS);
 		} 
 		break;
 	case DUMP_INT_XML:
-		ret = fork_process_new(CTD_PROC_ANY, 0, NULL, NULL);
-		if (ret == 0) {
+		if (fork_process_new(CTD_PROC_ANY, 0, NULL, NULL) == 0) {
 			STATE(mode)->internal->dump(fd, NFCT_O_XML);
 			exit(EXIT_SUCCESS);
 		}
 		break;
 	case DUMP_EXT_XML:
-		ret = fork_process_new(CTD_PROC_ANY, 0, NULL, NULL);
-		if (ret == 0) {
+		if (fork_process_new(CTD_PROC_ANY, 0, NULL, NULL) == 0) {
 			STATE_SYNC(external)->dump(fd, NFCT_O_XML);
 			exit(EXIT_SUCCESS);
 		}
