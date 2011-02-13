@@ -346,6 +346,7 @@ static int init_sync(void)
 							STATE(fds)) == -1) {
 		return -1;
 	}
+	STATE_SYNC(commit).clientfd = -1;
 
 	init_alarm(&STATE_SYNC(reset_cache_alarm), NULL, do_reset_cache_alarm);
 

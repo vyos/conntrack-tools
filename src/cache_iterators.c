@@ -184,6 +184,11 @@ void cache_commit(struct cache *c, struct nfct_handle *h, int clientfd)
 	};
 	struct timeval commit_stop, res;
 
+	/* we already have one commit in progress, close this request. */
+	if (clientfd && STATE_SYNC(commit).clientfd != -1) {
+		close(clientfd);
+		return;
+	}
 	switch(STATE_SYNC(commit).state) {
 	case COMMIT_STATE_INACTIVE:
 		gettimeofday(&STATE_SYNC(commit).stats.start, NULL);
@@ -241,6 +246,7 @@ void cache_commit(struct cache *c, struct nfct_handle *h, int clientfd)
 
 		/* Close the client socket now that we're done. */
 		close(STATE_SYNC(commit).clientfd);
+		STATE_SYNC(commit).clientfd = -1;
 	}
 }
 
