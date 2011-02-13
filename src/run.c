@@ -191,14 +191,10 @@ static int local_handler(int fd, void *data)
 	int ret = LOCAL_RET_OK;
 	int type;
 
-	ret = read(fd, &type, sizeof(type));
-	if (ret == -1) {
+	if (read(fd, &type, sizeof(type)) <= 0) {
 		STATE(stats).local_read_failed++;
 		return LOCAL_RET_OK;
 	}
-	if (ret == 0)
-		return LOCAL_RET_OK;
-
 	switch(type) {
 	case FLUSH_MASTER:
 		STATE(stats).nl_kernel_table_flush++;
