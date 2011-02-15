@@ -175,7 +175,7 @@ static int do_commit_master(void *data, void *n)
 	return 0;
 }
 
-void cache_commit(struct cache *c, struct nfct_handle *h, int clientfd)
+int cache_commit(struct cache *c, struct nfct_handle *h, int clientfd)
 {
 	unsigned int commit_ok, commit_fail;
 	struct __commit_container tmp = {
@@ -184,11 +184,11 @@ void cache_commit(struct cache *c, struct nfct_handle *h, int clientfd)
 	};
 	struct timeval commit_stop, res;
 
-	/* we already have one commit in progress, close this request. */
-	if (clientfd && STATE_SYNC(commit).clientfd != -1) {
-		close(clientfd);
-		return;
-	}
+	/* we already have one commit in progress, skip this. The clientfd
+	 * descriptor has to be closed by the caller. */
+	if (clientfd && STATE_SYNC(commit).clientfd != -1)
+		return 0;
+
 	switch(STATE_SYNC(commit).state) {
 	case COMMIT_STATE_INACTIVE:
 		gettimeofday(&STATE_SYNC(commit).stats.start, NULL);
@@ -205,7 +205,7 @@ void cache_commit(struct cache *c, struct nfct_handle *h, int clientfd)
 			STATE_SYNC(commit).state = COMMIT_STATE_MASTER;
 			/* give it another step as soon as possible */
 			write_evfd(STATE_SYNC(commit).evfd);
-			return;
+			return 1;
 		}
 		STATE_SYNC(commit).current = 0;
 		STATE_SYNC(commit).state = COMMIT_STATE_RELATED;
@@ -219,7 +219,7 @@ void cache_commit(struct cache *c, struct nfct_handle *h, int clientfd)
 			STATE_SYNC(commit).state = COMMIT_STATE_RELATED;
 			/* give it another step as soon as possible */
 			write_evfd(STATE_SYNC(commit).evfd);
-			return;
+			return 1;
 		}
 		/* calculate the time that commit has taken */
 		gettimeofday(&commit_stop, NULL);
@@ -248,6 +248,7 @@ void cache_commit(struct cache *c, struct nfct_handle *h, int clientfd)
 		close(STATE_SYNC(commit).clientfd);
 		STATE_SYNC(commit).clientfd = -1;
 	}
+	return 1;
 }
 
 static int do_flush(void *data, void *n)

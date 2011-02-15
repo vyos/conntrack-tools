@@ -121,7 +121,7 @@ void cache_iterate_limit(struct cache *c, void *data, uint32_t from, uint32_t st
 struct nfct_handle;
 
 void cache_dump(struct cache *c, int fd, int type);
-void cache_commit(struct cache *c, struct nfct_handle *h, int clientfd);
+int cache_commit(struct cache *c, struct nfct_handle *h, int clientfd);
 void cache_flush(struct cache *c);
 void cache_bulk(struct cache *c);
 
