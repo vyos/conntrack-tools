@@ -282,10 +282,10 @@ static int event_handler(const struct nlmsghdr *nlh,
 	}
 
 out:
-	if (STATE(event_iterations_limit)-- <= 0) {
-		STATE(event_iterations_limit) = CONFIG(event_iterations_limit);
+	/* we reset the iteration limiter in the main select loop. */
+	if (STATE(event_iterations_limit)-- <= 0)
 		return NFCT_CB_STOP;
-	} else
+	else
 		return NFCT_CB_CONTINUE;
 }
 
