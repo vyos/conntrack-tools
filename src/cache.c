@@ -193,7 +193,7 @@ struct cache_object *cache_object_new(struct cache *c, struct nf_conntrack *ct)
 		c->stats.add_fail_enomem++;
 		return NULL;
 	}
-	memcpy(obj->ct, ct, nfct_sizeof(ct));
+	nfct_copy(obj->ct, ct, NFCT_CP_OVERRIDE);
 	obj->status = C_OBJ_NONE;
 	c->stats.objects++;
 
