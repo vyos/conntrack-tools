@@ -58,6 +58,37 @@
 #include <fcntl.h>
 #include <libnetfilter_conntrack/libnetfilter_conntrack.h>
 
+/* These are the template objects that are used to send commands. */
+static struct {
+	struct nf_conntrack *ct;
+	struct nf_expect *exp;
+	/* Expectations require the expectation tuple and the mask. */
+	struct nf_conntrack *exptuple, *mask;
+} tmpl;
+
+static int alloc_tmpl_objects(void)
+{
+	tmpl.ct = nfct_new();
+	tmpl.exptuple = nfct_new();
+	tmpl.mask = nfct_new();
+	tmpl.exp = nfexp_new();
+
+	return tmpl.ct != NULL && tmpl.exptuple != NULL &&
+	       tmpl.mask != NULL && tmpl.exp != NULL;
+}
+
+static void free_tmpl_objects(void)
+{
+	if (tmpl.ct)
+		nfct_destroy(tmpl.ct);
+	if (tmpl.exptuple)
+		nfct_destroy(tmpl.exptuple);
+	if (tmpl.mask)
+		nfct_destroy(tmpl.mask);
+	if (tmpl.exp)
+		nfexp_destroy(tmpl.exp);
+}
+
 enum ct_command {
 	CT_NONE		= 0,
 
@@ -534,6 +565,8 @@ exit_error(enum exittype status, const char *msg, ...)
 	va_end(args);
 	if (status == PARAMETER_PROBLEM)
 		exit_tryhelp(status);
+	/* release template objects that were allocated in the setup stage. */
+	free_tmpl_objects();
 	exit(status);
 }
 
@@ -850,12 +883,12 @@ nat_parse(char *arg, struct nf_conntrack *obj, int type)
 				   "Invalid port:port syntax");
 
 		if (type == CT_OPT_SRC_NAT)
-			nfct_set_attr_u16(obj, ATTR_SNAT_PORT, ntohs(port));
+			nfct_set_attr_u16(tmpl.ct, ATTR_SNAT_PORT, ntohs(port));
 		else if (type == CT_OPT_DST_NAT)
-			nfct_set_attr_u16(obj, ATTR_DNAT_PORT, ntohs(port));
+			nfct_set_attr_u16(tmpl.ct, ATTR_DNAT_PORT, ntohs(port));
 		else if (type == CT_OPT_ANY_NAT) {
-			nfct_set_attr_u16(obj, ATTR_SNAT_PORT, ntohs(port));
-			nfct_set_attr_u16(obj, ATTR_DNAT_PORT, ntohs(port));
+			nfct_set_attr_u16(tmpl.ct, ATTR_SNAT_PORT, ntohs(port));
+			nfct_set_attr_u16(tmpl.ct, ATTR_DNAT_PORT, ntohs(port));
 		}
 	}
 
@@ -869,9 +902,9 @@ nat_parse(char *arg, struct nf_conntrack *obj, int type)
 	}
 
 	if (type == CT_OPT_SRC_NAT || type == CT_OPT_ANY_NAT)
-		nfct_set_attr_u32(obj, ATTR_SNAT_IPV4, parse.v4);
+		nfct_set_attr_u32(tmpl.ct, ATTR_SNAT_IPV4, parse.v4);
 	else if (type == CT_OPT_DST_NAT || type == CT_OPT_ANY_NAT)
-		nfct_set_attr_u32(obj, ATTR_DNAT_IPV4, parse.v4);
+		nfct_set_attr_u32(tmpl.ct, ATTR_DNAT_IPV4, parse.v4);
 }
 
 static void
@@ -1143,11 +1176,7 @@ static int update_cb(enum nf_conntrack_msg_type type,
 		     void *data)
 {
 	int res;
-	struct nf_conntrack *obj = data;
-	char __tmp[nfct_maxsize()];
-	struct nf_conntrack *tmp = (struct nf_conntrack *) (void *)__tmp;
-
-	memset(tmp, 0, sizeof(__tmp));
+	struct nf_conntrack *obj = data, *tmp;
 
 	if (filter_nat(obj, ct))
 		return NFCT_CB_CONTINUE;
@@ -1161,30 +1190,35 @@ static int update_cb(enum nf_conntrack_msg_type type,
 	if (options & CT_OPT_TUPLE_REPL && !nfct_cmp(obj, ct, NFCT_CMP_REPL))
 		return NFCT_CB_CONTINUE;
 
+	tmp = nfct_new();
+	if (tmp == NULL)
+		exit_error(OTHER_PROBLEM, "out of memory");
+
 	nfct_copy(tmp, ct, NFCT_CP_ORIG);
 	nfct_copy(tmp, obj, NFCT_CP_META);
 
 	res = nfct_query(ith, NFCT_Q_UPDATE, tmp);
-	if (res < 0)
+	if (res < 0) {
+		nfct_destroy(tmp);
 		exit_error(OTHER_PROBLEM,
 			   "Operation failed: %s",
 			   err2str(errno, CT_UPDATE));
-
+	}
 	nfct_callback_register(ith, NFCT_T_ALL, print_cb, NULL);
 
 	res = nfct_query(ith, NFCT_Q_GET, tmp);
 	if (res < 0) {
+		nfct_destroy(tmp);
 		/* the entry has vanish in middle of the update */
 		if (errno == ENOENT) {
 			nfct_callback_unregister(ith);
 			return NFCT_CB_CONTINUE;
 		}
-
 		exit_error(OTHER_PROBLEM,
 			   "Operation failed: %s",
 			   err2str(errno, CT_UPDATE));
 	}
-
+	nfct_destroy(tmp);
 	nfct_callback_unregister(ith);
 
 	counter++;
@@ -1303,23 +1337,13 @@ int main(int argc, char *argv[])
 	int res = 0, partial;
 	size_t socketbuffersize = 0;
 	int family = AF_UNSPEC;
-	char __obj[nfct_maxsize()];
-	char __exptuple[nfct_maxsize()];
-	char __mask[nfct_maxsize()];
-	struct nf_conntrack *obj = (struct nf_conntrack *)(void*) __obj;
-	struct nf_conntrack *exptuple = 
-		(struct nf_conntrack *)(void*) __exptuple;
-	struct nf_conntrack *mask = (struct nf_conntrack *)(void*) __mask;
-	char __exp[nfexp_maxsize()];
-	struct nf_expect *exp = (struct nf_expect *)(void*) __exp;
 	int l3protonum, protonum = 0;
 	union ct_address ad;
 	unsigned int command = 0;
 
-	memset(__obj, 0, sizeof(__obj));
-	memset(__exptuple, 0, sizeof(__exptuple));
-	memset(__mask, 0, sizeof(__mask));
-	memset(__exp, 0, sizeof(__exp));
+	/* we release these objects in the exit_error() path. */
+	if (!alloc_tmpl_objects())
+		exit_error(OTHER_PROBLEM, "out of memory");
 
 	register_tcp();
 	register_udp();
@@ -1374,15 +1398,15 @@ int main(int argc, char *argv[])
 			}
 			set_family(&family, l3protonum);
 			if (l3protonum == AF_INET) {
-				nfct_set_attr_u32(obj,
+				nfct_set_attr_u32(tmpl.ct,
 						  opt2family_attr[c][0],
 						  ad.v4);
 			} else if (l3protonum == AF_INET6) {
-				nfct_set_attr(obj,
+				nfct_set_attr(tmpl.ct,
 					      opt2family_attr[c][1],
 					      &ad.v6);
 			}
-			nfct_set_attr_u8(obj, opt2attr[c], l3protonum);
+			nfct_set_attr_u8(tmpl.ct, opt2attr[c], l3protonum);
 			break;
 		case '{':
 		case '}':
@@ -1396,15 +1420,16 @@ int main(int argc, char *argv[])
 			}
 			set_family(&family, l3protonum);
 			if (l3protonum == AF_INET) {
-				nfct_set_attr_u32(mask, 
+				nfct_set_attr_u32(tmpl.mask, 
 						  opt2family_attr[c][0],
 						  ad.v4);
 			} else if (l3protonum == AF_INET6) {
-				nfct_set_attr(mask,
+				nfct_set_attr(tmpl.mask,
 					      opt2family_attr[c][1],
 					      &ad.v6);
 			}
-			nfct_set_attr_u8(mask, ATTR_ORIG_L3PROTO, l3protonum);
+			nfct_set_attr_u8(tmpl.mask,
+					 ATTR_ORIG_L3PROTO, l3protonum);
 			break;
 		case 'p':
 			options |= CT_OPT_PROTO;
@@ -1418,17 +1443,18 @@ int main(int argc, char *argv[])
 			if (opts == NULL)
 				exit_error(OTHER_PROBLEM, "out of memory");
 
-			nfct_set_attr_u8(obj, ATTR_L4PROTO, protonum);
+			nfct_set_attr_u8(tmpl.ct, ATTR_L4PROTO, protonum);
 			break;
 		case 't':
 			options |= CT_OPT_TIMEOUT;
-			nfct_set_attr_u32(obj, ATTR_TIMEOUT, atol(optarg));
-			nfexp_set_attr_u32(exp, ATTR_EXP_TIMEOUT, atol(optarg));
+			nfct_set_attr_u32(tmpl.ct, ATTR_TIMEOUT, atol(optarg));
+			nfexp_set_attr_u32(tmpl.exp,
+					   ATTR_EXP_TIMEOUT, atol(optarg));
 			break;
 		case 'u':
 			options |= CT_OPT_STATUS;
 			parse_parameter(optarg, &status, PARSE_STATUS);
-			nfct_set_attr_u32(obj, ATTR_STATUS, status);
+			nfct_set_attr_u32(tmpl.ct, ATTR_STATUS, status);
 			break;
 		case 'e':
 			options |= CT_OPT_EVENT_MASK;
@@ -1458,12 +1484,12 @@ int main(int argc, char *argv[])
 				continue;
 
 			set_family(&family, AF_INET);
-			nat_parse(tmp, obj, opt2type[c]);
+			nat_parse(tmp, tmpl.ct, opt2type[c]);
 			break;
 		}
 		case 'w':
 			options |= opt2type[c];
-			nfct_set_attr_u16(obj,
+			nfct_set_attr_u16(tmpl.ct,
 					  opt2attr[c],
 					  strtoul(optarg, NULL, 0));
 			break;
@@ -1471,7 +1497,7 @@ int main(int argc, char *argv[])
 		case 'm':
 		case 'c':
 			options |= opt2type[c];
-			nfct_set_attr_u32(obj,
+			nfct_set_attr_u32(tmpl.ct,
 					  opt2attr[c],
 					  strtoul(optarg, NULL, 0));
 			break;
@@ -1506,8 +1532,9 @@ int main(int argc, char *argv[])
 			break;
 		default:
 			if (h && h->parse_opts 
-			    &&!h->parse_opts(c - h->option_offset, obj,
-			    		     exptuple, mask, &l4flags))
+			    &&!h->parse_opts(c - h->option_offset, tmpl.ct,
+			    		     tmpl.exptuple, tmpl.mask,
+					     &l4flags))
 				exit_error(PARAMETER_PROBLEM, "parse error");
 			break;
 		}
@@ -1543,7 +1570,7 @@ int main(int argc, char *argv[])
 		}
 	}
 	if (!(command & CT_HELP) && h && h->final_check)
-		h->final_check(l4flags, cmd, obj);
+		h->final_check(l4flags, cmd, tmpl.ct);
 
 	switch(command) {
 
@@ -1557,7 +1584,7 @@ int main(int argc, char *argv[])
 			exit_error(PARAMETER_PROBLEM, "Can't use -z with "
 						      "filtering parameters");
 
-		nfct_callback_register(cth, NFCT_T_ALL, dump_cb, obj);
+		nfct_callback_register(cth, NFCT_T_ALL, dump_cb, tmpl.ct);
 
 		if (options & CT_OPT_ZERO)
 			res = nfct_query(cth, NFCT_Q_DUMP_RESET, &family);
@@ -1584,30 +1611,30 @@ int main(int argc, char *argv[])
 			
 	case CT_CREATE:
 		if ((options & CT_OPT_ORIG) && !(options & CT_OPT_REPL))
-		    	nfct_setobjopt(obj, NFCT_SOPT_SETUP_REPLY);
+		    	nfct_setobjopt(tmpl.ct, NFCT_SOPT_SETUP_REPLY);
 		else if (!(options & CT_OPT_ORIG) && (options & CT_OPT_REPL))
-			nfct_setobjopt(obj, NFCT_SOPT_SETUP_ORIGINAL);
+			nfct_setobjopt(tmpl.ct, NFCT_SOPT_SETUP_ORIGINAL);
 
 		cth = nfct_open(CONNTRACK, 0);
 		if (!cth)
 			exit_error(OTHER_PROBLEM, "Can't open handler");
 
-		res = nfct_query(cth, NFCT_Q_CREATE, obj);
+		res = nfct_query(cth, NFCT_Q_CREATE, tmpl.ct);
 		if (res != -1)
 			counter++;
 		nfct_close(cth);
 		break;
 
 	case EXP_CREATE:
-		nfexp_set_attr(exp, ATTR_EXP_MASTER, obj);
-		nfexp_set_attr(exp, ATTR_EXP_EXPECTED, exptuple);
-		nfexp_set_attr(exp, ATTR_EXP_MASK, mask);
+		nfexp_set_attr(tmpl.exp, ATTR_EXP_MASTER, tmpl.ct);
+		nfexp_set_attr(tmpl.exp, ATTR_EXP_EXPECTED, tmpl.exptuple);
+		nfexp_set_attr(tmpl.exp, ATTR_EXP_MASK, tmpl.mask);
 
 		cth = nfct_open(EXPECT, 0);
 		if (!cth)
 			exit_error(OTHER_PROBLEM, "Can't open handler");
 
-		res = nfexp_query(cth, NFCT_Q_CREATE, exp);
+		res = nfexp_query(cth, NFCT_Q_CREATE, tmpl.exp);
 		nfct_close(cth);
 		break;
 
@@ -1618,7 +1645,7 @@ int main(int argc, char *argv[])
 		if (!cth || !ith)
 			exit_error(OTHER_PROBLEM, "Can't open handler");
 
-		nfct_callback_register(cth, NFCT_T_ALL, update_cb, obj);
+		nfct_callback_register(cth, NFCT_T_ALL, update_cb, tmpl.ct);
 
 		res = nfct_query(cth, NFCT_Q_DUMP, &family);
 		nfct_close(ith);
@@ -1631,7 +1658,7 @@ int main(int argc, char *argv[])
 		if (!cth || !ith)
 			exit_error(OTHER_PROBLEM, "Can't open handler");
 
-		nfct_callback_register(cth, NFCT_T_ALL, delete_cb, obj);
+		nfct_callback_register(cth, NFCT_T_ALL, delete_cb, tmpl.ct);
 
 		res = nfct_query(cth, NFCT_Q_DUMP, &family);
 		nfct_close(ith);
@@ -1639,13 +1666,13 @@ int main(int argc, char *argv[])
 		break;
 
 	case EXP_DELETE:
-		nfexp_set_attr(exp, ATTR_EXP_EXPECTED, obj);
+		nfexp_set_attr(tmpl.exp, ATTR_EXP_EXPECTED, tmpl.ct);
 
 		cth = nfct_open(EXPECT, 0);
 		if (!cth)
 			exit_error(OTHER_PROBLEM, "Can't open handler");
 
-		res = nfexp_query(cth, NFCT_Q_DESTROY, exp);
+		res = nfexp_query(cth, NFCT_Q_DESTROY, tmpl.exp);
 		nfct_close(cth);
 		break;
 
@@ -1654,20 +1681,20 @@ int main(int argc, char *argv[])
 		if (!cth)
 			exit_error(OTHER_PROBLEM, "Can't open handler");
 
-		nfct_callback_register(cth, NFCT_T_ALL, dump_cb, obj);
-		res = nfct_query(cth, NFCT_Q_GET, obj);
+		nfct_callback_register(cth, NFCT_T_ALL, dump_cb, tmpl.ct);
+		res = nfct_query(cth, NFCT_Q_GET, tmpl.ct);
 		nfct_close(cth);
 		break;
 
 	case EXP_GET:
-		nfexp_set_attr(exp, ATTR_EXP_MASTER, obj);
+		nfexp_set_attr(tmpl.exp, ATTR_EXP_MASTER, tmpl.ct);
 
 		cth = nfct_open(EXPECT, 0);
 		if (!cth)
 			exit_error(OTHER_PROBLEM, "Can't open handler");
 
 		nfexp_callback_register(cth, NFCT_T_ALL, dump_exp_cb, NULL);
-		res = nfexp_query(cth, NFCT_Q_GET, exp);
+		res = nfexp_query(cth, NFCT_Q_GET, tmpl.exp);
 		nfct_close(cth);
 		break;
 
@@ -1719,7 +1746,7 @@ int main(int argc, char *argv[])
 		}
 		signal(SIGINT, event_sighandler);
 		signal(SIGTERM, event_sighandler);
-		nfct_callback_register(cth, NFCT_T_ALL, event_cb, obj);
+		nfct_callback_register(cth, NFCT_T_ALL, event_cb, tmpl.ct);
 		res = nfct_catch(cth);
 		if (res == -1) {
 			if (errno == ENOBUFS) {
@@ -1810,6 +1837,7 @@ int main(int argc, char *argv[])
 		exit_error(OTHER_PROBLEM, "Operation failed: %s",
 			   err2str(errno, command));
 
+	free_tmpl_objects();
 	free_options();
 
 	if (command && exit_msg[cmd][0]) {
