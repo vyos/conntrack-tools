@@ -669,6 +669,7 @@ enum {
 	_O_EXT	= (1 << 1),
 	_O_TMS	= (1 << 2),
 	_O_ID	= (1 << 3),
+	_O_KTMS	= (1 << 4),
 };
 
 enum {
@@ -687,8 +688,8 @@ static struct parse_parameter {
 	  { IPS_ASSURED, IPS_SEEN_REPLY, 0, IPS_FIXED_TIMEOUT, IPS_EXPECTED} },
 	{ {"ALL", "NEW", "UPDATES", "DESTROY"}, 4,
 	  { CT_EVENT_F_ALL, CT_EVENT_F_NEW, CT_EVENT_F_UPD, CT_EVENT_F_DEL } },
-	{ {"xml", "extended", "timestamp", "id" }, 4, 
-	  { _O_XML, _O_EXT, _O_TMS, _O_ID },
+	{ {"xml", "extended", "timestamp", "id", "ktimestamp"}, 5, 
+	  { _O_XML, _O_EXT, _O_TMS, _O_ID, _O_KTMS },
 	},
 };
 
@@ -1024,6 +1025,8 @@ static int event_cb(enum nf_conntrack_msg_type type,
 		} else
 			op_flags |= NFCT_OF_TIME;
 	}
+	if (output_mask & _O_KTMS)
+		op_flags |= NFCT_OF_TIMESTAMP;
 	if (output_mask & _O_ID)
 		op_flags |= NFCT_OF_ID;
 
@@ -1063,6 +1066,8 @@ static int dump_cb(enum nf_conntrack_msg_type type,
 	}
 	if (output_mask & _O_EXT)
 		op_flags = NFCT_OF_SHOW_LAYER3;
+	if (output_mask & _O_KTMS)
+		op_flags |= NFCT_OF_TIMESTAMP;
 	if (output_mask & _O_ID)
 		op_flags |= NFCT_OF_ID;
 
