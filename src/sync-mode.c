@@ -43,8 +43,7 @@
 static void
 do_channel_handler_step(int i, struct nethdr *net, size_t remain)
 {
-	char __ct[nfct_maxsize()];
-	struct nf_conntrack *ct = (struct nf_conntrack *)(void*) __ct;
+	struct nf_conntrack *ct;
 
 	if (net->version != CONNTRACKD_PROTOCOL_VERSION) {
 		STATE_SYNC(error).msg_rcv_malformed++;
@@ -74,11 +73,15 @@ do_channel_handler_step(int i, struct nethdr *net, size_t remain)
 		STATE_SYNC(error).msg_rcv_bad_type++;
 		return;
 	}
-	memset(ct, 0, sizeof(__ct));
+	/* TODO: add stats on ENOMEM errors in the future. */
+	ct = nfct_new();
+	if (ct == NULL)
+		return;
 
 	if (parse_payload(ct, net, remain) == -1) {
 		STATE_SYNC(error).msg_rcv_malformed++;
 		STATE_SYNC(error).msg_rcv_bad_payload++;
+		nfct_destroy(ct);
 		return;
 	}
 
@@ -97,6 +100,7 @@ do_channel_handler_step(int i, struct nethdr *net, size_t remain)
 		STATE_SYNC(error).msg_rcv_bad_type++;
 		break;
 	}
+	nfct_destroy(ct);
 }
 
 static char __net[65536];		/* XXX: maximum MTU for IPv4 */

@@ -164,20 +164,21 @@ int nl_send_resync(struct nfct_handle *h)
 /* if the handle has no callback, check for existence, otherwise, update */
 int nl_get_conntrack(struct nfct_handle *h, const struct nf_conntrack *ct)
 {
-	int ret;
-	char __tmp[nfct_maxsize()];
-	struct nf_conntrack *tmp = (struct nf_conntrack *) (void *)__tmp;
+	int ret = 1;
+	struct nf_conntrack *tmp;
 
-	memset(__tmp, 0, sizeof(__tmp));
+	tmp = nfct_new();
+	if (tmp == NULL)
+		return -1;
 
 	/* use the original tuple to check if it is there */
 	nfct_copy(tmp, ct, NFCT_CP_ORIG);
 
-	ret = nfct_query(h, NFCT_Q_GET, tmp);
-	if (ret == -1)
-		return errno == ENOENT ? 0 : -1;
+	if (nfct_query(h, NFCT_Q_GET, tmp) == -1)
+		ret = (errno == ENOENT) ? 0 : -1;
 
-	return 1;
+	nfct_destroy(tmp);
+	return ret;
 }
 
 int nl_create_conntrack(struct nfct_handle *h, 
