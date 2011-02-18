@@ -592,6 +592,45 @@ Sync {
 
 </sect3>
 
+<sect3 id="sync-redundant-link"><title>Redundant dedicated links</title>
+
+ <para>You can set redundant dedicated links without using bonding, you have
+ to configure as many redundant links as you want in the configuration file.
+ In case of failure of the master dedicated link, conntrackd failovers to one
+ of the backups. An example of this configuration is the following:
+ </para>
+
+ <programlisting>
+Sync {
+	Mode FTFW {
+		 [...]
+	}
+	# default master dedicated link
+        UDP Default {
+                IPv4_address 192.168.2.1
+                IPv4_Destination_Address 192.168.2.2
+                Port 3780
+                Interface eth3
+                SndSocketBuffer 24985600
+                RcvSocketBuffer 24985600
+                Checksum on
+        }
+	# backup dedicated link
+        UDP {
+               IPv4_address 192.168.1.3
+               IPv4_Destination_Address 192.168.1.4
+               Port 3780
+               Interface eth2
+               SndSocketBuffer 24985600
+               RcvSocketBuffer 24985600
+               Checksum on
+        }
+	[...]
+}
+ </programlisting>
+
+</sect3>
+
 </sect2>
 
 <sect2 id="sync-trouble"><title>Troubleshooting</title>
