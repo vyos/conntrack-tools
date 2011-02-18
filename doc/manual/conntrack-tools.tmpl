@@ -680,6 +680,121 @@ Sync {
    </answer>
   </qandaentry>
 
+  <qandaentry>
+   <question>
+    <para>
+    Is there any way to set up a more verbose mode in the log message for debugging?
+    </para>
+   </question>
+   <answer>
+    <para>
+    No, but conntrackd provides lots of information that you can look up in
+    runtime via -s option.</para>
+
+    <para>You can check network statistics to find anomalies:</para>
+    <programlisting>
+    # conntrackd -s network
+    network statistics:
+        recv:
+                Malformed messages:                        0
+                Wrong protocol version:                    0
+                Malformed header:                          0
+                Malformed payload:                         0
+                Bad message type:                          0
+                Truncated message:                         0
+                Bad message size:                          0
+        send:
+                Malformed messages:                        0
+
+sequence tracking statistics:
+        recv:
+                Packets lost:                          42726
+                Packets before:                            0
+
+UDP traffic (active device=eth3):
+              564232 Bytes sent              1979844 Bytes recv
+                2844 Pckts sent                 8029 Pckts recv
+                   0 Error send                    0 Error recv
+    </programlisting>
+
+    <para>You can check cache statistics:</para>
+    <programlisting>
+cache:internal  active objects:                    0
+        active/total entries:                      0/           0
+        creation OK/failed:                    11068/           0
+                no memory available:               0
+                no space left in cache:            0
+        update OK/failed:                       4128/           0
+                entry not found:                   0
+        deletion created/failed:               11068/           0
+                entry not found:                   0
+
+cache:external  active objects:                    0
+        active/total entries:                      0/           0
+        creation OK/failed:                    10521/           0
+                no memory available:               0
+                no space left in cache:            0
+        update OK/failed:                       8832/           0
+                entry not found:                   0
+        deletion created/failed:               10521/           0
+                entry not found:                   0
+    </programlisting>
+
+    <para>You can check runtime miscelaneous statistics:</para>
+    <programlisting>
+daemon uptime: 14 min
+
+netlink stats:
+        events received:                       24736
+        events filtered:                           0
+        events unknown type:                       0
+        catch event failed:                        0
+        dump unknown type:                         0
+        netlink overrun:                           0
+        flush kernel table:                        1
+        resync with kernel table:                  0
+        current buffer size (in bytes):      8000000
+
+runtime stats:
+        child process failed:                      0
+                child process segfault:            0
+                child process termsig:             0
+        select failed:                             0
+        wait failed:                               0
+        local read failed:                         0
+        local unknown request:                     0
+    </programlisting>
+
+    <para>You can check dedicated link statistics:</para>
+    <programlisting>
+UDP traffic device=eth3 status=RUNNING role=ACTIVE:
+              566848 Bytes sent              1982612 Bytes recv
+                3018 Pckts sent                 8203 Pckts recv
+                   0 Error send                    0 Error recv
+    </programlisting>
+
+    <para>You can check network queue statistics:</para>
+    <programlisting>
+allocated queue nodes:                     1
+
+queue txqueue:
+current elements:                          0
+maximum elements:                 2147483647
+not enough space errors:                   0
+
+queue errorq:
+current elements:                          0
+maximum elements:                        128
+not enough space errors:                   0
+
+queue rsqueue:
+current elements:                          1
+maximum elements:                     131072
+not enough space errors:                   0
+    </programlisting>
+   </answer>
+  </qandaentry>
+
  </qandaset>
 
 </sect2>
