@@ -1714,6 +1714,8 @@ int main(int argc, char *argv[])
 			exit_error(OTHER_PROBLEM, "Can't open handler");
 		res = nfexp_query(cth, NFCT_Q_FLUSH, &family);
 		nfct_close(cth);
+		fprintf(stderr, "%s v%s (conntrack-tools): ",PROGNAME,VERSION);
+		fprintf(stderr,"expectation table has been emptied.\n");
 		break;
 		
 	case CT_EVENT:
