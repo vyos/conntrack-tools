@@ -759,7 +759,7 @@ Sync {
 
     <para>You can check network statistics to find anomalies:</para>
     <programlisting>
-    # conntrackd -s network
+# conntrackd -s network
     network statistics:
         recv:
                 Malformed messages:                        0
@@ -785,6 +785,7 @@ UDP traffic (active device=eth3):
 
     <para>You can check cache statistics:</para>
     <programlisting>
+# conntrackd -s cache
 cache:internal  active objects:                    0
         active/total entries:                      0/           0
         creation OK/failed:                    11068/           0
@@ -808,6 +809,7 @@ cache:external  active objects:                    0
 
     <para>You can check runtime miscelaneous statistics:</para>
     <programlisting>
+# conntrackd -s runtime
 daemon uptime: 14 min
 
 netlink stats:
@@ -833,6 +835,7 @@ runtime stats:
 
     <para>You can check dedicated link statistics:</para>
     <programlisting>
+# conntrackd -s link
 UDP traffic device=eth3 status=RUNNING role=ACTIVE:
               566848 Bytes sent              1982612 Bytes recv
                 3018 Pckts sent                 8203 Pckts recv
@@ -841,6 +844,7 @@ UDP traffic device=eth3 status=RUNNING role=ACTIVE:
 
     <para>You can check network queue statistics:</para>
     <programlisting>
+# conntrackd -s queue
 allocated queue nodes:                     1
 
 queue txqueue:
