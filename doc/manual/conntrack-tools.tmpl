@@ -631,6 +631,33 @@ Sync {
 
 </sect3>
 
+<sect3 id="sync-iptables-filtering">
+<title>Filtering Connection tracking events with iptables</title>
+
+ <para>Since Linux kernel &gt;= 2.6.34, iptables provides the
+ <emphasis>CT</emphasis> iptables target that allows to reduce the
+ amount of Connection Tracking events that are delivered to user-space.
+ However, you will have to use a Linux kernel &gt;= 2.6.38 to profit
+ from this feature, since several aspects of the event filtering were
+ broken.</para>
+
+ <para>The following example shows how to only generate the
+ <emphasis>assured</emphasis> event:</para>
+
+ <programlisting>
+ # iptables -I PREROUTING -t raw -j CT --ctevents assured
+ </programlisting>
+
+ <note><title>Assured flows</title>
+ <para>One flow is assured if the firewall has seen traffic for it in
+ both directions.</para>
+ </note>
+
+ <para>Reducing the amount of events generated helps to reduce CPU
+ consumption in the active firewall.</para>
+
+</sect3>
+
 </sect2>
 
 <sect2 id="sync-trouble"><title>Troubleshooting</title>
