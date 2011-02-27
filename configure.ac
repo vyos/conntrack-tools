@@ -1,4 +1,4 @@
-AC_INIT(conntrack-tools, 0.9.15, pablo@netfilter.org)
+AC_INIT(conntrack-tools, 1.0.0, pablo@netfilter.org)
 
 AC_CANONICAL_HOST
 
