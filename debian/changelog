@@ -2,6 +2,7 @@ conntrack (1:1.0.0-1) unstable; urgency=low
 
   * New upstream version (Closes: #589202, #589203) 
   * Bump standards version
+  * Force deb source 1.0
 
  -- Alexander Wirt <formorer@debian.org>  Thu, 03 Mar 2011 23:07:26 +0100
 
