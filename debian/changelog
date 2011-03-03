@@ -1,3 +1,9 @@
+conntrack (1:1.0.0-1) unstable; urgency=low
+
+  * New upstream version (Closes: #589202, #589203) 
+
+ -- Alexander Wirt <formorer@debian.org>  Thu, 03 Mar 2011 23:07:26 +0100
+
 conntrack (1:0.9.14-2) unstable; urgency=low
 
   * Integrate lost NMU from Stefan Fritsch. Thanks Stefan
