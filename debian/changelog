@@ -1,9 +1,11 @@
 conntrack (1:1.0.0-1) unstable; urgency=low
 
-  * New upstream version (Closes: #589202, #589203) 
+  * New upstream version (Closes: #589202, #589203, #589204) 
+    - Fix removing of conntrack entries (Closes: #496769)
   * Bump standards version
   * Force deb source 1.0
   * Use invoke-rc.d in logrotate.de (Closes: #613512)
+  * Make logrotate silent (Closes: #605247)
 
  -- Alexander Wirt <formorer@debian.org>  Thu, 03 Mar 2011 23:07:26 +0100
 

@@ -4,6 +4,6 @@
     missingok
 
     postrotate
-        invoke-rc.d conntrackd restart
-    endscript
+        invoke-rc.d conntrackd restart > /dev/null
+    endscript 
 }
