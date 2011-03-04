@@ -1,3 +1,10 @@
+conntrack (1:1.0.0-2) unstable; urgency=low
+
+  * Build depend on libnetfilter-conntrack >= 0.9.1 
+    (Closes: #616410)
+
+ -- Alexander Wirt <formorer@debian.org>  Fri, 04 Mar 2011 10:07:00 +0100
+
 conntrack (1:1.0.0-1) unstable; urgency=low
 
   * New upstream version (Closes: #589202, #589203, #589204) 
