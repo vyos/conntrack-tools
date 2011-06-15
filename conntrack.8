@@ -135,8 +135,12 @@ This option is only required in conjunction with "-L, --dump". If this option is
 .BI "-t, --timeout " "TIMEOUT"
 Specify the timeout.
 .TP
-.BI "-m, --mark " "MARK"
-Specify the conntrack mark.
+.BI "-m, --mark " "MARK[/MASK]"
+Specify the conntrack mark.  Optionally, a mask value can be specified.
+In "--update" mode, this mask specifies the bits that should be zeroed before XORing
+the MARK value into the ctmark.
+Otherwise, the mask is logically ANDed with the existing mark before the comparision.
+In "--create" mode, the mask is ignored.
 .TP
 .BI "-c, --secmark " "SECMARK"
 Specify the conntrack selinux security mark.

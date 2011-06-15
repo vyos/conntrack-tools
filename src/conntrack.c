@@ -58,12 +58,20 @@
 #include <fcntl.h>
 #include <libnetfilter_conntrack/libnetfilter_conntrack.h>
 
+struct u32_mask {
+	uint32_t value;
+	uint32_t mask;
+};
+
 /* These are the template objects that are used to send commands. */
 static struct {
 	struct nf_conntrack *ct;
 	struct nf_expect *exp;
 	/* Expectations require the expectation tuple and the mask. */
 	struct nf_conntrack *exptuple, *mask;
+
+	/* Allows filtering/setting specific bits in the ctmark */
+	struct u32_mask mark;
 } tmpl;
 
 static int alloc_tmpl_objects(void)
@@ -72,6 +80,8 @@ static int alloc_tmpl_objects(void)
 	tmpl.exptuple = nfct_new();
 	tmpl.mask = nfct_new();
 	tmpl.exp = nfexp_new();
+
+	memset(&tmpl.mark, 0, sizeof(tmpl.mark));
 
 	return tmpl.ct != NULL && tmpl.exptuple != NULL &&
 	       tmpl.mask != NULL && tmpl.exp != NULL;
@@ -692,6 +702,12 @@ err2str(int err, enum ct_command command)
 	return strerror(err);
 }
 
+static int mark_cmp(const struct u32_mask *m, const struct nf_conntrack *ct)
+{
+	return nfct_attr_is_set(ct, ATTR_MARK) &&
+		(nfct_get_attr_u32(ct, ATTR_MARK) & m->mask) == m->value;
+}
+
 #define PARSE_STATUS 0
 #define PARSE_EVENT 1
 #define PARSE_OUTPUT 2
@@ -771,6 +787,19 @@ parse_parameter(const char *arg, unsigned int *status, int parse_type)
 	if (strlen(arg) == 0
 	    || !do_parse_parameter(arg, strlen(arg), status, parse_type))
 		exit_error(PARAMETER_PROBLEM, "Bad parameter `%s'", arg);
+}
+
+static void
+parse_u32_mask(const char *arg, struct u32_mask *m)
+{
+	char *end;
+
+	m->value = (uint32_t) strtoul(arg, &end, 0);
+
+	if (*end == '/')
+		m->mask = (uint32_t) strtoul(end+1, NULL, 0);
+	else
+		m->mask = ~0;
 }
 
 static void
@@ -923,6 +952,17 @@ usage(char *prog)
 
 static unsigned int output_mask;
 
+
+static int
+filter_mark(const struct nf_conntrack *ct)
+{
+	if ((options & CT_OPT_MARK) &&
+	     !mark_cmp(&tmpl.mark, ct))
+		return 1;
+	return 0;
+}
+
+
 static int 
 filter_nat(const struct nf_conntrack *obj, const struct nf_conntrack *ct)
 {
@@ -1036,6 +1076,9 @@ static int event_cb(enum nf_conntrack_msg_type type,
 	if (filter_nat(obj, ct))
 		return NFCT_CB_CONTINUE;
 
+	if (filter_mark(ct))
+		return NFCT_CB_CONTINUE;
+
 	if (options & CT_COMPARISON &&
 	    !nfct_cmp(obj, ct, NFCT_CMP_ALL | NFCT_CMP_MASK))
 		return NFCT_CB_CONTINUE;
@@ -1085,6 +1128,9 @@ static int dump_cb(enum nf_conntrack_msg_type type,
 	if (filter_nat(obj, ct))
 		return NFCT_CB_CONTINUE;
 
+	if (filter_mark(ct))
+		return NFCT_CB_CONTINUE;
+
 	if (options & CT_COMPARISON &&
 	    !nfct_cmp(obj, ct, NFCT_CMP_ALL | NFCT_CMP_MASK))
 		return NFCT_CB_CONTINUE;
@@ -1123,6 +1169,9 @@ static int delete_cb(enum nf_conntrack_msg_type type,
 	unsigned int op_flags = 0;
 
 	if (filter_nat(obj, ct))
+		return NFCT_CB_CONTINUE;
+
+	if (filter_mark(ct))
 		return NFCT_CB_CONTINUE;
 
 	if (options & CT_COMPARISON &&
@@ -1171,6 +1220,17 @@ static int print_cb(enum nf_conntrack_msg_type type,
 	return NFCT_CB_CONTINUE;
 }
 
+static void copy_mark(struct nf_conntrack *tmp,
+		      const struct nf_conntrack *ct,
+		      const struct u32_mask *m)
+{
+	if (options & CT_OPT_MARK) {
+		uint32_t mark = nfct_get_attr_u32(ct, ATTR_MARK);
+		mark = (mark & ~m->mask) ^ m->value;
+		nfct_set_attr_u32(tmp, ATTR_MARK, mark);
+	}
+}
+
 static int update_cb(enum nf_conntrack_msg_type type,
 		     struct nf_conntrack *ct,
 		     void *data)
@@ -1196,6 +1256,7 @@ static int update_cb(enum nf_conntrack_msg_type type,
 
 	nfct_copy(tmp, ct, NFCT_CP_ORIG);
 	nfct_copy(tmp, obj, NFCT_CP_META);
+	copy_mark(tmp, ct, &tmpl.mark);
 
 	res = nfct_query(ith, NFCT_Q_UPDATE, tmp);
 	if (res < 0) {
@@ -1494,12 +1555,14 @@ int main(int argc, char *argv[])
 					  strtoul(optarg, NULL, 0));
 			break;
 		case 'i':
-		case 'm':
 		case 'c':
 			options |= opt2type[c];
 			nfct_set_attr_u32(tmpl.ct,
 					  opt2attr[c],
 					  strtoul(optarg, NULL, 0));
+		case 'm':
+			options |= opt2type[c];
+			parse_u32_mask(optarg, &tmpl.mark);
 			break;
 		case 'a':
 			fprintf(stderr, "WARNING: ignoring -%c, "
@@ -1614,6 +1677,9 @@ int main(int argc, char *argv[])
 		    	nfct_setobjopt(tmpl.ct, NFCT_SOPT_SETUP_REPLY);
 		else if (!(options & CT_OPT_ORIG) && (options & CT_OPT_REPL))
 			nfct_setobjopt(tmpl.ct, NFCT_SOPT_SETUP_ORIGINAL);
+
+		if (options & CT_OPT_MARK)
+			nfct_set_attr_u32(tmpl.ct, ATTR_MARK, tmpl.mark.value);
 
 		cth = nfct_open(CONNTRACK, 0);
 		if (!cth)
