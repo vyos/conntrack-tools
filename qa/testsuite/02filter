@@ -16,5 +16,8 @@ conntrack -U -s 1.1.1.1 -m 1 ; OK
 conntrack -L -m 1 ; OK
 # filter by layer 3 protocol
 conntrack -L -f ipv4 ; OK
+# filter by mark
+conntrack -L --mark 0 ; OK
+conntrack -L --mark 0/0xffffffff; OK
 # delete dummy
 conntrack -D -d 2.2.2.2 ; OK
