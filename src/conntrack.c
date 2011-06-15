@@ -1565,6 +1565,7 @@ int main(int argc, char *argv[])
 			nfct_set_attr_u32(tmpl.ct,
 					  opt2attr[c],
 					  strtoul(optarg, NULL, 0));
+			break;
 		case 'm':
 			options |= opt2type[c];
 			parse_u32_mask(optarg, &tmpl.mark);
