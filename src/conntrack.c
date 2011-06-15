@@ -1258,6 +1258,12 @@ static int update_cb(enum nf_conntrack_msg_type type,
 	nfct_copy(tmp, obj, NFCT_CP_META);
 	copy_mark(tmp, ct, &tmpl.mark);
 
+	/* do not send NFCT_Q_UPDATE if ct appears unchanged */
+	if (nfct_cmp(tmp, ct, NFCT_CMP_ALL | NFCT_CMP_MASK)) {
+		nfct_destroy(tmp);
+		return NFCT_CB_CONTINUE;
+	}
+
 	res = nfct_query(ith, NFCT_Q_UPDATE, tmp);
 	if (res < 0) {
 		nfct_destroy(tmp);
