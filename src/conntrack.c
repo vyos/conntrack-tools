@@ -1359,10 +1359,9 @@ static int display_proc_conntrack_stats(void)
 
 	/* trim off trailing \n */
 	nl = strchr(buf, '\n');
-	if (nl != NULL) {
+	if (nl != NULL)
 		*nl = '\0';
-		nl = strchr(buf, '\n');
-	}
+
 	token = strtok(buf, " ");
 	for (i=0; token != NULL && i<CT_STATS_ENTRIES_MAX; i++) {
 		strncpy(output[i], token, CT_STATS_STRING_MAX);
