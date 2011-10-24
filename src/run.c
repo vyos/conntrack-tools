@@ -321,6 +321,8 @@ static int get_handler(enum nf_conntrack_msg_type type,
 int
 init(void)
 {
+	do_gettimeofday();
+
 	if (CONFIG(flags) & CTD_STATS_MODE)
 		STATE(mode) = &stats_mode;
 	else if (CONFIG(flags) & CTD_SYNC_MODE)
