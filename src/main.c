@@ -115,15 +115,15 @@ int main(int argc, char *argv[])
 			break;
 		case 'c':
 			set_operation_mode(&type, REQUEST, argv);
-			action = COMMIT;
+			action = CT_COMMIT;
 			break;
 		case 'i':
 			set_operation_mode(&type, REQUEST, argv);
-			action = DUMP_INTERNAL;
+			action = CT_DUMP_INTERNAL;
 			break;
 		case 'e':
 			set_operation_mode(&type, REQUEST, argv);
-			action = DUMP_EXTERNAL;
+			action = CT_DUMP_EXTERNAL;
 			break;
 		case 'C':
 			if (++i < argc) {
@@ -142,18 +142,18 @@ int main(int argc, char *argv[])
 			break;
 		case 'F':
 			set_operation_mode(&type, REQUEST, argv);
-			action = FLUSH_MASTER;
+			action = CT_FLUSH_MASTER;
 			break;
 		case 'f':
 			set_operation_mode(&type, REQUEST, argv);
 			if (i+1 < argc && argv[i+1][0] != '-') {
 				if (strncmp(argv[i+1], "internal",
 					    strlen(argv[i+1])) == 0) {
-					action = FLUSH_INT_CACHE;
+					action = CT_FLUSH_INT_CACHE;
 					i++;
 				} else if (strncmp(argv[i+1], "external",
 						 strlen(argv[i+1])) == 0) {
-					action = FLUSH_EXT_CACHE;
+					action = CT_FLUSH_EXT_CACHE;
 					i++;
 				} else {
 					fprintf(stderr, "ERROR: unknown "
@@ -164,12 +164,12 @@ int main(int argc, char *argv[])
 				}
 			} else {
 				/* default to general flushing */
-				action = FLUSH_CACHE;
+				action = CT_FLUSH_CACHE;
 			}
 			break;
 		case 'R':
 			set_operation_mode(&type, REQUEST, argv);
-			action = RESYNC_MASTER;
+			action = CT_RESYNC_MASTER;
 			break;
 		case 'B':
 			set_operation_mode(&type, REQUEST, argv);
@@ -243,10 +243,10 @@ int main(int argc, char *argv[])
 			action = REQUEST_DUMP;
 			break;
 		case 'x':
-			if (action == DUMP_INTERNAL)
-				action = DUMP_INT_XML;
-			else if (action == DUMP_EXTERNAL)
-				action = DUMP_EXT_XML;
+			if (action == CT_DUMP_INTERNAL)
+				action = CT_DUMP_INT_XML;
+			else if (action == CT_DUMP_EXTERNAL)
+				action = CT_DUMP_EXT_XML;
 			else {
 				show_usage(argv[0]);
 				fprintf(stderr, "Error: Invalid parameters\n");

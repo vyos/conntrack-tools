@@ -486,31 +486,31 @@ static int local_handler_sync(int fd, int type, void *data)
 	int ret = LOCAL_RET_OK;
 
 	switch(type) {
-	case DUMP_INTERNAL:
+	case CT_DUMP_INTERNAL:
 		if (fork_process_new(CTD_PROC_ANY, 0, NULL, NULL) == 0) {
 			STATE(mode)->internal->ct.dump(fd, NFCT_O_PLAIN);
 			exit(EXIT_SUCCESS);
 		}
 		break;
-	case DUMP_EXTERNAL:
+	case CT_DUMP_EXTERNAL:
 		if (fork_process_new(CTD_PROC_ANY, 0, NULL, NULL) == 0) {
 			STATE_SYNC(external)->ct.dump(fd, NFCT_O_PLAIN);
 			exit(EXIT_SUCCESS);
 		} 
 		break;
-	case DUMP_INT_XML:
+	case CT_DUMP_INT_XML:
 		if (fork_process_new(CTD_PROC_ANY, 0, NULL, NULL) == 0) {
 			STATE(mode)->internal->ct.dump(fd, NFCT_O_XML);
 			exit(EXIT_SUCCESS);
 		}
 		break;
-	case DUMP_EXT_XML:
+	case CT_DUMP_EXT_XML:
 		if (fork_process_new(CTD_PROC_ANY, 0, NULL, NULL) == 0) {
 			STATE_SYNC(external)->ct.dump(fd, NFCT_O_XML);
 			exit(EXIT_SUCCESS);
 		}
 		break;
-	case COMMIT:
+	case CT_COMMIT:
 		/* delete the reset alarm if any before committing */
 		del_alarm(&STATE_SYNC(reset_cache_alarm));
 
@@ -525,20 +525,20 @@ static int local_handler_sync(int fd, int type, void *data)
 				  CONFIG(purge_timeout), 0);
 		}
 		break;
-	case FLUSH_CACHE:
+	case CT_FLUSH_CACHE:
 		/* inmediate flush, remove pending flush scheduled if any */
 		del_alarm(&STATE_SYNC(reset_cache_alarm));
 		dlog(LOG_NOTICE, "flushing caches");
 		STATE(mode)->internal->ct.flush();
 		STATE_SYNC(external)->ct.flush();
 		break;
-	case FLUSH_INT_CACHE:
+	case CT_FLUSH_INT_CACHE:
 		/* inmediate flush, remove pending flush scheduled if any */
 		del_alarm(&STATE_SYNC(reset_cache_alarm));
 		dlog(LOG_NOTICE, "flushing internal cache");
 		STATE(mode)->internal->ct.flush();
 		break;
-	case FLUSH_EXT_CACHE:
+	case CT_FLUSH_EXT_CACHE:
 		dlog(LOG_NOTICE, "flushing external cache");
 		STATE_SYNC(external)->ct.flush();
 		break;

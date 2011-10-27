@@ -62,14 +62,14 @@ static int local_handler_stats(int fd, int type, void *data)
 	int ret = LOCAL_RET_OK;
 
 	switch(type) {
-	case DUMP_INTERNAL:
+	case CT_DUMP_INTERNAL:
 		cache_dump(STATE_STATS(cache), fd, NFCT_O_PLAIN);
 		break;
-	case DUMP_INT_XML:
+	case CT_DUMP_INT_XML:
 		cache_dump(STATE_STATS(cache), fd, NFCT_O_XML);
 		break;
-	case FLUSH_CACHE:
-	case FLUSH_INT_CACHE:
+	case CT_FLUSH_CACHE:
+	case CT_FLUSH_INT_CACHE:
 		dlog(LOG_NOTICE, "flushing caches");
 		cache_flush(STATE_STATS(cache));
 		break;

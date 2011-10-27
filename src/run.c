@@ -197,7 +197,7 @@ static int local_handler(int fd, void *data)
 		return LOCAL_RET_OK;
 	}
 	switch(type) {
-	case FLUSH_MASTER:
+	case CT_FLUSH_MASTER:
 		STATE(stats).nl_kernel_table_flush++;
 		dlog(LOG_NOTICE, "flushing kernel conntrack table");
 
@@ -209,7 +209,7 @@ static int local_handler(int fd, void *data)
 			exit(EXIT_SUCCESS);
 		}
 		break;
-	case RESYNC_MASTER:
+	case CT_RESYNC_MASTER:
 		if (STATE(mode)->internal->flags & INTERNAL_F_POPULATE) {
 			STATE(stats).nl_kernel_table_resync++;
 			dlog(LOG_NOTICE, "resync with master table");
