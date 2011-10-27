@@ -1,6 +1,7 @@
 /*
- * (C) 2006-2009 by Pablo Neira Ayuso <pablo@netfilter.org>
- * 
+ * (C) 2006-2011 by Pablo Neira Ayuso <pablo@netfilter.org>
+ * (C) 2011 by Vyatta Inc. <http://www.vyatta.com>
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
@@ -43,7 +44,7 @@ static void external_cache_close(void)
 	cache_destroy(external);
 }
 
-static void external_cache_new(struct nf_conntrack *ct)
+static void external_cache_ct_new(struct nf_conntrack *ct)
 {
 	struct cache_object *obj;
 	int id;
@@ -66,12 +67,12 @@ retry:
 	}
 }
 
-static void external_cache_upd(struct nf_conntrack *ct)
+static void external_cache_ct_upd(struct nf_conntrack *ct)
 {
 	cache_update_force(external, ct);
 }
 
-static void external_cache_del(struct nf_conntrack *ct)
+static void external_cache_ct_del(struct nf_conntrack *ct)
 {
 	struct cache_object *obj;
 	int id;
@@ -83,12 +84,12 @@ static void external_cache_del(struct nf_conntrack *ct)
 	}
 }
 
-static void external_cache_dump(int fd, int type)
+static void external_cache_ct_dump(int fd, int type)
 {
 	cache_dump(external, fd, type);
 }
 
-static int external_cache_commit(struct nfct_handle *h, int fd)
+static int external_cache_ct_commit(struct nfct_handle *h, int fd)
 {
 	if (!cache_commit(external, h, fd)) {
 		dlog(LOG_NOTICE, "commit already in progress, skipping");
@@ -98,17 +99,17 @@ static int external_cache_commit(struct nfct_handle *h, int fd)
 	return LOCAL_RET_STOLEN;
 }
 
-static void external_cache_flush(void)
+static void external_cache_ct_flush(void)
 {
 	cache_flush(external);
 }
 
-static void external_cache_stats(int fd)
+static void external_cache_ct_stats(int fd)
 {
 	cache_stats(external, fd);
 }
 
-static void external_cache_stats_ext(int fd)
+static void external_cache_ct_stats_ext(int fd)
 {
 	cache_stats_extended(external, fd);
 }
@@ -116,12 +117,14 @@ static void external_cache_stats_ext(int fd)
 struct external_handler external_cache = {
 	.init		= external_cache_init,
 	.close		= external_cache_close,
-	.new		= external_cache_new,
-	.update		= external_cache_upd,
-	.destroy	= external_cache_del,
-	.dump		= external_cache_dump,
-	.commit		= external_cache_commit,
-	.flush		= external_cache_flush,
-	.stats		= external_cache_stats,
-	.stats_ext	= external_cache_stats_ext,
+	.ct = {
+		.new		= external_cache_ct_new,
+		.upd		= external_cache_ct_upd,
+		.del		= external_cache_ct_del,
+		.dump		= external_cache_ct_dump,
+		.commit		= external_cache_ct_commit,
+		.flush		= external_cache_ct_flush,
+		.stats		= external_cache_ct_stats,
+		.stats_ext	= external_cache_ct_stats_ext,
+	},
 };

@@ -1,6 +1,7 @@
 /*
- * (C) 2009 by Pablo Neira Ayuso <pablo@netfilter.org>
- * 
+ * (C) 2006-2011 by Pablo Neira Ayuso <pablo@netfilter.org>
+ * (C) 2011 by Vyatta Inc. <http://www.vyatta.com>
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
@@ -59,7 +60,7 @@ static void external_inject_close(void)
 	nfct_close(inject);
 }
 
-static void external_inject_new(struct nf_conntrack *ct)
+static void external_inject_ct_new(struct nf_conntrack *ct)
 {
 	int ret, retry = 1;
 
@@ -87,7 +88,7 @@ retry:
 	}
 }
 
-static void external_inject_upd(struct nf_conntrack *ct)
+static void external_inject_ct_upd(struct nf_conntrack *ct)
 {
 	int ret;
 
@@ -128,7 +129,7 @@ static void external_inject_upd(struct nf_conntrack *ct)
 	dlog_ct(STATE(log), ct, NFCT_O_PLAIN);
 }
 
-static void external_inject_del(struct nf_conntrack *ct)
+static void external_inject_ct_del(struct nf_conntrack *ct)
 {
 	if (nl_destroy_conntrack(inject, ct) == -1) {
 		if (errno != ENOENT) {
@@ -141,21 +142,21 @@ static void external_inject_del(struct nf_conntrack *ct)
 	}
 }
 
-static void external_inject_dump(int fd, int type)
+static void external_inject_ct_dump(int fd, int type)
 {
 }
 
-static int external_inject_commit(struct nfct_handle *h, int fd)
+static int external_inject_ct_commit(struct nfct_handle *h, int fd)
 {
 	/* close the commit socket. */
 	return LOCAL_RET_OK;
 }
 
-static void external_inject_flush(void)
+static void external_inject_ct_flush(void)
 {
 }
 
-static void external_inject_stats(int fd)
+static void external_inject_ct_stats(int fd)
 {
 	char buf[512];
 	int size;
@@ -177,12 +178,14 @@ static void external_inject_stats(int fd)
 struct external_handler external_inject = {
 	.init		= external_inject_init,
 	.close		= external_inject_close,
-	.new		= external_inject_new,
-	.update		= external_inject_upd,
-	.destroy	= external_inject_del,
-	.dump		= external_inject_dump,
-	.commit		= external_inject_commit,
-	.flush		= external_inject_flush,
-	.stats		= external_inject_stats,
-	.stats_ext	= external_inject_stats,
+	.ct = {
+		.new		= external_inject_ct_new,
+		.upd		= external_inject_ct_upd,
+		.del		= external_inject_ct_del,
+		.dump		= external_inject_ct_dump,
+		.commit		= external_inject_ct_commit,
+		.flush		= external_inject_ct_flush,
+		.stats		= external_inject_ct_stats,
+		.stats_ext	= external_inject_ct_stats,
+	},
 };

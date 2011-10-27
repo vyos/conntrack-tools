@@ -88,13 +88,13 @@ do_channel_handler_step(int i, struct nethdr *net, size_t remain)
 
 	switch(net->type) {
 	case NET_T_STATE_NEW:
-		STATE_SYNC(external)->new(ct);
+		STATE_SYNC(external)->ct.new(ct);
 		break;
 	case NET_T_STATE_UPD:
-		STATE_SYNC(external)->update(ct);
+		STATE_SYNC(external)->ct.upd(ct);
 		break;
 	case NET_T_STATE_DEL:
-		STATE_SYNC(external)->destroy(ct);
+		STATE_SYNC(external)->ct.del(ct);
 		break;
 	default:
 		STATE_SYNC(error).msg_rcv_malformed++;
@@ -387,7 +387,7 @@ static void run_sync(fd_set *readfds)
 
 	if (FD_ISSET(get_read_evfd(STATE_SYNC(commit).evfd), readfds)) {
 		read_evfd(STATE_SYNC(commit).evfd);
-		STATE_SYNC(external)->commit(STATE_SYNC(commit).h, 0);
+		STATE_SYNC(external)->ct.commit(STATE_SYNC(commit).h, 0);
 	}
 
 	/* flush pending messages */
@@ -478,7 +478,7 @@ static int local_handler_sync(int fd, int type, void *data)
 		break;
 	case DUMP_EXTERNAL:
 		if (fork_process_new(CTD_PROC_ANY, 0, NULL, NULL) == 0) {
-			STATE_SYNC(external)->dump(fd, NFCT_O_PLAIN);
+			STATE_SYNC(external)->ct.dump(fd, NFCT_O_PLAIN);
 			exit(EXIT_SUCCESS);
 		} 
 		break;
@@ -490,7 +490,7 @@ static int local_handler_sync(int fd, int type, void *data)
 		break;
 	case DUMP_EXT_XML:
 		if (fork_process_new(CTD_PROC_ANY, 0, NULL, NULL) == 0) {
-			STATE_SYNC(external)->dump(fd, NFCT_O_XML);
+			STATE_SYNC(external)->ct.dump(fd, NFCT_O_XML);
 			exit(EXIT_SUCCESS);
 		}
 		break;
@@ -499,7 +499,7 @@ static int local_handler_sync(int fd, int type, void *data)
 		del_alarm(&STATE_SYNC(reset_cache_alarm));
 
 		dlog(LOG_NOTICE, "committing external cache");
-		ret = STATE_SYNC(external)->commit(STATE_SYNC(commit).h, fd);
+		ret = STATE_SYNC(external)->ct.commit(STATE_SYNC(commit).h, fd);
 		break;
 	case RESET_TIMERS:
 		if (!alarm_pending(&STATE_SYNC(reset_cache_alarm))) {
@@ -514,7 +514,7 @@ static int local_handler_sync(int fd, int type, void *data)
 		del_alarm(&STATE_SYNC(reset_cache_alarm));
 		dlog(LOG_NOTICE, "flushing caches");
 		STATE(mode)->internal->ct.flush();
-		STATE_SYNC(external)->flush();
+		STATE_SYNC(external)->ct.flush();
 		break;
 	case FLUSH_INT_CACHE:
 		/* inmediate flush, remove pending flush scheduled if any */
@@ -524,14 +524,14 @@ static int local_handler_sync(int fd, int type, void *data)
 		break;
 	case FLUSH_EXT_CACHE:
 		dlog(LOG_NOTICE, "flushing external cache");
-		STATE_SYNC(external)->flush();
+		STATE_SYNC(external)->ct.flush();
 		break;
 	case KILL:
 		killer(0);
 		break;
 	case STATS:
 		STATE(mode)->internal->ct.stats(fd);
-		STATE_SYNC(external)->stats(fd);
+		STATE_SYNC(external)->ct.stats(fd);
 		dump_traffic_stats(fd);
 		multichannel_stats(STATE_SYNC(channel), fd);
 		dump_stats_sync(fd);
@@ -542,7 +542,7 @@ static int local_handler_sync(int fd, int type, void *data)
 		break;
 	case STATS_CACHE:
 		STATE(mode)->internal->ct.stats_ext(fd);
-		STATE_SYNC(external)->stats_ext(fd);
+		STATE_SYNC(external)->ct.stats_ext(fd);
 		break;
 	case STATS_LINK:
 		multichannel_stats_extended(STATE_SYNC(channel),
