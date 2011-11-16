@@ -34,12 +34,14 @@ static struct alarm_block alive_alarm;
 
 struct cache_notrack {
 	struct queue_node	qnode;
+	struct cache_object	*obj;
 };
 
 static void cache_notrack_add(struct cache_object *obj, void *data)
 {
 	struct cache_notrack *cn = data;
 	queue_node_init(&cn->qnode, Q_ELEM_OBJ);
+	cn->obj = obj;
 }
 
 static void cache_notrack_del(struct cache_object *obj, void *data)
@@ -191,19 +193,17 @@ static int tx_queue_xmit(struct queue_node *n, const void *data2)
 		break;
 	}
 	case Q_ELEM_OBJ: {
-		struct cache_ftfw *cn;
-		struct cache_object *obj;
+		struct cache_notrack *cn;
 		int type;
 		struct nethdr *net;
 
-		cn = (struct cache_ftfw *)n;
-		obj = cache_data_get_object(STATE(mode)->internal->ct.data, cn);
-		type = object_status_to_network_type(obj);;
-		net = obj->cache->ops->build_msg(obj, type);
+		cn = (struct cache_notrack *)n;
+		type = object_status_to_network_type(cn->obj);
+		net = cn->obj->cache->ops->build_msg(cn->obj, type);
 
 		multichannel_send(STATE_SYNC(channel), net);
 		queue_del(n);
-		cache_object_put(obj);
+		cache_object_put(cn->obj);
 		break;
 	}
 	}

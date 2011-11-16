@@ -303,11 +303,6 @@ struct cache_object *cache_find(struct cache *c, void *ptr, int *id)
 	return ((struct cache_object *) hashtable_find(c->h, ptr, *id));
 }
 
-struct cache_object *cache_data_get_object(struct cache *c, void *data)
-{
-	return (struct cache_object *)((char*)data - c->extra_offset);
-}
-
 void *cache_get_extra(struct cache_object *obj)
 {
 	return (char*)obj + obj->cache->extra_offset;

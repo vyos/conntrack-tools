@@ -29,6 +29,7 @@
 
 struct cache_alarm {
 	struct queue_node	qnode;
+	struct cache_object	*obj;
 	struct alarm_block	alarm;
 };
 
@@ -50,6 +51,7 @@ static void cache_alarm_add(struct cache_object *obj, void *data)
 	struct cache_alarm *ca = data;
 
 	queue_node_init(&ca->qnode, Q_ELEM_OBJ);
+	ca->obj = obj;
 	init_alarm(&ca->alarm, obj, refresher);
 	add_alarm(&ca->alarm,
 		  random() % CONFIG(refresh) + 1,
@@ -131,15 +133,13 @@ static int tx_queue_xmit(struct queue_node *n, const void *data)
 		break;
 	case Q_ELEM_OBJ: {
 		struct cache_alarm *ca;
-		struct cache_object *obj;
 		int type;
 
 		ca = (struct cache_alarm *)n;
-		obj = cache_data_get_object(STATE(mode)->internal->ct.data, ca);
-		type = object_status_to_network_type(obj);
-		net = obj->cache->ops->build_msg(obj, type);
+		type = object_status_to_network_type(ca->obj);
+		net = ca->obj->cache->ops->build_msg(ca->obj, type);
 		multichannel_send(STATE_SYNC(channel), net);
-		cache_object_put(obj);
+		cache_object_put(ca->obj);
 		break;
 	}
 	}

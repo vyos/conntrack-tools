@@ -55,12 +55,14 @@ static int say_hello_back;
 
 struct cache_ftfw {
 	struct queue_node	qnode;
+	struct cache_object	*obj;
 	uint32_t 		seq;
 };
 
 static void cache_ftfw_add(struct cache_object *obj, void *data)
 {
 	struct cache_ftfw *cn = data;
+	cn->obj = obj;
 	/* These nodes are not inserted in the list */
 	queue_node_init(&cn->qnode, Q_ELEM_OBJ);
 }
@@ -302,13 +304,11 @@ static int rs_queue_empty(struct queue_node *n, const void *data)
 	}
 	case Q_ELEM_OBJ: {
 		struct cache_ftfw *cn;
-		struct cache_object *obj;
 
 		cn = (struct cache_ftfw *) n;
 		if (h == NULL) {
 			queue_del(n);
-			obj = cache_data_get_object(STATE(mode)->internal->ct.data, cn);
-			cache_object_put(obj);
+			cache_object_put(cn->obj);
 			return 0;
 		}
 		if (before(cn->seq, h->from))
@@ -318,8 +318,7 @@ static int rs_queue_empty(struct queue_node *n, const void *data)
 
 		dp("queue: deleting from queue (seq=%u)\n", cn->seq);
 		queue_del(n);
-		obj = cache_data_get_object(STATE(mode)->internal->ct.data, cn);
-		cache_object_put(obj);
+		cache_object_put(cn->obj);
 		break;
 	}
 	}
@@ -465,11 +464,9 @@ static void rs_queue_purge_full(void)
 	}
 	case Q_ELEM_OBJ: {
 		struct cache_ftfw *cn;
-		struct cache_object *obj;
 
 		cn = (struct cache_ftfw *)n;
-		obj = cache_data_get_object(STATE(mode)->internal->ct.data, cn);
-		cache_object_put(obj);
+		cache_object_put(cn->obj);
 		break;
 	}
 	}
@@ -511,14 +508,12 @@ static int tx_queue_xmit(struct queue_node *n, const void *data)
 	}
 	case Q_ELEM_OBJ: {
 		struct cache_ftfw *cn;
-		struct cache_object *obj;
 		int type;
 		struct nethdr *net;
 
 		cn = (struct cache_ftfw *)n;
-		obj = cache_data_get_object(STATE(mode)->internal->ct.data, cn);
-		type = object_status_to_network_type(obj);
-		net = obj->cache->ops->build_msg(obj, type);
+		type = object_status_to_network_type(cn->obj);
+		net = cn->obj->cache->ops->build_msg(cn->obj, type);
 		nethdr_set_hello(net);
 
 		dp("tx_list sq: %u fl:%u len:%u\n",
