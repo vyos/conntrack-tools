@@ -235,7 +235,7 @@ void ct_filter_add_state(struct ct_filter *f, int protonum, int val)
 }
 
 static inline int
-__ct_filter_test_ipv4(struct ct_filter *f, struct nf_conntrack *ct)
+__ct_filter_test_ipv4(struct ct_filter *f, const struct nf_conntrack *ct)
 {
 	int id_src, id_dst;
 	uint32_t src, dst;
@@ -252,7 +252,7 @@ __ct_filter_test_ipv4(struct ct_filter *f, struct nf_conntrack *ct)
 }
 
 static inline int
-__ct_filter_test_ipv6(struct ct_filter *f, struct nf_conntrack *ct)
+__ct_filter_test_ipv6(struct ct_filter *f, const struct nf_conntrack *ct)
 {
 	int id_src, id_dst;
 	const uint32_t *src, *dst;
@@ -295,7 +295,8 @@ __ct_filter_test_mask6(const void *ptr, const void *ct)
 		 (elem->ip[3] & elem->mask[3]) == (dst[3] & elem->mask[3])));
 }
 
-static int __ct_filter_test_state(struct ct_filter *f, struct nf_conntrack *ct)
+static int
+__ct_filter_test_state(struct ct_filter *f, const struct nf_conntrack *ct)
 {
 	uint16_t val = 0;
 	uint8_t protonum = nfct_get_attr_u8(ct, ATTR_L4PROTO);
@@ -314,7 +315,8 @@ static int __ct_filter_test_state(struct ct_filter *f, struct nf_conntrack *ct)
 	return test_bit_u16(val, &f->statemap[protonum]);
 }
 
-static int ct_filter_check(struct ct_filter *f, struct nf_conntrack *ct)
+static int
+ct_filter_check(struct ct_filter *f, const struct nf_conntrack *ct)
 {
 	int ret, protonum = nfct_get_attr_u8(ct, ATTR_L4PROTO);
 
@@ -361,7 +363,7 @@ static int ct_filter_check(struct ct_filter *f, struct nf_conntrack *ct)
 	return 1;
 }
 
-static inline int ct_filter_sanity_check(struct nf_conntrack *ct)
+static inline int ct_filter_sanity_check(const struct nf_conntrack *ct)
 {
 	if (!nfct_attr_is_set(ct, ATTR_L3PROTO)) {
 		dlog(LOG_ERR, "missing layer 3 protocol");
@@ -396,7 +398,7 @@ static inline int ct_filter_sanity_check(struct nf_conntrack *ct)
 }
 
 /* we do user-space filtering for dump and resyncs */
-int ct_filter_conntrack(struct nf_conntrack *ct, int userspace)
+int ct_filter_conntrack(const struct nf_conntrack *ct, int userspace)
 {
 	/* missing mandatory attributes in object */
 	if (!ct_filter_sanity_check(ct))

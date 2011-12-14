@@ -50,6 +50,6 @@ void ct_filter_add_state(struct ct_filter *f, int protonum, int state);
 void ct_filter_set_logic(struct ct_filter *f,
 			 enum ct_filter_type type,
 			 enum ct_filter_logic logic);
-int ct_filter_conntrack(struct nf_conntrack *ct, int userspace);
+int ct_filter_conntrack(const struct nf_conntrack *ct, int userspace);
 
 #endif
