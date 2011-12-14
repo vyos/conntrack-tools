@@ -373,9 +373,7 @@ static inline int ct_filter_sanity_check(const struct nf_conntrack *ct)
 	switch(nfct_get_attr_u8(ct, ATTR_L3PROTO)) {
 	case AF_INET:
 		if (!nfct_attr_is_set(ct, ATTR_IPV4_SRC) ||
-		    !nfct_attr_is_set(ct, ATTR_IPV4_DST) ||
-		    !nfct_attr_is_set(ct, ATTR_REPL_IPV4_SRC) ||
-		    !nfct_attr_is_set(ct, ATTR_REPL_IPV4_DST)) {
+		    !nfct_attr_is_set(ct, ATTR_IPV4_DST)) {
 		    	dlog(LOG_ERR, "missing IPv4 address. "
 				      "You forgot to load "
 				      "nf_conntrack_ipv4?");
@@ -384,9 +382,7 @@ static inline int ct_filter_sanity_check(const struct nf_conntrack *ct)
 		break;
 	case AF_INET6:
 		if (!nfct_attr_is_set(ct, ATTR_IPV6_SRC) ||
-		    !nfct_attr_is_set(ct, ATTR_IPV6_DST) ||
-		    !nfct_attr_is_set(ct, ATTR_REPL_IPV6_SRC) ||
-		    !nfct_attr_is_set(ct, ATTR_REPL_IPV6_DST)) {
+		    !nfct_attr_is_set(ct, ATTR_IPV6_DST)) {
 		    	dlog(LOG_ERR, "missing IPv6 address. "
 				      "You forgot to load "
 				      "nf_conntrack_ipv6?");
