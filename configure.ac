@@ -1,7 +1,7 @@
 AC_INIT(conntrack-tools, 1.0.0, pablo@netfilter.org)
+AC_CONFIG_AUX_DIR([build-aux])
 
 AC_CANONICAL_HOST
-
 AC_CONFIG_MACRO_DIR([m4])
 AM_INIT_AUTOMAKE([-Wall foreign subdir-objects dist-bzip2 1.6])
 
