@@ -31,6 +31,9 @@ static int dump_cb(enum nf_conntrack_msg_type type,
 	char buf[1024];
 	int size, *fd = data;
 
+	if (ct_filter_conntrack(ct, 1))
+		return NFCT_CB_CONTINUE;
+
 	size = nfct_snprintf(buf, 1024, ct, NFCT_T_UNKNOWN, NFCT_O_DEFAULT, 0);
 	if (size < 1024) {
 		buf[size] = '\n';
