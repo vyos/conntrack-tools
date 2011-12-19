@@ -91,12 +91,7 @@ static void external_cache_ct_dump(int fd, int type)
 
 static int external_cache_ct_commit(struct nfct_handle *h, int fd)
 {
-	if (!cache_commit(external, h, fd)) {
-		dlog(LOG_NOTICE, "commit already in progress, skipping");
-		return LOCAL_RET_OK;
-	}
-	/* Keep the client socket open, we want synchronous commits. */
-	return LOCAL_RET_STOLEN;
+	return cache_commit(external, h, fd);
 }
 
 static void external_cache_ct_flush(void)

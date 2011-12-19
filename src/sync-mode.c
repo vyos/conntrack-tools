@@ -516,6 +516,14 @@ static int local_handler_sync(int fd, int type, void *data)
 
 		dlog(LOG_NOTICE, "committing external cache");
 		ret = STATE_SYNC(external)->ct.commit(STATE_SYNC(commit).h, fd);
+		if (ret == 0) {
+			dlog(LOG_NOTICE, "commit already in progress, "
+					 "skipping");
+			ret = LOCAL_RET_OK;
+		} else {
+			/* Keep open the client, we want synchronous commit. */
+			ret = LOCAL_RET_STOLEN;
+		}
 		break;
 	case RESET_TIMERS:
 		if (!alarm_pending(&STATE_SYNC(reset_cache_alarm))) {
