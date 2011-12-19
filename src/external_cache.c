@@ -26,6 +26,7 @@
 #include <stdlib.h>
 
 static struct cache *external;
+static struct cache *external_exp;
 
 static int external_cache_init(void)
 {
@@ -36,12 +37,21 @@ static int external_cache_init(void)
 		dlog(LOG_ERR, "can't allocate memory for the external cache");
 		return -1;
 	}
+	external_exp = cache_create("external", CACHE_T_EXP,
+				STATE_SYNC(sync)->external_cache_flags,
+				NULL, &cache_sync_external_exp_ops);
+	if (external_exp == NULL) {
+		dlog(LOG_ERR, "can't allocate memory for the external cache");
+		return -1;
+	}
+
 	return 0;
 }
 
 static void external_cache_close(void)
 {
 	cache_destroy(external);
+	cache_destroy(external_exp);
 }
 
 static void external_cache_ct_new(struct nf_conntrack *ct)
@@ -109,6 +119,71 @@ static void external_cache_ct_stats_ext(int fd)
 	cache_stats_extended(external, fd);
 }
 
+static void external_cache_exp_new(struct nf_expect *exp)
+{
+	struct cache_object *obj;
+	int id;
+
+	obj = cache_find(external_exp, exp, &id);
+	if (obj == NULL) {
+retry:
+		obj = cache_object_new(external_exp, exp);
+		if (obj == NULL)
+			return;
+
+		if (cache_add(external_exp, obj, id) == -1) {
+			cache_object_free(obj);
+			return;
+		}
+	} else {
+		cache_del(external_exp, obj);
+		cache_object_free(obj);
+		goto retry;
+	}
+}
+
+static void external_cache_exp_upd(struct nf_expect *exp)
+{
+	cache_update_force(external_exp, exp);
+}
+
+static void external_cache_exp_del(struct nf_expect *exp)
+{
+	struct cache_object *obj;
+	int id;
+
+	obj = cache_find(external_exp, exp, &id);
+	if (obj) {
+		cache_del(external_exp, obj);
+		cache_object_free(obj);
+	}
+}
+
+static void external_cache_exp_dump(int fd, int type)
+{
+	cache_dump(external_exp, fd, type);
+}
+
+static int external_cache_exp_commit(struct nfct_handle *h, int fd)
+{
+	return cache_commit(external_exp, h, fd);
+}
+
+static void external_cache_exp_flush(void)
+{
+	cache_flush(external_exp);
+}
+
+static void external_cache_exp_stats(int fd)
+{
+	cache_stats(external_exp, fd);
+}
+
+static void external_cache_exp_stats_ext(int fd)
+{
+	cache_stats_extended(external_exp, fd);
+}
+
 struct external_handler external_cache = {
 	.init		= external_cache_init,
 	.close		= external_cache_close,
@@ -121,5 +196,15 @@ struct external_handler external_cache = {
 		.flush		= external_cache_ct_flush,
 		.stats		= external_cache_ct_stats,
 		.stats_ext	= external_cache_ct_stats_ext,
+	},
+	.exp = {
+		.new		= external_cache_exp_new,
+		.upd		= external_cache_exp_upd,
+		.del		= external_cache_exp_del,
+		.dump		= external_cache_exp_dump,
+		.commit		= external_cache_exp_commit,
+		.flush		= external_cache_exp_flush,
+		.stats		= external_cache_exp_stats,
+		.stats_ext	= external_cache_exp_stats_ext,
 	},
 };

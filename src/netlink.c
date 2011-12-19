@@ -1,5 +1,6 @@
 /*
- * (C) 2006 by Pablo Neira Ayuso <pablo@netfilter.org>
+ * (C) 2006-2011 by Pablo Neira Ayuso <pablo@netfilter.org>
+ * (C) 2011 by Vyatta Inc. <http://www.vyatta.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -32,7 +33,7 @@ struct nfct_handle *nl_init_event_handler(void)
 {
 	struct nfct_handle *h;
 
-	h = nfct_open(CONNTRACK, NFCT_ALL_CT_GROUPS);
+	h = nfct_open(CONFIG(netlink).subsys_id, CONFIG(netlink).groups);
 	if (h == NULL)
 		return NULL;
 
@@ -300,4 +301,62 @@ int nl_update_conntrack(struct nfct_handle *h,
 int nl_destroy_conntrack(struct nfct_handle *h, const struct nf_conntrack *ct)
 {
 	return nfct_query(h, NFCT_Q_DESTROY, ct);
+}
+
+int nl_create_expect(struct nfct_handle *h, const struct nf_expect *orig,
+		     int timeout)
+{
+	int ret;
+	struct nf_expect *exp;
+
+	exp = nfexp_clone(orig);
+	if (exp == NULL)
+		return -1;
+
+	if (timeout > 0)
+		nfexp_set_attr_u32(exp, ATTR_EXP_TIMEOUT, timeout);
+
+	ret = nfexp_query(h, NFCT_Q_CREATE, exp);
+	nfexp_destroy(exp);
+
+	return ret;
+}
+
+int nl_destroy_expect(struct nfct_handle *h, const struct nf_expect *exp)
+{
+	return nfexp_query(h, NFCT_Q_DESTROY, exp);
+}
+
+/* if the handle has no callback, check for existence, otherwise, update */
+int nl_get_expect(struct nfct_handle *h, const struct nf_expect *exp)
+{
+	int ret = 1;
+	struct nf_expect *tmp;
+
+	/* XXX: we only need the expectation, not the mask and the master. */
+	tmp = nfexp_clone(exp);
+	if (tmp == NULL)
+		return -1;
+
+	if (nfexp_query(h, NFCT_Q_GET, tmp) == -1)
+		ret = (errno == ENOENT) ? 0 : -1;
+
+	nfexp_destroy(tmp);
+	return ret;
+}
+
+int nl_dump_expect_table(struct nfct_handle *h)
+{
+	return nfexp_query(h, NFCT_Q_DUMP, &CONFIG(family));
+}
+
+int nl_flush_expect_table(struct nfct_handle *h)
+{
+	return nfexp_query(h, NFCT_Q_FLUSH, &CONFIG(family));
+}
+
+int nl_send_expect_resync(struct nfct_handle *h)
+{
+	int family = CONFIG(family);
+	return nfexp_send(h, NFCT_Q_DUMP, &family);
 }

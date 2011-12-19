@@ -37,6 +37,16 @@
 #define CT_FLUSH_EXT_CACHE	34	/* flush external cache		*/
 #define STATS_PROCESS		35	/* child process stats		*/
 #define STATS_QUEUE		36	/* queue stats			*/
+#define EXP_STATS		37	/* dump statistics		*/
+#define EXP_FLUSH_MASTER	38	/* flush kernel expect table    */
+#define EXP_RESYNC_MASTER	39	/* resync with kernel exp table	*/
+#define EXP_DUMP_INTERNAL	40	/* dump internal expect cache	*/
+#define EXP_DUMP_EXTERNAL	41	/* dump external expect cache	*/
+#define EXP_COMMIT		42	/* commit expectations		*/
+#define ALL_FLUSH_MASTER	43	/* flush all kernel tables	*/
+#define ALL_RESYNC_MASTER	44	/* resync w/all kernel tables	*/
+#define ALL_FLUSH_CACHE		45	/* flush all caches		*/
+#define ALL_COMMIT		46	/* commit all tables		*/
 
 #define DEFAULT_CONFIGFILE	"/etc/conntrackd/conntrackd.conf"
 #define DEFAULT_LOCKFILE	"/var/lock/conntrackd.lock"
@@ -56,6 +66,7 @@
 #define CTD_SYNC_ALARM		(1UL << 3)
 #define CTD_SYNC_NOTRACK	(1UL << 4)
 #define CTD_POLL		(1UL << 5)
+#define CTD_EXPECT		(1UL << 6)
 
 /* FILENAME_MAX is 4096 on my system, perhaps too much? */
 #ifndef FILENAME_MAXLEN
@@ -105,6 +116,8 @@ struct ct_conf {
 		int tcp_window_tracking;
 	} sync;
 	struct {
+		int subsys_id;
+		int groups;
 		int events_reliable;
 	} netlink;
 	struct {
@@ -130,6 +143,7 @@ struct ct_general_state {
 	struct local_server		local;
 	struct ct_mode 			*mode;
 	struct ct_filter		*us_filter;
+	struct exp_filter		*exp_filter;
 
 	struct nfct_handle		*event;         /* event handler */
 	struct nfct_filter		*filter;	/* event filter */
@@ -177,6 +191,10 @@ struct ct_general_state {
 	} stats;
 };
 
+struct commit_runqueue {
+	int		(*cb)(struct nfct_handle *h, int step);
+};
+
 #define STATE_SYNC(x) state.sync->x
 
 struct ct_sync_state {
@@ -196,6 +214,7 @@ struct ct_sync_state {
 		struct nfct_handle	*h;
 		struct evfd		*evfd;
 		int			current;
+		struct commit_runqueue  rq[2];
 		struct {
 			int 		ok;
 			int		fail;

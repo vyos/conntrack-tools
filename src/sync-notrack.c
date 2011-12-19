@@ -102,7 +102,7 @@ static void kernel_resync(void)
 	u_int32_t family = AF_UNSPEC;
 	int ret;
 
-	h = nfct_open(CONNTRACK, 0);
+	h = nfct_open(CONFIG(netlink).subsys_id, 0);
 	if (h == NULL) {
 		dlog(LOG_ERR, "can't allocate memory for the internal cache");
 		return;
@@ -131,6 +131,8 @@ static int notrack_local(int fd, int type, void *data)
 		} else {
 			cache_iterate(STATE(mode)->internal->ct.data,
 				      NULL, do_cache_to_tx);
+			cache_iterate(STATE(mode)->internal->exp.data,
+				      NULL, do_cache_to_tx);
 		}
 		break;
 	default:
@@ -151,6 +153,8 @@ static int digest_msg(const struct nethdr *net)
 			kernel_resync();
 		} else {
 			cache_iterate(STATE(mode)->internal->ct.data,
+				      NULL, do_cache_to_tx);
+			cache_iterate(STATE(mode)->internal->exp.data,
 				      NULL, do_cache_to_tx);
 		}
 		return MSG_CTL;

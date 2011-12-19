@@ -248,3 +248,195 @@ int msg2ct(struct nf_conntrack *ct, struct nethdr *net, size_t remain)
 
 	return 0;
 }
+
+static void exp_parse_ct_group(void *ct, int attr, void *data);
+static void exp_parse_ct_u8(void *ct, int attr, void *data);
+static void exp_parse_u32(void *exp, int attr, void *data);
+
+static struct exp_parser {
+	void 	(*parse)(void *obj, int attr, void *data);
+	int 	exp_attr;
+	int 	ct_attr;
+	int	size;
+} exp_h[NTA_EXP_MAX] = {
+	[NTA_EXP_MASTER_IPV4] = {
+		.parse		= exp_parse_ct_group,
+		.exp_attr	= ATTR_EXP_MASTER,
+		.ct_attr	= ATTR_GRP_ORIG_IPV4,
+		.size		= NTA_SIZE(sizeof(struct nfct_attr_grp_ipv4)),
+	},
+	[NTA_EXP_MASTER_IPV6] = {
+		.parse		= exp_parse_ct_group,
+		.exp_attr	= ATTR_EXP_MASTER,
+		.ct_attr	= ATTR_GRP_ORIG_IPV6,
+		.size		= NTA_SIZE(sizeof(struct nfct_attr_grp_ipv6)),
+	},
+	[NTA_EXP_MASTER_L4PROTO] = {
+		.parse		= exp_parse_ct_u8,
+		.exp_attr	= ATTR_EXP_MASTER,
+		.ct_attr	= ATTR_L4PROTO,
+		.size		= NTA_SIZE(sizeof(uint8_t)),
+	},
+	[NTA_EXP_MASTER_PORT] = {
+		.parse		= exp_parse_ct_group,
+		.exp_attr	= ATTR_EXP_MASTER,
+		.ct_attr	= ATTR_GRP_ORIG_PORT,
+		.size		= NTA_SIZE(sizeof(struct nfct_attr_grp_port)),
+	},
+	[NTA_EXP_EXPECT_IPV4] = {
+		.parse		= exp_parse_ct_group,
+		.exp_attr	= ATTR_EXP_EXPECTED,
+		.ct_attr	= ATTR_GRP_ORIG_IPV4,
+		.size		= NTA_SIZE(sizeof(struct nfct_attr_grp_ipv4)),
+	},
+	[NTA_EXP_EXPECT_IPV6] = {
+		.parse		= exp_parse_ct_group,
+		.exp_attr	= ATTR_EXP_EXPECTED,
+		.ct_attr	= ATTR_GRP_ORIG_IPV6,
+		.size		= NTA_SIZE(sizeof(struct nfct_attr_grp_ipv6)),
+	},
+	[NTA_EXP_EXPECT_L4PROTO] = {
+		.parse		= exp_parse_ct_u8,
+		.exp_attr	= ATTR_EXP_EXPECTED,
+		.ct_attr	= ATTR_L4PROTO,
+		.size		= NTA_SIZE(sizeof(uint8_t)),
+	},
+	[NTA_EXP_EXPECT_PORT] = {
+		.parse		= exp_parse_ct_group,
+		.exp_attr	= ATTR_EXP_EXPECTED,
+		.ct_attr	= ATTR_GRP_ORIG_PORT,
+		.size		= NTA_SIZE(sizeof(struct nfct_attr_grp_port)),
+	},
+	[NTA_EXP_MASK_IPV4] = {
+		.parse		= exp_parse_ct_group,
+		.exp_attr	= ATTR_EXP_MASK,
+		.ct_attr	= ATTR_GRP_ORIG_IPV4,
+		.size		= NTA_SIZE(sizeof(struct nfct_attr_grp_ipv4)),
+	},
+	[NTA_EXP_MASK_IPV6] = {
+		.parse		= exp_parse_ct_group,
+		.exp_attr	= ATTR_EXP_MASK,
+		.ct_attr	= ATTR_GRP_ORIG_IPV6,
+		.size		= NTA_SIZE(sizeof(struct nfct_attr_grp_ipv6)),
+	},
+	[NTA_EXP_MASK_L4PROTO] = {
+		.parse		= exp_parse_ct_u8,
+		.exp_attr	= ATTR_EXP_MASK,
+		.ct_attr	= ATTR_L4PROTO,
+		.size		= NTA_SIZE(sizeof(uint8_t)),
+	},
+	[NTA_EXP_MASK_PORT] = {
+		.parse		= exp_parse_ct_group,
+		.exp_attr	= ATTR_EXP_MASK,
+		.ct_attr	= ATTR_GRP_ORIG_PORT,
+		.size		= NTA_SIZE(sizeof(struct nfct_attr_grp_port)),
+	},
+	[NTA_EXP_TIMEOUT] = {
+		.parse		= exp_parse_u32,
+		.exp_attr	= ATTR_EXP_TIMEOUT,
+		.size		= NTA_SIZE(sizeof(uint32_t)),
+	},
+	[NTA_EXP_FLAGS] = {
+		.parse		= exp_parse_u32,
+		.exp_attr	= ATTR_EXP_FLAGS,
+		.size		= NTA_SIZE(sizeof(uint32_t)),
+	},
+};
+
+static void exp_parse_ct_group(void *ct, int attr, void *data)
+{
+	nfct_set_attr_grp(ct, exp_h[attr].ct_attr, data);
+}
+
+static void exp_parse_ct_u8(void *ct, int attr, void *data)
+{
+	uint8_t *value = (uint8_t *) data;
+	nfct_set_attr_u8(ct, exp_h[attr].ct_attr, *value);
+}
+
+static void exp_parse_u32(void *exp, int attr, void *data)
+{
+	uint32_t *value = (uint32_t *) data;
+	nfexp_set_attr_u32(exp, exp_h[attr].exp_attr, ntohl(*value));
+}
+
+int msg2exp(struct nf_expect *exp, struct nethdr *net, size_t remain)
+{
+	int len;
+	struct netattr *attr;
+	struct nf_conntrack *master, *expected, *mask;
+
+	if (remain < net->len)
+		return -1;
+
+	len = net->len - NETHDR_SIZ;
+	attr = NETHDR_DATA(net);
+
+	master = nfct_new();
+	if (master == NULL)
+		goto err_master;
+
+	expected = nfct_new();
+	if (expected == NULL)
+		goto err_expected;
+
+	mask = nfct_new();
+	if (mask == NULL)
+		goto err_mask;
+
+	while (len > ssizeof(struct netattr)) {
+		ATTR_NETWORK2HOST(attr);
+		if (attr->nta_len > len)
+			goto err;
+		if (attr->nta_attr > NTA_MAX)
+			goto err;
+		if (attr->nta_len != exp_h[attr->nta_attr].size)
+			goto err;
+		if (exp_h[attr->nta_attr].parse == NULL) {
+			attr = NTA_NEXT(attr, len);
+			continue;
+		}
+		switch(exp_h[attr->nta_attr].exp_attr) {
+		case ATTR_EXP_MASTER:
+			exp_h[attr->nta_attr].parse(master, attr->nta_attr,
+						    NTA_DATA(attr));
+		case ATTR_EXP_EXPECTED:
+			exp_h[attr->nta_attr].parse(expected, attr->nta_attr,
+						    NTA_DATA(attr));
+		case ATTR_EXP_MASK:
+			exp_h[attr->nta_attr].parse(mask, attr->nta_attr,
+						    NTA_DATA(attr));
+			break;
+		case ATTR_EXP_TIMEOUT:
+		case ATTR_EXP_FLAGS:
+			exp_h[attr->nta_attr].parse(exp, attr->nta_attr,
+						    NTA_DATA(attr));
+			break;
+		}
+		attr = NTA_NEXT(attr, len);
+	}
+
+	nfexp_set_attr(exp, ATTR_EXP_MASTER, master);
+	nfexp_set_attr(exp, ATTR_EXP_EXPECTED, expected);
+	nfexp_set_attr(exp, ATTR_EXP_MASK, mask);
+
+	/* We can release the conntrack objects at this point because the
+	 * setter makes a copy of them. This is not efficient, it would be
+	 * better to save that extra copy but this is how the library works.
+	 * I'm sorry, I cannot change it without breaking backward
+	 * compatibility. Probably it is a good idea to think of adding new
+	 * interfaces in the near future to get it better. */
+	nfct_destroy(mask);
+	nfct_destroy(expected);
+	nfct_destroy(master);
+
+	return 0;
+err:
+	nfct_destroy(mask);
+err_mask:
+	nfct_destroy(expected);
+err_expected:
+	nfct_destroy(master);
+err_master:
+	return -1;
+}

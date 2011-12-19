@@ -30,4 +30,11 @@ static inline int ct_is_related(const struct nf_conntrack *ct)
 		nfct_attr_is_set(ct, ATTR_MASTER_PORT_DST));
 }
 
+int nl_create_expect(struct nfct_handle *h, const struct nf_expect *orig, int timeout);
+int nl_destroy_expect(struct nfct_handle *h, const struct nf_expect *exp);
+int nl_get_expect(struct nfct_handle *h, const struct nf_expect *exp);
+int nl_dump_expect_table(struct nfct_handle *h);
+int nl_flush_expect_table(struct nfct_handle *h);
+int nl_send_expect_resync(struct nfct_handle *h);
+
 #endif

@@ -32,7 +32,7 @@
 #include <libnetfilter_conntrack/libnetfilter_conntrack.h>
 
 static uint32_t
-cache_hash4_ct(const struct nf_conntrack *ct, const struct hashtable *table)
+cache_hash4_exp(const struct nf_conntrack *ct, const struct hashtable *table)
 {
 	uint32_t a[4] = {
 		[0]	= nfct_get_attr_u32(ct, ATTR_IPV4_SRC),
@@ -54,7 +54,7 @@ cache_hash4_ct(const struct nf_conntrack *ct, const struct hashtable *table)
 }
 
 static uint32_t
-cache_hash6_ct(const struct nf_conntrack *ct, const struct hashtable *table)
+cache_hash6_exp(const struct nf_conntrack *ct, const struct hashtable *table)
 {
 	uint32_t a[10];
 
@@ -69,17 +69,18 @@ cache_hash6_ct(const struct nf_conntrack *ct, const struct hashtable *table)
 }
 
 static uint32_t
-cache_ct_hash(const void *data, const struct hashtable *table)
+cache_exp_hash(const void *data, const struct hashtable *table)
 {
 	int ret = 0;
-	const struct nf_conntrack *ct = data;
+	const struct nf_expect *exp = data;
+	const struct nf_conntrack *ct = nfexp_get_attr(exp, ATTR_EXP_MASTER);
 
 	switch(nfct_get_attr_u8(ct, ATTR_L3PROTO)) {
 		case AF_INET:
-			ret = cache_hash4_ct(ct, table);
+			ret = cache_hash4_exp(ct, table);
 			break;
 		case AF_INET6:
-			ret = cache_hash6_ct(ct, table);
+			ret = cache_hash6_exp(ct, table);
 			break;
 		default:
 			dlog(LOG_ERR, "unknown layer 3 proto in hash");
@@ -88,32 +89,31 @@ cache_ct_hash(const void *data, const struct hashtable *table)
 	return ret;
 }
 
-static int cache_ct_cmp(const void *data1, const void *data2)
+static int cache_exp_cmp(const void *data1, const void *data2)
 {
 	const struct cache_object *obj = data1;
-	const struct nf_conntrack *ct = data2;
+	const struct nf_expect *exp = data2;
 
-	return nfct_cmp(obj->ptr, ct, NFCT_CMP_ORIG) &&
-	       nfct_get_attr_u32(obj->ptr, ATTR_ID) ==
-	       nfct_get_attr_u32(ct, ATTR_ID);
+	return nfexp_cmp(obj->ptr, exp, 0);
 }
 
-static void *cache_ct_alloc(void)
+static void *cache_exp_alloc(void)
 {
-	return nfct_new();
+	return nfexp_new();
 }
 
-static void cache_ct_free(void *ptr)
+static void cache_exp_free(void *ptr)
 {
-	nfct_destroy(ptr);
+	nfexp_destroy(ptr);
 }
 
-static void cache_ct_copy(void *dst, void *src, unsigned int flags)
+static void cache_exp_copy(void *dst, void *src, unsigned int flags)
 {
-	nfct_copy(dst, src, flags);
+	/* XXX: add nfexp_copy(...) to libnetfilter_conntrack. */
+	memcpy(dst, src, nfexp_maxsize());
 }
 
-static int cache_ct_dump_step(void *data1, void *n)
+static int cache_exp_dump_step(void *data1, void *n)
 {
 	char buf[1024];
 	int size;
@@ -124,33 +124,28 @@ static int cache_ct_dump_step(void *data1, void *n)
 
 	/*
 	 * XXX: Do not dump the entries that are scheduled to expire.
-	 * 	These entries talk about already destroyed connections
-	 * 	that we keep for some time just in case that we have to
-	 * 	resent some lost messages. We do not show them to the
-	 * 	user as he may think that the firewall replicas are not
-	 * 	in sync. The branch below is a hack as it is quite
-	 * 	specific and it breaks conntrackd modularity. Probably
-	 * 	there's a nicer way to do this but until I come up with it...
+	 *	These entries talk about already destroyed connections
+	 *	that we keep for some time just in case that we have to
+	 *	resent some lost messages. We do not show them to the
+	 *	user as he may think that the firewall replicas are not
+	 *	in sync. The branch below is a hack as it is quite
+	 *	specific and it breaks conntrackd modularity. Probably
+	 *	there's a nicer way to do this but until I come up with it...
 	 */
 	if (CONFIG(flags) & CTD_SYNC_FTFW && obj->status == C_OBJ_DEAD)
 		return 0;
 
 	/* do not show cached timeout, this may confuse users */
-	if (nfct_attr_is_set(obj->ptr, ATTR_TIMEOUT))
-		nfct_attr_unset(obj->ptr, ATTR_TIMEOUT);
+	if (nfexp_attr_is_set(obj->ptr, ATTR_EXP_TIMEOUT))
+		nfexp_attr_unset(obj->ptr, ATTR_EXP_TIMEOUT);
 
 	memset(buf, 0, sizeof(buf));
-	size = nfct_snprintf(buf, 
-			     sizeof(buf), 
-			     obj->ptr,
-			     NFCT_T_UNKNOWN, 
-			     container->type,
-			     0);
+	size = nfexp_snprintf(buf, sizeof(buf),obj->ptr,
+			      NFCT_T_UNKNOWN, container->type, 0);
 
 	for (i = 0; i < obj->cache->num_features; i++) {
 		if (obj->cache->features[i]->dump) {
-			size += obj->cache->features[i]->dump(obj, 
-							      data, 
+			size += obj->cache->features[i]->dump(obj, data,
 							      buf+size,
 							      container->type);
 			data += obj->cache->features[i]->size;
@@ -170,11 +165,12 @@ static int cache_ct_dump_step(void *data1, void *n)
 	return 0;
 }
 
-static void
-cache_ct_commit_step(struct __commit_container *tmp, struct cache_object *obj)
+static int cache_exp_commit_step(void *data, void *n)
 {
+	struct cache_object *obj = n;
+	struct __commit_container *tmp = data;
 	int ret, retry = 1, timeout;
-	struct nf_conntrack *ct = obj->ptr;
+	struct nf_expect *exp = obj->ptr;
 
 	if (CONFIG(commit_timeout)) {
 		timeout = CONFIG(commit_timeout);
@@ -188,16 +184,16 @@ cache_ct_commit_step(struct __commit_container *tmp, struct cache_object *obj)
 			timeout = 60;
 		}
 		/* calculate an estimation of the current timeout */
-		timeout = nfct_get_attr_u32(ct, ATTR_TIMEOUT) - timeout;
+		timeout = nfexp_get_attr_u32(exp, ATTR_EXP_TIMEOUT) - timeout;
 		if (timeout < 0) {
 			timeout = 60;
 		}
 	}
 
 retry:
-	if (nl_create_conntrack(tmp->h, ct, timeout) == -1) {
+	if (nl_create_expect(tmp->h, exp, timeout) == -1) {
 		if (errno == EEXIST && retry == 1) {
-			ret = nl_destroy_conntrack(tmp->h, ct);
+			ret = nl_destroy_expect(tmp->h, exp);
 			if (ret == 0 || (ret == -1 && errno == ENOENT)) {
 				if (retry) {
 					retry = 0;
@@ -205,48 +201,29 @@ retry:
 				}
 			}
 			dlog(LOG_ERR, "commit-destroy: %s", strerror(errno));
-			dlog_ct(STATE(log), ct, NFCT_O_PLAIN);
+			dlog_exp(STATE(log), exp, NFCT_O_PLAIN);
 			tmp->c->stats.commit_fail++;
 		} else {
 			dlog(LOG_ERR, "commit-create: %s", strerror(errno));
-			dlog_ct(STATE(log), ct, NFCT_O_PLAIN);
+			dlog_exp(STATE(log), exp, NFCT_O_PLAIN);
 			tmp->c->stats.commit_fail++;
 		}
 	} else {
 		tmp->c->stats.commit_ok++;
 	}
-}
-
-static int cache_ct_commit_related(void *data, void *n)
-{
-	struct cache_object *obj = n;
-
-	if (ct_is_related(obj->ptr))
-		cache_ct_commit_step(data, obj);
-
 	/* keep iterating even if we have found errors */
 	return 0;
 }
 
-static int cache_ct_commit_master(void *data, void *n)
-{
-	struct cache_object *obj = n;
-
-	if (ct_is_related(obj->ptr))
-		return 0;
-
-	cache_ct_commit_step(data, obj);
-	return 0;
-}
-
-static int cache_ct_commit(struct cache *c, struct nfct_handle *h, int clientfd)
+static int
+cache_exp_commit(struct cache *c, struct nfct_handle *h, int clientfd)
 {
 	unsigned int commit_ok, commit_fail;
+	struct timeval commit_stop, res;
 	struct __commit_container tmp = {
 		.h = h,
 		.c = c,
 	};
-	struct timeval commit_stop, res;
 
 	/* we already have one commit in progress, skip this. The clientfd
 	 * descriptor has to be closed by the caller. */
@@ -264,45 +241,32 @@ static int cache_ct_commit(struct cache *c, struct nfct_handle *h, int clientfd)
 			hashtable_iterate_limit(c->h, &tmp,
 						STATE_SYNC(commit).current,
 						CONFIG(general).commit_steps,
-						cache_ct_commit_master);
+						cache_exp_commit_step);
 		if (STATE_SYNC(commit).current < CONFIG(hashsize)) {
 			STATE_SYNC(commit).state = COMMIT_STATE_MASTER;
 			/* give it another step as soon as possible */
 			write_evfd(STATE_SYNC(commit).evfd);
 			return 1;
 		}
-		STATE_SYNC(commit).current = 0;
-		STATE_SYNC(commit).state = COMMIT_STATE_RELATED;
-	case COMMIT_STATE_RELATED:
-		STATE_SYNC(commit).current =
-			hashtable_iterate_limit(c->h, &tmp,
-						STATE_SYNC(commit).current,
-						CONFIG(general).commit_steps,
-						cache_ct_commit_related);
-		if (STATE_SYNC(commit).current < CONFIG(hashsize)) {
-			STATE_SYNC(commit).state = COMMIT_STATE_RELATED;
-			/* give it another step as soon as possible */
-			write_evfd(STATE_SYNC(commit).evfd);
-			return 1;
-		}
+
 		/* calculate the time that commit has taken */
 		gettimeofday(&commit_stop, NULL);
 		timersub(&commit_stop, &STATE_SYNC(commit).stats.start, &res);
 
 		/* calculate new entries committed */
 		commit_ok = c->stats.commit_ok - STATE_SYNC(commit).stats.ok;
-		commit_fail = 
+		commit_fail =
 			c->stats.commit_fail - STATE_SYNC(commit).stats.fail;
 
 		/* log results */
-		dlog(LOG_NOTICE, "Committed %u new entries", commit_ok);
+		dlog(LOG_NOTICE, "Committed %u new expectations", commit_ok);
 
 		if (commit_fail)
-			dlog(LOG_NOTICE, "%u entries can't be "
+			dlog(LOG_NOTICE, "%u expectations can't be "
 					 "committed", commit_fail);
 
-		dlog(LOG_NOTICE, "commit has taken %lu.%06lu seconds", 
-				res.tv_sec, res.tv_usec);
+		dlog(LOG_NOTICE, "commit has taken %lu.%06lu seconds",
+			res.tv_sec, res.tv_usec);
 
 		/* prepare the state machine for new commits */
 		STATE_SYNC(commit).current = 0;
@@ -314,43 +278,31 @@ static int cache_ct_commit(struct cache *c, struct nfct_handle *h, int clientfd)
 }
 
 static struct nethdr *
-cache_ct_build_msg(const struct cache_object *obj, int type)
+cache_exp_build_msg(const struct cache_object *obj, int type)
 {
-	return BUILD_NETMSG_FROM_CT(obj->ptr, type);
+	return BUILD_NETMSG_FROM_EXP(obj->ptr, type);
 }
 
-/* template to cache conntracks coming from the kernel. */
-struct cache_ops cache_sync_internal_ct_ops = {
-	.hash		= cache_ct_hash,
-	.cmp		= cache_ct_cmp,
-	.alloc		= cache_ct_alloc,
-	.free		= cache_ct_free,
-	.copy		= cache_ct_copy,
-	.dump_step	= cache_ct_dump_step,
+/* template to cache expectations coming from the kernel. */
+struct cache_ops cache_sync_internal_exp_ops = {
+	.hash		= cache_exp_hash,
+	.cmp		= cache_exp_cmp,
+	.alloc		= cache_exp_alloc,
+	.free		= cache_exp_free,
+	.copy		= cache_exp_copy,
+	.dump_step	= cache_exp_dump_step,
 	.commit		= NULL,
-	.build_msg	= cache_ct_build_msg,
+	.build_msg	= cache_exp_build_msg,
 };
 
-/* template to cache conntracks coming from the network. */
-struct cache_ops cache_sync_external_ct_ops = {
-	.hash		= cache_ct_hash,
-	.cmp		= cache_ct_cmp,
-	.alloc		= cache_ct_alloc,
-	.free		= cache_ct_free,
-	.copy		= cache_ct_copy,
-	.dump_step	= cache_ct_dump_step,
-	.commit		= cache_ct_commit,
-	.build_msg	= NULL,
-};
-
-/* template to cache conntracks for the statistics mode. */
-struct cache_ops cache_stats_ct_ops = {
-	.hash		= cache_ct_hash,
-	.cmp		= cache_ct_cmp,
-	.alloc		= cache_ct_alloc,
-	.free		= cache_ct_free,
-	.copy		= cache_ct_copy,
-	.dump_step	= cache_ct_dump_step,
-	.commit		= NULL,
+/* template to cache expectations coming from the network. */
+struct cache_ops cache_sync_external_exp_ops = {
+	.hash		= cache_exp_hash,
+	.cmp		= cache_exp_cmp,
+	.alloc		= cache_exp_alloc,
+	.free		= cache_exp_free,
+	.copy		= cache_exp_copy,
+	.dump_step	= cache_exp_dump_step,
+	.commit		= cache_exp_commit,
 	.build_msg	= NULL,
 };

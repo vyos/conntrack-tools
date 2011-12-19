@@ -140,6 +140,7 @@ notrack		[N|n][O|o][T|t][R|r][A|a][C|c][K|k]
 "DisableExternalCache"		{ return T_DISABLE_EXTERNAL_CACHE; }
 "Options"			{ return T_OPTIONS; }
 "TCPWindowTracking"		{ return T_TCP_WINDOW_TRACKING; }
+"ExpectationSync"		{ return T_EXPECT_SYNC; }
 "ErrorQueueLength"		{ return T_ERROR_QUEUE_LENGTH; }
 
 {is_on}			{ return T_ON; }

@@ -126,6 +126,11 @@ static int status2type[CACHE_T_MAX][C_OBJ_MAX] = {
 		[C_OBJ_ALIVE]	= NET_T_STATE_CT_UPD,
 		[C_OBJ_DEAD]	= NET_T_STATE_CT_DEL,
 	},
+	[CACHE_T_EXP] = {
+		[C_OBJ_NEW]	= NET_T_STATE_EXP_NEW,
+		[C_OBJ_ALIVE]	= NET_T_STATE_EXP_UPD,
+		[C_OBJ_DEAD]	= NET_T_STATE_EXP_DEL,
+	},
 };
 
 int object_status_to_network_type(struct cache_object *obj)

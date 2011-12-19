@@ -405,3 +405,79 @@ int ct_filter_conntrack(const struct nf_conntrack *ct, int userspace)
 
 	return 0;
 }
+
+struct exp_filter {
+	struct list_head 	list;
+};
+
+struct exp_filter *exp_filter_create(void)
+{
+	struct exp_filter *f;
+
+	f = calloc(1, sizeof(struct exp_filter));
+	if (f == NULL)
+		return NULL;
+
+	INIT_LIST_HEAD(&f->list);
+	return f;
+}
+
+struct exp_filter_item {
+	struct list_head	head;
+	char			helper_name[NFCT_HELPER_NAME_MAX];
+};
+
+/* this is ugly, but it simplifies read_config_yy.y */
+static struct exp_filter *exp_filter_alloc(void)
+{
+	if (STATE(exp_filter) == NULL) {
+		STATE(exp_filter) = exp_filter_create();
+		if (STATE(exp_filter) == NULL) {
+			fprintf(stderr, "Can't init expectation filtering!\n");
+			return NULL;
+		}
+	}
+	return STATE(exp_filter);;
+}
+
+int exp_filter_add(struct exp_filter *f, const char *helper_name)
+{
+	struct exp_filter_item *item;
+
+	f = exp_filter_alloc();
+	if (f == NULL)
+		return -1;
+
+	list_for_each_entry(item, &f->list, head) {
+		if (strncmp(item->helper_name, helper_name,
+				NFCT_HELPER_NAME_MAX) == 0) {
+			return -1;
+		}
+	}
+	item = calloc(1, sizeof(struct exp_filter_item));
+	if (item == NULL)
+		return -1;
+
+	strncpy(item->helper_name, helper_name, NFCT_HELPER_NAME_MAX);
+	list_add(&item->head, &f->list);
+	return 0;
+}
+
+int exp_filter_find(struct exp_filter *f, const struct nf_expect *exp)
+{
+	struct exp_filter_item *item;
+
+	if (f == NULL)
+		return 0;
+
+	list_for_each_entry(item, &f->list, head) {
+		const char *name = nfexp_get_attr(exp, ATTR_EXP_HELPER_NAME);
+
+		/* we allow partial matching to support things like sip-PORT. */
+		if (strncmp(item->helper_name, name,
+				strlen(item->helper_name)) == 0) {
+			return 1;
+		}
+	}
+	return 0;
+}

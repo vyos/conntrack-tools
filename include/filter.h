@@ -52,4 +52,11 @@ void ct_filter_set_logic(struct ct_filter *f,
 			 enum ct_filter_logic logic);
 int ct_filter_conntrack(const struct nf_conntrack *ct, int userspace);
 
+struct exp_filter;
+struct nf_expect;
+
+struct exp_filter *exp_filter_create(void);
+int exp_filter_add(struct exp_filter *f, const char *helper_name);
+int exp_filter_find(struct exp_filter *f, const struct nf_expect *exp);
+
 #endif

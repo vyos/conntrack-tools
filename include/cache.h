@@ -52,6 +52,7 @@ extern struct cache_feature timer_feature;
 enum cache_type {
 	CACHE_T_NONE = 0,
 	CACHE_T_CT,
+	CACHE_T_EXP,
 	CACHE_T_MAX
 };
 
@@ -128,6 +129,9 @@ struct cache_ops {
 extern struct cache_ops cache_sync_internal_ct_ops;
 extern struct cache_ops cache_sync_external_ct_ops;
 extern struct cache_ops cache_stats_ct_ops;
+/* templates to configure expectation caching. */
+extern struct cache_ops cache_sync_internal_exp_ops;
+extern struct cache_ops cache_sync_external_exp_ops;
 
 struct nf_conntrack;
 

@@ -73,7 +73,7 @@ static void __max_dedicated_links_reached(void);
 %token T_NETLINK_OVERRUN_RESYNC T_NICE T_IPV4_DEST_ADDR T_IPV6_DEST_ADDR
 %token T_SCHEDULER T_TYPE T_PRIO T_NETLINK_EVENTS_RELIABLE
 %token T_DISABLE_INTERNAL_CACHE T_DISABLE_EXTERNAL_CACHE T_ERROR_QUEUE_LENGTH
-%token T_OPTIONS T_TCP_WINDOW_TRACKING
+%token T_OPTIONS T_TCP_WINDOW_TRACKING T_EXPECT_SYNC
 
 %token <string> T_IP T_PATH_VAL
 %token <val> T_NUMBER
@@ -827,6 +827,46 @@ option: T_TCP_WINDOW_TRACKING T_OFF
 {
 	CONFIG(sync).tcp_window_tracking = 0;
 };
+
+option: T_EXPECT_SYNC T_ON
+{
+	CONFIG(flags) |= CTD_EXPECT;
+	CONFIG(netlink).subsys_id = NFNL_SUBSYS_NONE;
+	CONFIG(netlink).groups = NF_NETLINK_CONNTRACK_NEW |
+				 NF_NETLINK_CONNTRACK_UPDATE |
+				 NF_NETLINK_CONNTRACK_DESTROY |
+				 NF_NETLINK_CONNTRACK_EXP_NEW |
+				 NF_NETLINK_CONNTRACK_EXP_UPDATE |
+				 NF_NETLINK_CONNTRACK_EXP_DESTROY;
+};
+
+option: T_EXPECT_SYNC T_OFF
+{
+	CONFIG(netlink).subsys_id = NFNL_SUBSYS_CTNETLINK;
+	CONFIG(netlink).groups = NF_NETLINK_CONNTRACK_NEW |
+				 NF_NETLINK_CONNTRACK_UPDATE |
+				 NF_NETLINK_CONNTRACK_DESTROY;
+};
+
+option: T_EXPECT_SYNC '{' expect_list '}'
+{
+	CONFIG(flags) |= CTD_EXPECT;
+	CONFIG(netlink).subsys_id = NFNL_SUBSYS_NONE;
+	CONFIG(netlink).groups = NF_NETLINK_CONNTRACK_NEW |
+				 NF_NETLINK_CONNTRACK_UPDATE |
+				 NF_NETLINK_CONNTRACK_DESTROY |
+				 NF_NETLINK_CONNTRACK_EXP_NEW |
+				 NF_NETLINK_CONNTRACK_EXP_UPDATE |
+				 NF_NETLINK_CONNTRACK_EXP_DESTROY;
+};
+
+expect_list:
+            | expect_list expect_item ;
+
+expect_item: T_STRING
+{
+	exp_filter_add(STATE(exp_filter), $1);
+}
 
 sync_mode_alarm: T_SYNC_MODE T_ALARM '{' sync_mode_alarm_list '}'
 {
@@ -1598,6 +1638,7 @@ init_config(char *filename)
 	/* Zero may be a valid facility */
 	CONFIG(syslog_facility) = -1;
 	CONFIG(stats).syslog_facility = -1;
+	CONFIG(netlink).subsys_id = -1;
 
 	yyrestart(fp);
 	yyparse();
@@ -1645,6 +1686,13 @@ init_config(char *filename)
 	/* default to 128 elements in the channel error queue */
 	if (CONFIG(channelc).error_queue_length == 0)
 		CONFIG(channelc).error_queue_length = 128;
+
+	if (CONFIG(netlink).subsys_id == -1) {
+		CONFIG(netlink).subsys_id = NFNL_SUBSYS_CTNETLINK;
+		CONFIG(netlink).groups = NF_NETLINK_CONNTRACK_NEW |
+					 NF_NETLINK_CONNTRACK_UPDATE |
+					 NF_NETLINK_CONNTRACK_DESTROY;
+	}
 
 	return 0;
 }
