@@ -1,9 +1,11 @@
 #!/bin/sh
-# 
-# (C) 2008 by Pablo Neira Ayuso <pablo@netfilter.org>
 #
-# This software may be used and distributed according to the terms
-# of the GNU General Public License, incorporated herein by reference.
+# (C) 2006-2011 by Pablo Neira Ayuso <pablo@netfilter.org>
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 #
 # Description:
 #
