@@ -68,7 +68,8 @@ static void tx_queue_add_ctlmsg(uint32_t flags, uint32_t from, uint32_t to)
 	ack->from	= from;
 	ack->to		= to;
 
-	queue_add(STATE_SYNC(tx_queue), &qobj->qnode);
+	if (queue_add(STATE_SYNC(tx_queue), &qobj->qnode) < 0)
+		queue_object_free(qobj);
 }
 
 static int do_cache_to_tx(void *data1, void *data2)
@@ -76,7 +77,7 @@ static int do_cache_to_tx(void *data1, void *data2)
 	struct cache_object *obj = data2;
 	struct cache_notrack *cn =
 		cache_get_extra(STATE(mode)->internal->data, obj);
-	if (queue_add(STATE_SYNC(tx_queue), &cn->qnode))
+	if (queue_add(STATE_SYNC(tx_queue), &cn->qnode) > 0)
 		cache_object_get(obj);
 	return 0;
 }
@@ -219,7 +220,7 @@ static void notrack_enqueue(struct cache_object *obj, int query)
 {
 	struct cache_notrack *cn =
 		cache_get_extra(STATE(mode)->internal->data, obj);
-	if (queue_add(STATE_SYNC(tx_queue), &cn->qnode))
+	if (queue_add(STATE_SYNC(tx_queue), &cn->qnode) > 0)
 		cache_object_get(obj);
 }
 
@@ -236,7 +237,8 @@ static void tx_queue_add_ctlmsg2(uint32_t flags)
 	ctl->type	= NET_T_CTL;
 	ctl->flags	= flags;
 
-	queue_add(STATE_SYNC(tx_queue), &qobj->qnode);
+	if (queue_add(STATE_SYNC(tx_queue), &qobj->qnode) < 0)
+		queue_object_free(qobj);
 }
 
 static void do_alive_alarm(struct alarm_block *a, void *data)

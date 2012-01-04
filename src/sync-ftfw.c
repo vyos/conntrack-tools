@@ -107,7 +107,8 @@ static void tx_queue_add_ctlmsg(uint32_t flags, uint32_t from, uint32_t to)
 	ack->from	= from;
 	ack->to		= to;
 
-	queue_add(STATE_SYNC(tx_queue), &qobj->qnode);
+	if (queue_add(STATE_SYNC(tx_queue), &qobj->qnode) < 0)
+		queue_object_free(qobj);
 }
 
 static void tx_queue_add_ctlmsg2(uint32_t flags)
@@ -123,7 +124,8 @@ static void tx_queue_add_ctlmsg2(uint32_t flags)
 	ctl->type 	= NET_T_CTL;
 	ctl->flags	= flags;
 
-	queue_add(STATE_SYNC(tx_queue), &qobj->qnode);
+	if (queue_add(STATE_SYNC(tx_queue), &qobj->qnode) < 0)
+		queue_object_free(qobj);
 }
 
 /* this function is called from the alarm framework */
@@ -173,7 +175,7 @@ static int do_cache_to_tx(void *data1, void *data2)
 		queue_del(&cn->qnode);
 		queue_add(STATE_SYNC(tx_queue), &cn->qnode);
 	} else {
-		if (queue_add(STATE_SYNC(tx_queue), &cn->qnode))
+		if (queue_add(STATE_SYNC(tx_queue), &cn->qnode) > 0)
 			cache_object_get(obj);
 	}
 	return 0;
@@ -554,7 +556,7 @@ static void ftfw_enqueue(struct cache_object *obj, int type)
 		queue_del(&cn->qnode);
 		queue_add(STATE_SYNC(tx_queue), &cn->qnode);
 	} else {
-		if (queue_add(STATE_SYNC(tx_queue), &cn->qnode))
+		if (queue_add(STATE_SYNC(tx_queue), &cn->qnode) > 0)
 			cache_object_get(obj);
 	}
 }
