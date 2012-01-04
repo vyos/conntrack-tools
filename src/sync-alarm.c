@@ -1,6 +1,7 @@
 /*
- * (C) 2006-2007 by Pablo Neira Ayuso <pablo@netfilter.org>
- * 
+ * (C) 2006-2011 by Pablo Neira Ayuso <pablo@netfilter.org>
+ * (C) 2011 by Vyatta Inc. <http://www.vyatta.com>
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
@@ -110,7 +111,7 @@ static int alarm_recv(const struct nethdr *net)
 static void alarm_enqueue(struct cache_object *obj, int query)
 {
 	struct cache_alarm *ca =
-		cache_get_extra(STATE(mode)->internal->data, obj);
+		cache_get_extra(STATE(mode)->internal->ct.data, obj);
 	if (queue_add(STATE_SYNC(tx_queue), &ca->qnode) > 0)
 		cache_object_get(obj);
 }
@@ -135,9 +136,9 @@ static int tx_queue_xmit(struct queue_node *n, const void *data)
 		int type;
 
 		ca = (struct cache_alarm *)n;
-		obj = cache_data_get_object(STATE(mode)->internal->data, ca);
+		obj = cache_data_get_object(STATE(mode)->internal->ct.data, ca);
 		type = object_status_to_network_type(obj->status);
-		net = BUILD_NETMSG(obj->ct, type);
+		net = obj->cache->ops->build_msg(obj, type);
 		multichannel_send(STATE_SYNC(channel), net);
 		cache_object_put(obj);
 		break;

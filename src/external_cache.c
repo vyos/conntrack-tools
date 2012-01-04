@@ -28,9 +28,9 @@ static struct cache *external;
 
 static int external_cache_init(void)
 {
-	external = cache_create("external",
+	external = cache_create("external", CACHE_T_CT,
 				STATE_SYNC(sync)->external_cache_flags,
-				NULL);
+				NULL, &cache_sync_external_ct_ops);
 	if (external == NULL) {
 		dlog(LOG_ERR, "can't allocate memory for the external cache");
 		return -1;

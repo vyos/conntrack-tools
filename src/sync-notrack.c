@@ -76,7 +76,7 @@ static int do_cache_to_tx(void *data1, void *data2)
 {
 	struct cache_object *obj = data2;
 	struct cache_notrack *cn =
-		cache_get_extra(STATE(mode)->internal->data, obj);
+		cache_get_extra(STATE(mode)->internal->ct.data, obj);
 	if (queue_add(STATE_SYNC(tx_queue), &cn->qnode) > 0)
 		cache_object_get(obj);
 	return 0;
@@ -127,7 +127,7 @@ static int notrack_local(int fd, int type, void *data)
 		if (CONFIG(sync).internal_cache_disable) {
 			kernel_resync();
 		} else {
-			cache_iterate(STATE(mode)->internal->data,
+			cache_iterate(STATE(mode)->internal->ct.data,
 				      NULL, do_cache_to_tx);
 		}
 		break;
@@ -148,7 +148,7 @@ static int digest_msg(const struct nethdr *net)
 		if (CONFIG(sync).internal_cache_disable) {
 			kernel_resync();
 		} else {
-			cache_iterate(STATE(mode)->internal->data,
+			cache_iterate(STATE(mode)->internal->ct.data,
 				      NULL, do_cache_to_tx);
 		}
 		return MSG_CTL;
@@ -197,9 +197,9 @@ static int tx_queue_xmit(struct queue_node *n, const void *data2)
 		struct nethdr *net;
 
 		cn = (struct cache_ftfw *)n;
-		obj = cache_data_get_object(STATE(mode)->internal->data, cn);
+		obj = cache_data_get_object(STATE(mode)->internal->ct.data, cn);
 		type = object_status_to_network_type(obj->status);;
-		net = BUILD_NETMSG(obj->ct, type);
+		net = obj->cache->ops->build_msg(obj, type);
 
 		multichannel_send(STATE_SYNC(channel), net);
 		queue_del(n);
@@ -219,7 +219,7 @@ static void notrack_xmit(void)
 static void notrack_enqueue(struct cache_object *obj, int query)
 {
 	struct cache_notrack *cn =
-		cache_get_extra(STATE(mode)->internal->data, obj);
+		cache_get_extra(STATE(mode)->internal->ct.data, obj);
 	if (queue_add(STATE_SYNC(tx_queue), &cn->qnode) > 0)
 		cache_object_get(obj);
 }

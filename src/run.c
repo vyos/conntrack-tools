@@ -1,6 +1,7 @@
 /*
- * (C) 2006-2009 by Pablo Neira Ayuso <pablo@netfilter.org>
- * 
+ * (C) 2006-2011 by Pablo Neira Ayuso <pablo@netfilter.org>
+ * (C) 2011 by Vyatta Inc. <http://www.vyatta.com>
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
@@ -241,8 +242,8 @@ static void do_overrun_resync_alarm(struct alarm_block *a, void *data)
 
 static void do_polling_alarm(struct alarm_block *a, void *data)
 {
-	if (STATE(mode)->internal->purge)
-		STATE(mode)->internal->purge();
+	if (STATE(mode)->internal->ct.purge)
+		STATE(mode)->internal->ct.purge();
 
 	nl_send_resync(STATE(resync));
 	add_alarm(&STATE(polling_alarm), CONFIG(poll_kernel_secs), 0);
@@ -267,13 +268,13 @@ static int event_handler(const struct nlmsghdr *nlh,
 
 	switch(type) {
 	case NFCT_T_NEW:
-		STATE(mode)->internal->new(ct, origin_type);
+		STATE(mode)->internal->ct.new(ct, origin_type);
 		break;
 	case NFCT_T_UPDATE:
-		STATE(mode)->internal->update(ct, origin_type);
+		STATE(mode)->internal->ct.upd(ct, origin_type);
 		break;
 	case NFCT_T_DESTROY:
-		if (STATE(mode)->internal->destroy(ct, origin_type))
+		if (STATE(mode)->internal->ct.del(ct, origin_type))
 			update_traffic_stats(ct);
 		break;
 	default:
@@ -298,7 +299,7 @@ static int dump_handler(enum nf_conntrack_msg_type type,
 
 	switch(type) {
 	case NFCT_T_UPDATE:
-		STATE(mode)->internal->populate(ct);
+		STATE(mode)->internal->ct.populate(ct);
 		break;
 	default:
 		STATE(stats).nl_dump_unknown_type++;
@@ -363,7 +364,7 @@ init(void)
 	}
 	nfct_callback_register(STATE(resync),
 			       NFCT_T_ALL,
-			       STATE(mode)->internal->resync,
+			       STATE(mode)->internal->ct.resync,
 			       NULL);
 	register_fd(nfct_fd(STATE(resync)), STATE(fds));
 	fcntl(nfct_fd(STATE(resync)), F_SETFL, O_NONBLOCK);
@@ -537,8 +538,8 @@ static void run_events(struct timeval *next_alarm)
 	/* we previously requested a resync due to buffer overrun. */
 	if (FD_ISSET(nfct_fd(STATE(resync)), &readfds)) {
 		nfct_catch(STATE(resync));
-		if (STATE(mode)->internal->purge)
-			STATE(mode)->internal->purge();
+		if (STATE(mode)->internal->ct.purge)
+			STATE(mode)->internal->ct.purge();
 	}
 
 	if (STATE(mode)->run)

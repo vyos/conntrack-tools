@@ -1,6 +1,7 @@
 /*
- * (C) 2006-2007 by Pablo Neira Ayuso <pablo@netfilter.org>
- * 
+ * (C) 2006-2011 by Pablo Neira Ayuso <pablo@netfilter.org>
+ * (C) 2011 by Vyatta Inc. <http://www.vyatta.com>
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
@@ -251,7 +252,7 @@ static void do_reset_cache_alarm(struct alarm_block *a, void *data)
 		exit(EXIT_SUCCESS);
 	}
 	/* this is not required if events don't get lost */
-	STATE(mode)->internal->flush();
+	STATE(mode)->internal->ct.flush();
 }
 
 static int init_sync(void)
@@ -471,7 +472,7 @@ static int local_handler_sync(int fd, int type, void *data)
 	switch(type) {
 	case DUMP_INTERNAL:
 		if (fork_process_new(CTD_PROC_ANY, 0, NULL, NULL) == 0) {
-			STATE(mode)->internal->dump(fd, NFCT_O_PLAIN);
+			STATE(mode)->internal->ct.dump(fd, NFCT_O_PLAIN);
 			exit(EXIT_SUCCESS);
 		}
 		break;
@@ -483,7 +484,7 @@ static int local_handler_sync(int fd, int type, void *data)
 		break;
 	case DUMP_INT_XML:
 		if (fork_process_new(CTD_PROC_ANY, 0, NULL, NULL) == 0) {
-			STATE(mode)->internal->dump(fd, NFCT_O_XML);
+			STATE(mode)->internal->ct.dump(fd, NFCT_O_XML);
 			exit(EXIT_SUCCESS);
 		}
 		break;
@@ -512,14 +513,14 @@ static int local_handler_sync(int fd, int type, void *data)
 		/* inmediate flush, remove pending flush scheduled if any */
 		del_alarm(&STATE_SYNC(reset_cache_alarm));
 		dlog(LOG_NOTICE, "flushing caches");
-		STATE(mode)->internal->flush();
+		STATE(mode)->internal->ct.flush();
 		STATE_SYNC(external)->flush();
 		break;
 	case FLUSH_INT_CACHE:
 		/* inmediate flush, remove pending flush scheduled if any */
 		del_alarm(&STATE_SYNC(reset_cache_alarm));
 		dlog(LOG_NOTICE, "flushing internal cache");
-		STATE(mode)->internal->flush();
+		STATE(mode)->internal->ct.flush();
 		break;
 	case FLUSH_EXT_CACHE:
 		dlog(LOG_NOTICE, "flushing external cache");
@@ -529,7 +530,7 @@ static int local_handler_sync(int fd, int type, void *data)
 		killer(0);
 		break;
 	case STATS:
-		STATE(mode)->internal->stats(fd);
+		STATE(mode)->internal->ct.stats(fd);
 		STATE_SYNC(external)->stats(fd);
 		dump_traffic_stats(fd);
 		multichannel_stats(STATE_SYNC(channel), fd);
@@ -540,7 +541,7 @@ static int local_handler_sync(int fd, int type, void *data)
 		multichannel_stats(STATE_SYNC(channel), fd);
 		break;
 	case STATS_CACHE:
-		STATE(mode)->internal->stats_ext(fd);
+		STATE(mode)->internal->ct.stats_ext(fd);
 		STATE_SYNC(external)->stats_ext(fd);
 		break;
 	case STATS_LINK:

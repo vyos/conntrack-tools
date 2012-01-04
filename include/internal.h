@@ -12,25 +12,28 @@ enum {
 };
 
 struct internal_handler {
-	void	*data;
 	unsigned int flags;
 
 	int	(*init)(void);
 	void	(*close)(void);
 
-	void	(*new)(struct nf_conntrack *ct, int origin_type);
-	void	(*update)(struct nf_conntrack *ct, int origin_type);
-	int	(*destroy)(struct nf_conntrack *ct, int origin_type);
+	struct {
+		void	*data;
 
-	void	(*dump)(int fd, int type);
-	void	(*populate)(struct nf_conntrack *ct);
-	void	(*purge)(void);
-	int	(*resync)(enum nf_conntrack_msg_type type,
-			  struct nf_conntrack *ct, void *data);
-	void	(*flush)(void);
+		void	(*new)(struct nf_conntrack *ct, int origin_type);
+		void	(*upd)(struct nf_conntrack *ct, int origin_type);
+		int	(*del)(struct nf_conntrack *ct, int origin_type);
 
-	void	(*stats)(int fd);
-	void	(*stats_ext)(int fd);
+		void	(*dump)(int fd, int type);
+		void	(*populate)(struct nf_conntrack *ct);
+		void	(*purge)(void);
+		int	(*resync)(enum nf_conntrack_msg_type type,
+				  struct nf_conntrack *ct, void *data);
+		void	(*flush)(void);
+
+		void	(*stats)(int fd);
+		void	(*stats_ext)(int fd);
+	} ct;
 };
 
 extern struct internal_handler internal_cache;

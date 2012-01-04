@@ -1,6 +1,7 @@
 /*
- * (C) 2006-2007 by Pablo Neira Ayuso <pablo@netfilter.org>
- * 
+ * (C) 2006-2011 by Pablo Neira Ayuso <pablo@netfilter.org>
+ * (C) 2011 by Vyatta Inc. <http://www.vyatta.com>
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
@@ -22,19 +23,97 @@
 #include "conntrackd.h"
 #include "netlink.h"
 #include "event.h"
+#include "jhash.h"
+#include "network.h"
 
-#include <libnetfilter_conntrack/libnetfilter_conntrack.h>
-#include <sched.h>
 #include <errno.h>
 #include <string.h>
 #include <time.h>
+#include <libnetfilter_conntrack/libnetfilter_conntrack.h>
 
-struct __dump_container {
-	int fd;
-	int type;
-};
+static uint32_t
+cache_hash4_ct(const struct nf_conntrack *ct, const struct hashtable *table)
+{
+	uint32_t a[4] = {
+		[0]	= nfct_get_attr_u32(ct, ATTR_IPV4_SRC),
+		[1]	= nfct_get_attr_u32(ct, ATTR_IPV4_DST),
+		[2]	= nfct_get_attr_u8(ct, ATTR_L3PROTO) << 16 |
+			  nfct_get_attr_u8(ct, ATTR_L4PROTO),
+		[3]	= nfct_get_attr_u16(ct, ATTR_PORT_SRC) << 16 |
+			  nfct_get_attr_u16(ct, ATTR_PORT_DST),
+	};
 
-static int do_dump(void *data1, void *n)
+	/*
+	 * Instead of returning hash % table->hashsize (implying a divide)
+	 * we return the high 32 bits of the (hash * table->hashsize) that will
+	 * give results between [0 and hashsize-1] and same hash distribution,
+	 * but using a multiply, less expensive than a divide. See:
+	 * http://www.mail-archive.com/netdev@vger.kernel.org/msg56623.html
+	 */
+	return ((uint64_t)jhash2(a, 4, 0) * table->hashsize) >> 32;
+}
+
+static uint32_t
+cache_hash6_ct(const struct nf_conntrack *ct, const struct hashtable *table)
+{
+	uint32_t a[10];
+
+	memcpy(&a[0], nfct_get_attr(ct, ATTR_IPV6_SRC), sizeof(uint32_t)*4);
+	memcpy(&a[4], nfct_get_attr(ct, ATTR_IPV6_SRC), sizeof(uint32_t)*4);
+	a[8] = nfct_get_attr_u8(ct, ATTR_ORIG_L3PROTO) << 16 |
+	       nfct_get_attr_u8(ct, ATTR_ORIG_L4PROTO);
+	a[9] = nfct_get_attr_u16(ct, ATTR_ORIG_PORT_SRC) << 16 |
+	       nfct_get_attr_u16(ct, ATTR_ORIG_PORT_DST);
+
+	return ((uint64_t)jhash2(a, 10, 0) * table->hashsize) >> 32;
+}
+
+static uint32_t
+cache_ct_hash(const void *data, const struct hashtable *table)
+{
+	int ret = 0;
+	const struct nf_conntrack *ct = data;
+
+	switch(nfct_get_attr_u8(ct, ATTR_L3PROTO)) {
+		case AF_INET:
+			ret = cache_hash4_ct(ct, table);
+			break;
+		case AF_INET6:
+			ret = cache_hash6_ct(ct, table);
+			break;
+		default:
+			dlog(LOG_ERR, "unknown layer 3 proto in hash");
+			break;
+	}
+	return ret;
+}
+
+static int cache_ct_cmp(const void *data1, const void *data2)
+{
+	const struct cache_object *obj = data1;
+	const struct nf_conntrack *ct = data2;
+
+	return nfct_cmp(obj->ptr, ct, NFCT_CMP_ORIG) &&
+	       nfct_get_attr_u32(obj->ptr, ATTR_ID) ==
+	       nfct_get_attr_u32(ct, ATTR_ID);
+}
+
+static void *cache_ct_alloc(void)
+{
+	return nfct_new();
+}
+
+static void cache_ct_free(void *ptr)
+{
+	nfct_destroy(ptr);
+}
+
+static void cache_ct_copy(void *dst, void *src, unsigned int flags)
+{
+	nfct_copy(dst, src, flags);
+}
+
+static int cache_ct_dump_step(void *data1, void *n)
 {
 	char buf[1024];
 	int size;
@@ -57,13 +136,13 @@ static int do_dump(void *data1, void *n)
 		return 0;
 
 	/* do not show cached timeout, this may confuse users */
-	if (nfct_attr_is_set(obj->ct, ATTR_TIMEOUT))
-		nfct_attr_unset(obj->ct, ATTR_TIMEOUT);
+	if (nfct_attr_is_set(obj->ptr, ATTR_TIMEOUT))
+		nfct_attr_unset(obj->ptr, ATTR_TIMEOUT);
 
 	memset(buf, 0, sizeof(buf));
 	size = nfct_snprintf(buf, 
 			     sizeof(buf), 
-			     obj->ct, 
+			     obj->ptr,
 			     NFCT_T_UNKNOWN, 
 			     container->type,
 			     0);
@@ -91,26 +170,11 @@ static int do_dump(void *data1, void *n)
 	return 0;
 }
 
-void cache_dump(struct cache *c, int fd, int type)
-{
-	struct __dump_container tmp = {
-		.fd	= fd,
-		.type	= type
-	};
-
-	hashtable_iterate(c->h, (void *) &tmp, do_dump);
-}
-
-struct __commit_container {
-	struct nfct_handle 	*h;
-	struct cache 		*c;
-};
-
 static void
-__do_commit_step(struct __commit_container *tmp, struct cache_object *obj)
+cache_ct_commit_step(struct __commit_container *tmp, struct cache_object *obj)
 {
 	int ret, retry = 1, timeout;
-	struct nf_conntrack *ct = obj->ct;
+	struct nf_conntrack *ct = obj->ptr;
 
 	if (CONFIG(commit_timeout)) {
 		timeout = CONFIG(commit_timeout);
@@ -153,29 +217,29 @@ retry:
 	}
 }
 
-static int do_commit_related(void *data, void *n)
+static int cache_ct_commit_related(void *data, void *n)
 {
 	struct cache_object *obj = n;
 
-	if (ct_is_related(obj->ct))
-		__do_commit_step(data, obj);
+	if (ct_is_related(obj->ptr))
+		cache_ct_commit_step(data, obj);
 
 	/* keep iterating even if we have found errors */
 	return 0;
 }
 
-static int do_commit_master(void *data, void *n)
+static int cache_ct_commit_master(void *data, void *n)
 {
 	struct cache_object *obj = n;
 
-	if (ct_is_related(obj->ct))
+	if (ct_is_related(obj->ptr))
 		return 0;
 
-	__do_commit_step(data, obj);
+	cache_ct_commit_step(data, obj);
 	return 0;
 }
 
-int cache_commit(struct cache *c, struct nfct_handle *h, int clientfd)
+static int cache_ct_commit(struct cache *c, struct nfct_handle *h, int clientfd)
 {
 	unsigned int commit_ok, commit_fail;
 	struct __commit_container tmp = {
@@ -200,7 +264,7 @@ int cache_commit(struct cache *c, struct nfct_handle *h, int clientfd)
 			hashtable_iterate_limit(c->h, &tmp,
 						STATE_SYNC(commit).current,
 						CONFIG(general).commit_steps,
-						do_commit_master);
+						cache_ct_commit_master);
 		if (STATE_SYNC(commit).current < CONFIG(hashsize)) {
 			STATE_SYNC(commit).state = COMMIT_STATE_MASTER;
 			/* give it another step as soon as possible */
@@ -214,7 +278,7 @@ int cache_commit(struct cache *c, struct nfct_handle *h, int clientfd)
 			hashtable_iterate_limit(c->h, &tmp,
 						STATE_SYNC(commit).current,
 						CONFIG(general).commit_steps,
-						do_commit_related);
+						cache_ct_commit_related);
 		if (STATE_SYNC(commit).current < CONFIG(hashsize)) {
 			STATE_SYNC(commit).state = COMMIT_STATE_RELATED;
 			/* give it another step as soon as possible */
@@ -251,18 +315,44 @@ int cache_commit(struct cache *c, struct nfct_handle *h, int clientfd)
 	return 1;
 }
 
-static int do_flush(void *data, void *n)
+static struct nethdr *
+cache_ct_build_msg(const struct cache_object *obj, int type)
 {
-	struct cache *c = data;
-	struct cache_object *obj = n;
-
-	cache_del(c, obj);
-	cache_object_free(obj);
-	return 0;
+	return BUILD_NETMSG_FROM_CT(obj->ptr, type);
 }
 
-void cache_flush(struct cache *c)
-{
-	hashtable_iterate(c->h, c, do_flush);
-	c->stats.flush++;
-}
+/* template to cache conntracks coming from the kernel. */
+struct cache_ops cache_sync_internal_ct_ops = {
+	.hash		= cache_ct_hash,
+	.cmp		= cache_ct_cmp,
+	.alloc		= cache_ct_alloc,
+	.free		= cache_ct_free,
+	.copy		= cache_ct_copy,
+	.dump_step	= cache_ct_dump_step,
+	.commit		= NULL,
+	.build_msg	= cache_ct_build_msg,
+};
+
+/* template to cache conntracks coming from the network. */
+struct cache_ops cache_sync_external_ct_ops = {
+	.hash		= cache_ct_hash,
+	.cmp		= cache_ct_cmp,
+	.alloc		= cache_ct_alloc,
+	.free		= cache_ct_free,
+	.copy		= cache_ct_copy,
+	.dump_step	= cache_ct_dump_step,
+	.commit		= cache_ct_commit,
+	.build_msg	= NULL,
+};
+
+/* template to cache conntracks for the statistics mode. */
+struct cache_ops cache_stats_ct_ops = {
+	.hash		= cache_ct_hash,
+	.cmp		= cache_ct_cmp,
+	.alloc		= cache_ct_alloc,
+	.free		= cache_ct_free,
+	.copy		= cache_ct_copy,
+	.dump_step	= cache_ct_dump_step,
+	.commit		= NULL,
+	.build_msg	= NULL,
+};

@@ -1,6 +1,7 @@
 /*
- * (C) 2006-2008 by Pablo Neira Ayuso <pablo@netfilter.org>
- * 
+ * (C) 2006-2011 by Pablo Neira Ayuso <pablo@netfilter.org>
+ * (C) 2011 by Vyatta Inc. <http://www.vyatta.com>
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
@@ -169,7 +170,7 @@ static int do_cache_to_tx(void *data1, void *data2)
 {
 	struct cache_object *obj = data2;
 	struct cache_ftfw *cn =
-		cache_get_extra(STATE(mode)->internal->data, obj);
+		cache_get_extra(STATE(mode)->internal->ct.data, obj);
 
 	if (queue_in(rs_queue, &cn->qnode)) {
 		queue_del(&cn->qnode);
@@ -227,7 +228,7 @@ static int ftfw_local(int fd, int type, void *data)
 		break;
 	case SEND_BULK:
 		dlog(LOG_NOTICE, "sending bulk update");
-		cache_iterate(STATE(mode)->internal->data,
+		cache_iterate(STATE(mode)->internal->ct.data,
 			      NULL, do_cache_to_tx);
 		break;
 	case STATS_RSQUEUE:
@@ -307,7 +308,7 @@ static int rs_queue_empty(struct queue_node *n, const void *data)
 		cn = (struct cache_ftfw *) n;
 		if (h == NULL) {
 			queue_del(n);
-			obj = cache_data_get_object(STATE(mode)->internal->data, cn);
+			obj = cache_data_get_object(STATE(mode)->internal->ct.data, cn);
 			cache_object_put(obj);
 			return 0;
 		}
@@ -318,7 +319,7 @@ static int rs_queue_empty(struct queue_node *n, const void *data)
 
 		dp("queue: deleting from queue (seq=%u)\n", cn->seq);
 		queue_del(n);
-		obj = cache_data_get_object(STATE(mode)->internal->data, cn);
+		obj = cache_data_get_object(STATE(mode)->internal->ct.data, cn);
 		cache_object_put(obj);
 		break;
 	}
@@ -351,7 +352,7 @@ static int digest_msg(const struct nethdr *net)
 
 	} else if (IS_RESYNC(net)) {
 		dp("RESYNC ALL\n");
-		cache_iterate(STATE(mode)->internal->data, NULL, do_cache_to_tx);
+		cache_iterate(STATE(mode)->internal->ct.data, NULL, do_cache_to_tx);
 		return MSG_CTL;
 
 	} else if (IS_ALIVE(net))
@@ -468,7 +469,7 @@ static void rs_queue_purge_full(void)
 		struct cache_object *obj;
 
 		cn = (struct cache_ftfw *)n;
-		obj = cache_data_get_object(STATE(mode)->internal->data, cn);
+		obj = cache_data_get_object(STATE(mode)->internal->ct.data, cn);
 		cache_object_put(obj);
 		break;
 	}
@@ -516,9 +517,9 @@ static int tx_queue_xmit(struct queue_node *n, const void *data)
 		struct nethdr *net;
 
 		cn = (struct cache_ftfw *)n;
-		obj = cache_data_get_object(STATE(mode)->internal->data, cn);
+		obj = cache_data_get_object(STATE(mode)->internal->ct.data, cn);
 		type = object_status_to_network_type(obj->status);
-		net = BUILD_NETMSG(obj->ct, type);
+		net = obj->cache->ops->build_msg(obj, type);
 		nethdr_set_hello(net);
 
 		dp("tx_list sq: %u fl:%u len:%u\n",
@@ -551,7 +552,7 @@ static void ftfw_xmit(void)
 static void ftfw_enqueue(struct cache_object *obj, int type)
 {
 	struct cache_ftfw *cn =
-		cache_get_extra(STATE(mode)->internal->data, obj);
+		cache_get_extra(STATE(mode)->internal->ct.data, obj);
 	if (queue_in(rs_queue, &cn->qnode)) {
 		queue_del(&cn->qnode);
 		queue_add(STATE_SYNC(tx_queue), &cn->qnode);
