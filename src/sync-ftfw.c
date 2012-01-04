@@ -518,7 +518,7 @@ static int tx_queue_xmit(struct queue_node *n, const void *data)
 
 		cn = (struct cache_ftfw *)n;
 		obj = cache_data_get_object(STATE(mode)->internal->ct.data, cn);
-		type = object_status_to_network_type(obj->status);
+		type = object_status_to_network_type(obj);
 		net = obj->cache->ops->build_msg(obj, type);
 		nethdr_set_hello(net);
 

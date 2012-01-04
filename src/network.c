@@ -1,6 +1,7 @@
 /*
- * (C) 2006-2007 by Pablo Neira Ayuso <pablo@netfilter.org>
- * 
+ * (C) 2006-2011 by Pablo Neira Ayuso <pablo@netfilter.org>
+ * (C) 2011 by Vyatta Inc. <http://www.vyatta.com>
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
@@ -119,13 +120,15 @@ int nethdr_track_is_seq_set()
 
 #include "cache.h"
 
-static int status2type[] = {
-	[C_OBJ_NEW]	= NET_T_STATE_NEW,
-	[C_OBJ_ALIVE]	= NET_T_STATE_UPD,
-	[C_OBJ_DEAD]	= NET_T_STATE_DEL,
+static int status2type[CACHE_T_MAX][C_OBJ_MAX] = {
+	[CACHE_T_CT] = {
+		[C_OBJ_NEW]	= NET_T_STATE_CT_NEW,
+		[C_OBJ_ALIVE]	= NET_T_STATE_CT_UPD,
+		[C_OBJ_DEAD]	= NET_T_STATE_CT_DEL,
+	},
 };
 
-int object_status_to_network_type(int status)
+int object_status_to_network_type(struct cache_object *obj)
 {
-	return status2type[status];
+	return status2type[obj->cache->type][obj->status];
 }

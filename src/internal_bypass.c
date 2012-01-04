@@ -118,7 +118,7 @@ static void internal_bypass_ct_event_new(struct nf_conntrack *ct, int origin)
 	if (origin != CTD_ORIGIN_NOT_ME)
 		return;
 
-	net = BUILD_NETMSG(ct, NET_T_STATE_NEW);
+	net = BUILD_NETMSG_FROM_CT(ct, NET_T_STATE_CT_NEW);
 	multichannel_send(STATE_SYNC(channel), net);
 	internal_bypass_stats.new++;
 }
@@ -131,7 +131,7 @@ static void internal_bypass_ct_event_upd(struct nf_conntrack *ct, int origin)
 	if (origin != CTD_ORIGIN_NOT_ME)
 		return;
 
-	net = BUILD_NETMSG(ct, NET_T_STATE_UPD);
+	net = BUILD_NETMSG_FROM_CT(ct, NET_T_STATE_CT_UPD);
 	multichannel_send(STATE_SYNC(channel), net);
 	internal_bypass_stats.upd++;
 }
@@ -144,7 +144,7 @@ static int internal_bypass_ct_event_del(struct nf_conntrack *ct, int origin)
 	if (origin != CTD_ORIGIN_NOT_ME)
 		return 1;
 
-	net = BUILD_NETMSG(ct, NET_T_STATE_DEL);
+	net = BUILD_NETMSG_FROM_CT(ct, NET_T_STATE_CT_DEL);
 	multichannel_send(STATE_SYNC(channel), net);
 	internal_bypass_stats.del++;
 

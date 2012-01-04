@@ -41,6 +41,24 @@
 #include <net/if.h>
 #include <fcntl.h>
 
+static struct nf_conntrack *msg2ct_alloc(struct nethdr *net, size_t remain)
+{
+	struct nf_conntrack *ct;
+
+	/* TODO: add stats on ENOMEM errors in the future. */
+	ct = nfct_new();
+	if (ct == NULL)
+		return NULL;
+
+	if (msg2ct(ct, net, remain) == -1) {
+		STATE_SYNC(error).msg_rcv_malformed++;
+		STATE_SYNC(error).msg_rcv_bad_payload++;
+		nfct_destroy(ct);
+		return NULL;
+	}
+	return ct;
+}
+
 static void
 do_channel_handler_step(int i, struct nethdr *net, size_t remain)
 {
@@ -74,26 +92,24 @@ do_channel_handler_step(int i, struct nethdr *net, size_t remain)
 		STATE_SYNC(error).msg_rcv_bad_type++;
 		return;
 	}
-	/* TODO: add stats on ENOMEM errors in the future. */
-	ct = nfct_new();
-	if (ct == NULL)
-		return;
-
-	if (parse_payload(ct, net, remain) == -1) {
-		STATE_SYNC(error).msg_rcv_malformed++;
-		STATE_SYNC(error).msg_rcv_bad_payload++;
-		nfct_destroy(ct);
-		return;
-	}
 
 	switch(net->type) {
-	case NET_T_STATE_NEW:
+	case NET_T_STATE_CT_NEW:
+		ct = msg2ct_alloc(net, remain);
+		if (ct == NULL)
+			return;
 		STATE_SYNC(external)->ct.new(ct);
 		break;
-	case NET_T_STATE_UPD:
+	case NET_T_STATE_CT_UPD:
+		ct = msg2ct_alloc(net, remain);
+		if (ct == NULL)
+			return;
 		STATE_SYNC(external)->ct.upd(ct);
 		break;
-	case NET_T_STATE_DEL:
+	case NET_T_STATE_CT_DEL:
+		ct = msg2ct_alloc(net, remain);
+		if (ct == NULL)
+			return;
 		STATE_SYNC(external)->ct.del(ct);
 		break;
 	default:

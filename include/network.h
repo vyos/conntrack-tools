@@ -25,10 +25,10 @@ struct nethdr {
 #define NETHDR_SIZ nethdr_align(sizeof(struct nethdr))
 
 enum nethdr_type {
-	NET_T_STATE_NEW = 0,
-	NET_T_STATE_UPD,
-	NET_T_STATE_DEL,
-	NET_T_STATE_MAX = NET_T_STATE_DEL,
+	NET_T_STATE_CT_NEW = 0,
+	NET_T_STATE_CT_UPD,
+	NET_T_STATE_CT_DEL,
+	NET_T_STATE_MAX = NET_T_STATE_CT_DEL,
 	NET_T_CTL = 10,
 };
 
@@ -37,7 +37,9 @@ int nethdr_size(int len);
 void nethdr_set(struct nethdr *net, int type);
 void nethdr_set_ack(struct nethdr *net);
 void nethdr_set_ctl(struct nethdr *net);
-int object_status_to_network_type(int status);
+
+struct cache_object;
+int object_status_to_network_type(struct cache_object *obj);
 
 #define NETHDR_DATA(x)							 \
 	(struct netattr *)(((char *)x) + NETHDR_SIZ)
@@ -79,13 +81,13 @@ enum {
 	MSG_BAD,
 };
 
-#define BUILD_NETMSG(ct, query)					\
+#define BUILD_NETMSG_FROM_CT(ct, query)				\
 ({								\
 	static char __net[4096];				\
 	struct nethdr *__hdr = (struct nethdr *) __net;		\
 	memset(__hdr, 0, NETHDR_SIZ);				\
 	nethdr_set(__hdr, query);				\
-	build_payload(ct, __hdr);				\
+	ct2msg(ct, __hdr);					\
 	HDR_HOST2NETWORK(__hdr);				\
 	__hdr;							\
 })
@@ -234,8 +236,7 @@ struct nta_attr_natseqadj {
 	uint32_t repl_seq_offset_after;
 };
 
-void build_payload(const struct nf_conntrack *ct, struct nethdr *n);
-
-int parse_payload(struct nf_conntrack *ct, struct nethdr *n, size_t remain);
+void ct2msg(const struct nf_conntrack *ct, struct nethdr *n);
+int msg2ct(struct nf_conntrack *ct, struct nethdr *n, size_t remain);
 
 #endif

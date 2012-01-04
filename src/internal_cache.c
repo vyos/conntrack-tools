@@ -81,7 +81,7 @@ static int internal_cache_ct_purge_step(void *data1, void *data2)
 	if (!STATE(get_retval)) {
 		if (obj->status != C_OBJ_DEAD) {
 			cache_object_set_status(obj, C_OBJ_DEAD);
-			sync_send(obj, NET_T_STATE_DEL);
+			sync_send(obj, NET_T_STATE_CT_DEL);
 			cache_object_put(obj);
 		}
 	}
@@ -117,10 +117,10 @@ internal_cache_ct_resync(enum nf_conntrack_msg_type type,
 
 	switch (obj->status) {
 	case C_OBJ_NEW:
-		sync_send(obj, NET_T_STATE_NEW);
+		sync_send(obj, NET_T_STATE_CT_NEW);
 		break;
 	case C_OBJ_ALIVE:
-		sync_send(obj, NET_T_STATE_UPD);
+		sync_send(obj, NET_T_STATE_CT_UPD);
 		break;
 	}
 	return NFCT_CB_CONTINUE;
@@ -155,7 +155,7 @@ retry:
 		 * processes or the kernel, but don't propagate events that
 		 * have been triggered by conntrackd itself, eg. commits. */
 		if (origin == CTD_ORIGIN_NOT_ME)
-			sync_send(obj, NET_T_STATE_NEW);
+			sync_send(obj, NET_T_STATE_CT_NEW);
 	} else {
 		cache_del(STATE(mode)->internal->ct.data, obj);
 		cache_object_free(obj);
@@ -176,7 +176,7 @@ static void internal_cache_ct_event_upd(struct nf_conntrack *ct, int origin)
 		return;
 
 	if (origin == CTD_ORIGIN_NOT_ME)
-		sync_send(obj, NET_T_STATE_UPD);
+		sync_send(obj, NET_T_STATE_CT_UPD);
 }
 
 static int internal_cache_ct_event_del(struct nf_conntrack *ct, int origin)
@@ -196,7 +196,7 @@ static int internal_cache_ct_event_del(struct nf_conntrack *ct, int origin)
 	if (obj->status != C_OBJ_DEAD) {
 		cache_object_set_status(obj, C_OBJ_DEAD);
 		if (origin == CTD_ORIGIN_NOT_ME) {
-			sync_send(obj, NET_T_STATE_DEL);
+			sync_send(obj, NET_T_STATE_CT_DEL);
 		}
 		cache_object_put(obj);
 	}

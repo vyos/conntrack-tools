@@ -42,7 +42,7 @@ static void refresher(struct alarm_block *a, void *data)
 		  random() % CONFIG(refresh) + 1,
 		  ((random() % 5 + 1)  * 200000) - 1);
 
-	alarm_enqueue(obj, NET_T_STATE_UPD);
+	alarm_enqueue(obj, NET_T_STATE_CT_UPD);
 }
 
 static void cache_alarm_add(struct cache_object *obj, void *data)
@@ -137,7 +137,7 @@ static int tx_queue_xmit(struct queue_node *n, const void *data)
 
 		ca = (struct cache_alarm *)n;
 		obj = cache_data_get_object(STATE(mode)->internal->ct.data, ca);
-		type = object_status_to_network_type(obj->status);
+		type = object_status_to_network_type(obj);
 		net = obj->cache->ops->build_msg(obj, type);
 		multichannel_send(STATE_SYNC(channel), net);
 		cache_object_put(obj);

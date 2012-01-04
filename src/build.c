@@ -1,6 +1,7 @@
 /*
- * (C) 2006-2008 by Pablo Neira Ayuso <pablo@netfilter.org>
- * 
+ * (C) 2006-2011 by Pablo Neira Ayuso <pablo@netfilter.org>
+ * (C) 2011 by Vyatta Inc. <http://www.vyatta.com>
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
@@ -42,14 +43,14 @@ addattr(struct nethdr *n, int attr, const void *data, size_t len)
 }
 
 static inline void
-__build_u8(const struct nf_conntrack *ct, int a, struct nethdr *n, int b)
+ct_build_u8(const struct nf_conntrack *ct, int a, struct nethdr *n, int b)
 {
 	void *ptr = put_header(n, b, sizeof(uint8_t));
 	memcpy(ptr, nfct_get_attr(ct, a), sizeof(uint8_t));
 }
 
 static inline void 
-__build_u16(const struct nf_conntrack *ct, int a, struct nethdr *n, int b)
+ct_build_u16(const struct nf_conntrack *ct, int a, struct nethdr *n, int b)
 {
 	uint16_t data = nfct_get_attr_u16(ct, a);
 	data = htons(data);
@@ -57,7 +58,7 @@ __build_u16(const struct nf_conntrack *ct, int a, struct nethdr *n, int b)
 }
 
 static inline void 
-__build_u32(const struct nf_conntrack *ct, int a, struct nethdr *n, int b)
+ct_build_u32(const struct nf_conntrack *ct, int a, struct nethdr *n, int b)
 {
 	uint32_t data = nfct_get_attr_u32(ct, a);
 	data = htonl(data);
@@ -65,7 +66,7 @@ __build_u32(const struct nf_conntrack *ct, int a, struct nethdr *n, int b)
 }
 
 static inline void 
-__build_group(const struct nf_conntrack *ct, int a, struct nethdr *n, 
+ct_build_group(const struct nf_conntrack *ct, int a, struct nethdr *n, 
 	      int b, int size)
 {
 	void *ptr = put_header(n, b, size);
@@ -73,7 +74,7 @@ __build_group(const struct nf_conntrack *ct, int a, struct nethdr *n,
 }
 
 static inline void 
-__build_natseqadj(const struct nf_conntrack *ct, struct nethdr *n)
+ct_build_natseqadj(const struct nf_conntrack *ct, struct nethdr *n)
 {
 	struct nta_attr_natseqadj data = {
 		.orig_seq_correction_pos =
@@ -99,54 +100,54 @@ static enum nf_conntrack_attr nat_type[] =
 
 static void build_l4proto_tcp(const struct nf_conntrack *ct, struct nethdr *n)
 {
-	__build_group(ct, ATTR_GRP_ORIG_PORT, n, NTA_PORT,
+	ct_build_group(ct, ATTR_GRP_ORIG_PORT, n, NTA_PORT,
 		      sizeof(struct nfct_attr_grp_port));
 
 	if (!nfct_attr_is_set(ct, ATTR_TCP_STATE))
 		return;
 
-	__build_u8(ct, ATTR_TCP_STATE, n, NTA_TCP_STATE);
+	ct_build_u8(ct, ATTR_TCP_STATE, n, NTA_TCP_STATE);
 	if (CONFIG(sync).tcp_window_tracking) {
-		__build_u8(ct, ATTR_TCP_WSCALE_ORIG, n, NTA_TCP_WSCALE_ORIG);
-		__build_u8(ct, ATTR_TCP_WSCALE_REPL, n, NTA_TCP_WSCALE_REPL);
+		ct_build_u8(ct, ATTR_TCP_WSCALE_ORIG, n, NTA_TCP_WSCALE_ORIG);
+		ct_build_u8(ct, ATTR_TCP_WSCALE_REPL, n, NTA_TCP_WSCALE_REPL);
 	}
 }
 
 static void build_l4proto_sctp(const struct nf_conntrack *ct, struct nethdr *n)
 {
-	__build_group(ct, ATTR_GRP_ORIG_PORT, n, NTA_PORT,
+	ct_build_group(ct, ATTR_GRP_ORIG_PORT, n, NTA_PORT,
 		      sizeof(struct nfct_attr_grp_port));
 
 	if (!nfct_attr_is_set(ct, ATTR_SCTP_STATE))
 		return;
 
-	__build_u8(ct, ATTR_SCTP_STATE, n, NTA_SCTP_STATE);
-	__build_u32(ct, ATTR_SCTP_VTAG_ORIG, n, NTA_SCTP_VTAG_ORIG);
-	__build_u32(ct, ATTR_SCTP_VTAG_REPL, n, NTA_SCTP_VTAG_REPL);
+	ct_build_u8(ct, ATTR_SCTP_STATE, n, NTA_SCTP_STATE);
+	ct_build_u32(ct, ATTR_SCTP_VTAG_ORIG, n, NTA_SCTP_VTAG_ORIG);
+	ct_build_u32(ct, ATTR_SCTP_VTAG_REPL, n, NTA_SCTP_VTAG_REPL);
 }
 
 static void build_l4proto_dccp(const struct nf_conntrack *ct, struct nethdr *n)
 {
-	__build_group(ct, ATTR_GRP_ORIG_PORT, n, NTA_PORT,
+	ct_build_group(ct, ATTR_GRP_ORIG_PORT, n, NTA_PORT,
 		      sizeof(struct nfct_attr_grp_port));
 
 	if (!nfct_attr_is_set(ct, ATTR_DCCP_STATE))
 		return;
 
-	__build_u8(ct, ATTR_DCCP_STATE, n, NTA_DCCP_STATE);
-	__build_u8(ct, ATTR_DCCP_ROLE, n, NTA_DCCP_ROLE);
+	ct_build_u8(ct, ATTR_DCCP_STATE, n, NTA_DCCP_STATE);
+	ct_build_u8(ct, ATTR_DCCP_ROLE, n, NTA_DCCP_ROLE);
 }
 
 static void build_l4proto_icmp(const struct nf_conntrack *ct, struct nethdr *n)
 {
-	__build_u8(ct, ATTR_ICMP_TYPE, n, NTA_ICMP_TYPE);
-	__build_u8(ct, ATTR_ICMP_CODE, n, NTA_ICMP_CODE);
-	__build_u16(ct, ATTR_ICMP_ID, n, NTA_ICMP_ID);
+	ct_build_u8(ct, ATTR_ICMP_TYPE, n, NTA_ICMP_TYPE);
+	ct_build_u8(ct, ATTR_ICMP_CODE, n, NTA_ICMP_CODE);
+	ct_build_u16(ct, ATTR_ICMP_ID, n, NTA_ICMP_ID);
 }
 
 static void build_l4proto_udp(const struct nf_conntrack *ct, struct nethdr *n)
 {
-	__build_group(ct, ATTR_GRP_ORIG_PORT, n, NTA_PORT,
+	ct_build_group(ct, ATTR_GRP_ORIG_PORT, n, NTA_PORT,
 		      sizeof(struct nfct_attr_grp_port));
 }
 
@@ -165,45 +166,45 @@ static struct build_l4proto {
 	[IPPROTO_UDP]		= { .build = build_l4proto_udp },
 };
 
-void build_payload(const struct nf_conntrack *ct, struct nethdr *n)
+void ct2msg(const struct nf_conntrack *ct, struct nethdr *n)
 {
 	uint8_t l4proto = nfct_get_attr_u8(ct, ATTR_L4PROTO);
 
 	if (nfct_attr_grp_is_set(ct, ATTR_GRP_ORIG_IPV4)) {
-		__build_group(ct, ATTR_GRP_ORIG_IPV4, n, NTA_IPV4, 
+		ct_build_group(ct, ATTR_GRP_ORIG_IPV4, n, NTA_IPV4, 
 			      sizeof(struct nfct_attr_grp_ipv4));
 	} else if (nfct_attr_grp_is_set(ct, ATTR_GRP_ORIG_IPV6)) {
-		__build_group(ct, ATTR_GRP_ORIG_IPV6, n, NTA_IPV6, 
+		ct_build_group(ct, ATTR_GRP_ORIG_IPV6, n, NTA_IPV6, 
 			      sizeof(struct nfct_attr_grp_ipv6));
 	}
 
-	__build_u32(ct, ATTR_STATUS, n, NTA_STATUS); 
-	__build_u8(ct, ATTR_L4PROTO, n, NTA_L4PROTO);
+	ct_build_u32(ct, ATTR_STATUS, n, NTA_STATUS); 
+	ct_build_u8(ct, ATTR_L4PROTO, n, NTA_L4PROTO);
 
 	if (l4proto_fcn[l4proto].build)
 		l4proto_fcn[l4proto].build(ct, n);
 
 	if (!CONFIG(commit_timeout) && nfct_attr_is_set(ct, ATTR_TIMEOUT))
-		__build_u32(ct, ATTR_TIMEOUT, n, NTA_TIMEOUT);
+		ct_build_u32(ct, ATTR_TIMEOUT, n, NTA_TIMEOUT);
 	if (nfct_attr_is_set(ct, ATTR_MARK))
-		__build_u32(ct, ATTR_MARK, n, NTA_MARK);
+		ct_build_u32(ct, ATTR_MARK, n, NTA_MARK);
 
 	/* setup the master conntrack */
 	if (nfct_attr_grp_is_set(ct, ATTR_GRP_MASTER_IPV4)) {
-		__build_group(ct, ATTR_GRP_MASTER_IPV4, n, NTA_MASTER_IPV4,
+		ct_build_group(ct, ATTR_GRP_MASTER_IPV4, n, NTA_MASTER_IPV4,
 			      sizeof(struct nfct_attr_grp_ipv4));
-		__build_u8(ct, ATTR_MASTER_L4PROTO, n, NTA_MASTER_L4PROTO);
+		ct_build_u8(ct, ATTR_MASTER_L4PROTO, n, NTA_MASTER_L4PROTO);
 		if (nfct_attr_grp_is_set(ct, ATTR_GRP_MASTER_PORT)) {
-			__build_group(ct, ATTR_GRP_MASTER_PORT,
+			ct_build_group(ct, ATTR_GRP_MASTER_PORT,
 				      n, NTA_MASTER_PORT, 
 				      sizeof(struct nfct_attr_grp_port));
 		}
 	} else if (nfct_attr_grp_is_set(ct, ATTR_GRP_MASTER_IPV6)) {
-		__build_group(ct, ATTR_GRP_MASTER_IPV6, n, NTA_MASTER_IPV6,
+		ct_build_group(ct, ATTR_GRP_MASTER_IPV6, n, NTA_MASTER_IPV6,
 			      sizeof(struct nfct_attr_grp_ipv6));
-		__build_u8(ct, ATTR_MASTER_L4PROTO, n, NTA_MASTER_L4PROTO);
+		ct_build_u8(ct, ATTR_MASTER_L4PROTO, n, NTA_MASTER_L4PROTO);
 		if (nfct_attr_grp_is_set(ct, ATTR_GRP_MASTER_PORT)) {
-			__build_group(ct, ATTR_GRP_MASTER_PORT,
+			ct_build_group(ct, ATTR_GRP_MASTER_PORT,
 				      n, NTA_MASTER_PORT,
 				      sizeof(struct nfct_attr_grp_port));
 		}
@@ -211,15 +212,15 @@ void build_payload(const struct nf_conntrack *ct, struct nethdr *n)
 
 	/*  NAT */
 	if (nfct_getobjopt(ct, NFCT_GOPT_IS_SNAT))
-		__build_u32(ct, ATTR_REPL_IPV4_DST, n, NTA_SNAT_IPV4);
+		ct_build_u32(ct, ATTR_REPL_IPV4_DST, n, NTA_SNAT_IPV4);
 	if (nfct_getobjopt(ct, NFCT_GOPT_IS_DNAT))
-		__build_u32(ct, ATTR_REPL_IPV4_SRC, n, NTA_DNAT_IPV4);
+		ct_build_u32(ct, ATTR_REPL_IPV4_SRC, n, NTA_DNAT_IPV4);
 	if (nfct_getobjopt(ct, NFCT_GOPT_IS_SPAT))
-		__build_u16(ct, ATTR_REPL_PORT_DST, n, NTA_SPAT_PORT);
+		ct_build_u16(ct, ATTR_REPL_PORT_DST, n, NTA_SPAT_PORT);
 	if (nfct_getobjopt(ct, NFCT_GOPT_IS_DPAT))
-		__build_u16(ct, ATTR_REPL_PORT_SRC, n, NTA_DPAT_PORT);
+		ct_build_u16(ct, ATTR_REPL_PORT_SRC, n, NTA_DPAT_PORT);
 
 	/* NAT sequence adjustment */
 	if (nfct_attr_is_set_array(ct, nat_type, 6))
-		__build_natseqadj(ct, n);
+		ct_build_natseqadj(ct, n);
 }

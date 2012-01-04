@@ -1,6 +1,7 @@
 /*
- * (C) 2008 by Pablo Neira Ayuso <pablo@netfilter.org>
- * 
+ * (C) 2006-2011 by Pablo Neira Ayuso <pablo@netfilter.org>
+ * (C) 2011 by Vyatta Inc. <http://www.vyatta.com>
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
@@ -87,7 +88,7 @@ static int kernel_resync_cb(enum nf_conntrack_msg_type type,
 {
 	struct nethdr *net;
 
-	net = BUILD_NETMSG(ct, NET_T_STATE_NEW);
+	net = BUILD_NETMSG_FROM_CT(ct, NET_T_STATE_CT_NEW);
 	multichannel_send(STATE_SYNC(channel), net);
 
 	return NFCT_CB_CONTINUE;
@@ -198,7 +199,7 @@ static int tx_queue_xmit(struct queue_node *n, const void *data2)
 
 		cn = (struct cache_ftfw *)n;
 		obj = cache_data_get_object(STATE(mode)->internal->ct.data, cn);
-		type = object_status_to_network_type(obj->status);;
+		type = object_status_to_network_type(obj);;
 		net = obj->cache->ops->build_msg(obj, type);
 
 		multichannel_send(STATE_SYNC(channel), net);
