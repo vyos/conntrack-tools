@@ -110,8 +110,7 @@ static int alarm_recv(const struct nethdr *net)
 
 static void alarm_enqueue(struct cache_object *obj, int query)
 {
-	struct cache_alarm *ca =
-		cache_get_extra(STATE(mode)->internal->ct.data, obj);
+	struct cache_alarm *ca = cache_get_extra(obj);
 	if (queue_add(STATE_SYNC(tx_queue), &ca->qnode) > 0)
 		cache_object_get(obj);
 }

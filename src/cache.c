@@ -308,9 +308,9 @@ struct cache_object *cache_data_get_object(struct cache *c, void *data)
 	return (struct cache_object *)((char*)data - c->extra_offset);
 }
 
-void *cache_get_extra(struct cache *c, void *data)
+void *cache_get_extra(struct cache_object *obj)
 {
-	return (char*)data + c->extra_offset;
+	return (char*)obj + obj->cache->extra_offset;
 }
 
 void cache_stats(const struct cache *c, int fd)

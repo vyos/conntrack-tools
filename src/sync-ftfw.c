@@ -169,8 +169,7 @@ static void ftfw_kill(void)
 static int do_cache_to_tx(void *data1, void *data2)
 {
 	struct cache_object *obj = data2;
-	struct cache_ftfw *cn =
-		cache_get_extra(STATE(mode)->internal->ct.data, obj);
+	struct cache_ftfw *cn = cache_get_extra(obj);
 
 	if (queue_in(rs_queue, &cn->qnode)) {
 		queue_del(&cn->qnode);
@@ -551,8 +550,7 @@ static void ftfw_xmit(void)
 
 static void ftfw_enqueue(struct cache_object *obj, int type)
 {
-	struct cache_ftfw *cn =
-		cache_get_extra(STATE(mode)->internal->ct.data, obj);
+	struct cache_ftfw *cn = cache_get_extra(obj);
 	if (queue_in(rs_queue, &cn->qnode)) {
 		queue_del(&cn->qnode);
 		queue_add(STATE_SYNC(tx_queue), &cn->qnode);
