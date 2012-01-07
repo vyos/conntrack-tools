@@ -657,6 +657,164 @@ Sync {
 
 </sect3>
 
+<sect3 id="sync-expect"><title>Synchronization of expectations</title>
+
+ <para>The connection tracking system provides helpers that allows you to
+ filter multi-flow application protocols like FTP, H.323 and SIP among many
+ others. These protocols usually split the control and data traffic in
+ different flows. Moreover, the control flow usually announces layer 3 and
+ 4 information to let the other peer know where the data flows will be
+ open. This sort of protocols require that the firewall inspects the
+ content of the packet, otherwise filtering by layer 3 and 4 selectors
+ like addresses and ports become a real nightmare. Netfilter already
+ provides the so-called <emphasis>helpers</emphasis> that track this
+ protocol  aspects to allow deploying appropriate filtering. These
+ helpers create <emphasis>expectation</emphasis> entries that
+ represent expected traffic that will arrive to the firewall according
+ to the inspected packets.</para>
+
+ <para>In case that you have enabled tracking of these protocols, you
+ may want to enable the state-synchronization of expectation as well.
+ Thus, established flows for this specific protocols will not suffer
+ any disruption.</para>
+
+ <para>To enable the expectation support in the configuration file, you
+ have to use the following option:</para>
+
+ <programlisting>
+Sync {
+       ...
+       Options {
+               ExpectationSync {
+                       ftp
+                       sip
+                       h323
+               }
+       }
+}</programlisting>
+
+ <para>The example above enables the synchronization of the expectations
+ for the FTP, SIP and H.323 helpers.</para>
+
+ <para>In my testbed, there are two firewalls in a primary-backup
+ configuration running keepalived. They use a couple of floating cluster
+ IP address (192.168.0.100 and 192.168.1.100) that are used by the client.
+ These firewalls protect one FTP server (192.168.1.2) that will be accessed
+ by one client.</para>
+
+ <para>In ASCII art, it looks like this:</para>
+
+ <programlisting>
+         192.168.0.100      192.168.1.100
+                  eth1      eth2
+                       fw-1
+                     /      \       FTP
+        client ------       ------ server
+      192.168.0.2    \      /   192.168.1.2
+                       fw-2
+ </programlisting>
+
+ <para>This is the rule-set for the firewalls:</para>
+
+ <programlisting>
+    -A FORWARD -m state --state RELATED -j ACCEPT
+    -A FORWARD -i eth2 -m state --state ESTABLISHED -j ACCEPT
+    -A FORWARD -i eth1 -p tcp -m tcp --dport 21 --tcp-flags FIN,SYN,RST,ACK SYN -m state --state NEW -j ACCEPT
+    -A FORWARD -i eth1 -p tcp -m state --state ESTABLISHED -j ACCEPT
+    -A FORWARD -m state --state INVALID -j LOG --log-prefix "invalid: "</programlisting>
+
+ <para>Before going ahead, make sure <emphasis>nf_conntrack_ftp</emphasis> is
+ loaded.</para>
+
+ <para>The following steps detail how to check that the expectation support
+ works fine with FTP traffic:</para>
+
+ <orderedlist>
+ <listitem>
+ <para>Switch to the client. Start one FTP control connection to one
+ server that is protected by the firewalls, enter passive mode:</para>
+
+ <programlisting>
+  (term-1) user@client$ nc 192.168.1.2 21
+   220 dummy FTP server
+   USER anonymous
+   331 Please specify the password.
+   PASS nothing
+   230 Login successful.
+   PASV
+   227 Entering Passive Mode (192,168,1,2,163,11).</programlisting>
+
+ <para>This means that port 163*256+11=41739 will be used for the data
+ traffic. I suggest you to read <ulink url="http://www.freefire.org/articles/ftpexample.php">djb's FTP protocol description</ulink> in case that you
+ don't understand how this calculation is done.</para>
+ </listitem>
+
+ <listitem>
+ <para> Switch to fw-1 (primary) to check that the expectation is in the
+ internal cache.</para>
+
+ <programlisting>
+ root@fw1# conntrackd -i exp
+ proto=6 src=192.168.0.2 dst=192.168.1.2 sport=0 dport=41739 mask-src=255.255.255.255 mask-dst=255.255.255.255 sport=0 dport=65535 master-src=192.168.0.2 master-dst=192.168.1.2 sport=36390 dport=21 helper=ftp [active since 5s]
+ </programlisting>
+ </listitem>
+
+ <listitem>
+ <para> Switch to fw-2 (backup) to check that the expectation has been
+ successfully replicated.</para>
+
+ <programlisting>
+ root@fw2# conntrackd -e exp
+ proto=6 src=192.168.0.2 dst=192.168.1.2 sport=0 dport=41739 mask-src=255.255.255.255 mask-dst=255.255.255.255 sport=0 dport=65535 master-src=192.168.0.2 master-dst=192.168.1.2 sport=36390 dport=21 [active since 8s]
+ </programlisting>
+ </listitem>
+
+ <listitem>
+ <para>Make the primary firewall fw-1 fail. Now fw-2 becomes primary.</para>
+ </listitem>
+
+ <listitem>
+ <para>Switch to fw-2 (primary) to commit the external cache into the
+ kernel. The logs should display that the commit was successful:</para>
+
+ <programlisting>
+ root@fw2# tail -100f /var/log/conntrackd.log
+ [Wed Dec  7 22:16:31 2011] (pid=19195) [notice] committing external cache: expectations
+ [Wed Dec  7 22:16:31 2011] (pid=19195) [notice] Committed 1 new entries
+ [Wed Dec  7 22:16:31 2011] (pid=19195) [notice] commit has taken 0.000366 seconds</programlisting>
+ </listitem>
+
+ <listitem>
+ <para> Switch to the client. Open a new terminal and connect to the port that
+ has been announced by the server:</para>
+
+ <programlisting>
+ (term-2) user@client$ nc -vvv 192.168.1.2 41739
+ (UNKNOWN) [192.168.1.2] 41739 (?) open</programlisting>
+ </listitem>
+
+ <listitem>
+ <para>Switch to term-1 and ask for the file listing:</para>
+
+ <programlisting>
+ [...]
+ 227 Entering Passive Mode (192,168,1,2,163,11).
+ LIST</programlisting>
+ </listitem>
+
+ <listitem>
+ <para>Switch to term-2, it should display the listing. That means
+ everything has worked fine.</para>
+ </listitem>
+
+ </orderedlist>
+
+ <para>You may want to try disabling the expectation support and
+ repeating the steps to check that <emphasis>it does not work</emphasis>
+ without the state-synchronization.</para>
+
+</sect3>
+
 </sect2>
 
 <sect2 id="sync-trouble"><title>Troubleshooting</title>
@@ -739,8 +897,7 @@ Sync {
    </question>
    <answer>
     <para>
-    No. This is not implemented yet, sorry. If you are interested in
-    sponsoring this support, please contact me.
+    Yes, conntrackd includes expectation support since version 1.2.0.
     </para>
    </answer>
   </qandaentry>
