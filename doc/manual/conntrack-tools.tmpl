@@ -19,7 +19,7 @@
   </authorgroup>
 
   <copyright>
-   <year>2008</year>
+   <year>2008-2011</year>
    <holder>Pablo Neira Ayuso</holder>
   </copyright>
 
@@ -37,9 +37,8 @@
   <releaseinfo>
   This document details how to install and configure the
   <ulink url="http://conntrack-tools.netfilter.org">conntrack-tools</ulink>
-  0.9.8. This software is under development, for that reason, it is likely
-  that this document will evolve in the future to cover new features and
-  changes.</releaseinfo>
+  &gt;= 1.0.0. This document will evolve in the future to cover new features
+  and changes.</releaseinfo>
 
  </bookinfo>
 
@@ -198,7 +197,12 @@ conntrack v0.9.7 (conntrack-tools): 1 flow entries have been shown.
 conntrack v0.9.7 (conntrack-tools): 1 flow entries has been updated.
  </programlisting>
 
-<para>Delete one entry, this can be used to block traffic (you have to set <emphasis>/proc/sys/net/ipv4/netfilter/ip_conntrack_tcp_be_liberal</emphasis> to zero).</para>
+<para>Delete one entry, this can be used to block traffic if:</para>
+<itemizedlist>
+ <listitem><para>You have a stateful rule-set that blocks traffic in INVALID state.</para></listitem>
+ <listitem><para>You have set <emphasis>/proc/sys/net/ipv4/netfilter/ip_conntrack_tcp_loose</emphasis> or <emphasis>/proc/sys/net/netfilter/nf_conntrack_tcp_loose</emphasis>, depending on your kernel version, to zero.</para></listitem>
+</itemizedlist>
+
 <programlisting>
  # conntrack -D -p tcp --dport 3486
  tcp      6 431982 ESTABLISHED src=192.168.2.100 dst=123.59.27.117 sport=34846 dport=993 packets=169 bytes=14322 src=123.59.27.117 dst=192.168.2.100 sport=993 dport=34846 packets=113 bytes=34787 [ASSURED] mark=1 secmark=0 use=1
@@ -340,6 +344,11 @@ conntrack v0.9.7 (conntrack-tools): 1 flow entries has been deleted.
 </sect2>
 
 <sect2 id="sync-pb"><title>Active-Backup setup</title>
+
+ <note><title>Stateful firewall architectures</title>
+  <para>A good reading to extend the information about firewall architectures is <ulink url="http://1984.lsi.us.es/~pablo/docs/intcomp09.pdf">Demystifying cluster-based fault-tolerant firewalls</ulink> published in IEEE Internet Computing magazine.
+  </para>
+ </note>
 
  <para>In the Active-Backup setup, one of the stateful firewall replicas 
  filters traffic and the other acts as backup. If you use this approach, 
@@ -507,6 +516,307 @@ conntrack v0.9.7 (conntrack-tools): 1 flow entries has been deleted.
 
 </sect2>
 
+<sect2 id="sync-options"><title>Other configuration options</title>
+
+ <para>The daemon allows several configuration options that you may want to
+ enable. This section contains some information about them.</para>
+
+<sect3 id="sync-disable-external"><title>Disabling external cache</title>
+
+ <para>It is possible to disable the external cache. Thus,
+ <emphasis>conntrackd</emphasis> directly injects the flow-states into the
+ in-kernel Connection Tracking System of the backup firewall. You can do it
+ by enabling the <emphasis>DisableExternalCache</emphasis> option in the
+ <emphasis>conntrackd.conf</emphasis> configuration file:
+ </para>
+
+ <programlisting>
+Sync {
+	Mode FTFW {
+		 [...]
+		 DisableExternalCache Off
+	}
+}
+ </programlisting>
+
+ <para>You can also use this option with the NOTRACK and ALARM modes. This
+ increases CPU consumption in the backup firewall but now you do not need
+ to commit the flow-states during the master failures since they are already
+ in the in-kernel Connection Tracking table. Moreover, you save memory in
+ the backup firewall since you do not need to store the foreign flow-states
+ anymore.
+ </para>
+
+</sect3>
+
+<sect3 id="sync-disable-internal"><title>Disabling internal cache</title>
+
+ <para>You can also disable the internal cache by means of the
+ <emphasis>DisableInternalCache</emphasis> option in the
+ <emphasis>conntrackd.conf</emphasis> configuration file:
+ </para>
+
+ <programlisting>
+Sync {
+	Mode NOTRACK {
+		 [...]
+		 DisableInternalCache Off
+	}
+}
+ </programlisting>
+
+ <para>However, this option is only available for the NOTRACK mode. This
+ mode provides unreliable flow-state synchronization between firewalls.
+ Thus, if flow-states are lost during the synchronization, the protocol
+ provides no way to recover them.</para>
+
+</sect3>
+
+<sect3 id="sync-transport-protocol">
+<title>Using UDP, TCP or multicast for flow-state synchronization</title>
+
+ <para>You can use up to three different transport layer protocols to
+ synchronize flow-state changes between the firewalls: UDP, TCP and
+ Multicast. UDP and multicast are unreliable but together with the FT-FW
+ mode provide partial reliable flow-state synchronization.
+ </para>
+
+ <para>The preferred choice is FT-FW over UDP, or multicast alternatively.
+ TCP introduces latency in the flow-state synchronization due to the
+ congestion control. Under flow-state message are lost, the FIFO delivery
+ becomes also a problem since the backup firewall quickly gets out of
+ sync. For that reason, its use is discouraged. Note that using TCP only
+ makes sense with the NOTRACK mode.
+ </para>
+
+</sect3>
+
+<sect3 id="sync-redundant-link"><title>Redundant dedicated links</title>
+
+ <para>You can set redundant dedicated links without using bonding, you have
+ to configure as many redundant links as you want in the configuration file.
+ In case of failure of the master dedicated link, conntrackd failovers to one
+ of the backups. An example of this configuration is the following:
+ </para>
+
+ <programlisting>
+Sync {
+	Mode FTFW {
+		 [...]
+	}
+	# default master dedicated link
+        UDP Default {
+                IPv4_address 192.168.2.1
+                IPv4_Destination_Address 192.168.2.2
+                Port 3780
+                Interface eth3
+                SndSocketBuffer 24985600
+                RcvSocketBuffer 24985600
+                Checksum on
+        }
+	# backup dedicated link
+        UDP {
+               IPv4_address 192.168.1.3
+               IPv4_Destination_Address 192.168.1.4
+               Port 3780
+               Interface eth2
+               SndSocketBuffer 24985600
+               RcvSocketBuffer 24985600
+               Checksum on
+        }
+	[...]
+}
+ </programlisting>
+
+</sect3>
+
+<sect3 id="sync-iptables-filtering">
+<title>Filtering Connection tracking events with iptables</title>
+
+ <para>Since Linux kernel &gt;= 2.6.34, iptables provides the
+ <emphasis>CT</emphasis> iptables target that allows to reduce the
+ amount of Connection Tracking events that are delivered to user-space.
+ However, you will have to use a Linux kernel &gt;= 2.6.38 to profit
+ from this feature, since several aspects of the event filtering were
+ broken.</para>
+
+ <para>The following example shows how to only generate the
+ <emphasis>assured</emphasis> event:</para>
+
+ <programlisting>
+ # iptables -I PREROUTING -t raw -j CT --ctevents assured
+ </programlisting>
+
+ <note><title>Assured flows</title>
+ <para>One flow is assured if the firewall has seen traffic for it in
+ both directions.</para>
+ </note>
+
+ <para>Reducing the amount of events generated helps to reduce CPU
+ consumption in the active firewall.</para>
+
+</sect3>
+
+<sect3 id="sync-expect"><title>Synchronization of expectations</title>
+
+ <para>The connection tracking system provides helpers that allows you to
+ filter multi-flow application protocols like FTP, H.323 and SIP among many
+ others. These protocols usually split the control and data traffic in
+ different flows. Moreover, the control flow usually announces layer 3 and
+ 4 information to let the other peer know where the data flows will be
+ open. This sort of protocols require that the firewall inspects the
+ content of the packet, otherwise filtering by layer 3 and 4 selectors
+ like addresses and ports become a real nightmare. Netfilter already
+ provides the so-called <emphasis>helpers</emphasis> that track this
+ protocol  aspects to allow deploying appropriate filtering. These
+ helpers create <emphasis>expectation</emphasis> entries that
+ represent expected traffic that will arrive to the firewall according
+ to the inspected packets.</para>
+
+ <para>In case that you have enabled tracking of these protocols, you
+ may want to enable the state-synchronization of expectation as well.
+ Thus, established flows for this specific protocols will not suffer
+ any disruption.</para>
+
+ <para>To enable the expectation support in the configuration file, you
+ have to use the following option:</para>
+
+ <programlisting>
+Sync {
+       ...
+       Options {
+               ExpectationSync {
+                       ftp
+                       sip
+                       h323
+               }
+       }
+}</programlisting>
+
+ <para>The example above enables the synchronization of the expectations
+ for the FTP, SIP and H.323 helpers.</para>
+
+ <para>In my testbed, there are two firewalls in a primary-backup
+ configuration running keepalived. They use a couple of floating cluster
+ IP address (192.168.0.100 and 192.168.1.100) that are used by the client.
+ These firewalls protect one FTP server (192.168.1.2) that will be accessed
+ by one client.</para>
+
+ <para>In ASCII art, it looks like this:</para>
+
+ <programlisting>
+         192.168.0.100      192.168.1.100
+                  eth1      eth2
+                       fw-1
+                     /      \       FTP
+        client ------       ------ server
+      192.168.0.2    \      /   192.168.1.2
+                       fw-2
+ </programlisting>
+
+ <para>This is the rule-set for the firewalls:</para>
+
+ <programlisting>
+    -A FORWARD -m state --state RELATED -j ACCEPT
+    -A FORWARD -i eth2 -m state --state ESTABLISHED -j ACCEPT
+    -A FORWARD -i eth1 -p tcp -m tcp --dport 21 --tcp-flags FIN,SYN,RST,ACK SYN -m state --state NEW -j ACCEPT
+    -A FORWARD -i eth1 -p tcp -m state --state ESTABLISHED -j ACCEPT
+    -A FORWARD -m state --state INVALID -j LOG --log-prefix "invalid: "</programlisting>
+
+ <para>Before going ahead, make sure <emphasis>nf_conntrack_ftp</emphasis> is
+ loaded.</para>
+
+ <para>The following steps detail how to check that the expectation support
+ works fine with FTP traffic:</para>
+
+ <orderedlist>
+ <listitem>
+ <para>Switch to the client. Start one FTP control connection to one
+ server that is protected by the firewalls, enter passive mode:</para>
+
+ <programlisting>
+  (term-1) user@client$ nc 192.168.1.2 21
+   220 dummy FTP server
+   USER anonymous
+   331 Please specify the password.
+   PASS nothing
+   230 Login successful.
+   PASV
+   227 Entering Passive Mode (192,168,1,2,163,11).</programlisting>
+
+ <para>This means that port 163*256+11=41739 will be used for the data
+ traffic. I suggest you to read <ulink url="http://www.freefire.org/articles/ftpexample.php">djb's FTP protocol description</ulink> in case that you
+ don't understand how this calculation is done.</para>
+ </listitem>
+
+ <listitem>
+ <para> Switch to fw-1 (primary) to check that the expectation is in the
+ internal cache.</para>
+
+ <programlisting>
+ root@fw1# conntrackd -i exp
+ proto=6 src=192.168.0.2 dst=192.168.1.2 sport=0 dport=41739 mask-src=255.255.255.255 mask-dst=255.255.255.255 sport=0 dport=65535 master-src=192.168.0.2 master-dst=192.168.1.2 sport=36390 dport=21 helper=ftp [active since 5s]
+ </programlisting>
+ </listitem>
+
+ <listitem>
+ <para> Switch to fw-2 (backup) to check that the expectation has been
+ successfully replicated.</para>
+
+ <programlisting>
+ root@fw2# conntrackd -e exp
+ proto=6 src=192.168.0.2 dst=192.168.1.2 sport=0 dport=41739 mask-src=255.255.255.255 mask-dst=255.255.255.255 sport=0 dport=65535 master-src=192.168.0.2 master-dst=192.168.1.2 sport=36390 dport=21 [active since 8s]
+ </programlisting>
+ </listitem>
+
+ <listitem>
+ <para>Make the primary firewall fw-1 fail. Now fw-2 becomes primary.</para>
+ </listitem>
+
+ <listitem>
+ <para>Switch to fw-2 (primary) to commit the external cache into the
+ kernel. The logs should display that the commit was successful:</para>
+
+ <programlisting>
+ root@fw2# tail -100f /var/log/conntrackd.log
+ [Wed Dec  7 22:16:31 2011] (pid=19195) [notice] committing external cache: expectations
+ [Wed Dec  7 22:16:31 2011] (pid=19195) [notice] Committed 1 new entries
+ [Wed Dec  7 22:16:31 2011] (pid=19195) [notice] commit has taken 0.000366 seconds</programlisting>
+ </listitem>
+
+ <listitem>
+ <para> Switch to the client. Open a new terminal and connect to the port that
+ has been announced by the server:</para>
+
+ <programlisting>
+ (term-2) user@client$ nc -vvv 192.168.1.2 41739
+ (UNKNOWN) [192.168.1.2] 41739 (?) open</programlisting>
+ </listitem>
+
+ <listitem>
+ <para>Switch to term-1 and ask for the file listing:</para>
+
+ <programlisting>
+ [...]
+ 227 Entering Passive Mode (192,168,1,2,163,11).
+ LIST</programlisting>
+ </listitem>
+
+ <listitem>
+ <para>Switch to term-2, it should display the listing. That means
+ everything has worked fine.</para>
+ </listitem>
+
+ </orderedlist>
+
+ <para>You may want to try disabling the expectation support and
+ repeating the steps to check that <emphasis>it does not work</emphasis>
+ without the state-synchronization.</para>
+
+</sect3>
+
+</sect2>
+
 <sect2 id="sync-trouble"><title>Troubleshooting</title>
 
  <para>Problems with <emphasis>conntrackd</emphasis>? The following list 
@@ -563,6 +873,151 @@ conntrack v0.9.7 (conntrack-tools): 1 flow entries has been deleted.
     <para>
     Absolutely, you can. But before reporting issues, make sure that your HA manager is not the source of the problems.
     </para>
+   </answer>
+  </qandaentry>
+
+ <qandaentry>
+   <question>
+    <para>
+    Does conntrackd support TCP flow-recovery with window tracking enabled?
+    </para>
+   </question>
+   <answer>
+    <para>
+    Yes, but you require a Linux kernel &gt;= 2.6.36 and the conntrack-tools &gt;= 0.9.15. To enable it, check the TCPWindowTracking clause in the example configuration files.
+    </para>
+   </answer>
+  </qandaentry>
+
+ <qandaentry>
+   <question>
+    <para>
+    Does conntrackd support the H.323 and SIP connection tracking helpers?
+    </para>
+   </question>
+   <answer>
+    <para>
+    Yes, conntrackd includes expectation support since version 1.2.0.
+    </para>
+   </answer>
+  </qandaentry>
+
+  <qandaentry>
+   <question>
+    <para>
+    Is there any way to set up a more verbose mode in the log message for debugging?
+    </para>
+   </question>
+   <answer>
+    <para>
+    No, but conntrackd provides lots of information that you can look up in
+    runtime via -s option.</para>
+
+    <para>You can check network statistics to find anomalies:</para>
+    <programlisting>
+# conntrackd -s network
+    network statistics:
+        recv:
+                Malformed messages:                        0
+                Wrong protocol version:                    0
+                Malformed header:                          0
+                Malformed payload:                         0
+                Bad message type:                          0
+                Truncated message:                         0
+                Bad message size:                          0
+        send:
+                Malformed messages:                        0
+
+sequence tracking statistics:
+        recv:
+                Packets lost:                          42726
+                Packets before:                            0
+
+UDP traffic (active device=eth3):
+              564232 Bytes sent              1979844 Bytes recv
+                2844 Pckts sent                 8029 Pckts recv
+                   0 Error send                    0 Error recv
+    </programlisting>
+
+    <para>You can check cache statistics:</para>
+    <programlisting>
+# conntrackd -s cache
+cache:internal  active objects:                    0
+        active/total entries:                      0/           0
+        creation OK/failed:                    11068/           0
+                no memory available:               0
+                no space left in cache:            0
+        update OK/failed:                       4128/           0
+                entry not found:                   0
+        deletion created/failed:               11068/           0
+                entry not found:                   0
+
+cache:external  active objects:                    0
+        active/total entries:                      0/           0
+        creation OK/failed:                    10521/           0
+                no memory available:               0
+                no space left in cache:            0
+        update OK/failed:                       8832/           0
+                entry not found:                   0
+        deletion created/failed:               10521/           0
+                entry not found:                   0
+    </programlisting>
+
+    <para>You can check runtime miscelaneous statistics:</para>
+    <programlisting>
+# conntrackd -s runtime
+daemon uptime: 14 min
+
+netlink stats:
+        events received:                       24736
+        events filtered:                           0
+        events unknown type:                       0
+        catch event failed:                        0
+        dump unknown type:                         0
+        netlink overrun:                           0
+        flush kernel table:                        1
+        resync with kernel table:                  0
+        current buffer size (in bytes):      8000000
+
+runtime stats:
+        child process failed:                      0
+                child process segfault:            0
+                child process termsig:             0
+        select failed:                             0
+        wait failed:                               0
+        local read failed:                         0
+        local unknown request:                     0
+    </programlisting>
+
+    <para>You can check dedicated link statistics:</para>
+    <programlisting>
+# conntrackd -s link
+UDP traffic device=eth3 status=RUNNING role=ACTIVE:
+              566848 Bytes sent              1982612 Bytes recv
+                3018 Pckts sent                 8203 Pckts recv
+                   0 Error send                    0 Error recv
+    </programlisting>
+
+    <para>You can check network queue statistics:</para>
+    <programlisting>
+# conntrackd -s queue
+allocated queue nodes:                     1
+
+queue txqueue:
+current elements:                          0
+maximum elements:                 2147483647
+not enough space errors:                   0
+
+queue errorq:
+current elements:                          0
+maximum elements:                        128
+not enough space errors:                   0
+
+queue rsqueue:
+current elements:                          1
+maximum elements:                     131072
+not enough space errors:                   0
+    </programlisting>
    </answer>
   </qandaentry>
 

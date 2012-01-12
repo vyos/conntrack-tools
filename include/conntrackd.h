@@ -14,29 +14,39 @@
 #include <syslog.h>
 
 /* UNIX facilities */
-#define FLUSH_MASTER	0	/* flush kernel conntrack table 	*/
-#define RESYNC_MASTER	1	/* resync with kernel conntrack table 	*/
-#define DUMP_INTERNAL 	16	/* dump internal cache 			*/
-#define DUMP_EXTERNAL 	17	/* dump external cache 			*/
-#define COMMIT		18	/* commit external cache		*/
-#define FLUSH_CACHE	19	/* flush cache				*/
-#define KILL		20	/* kill conntrackd			*/
-#define STATS		21	/* dump statistics			*/
-#define SEND_BULK	22	/* send a bulk				*/
-#define REQUEST_DUMP	23	/* request dump 			*/
-#define DUMP_INT_XML	24	/* dump internal cache in XML		*/
-#define DUMP_EXT_XML	25	/* dump external cache in XML		*/
-#define RESET_TIMERS	26	/* reset kernel timers			*/
-#define DEBUG_INFO	27	/* unused				*/
-#define STATS_NETWORK	28	/* extended network stats		*/
-#define STATS_CACHE	29	/* extended cache stats			*/
-#define STATS_RUNTIME	30	/* extended runtime stats		*/
-#define STATS_LINK	31	/* dedicated link stats			*/
-#define STATS_RSQUEUE	32	/* resend queue stats			*/
-#define FLUSH_INT_CACHE	33	/* flush internal cache			*/
-#define FLUSH_EXT_CACHE	34	/* flush external cache			*/
-#define STATS_PROCESS	35	/* child process stats			*/
-#define STATS_QUEUE	36	/* queue stats				*/
+#define CT_FLUSH_MASTER		0	/* flush kernel conntrack table */
+#define CT_RESYNC_MASTER	1	/* resync with kernel ct table	*/
+#define CT_DUMP_INTERNAL 	16	/* dump internal cache 		*/
+#define CT_DUMP_EXTERNAL 	17	/* dump external cache 		*/
+#define CT_COMMIT		18	/* commit external cache	*/
+#define CT_FLUSH_CACHE		19	/* flush cache			*/
+#define KILL			20	/* kill conntrackd		*/
+#define STATS			21	/* dump statistics		*/
+#define SEND_BULK		22	/* send a bulk			*/
+#define REQUEST_DUMP		23	/* request dump 		*/
+#define CT_DUMP_INT_XML		24	/* dump internal cache in XML	*/
+#define CT_DUMP_EXT_XML		25	/* dump external cache in XML	*/
+#define RESET_TIMERS		26	/* reset kernel timers		*/
+#define DEBUG_INFO		27	/* unused			*/
+#define STATS_NETWORK		28	/* extended network stats	*/
+#define STATS_CACHE		29	/* extended cache stats		*/
+#define STATS_RUNTIME		30	/* extended runtime stats	*/
+#define STATS_LINK		31	/* dedicated link stats		*/
+#define STATS_RSQUEUE		32	/* resend queue stats		*/
+#define CT_FLUSH_INT_CACHE	33	/* flush internal cache		*/
+#define CT_FLUSH_EXT_CACHE	34	/* flush external cache		*/
+#define STATS_PROCESS		35	/* child process stats		*/
+#define STATS_QUEUE		36	/* queue stats			*/
+#define EXP_STATS		37	/* dump statistics		*/
+#define EXP_FLUSH_MASTER	38	/* flush kernel expect table    */
+#define EXP_RESYNC_MASTER	39	/* resync with kernel exp table	*/
+#define EXP_DUMP_INTERNAL	40	/* dump internal expect cache	*/
+#define EXP_DUMP_EXTERNAL	41	/* dump external expect cache	*/
+#define EXP_COMMIT		42	/* commit expectations		*/
+#define ALL_FLUSH_MASTER	43	/* flush all kernel tables	*/
+#define ALL_RESYNC_MASTER	44	/* resync w/all kernel tables	*/
+#define ALL_FLUSH_CACHE		45	/* flush all caches		*/
+#define ALL_COMMIT		46	/* commit all tables		*/
 
 #define DEFAULT_CONFIGFILE	"/etc/conntrackd/conntrackd.conf"
 #define DEFAULT_LOCKFILE	"/var/lock/conntrackd.lock"
@@ -56,6 +66,7 @@
 #define CTD_SYNC_ALARM		(1UL << 3)
 #define CTD_SYNC_NOTRACK	(1UL << 4)
 #define CTD_POLL		(1UL << 5)
+#define CTD_EXPECT		(1UL << 6)
 
 /* FILENAME_MAX is 4096 on my system, perhaps too much? */
 #ifndef FILENAME_MAXLEN
@@ -102,8 +113,11 @@ struct ct_conf {
 	struct {
 		int internal_cache_disable;
 		int external_cache_disable;
+		int tcp_window_tracking;
 	} sync;
 	struct {
+		int subsys_id;
+		int groups;
 		int events_reliable;
 	} netlink;
 	struct {
@@ -129,6 +143,7 @@ struct ct_general_state {
 	struct local_server		local;
 	struct ct_mode 			*mode;
 	struct ct_filter		*us_filter;
+	struct exp_filter		*exp_filter;
 
 	struct nfct_handle		*event;         /* event handler */
 	struct nfct_filter		*filter;	/* event filter */
@@ -176,6 +191,10 @@ struct ct_general_state {
 	} stats;
 };
 
+struct commit_runqueue {
+	int		(*cb)(struct nfct_handle *h, int step);
+};
+
 #define STATE_SYNC(x) state.sync->x
 
 struct ct_sync_state {
@@ -195,6 +214,7 @@ struct ct_sync_state {
 		struct nfct_handle	*h;
 		struct evfd		*evfd;
 		int			current;
+		struct commit_runqueue  rq[2];
 		struct {
 			int 		ok;
 			int		fail;

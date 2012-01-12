@@ -1,6 +1,7 @@
 /*
- * (C) 2008 by Pablo Neira Ayuso <pablo@netfilter.org>
- * 
+ * (C) 2006-2011 by Pablo Neira Ayuso <pablo@netfilter.org>
+ * (C) 2011 by Vyatta Inc. <http://www.vyatta.com>
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
@@ -33,12 +34,14 @@ static struct alarm_block alive_alarm;
 
 struct cache_notrack {
 	struct queue_node	qnode;
+	struct cache_object	*obj;
 };
 
 static void cache_notrack_add(struct cache_object *obj, void *data)
 {
 	struct cache_notrack *cn = data;
 	queue_node_init(&cn->qnode, Q_ELEM_OBJ);
+	cn->obj = obj;
 }
 
 static void cache_notrack_del(struct cache_object *obj, void *data)
@@ -68,15 +71,15 @@ static void tx_queue_add_ctlmsg(uint32_t flags, uint32_t from, uint32_t to)
 	ack->from	= from;
 	ack->to		= to;
 
-	queue_add(STATE_SYNC(tx_queue), &qobj->qnode);
+	if (queue_add(STATE_SYNC(tx_queue), &qobj->qnode) < 0)
+		queue_object_free(qobj);
 }
 
 static int do_cache_to_tx(void *data1, void *data2)
 {
 	struct cache_object *obj = data2;
-	struct cache_notrack *cn =
-		cache_get_extra(STATE(mode)->internal->data, obj);
-	if (queue_add(STATE_SYNC(tx_queue), &cn->qnode))
+	struct cache_notrack *cn = cache_get_extra(obj);
+	if (queue_add(STATE_SYNC(tx_queue), &cn->qnode) > 0)
 		cache_object_get(obj);
 	return 0;
 }
@@ -86,7 +89,7 @@ static int kernel_resync_cb(enum nf_conntrack_msg_type type,
 {
 	struct nethdr *net;
 
-	net = BUILD_NETMSG(ct, NET_T_STATE_NEW);
+	net = BUILD_NETMSG_FROM_CT(ct, NET_T_STATE_CT_NEW);
 	multichannel_send(STATE_SYNC(channel), net);
 
 	return NFCT_CB_CONTINUE;
@@ -99,7 +102,7 @@ static void kernel_resync(void)
 	u_int32_t family = AF_UNSPEC;
 	int ret;
 
-	h = nfct_open(CONNTRACK, 0);
+	h = nfct_open(CONFIG(netlink).subsys_id, 0);
 	if (h == NULL) {
 		dlog(LOG_ERR, "can't allocate memory for the internal cache");
 		return;
@@ -126,7 +129,9 @@ static int notrack_local(int fd, int type, void *data)
 		if (CONFIG(sync).internal_cache_disable) {
 			kernel_resync();
 		} else {
-			cache_iterate(STATE(mode)->internal->data,
+			cache_iterate(STATE(mode)->internal->ct.data,
+				      NULL, do_cache_to_tx);
+			cache_iterate(STATE(mode)->internal->exp.data,
 				      NULL, do_cache_to_tx);
 		}
 		break;
@@ -147,7 +152,9 @@ static int digest_msg(const struct nethdr *net)
 		if (CONFIG(sync).internal_cache_disable) {
 			kernel_resync();
 		} else {
-			cache_iterate(STATE(mode)->internal->data,
+			cache_iterate(STATE(mode)->internal->ct.data,
+				      NULL, do_cache_to_tx);
+			cache_iterate(STATE(mode)->internal->exp.data,
 				      NULL, do_cache_to_tx);
 		}
 		return MSG_CTL;
@@ -190,19 +197,17 @@ static int tx_queue_xmit(struct queue_node *n, const void *data2)
 		break;
 	}
 	case Q_ELEM_OBJ: {
-		struct cache_ftfw *cn;
-		struct cache_object *obj;
+		struct cache_notrack *cn;
 		int type;
 		struct nethdr *net;
 
-		cn = (struct cache_ftfw *)n;
-		obj = cache_data_get_object(STATE(mode)->internal->data, cn);
-		type = object_status_to_network_type(obj->status);;
-		net = BUILD_NETMSG(obj->ct, type);
+		cn = (struct cache_notrack *)n;
+		type = object_status_to_network_type(cn->obj);
+		net = cn->obj->cache->ops->build_msg(cn->obj, type);
 
 		multichannel_send(STATE_SYNC(channel), net);
 		queue_del(n);
-		cache_object_put(obj);
+		cache_object_put(cn->obj);
 		break;
 	}
 	}
@@ -217,9 +222,8 @@ static void notrack_xmit(void)
 
 static void notrack_enqueue(struct cache_object *obj, int query)
 {
-	struct cache_notrack *cn =
-		cache_get_extra(STATE(mode)->internal->data, obj);
-	if (queue_add(STATE_SYNC(tx_queue), &cn->qnode))
+	struct cache_notrack *cn = cache_get_extra(obj);
+	if (queue_add(STATE_SYNC(tx_queue), &cn->qnode) > 0)
 		cache_object_get(obj);
 }
 
@@ -236,7 +240,8 @@ static void tx_queue_add_ctlmsg2(uint32_t flags)
 	ctl->type	= NET_T_CTL;
 	ctl->flags	= flags;
 
-	queue_add(STATE_SYNC(tx_queue), &qobj->qnode);
+	if (queue_add(STATE_SYNC(tx_queue), &qobj->qnode) < 0)
+		queue_object_free(qobj);
 }
 
 static void do_alive_alarm(struct alarm_block *a, void *data)

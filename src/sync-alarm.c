@@ -1,6 +1,7 @@
 /*
- * (C) 2006-2007 by Pablo Neira Ayuso <pablo@netfilter.org>
- * 
+ * (C) 2006-2011 by Pablo Neira Ayuso <pablo@netfilter.org>
+ * (C) 2011 by Vyatta Inc. <http://www.vyatta.com>
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
@@ -28,6 +29,7 @@
 
 struct cache_alarm {
 	struct queue_node	qnode;
+	struct cache_object	*obj;
 	struct alarm_block	alarm;
 };
 
@@ -41,7 +43,7 @@ static void refresher(struct alarm_block *a, void *data)
 		  random() % CONFIG(refresh) + 1,
 		  ((random() % 5 + 1)  * 200000) - 1);
 
-	alarm_enqueue(obj, NET_T_STATE_UPD);
+	alarm_enqueue(obj, NET_T_STATE_CT_UPD);
 }
 
 static void cache_alarm_add(struct cache_object *obj, void *data)
@@ -49,6 +51,7 @@ static void cache_alarm_add(struct cache_object *obj, void *data)
 	struct cache_alarm *ca = data;
 
 	queue_node_init(&ca->qnode, Q_ELEM_OBJ);
+	ca->obj = obj;
 	init_alarm(&ca->alarm, obj, refresher);
 	add_alarm(&ca->alarm,
 		  random() % CONFIG(refresh) + 1,
@@ -109,9 +112,8 @@ static int alarm_recv(const struct nethdr *net)
 
 static void alarm_enqueue(struct cache_object *obj, int query)
 {
-	struct cache_alarm *ca =
-		cache_get_extra(STATE(mode)->internal->data, obj);
-	if (queue_add(STATE_SYNC(tx_queue), &ca->qnode))
+	struct cache_alarm *ca = cache_get_extra(obj);
+	if (queue_add(STATE_SYNC(tx_queue), &ca->qnode) > 0)
 		cache_object_get(obj);
 }
 
@@ -131,15 +133,13 @@ static int tx_queue_xmit(struct queue_node *n, const void *data)
 		break;
 	case Q_ELEM_OBJ: {
 		struct cache_alarm *ca;
-		struct cache_object *obj;
 		int type;
 
 		ca = (struct cache_alarm *)n;
-		obj = cache_data_get_object(STATE(mode)->internal->data, ca);
-		type = object_status_to_network_type(obj->status);
-		net = BUILD_NETMSG(obj->ct, type);
+		type = object_status_to_network_type(ca->obj);
+		net = ca->obj->cache->ops->build_msg(ca->obj, type);
 		multichannel_send(STATE_SYNC(channel), net);
-		cache_object_put(obj);
+		cache_object_put(ca->obj);
 		break;
 	}
 	}

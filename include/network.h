@@ -4,9 +4,10 @@
 #include <stdint.h>
 #include <sys/types.h>
 
-#define CONNTRACKD_PROTOCOL_VERSION	0
+#define CONNTRACKD_PROTOCOL_VERSION	1
 
 struct nf_conntrack;
+struct nf_expect;
 
 struct nethdr {
 #if __BYTE_ORDER == __LITTLE_ENDIAN
@@ -25,10 +26,13 @@ struct nethdr {
 #define NETHDR_SIZ nethdr_align(sizeof(struct nethdr))
 
 enum nethdr_type {
-	NET_T_STATE_NEW = 0,
-	NET_T_STATE_UPD,
-	NET_T_STATE_DEL,
-	NET_T_STATE_MAX = NET_T_STATE_DEL,
+	NET_T_STATE_CT_NEW = 0,
+	NET_T_STATE_CT_UPD,
+	NET_T_STATE_CT_DEL,
+	NET_T_STATE_EXP_NEW = 3,
+	NET_T_STATE_EXP_UPD,
+	NET_T_STATE_EXP_DEL,
+	NET_T_STATE_MAX = NET_T_STATE_EXP_DEL,
 	NET_T_CTL = 10,
 };
 
@@ -37,7 +41,9 @@ int nethdr_size(int len);
 void nethdr_set(struct nethdr *net, int type);
 void nethdr_set_ack(struct nethdr *net);
 void nethdr_set_ctl(struct nethdr *net);
-int object_status_to_network_type(int status);
+
+struct cache_object;
+int object_status_to_network_type(struct cache_object *obj);
 
 #define NETHDR_DATA(x)							 \
 	(struct netattr *)(((char *)x) + NETHDR_SIZ)
@@ -79,13 +85,24 @@ enum {
 	MSG_BAD,
 };
 
-#define BUILD_NETMSG(ct, query)					\
+#define BUILD_NETMSG_FROM_CT(ct, query)				\
 ({								\
 	static char __net[4096];				\
 	struct nethdr *__hdr = (struct nethdr *) __net;		\
 	memset(__hdr, 0, NETHDR_SIZ);				\
 	nethdr_set(__hdr, query);				\
-	build_payload(ct, __hdr);				\
+	ct2msg(ct, __hdr);					\
+	HDR_HOST2NETWORK(__hdr);				\
+	__hdr;							\
+})
+
+#define BUILD_NETMSG_FROM_EXP(exp, query)			\
+({								\
+	static char __net[4096];				\
+	struct nethdr *__hdr = (struct nethdr *) __net;		\
+	memset(__hdr, 0, NETHDR_SIZ);				\
+	nethdr_set(__hdr, query);				\
+	exp2msg(exp, __hdr);					\
 	HDR_HOST2NETWORK(__hdr);				\
 	__hdr;							\
 })
@@ -220,6 +237,8 @@ enum nta_attr {
 	NTA_ICMP_TYPE,		/* uint8_t */
 	NTA_ICMP_CODE,		/* uint8_t */
 	NTA_ICMP_ID,		/* uint16_t */
+	NTA_TCP_WSCALE_ORIG,	/* uint8_t */
+	NTA_TCP_WSCALE_REPL,	/* uint8_t */
 	NTA_MAX
 };
 
@@ -232,8 +251,28 @@ struct nta_attr_natseqadj {
 	uint32_t repl_seq_offset_after;
 };
 
-void build_payload(const struct nf_conntrack *ct, struct nethdr *n);
+void ct2msg(const struct nf_conntrack *ct, struct nethdr *n);
+int msg2ct(struct nf_conntrack *ct, struct nethdr *n, size_t remain);
 
-int parse_payload(struct nf_conntrack *ct, struct nethdr *n, size_t remain);
+enum nta_exp_attr {
+	NTA_EXP_MASTER_IPV4 = 0,	/* struct nfct_attr_grp_ipv4 */
+	NTA_EXP_MASTER_IPV6,		/* struct nfct_attr_grp_ipv6 */
+	NTA_EXP_MASTER_L4PROTO,		/* uint8_t */
+	NTA_EXP_MASTER_PORT,		/* struct nfct_attr_grp_port */
+	NTA_EXP_EXPECT_IPV4 = 4,	/* struct nfct_attr_grp_ipv4 */
+	NTA_EXP_EXPECT_IPV6,		/* struct nfct_attr_grp_ipv6 */
+	NTA_EXP_EXPECT_L4PROTO,		/* uint8_t */
+	NTA_EXP_EXPECT_PORT,		/* struct nfct_attr_grp_port */
+	NTA_EXP_MASK_IPV4 = 8,		/* struct nfct_attr_grp_ipv4 */
+	NTA_EXP_MASK_IPV6,		/* struct nfct_attr_grp_ipv6 */
+	NTA_EXP_MASK_L4PROTO,		/* uint8_t */
+	NTA_EXP_MASK_PORT,		/* struct nfct_attr_grp_port */
+	NTA_EXP_TIMEOUT,		/* uint32_t */
+	NTA_EXP_FLAGS,			/* uint32_t */
+	NTA_EXP_MAX
+};
+
+void exp2msg(const struct nf_expect *exp, struct nethdr *n);
+int msg2exp(struct nf_expect *exp, struct nethdr *n, size_t remain);
 
 #endif

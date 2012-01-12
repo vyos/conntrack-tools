@@ -1,5 +1,6 @@
 /*
- * (C) 2006-2007 by Pablo Neira Ayuso <pablo@netfilter.org>
+ * (C) 2006-2011 by Pablo Neira Ayuso <pablo@netfilter.org>
+ * (C) 2011 by Vyatta Inc. <http://www.vyatta.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -38,14 +39,15 @@ static const char usage_daemon_commands[] =
 
 static const char usage_client_commands[] =
 	"Client mode commands:\n"
-	"  -c, commit external cache to conntrack table\n"
+	"  -c [ct|expect], commit external cache to conntrack table\n"
 	"  -f [|internal|external], flush internal and external cache\n"
-	"  -F, flush kernel conntrack table\n"
-	"  -i, display content of the internal cache\n"
-	"  -e, display the content of the external cache\n"
+	"  -F [ct|expect], flush kernel conntrack table\n"
+	"  -i [ct|expect], display content of the internal cache\n"
+	"  -e [ct|expect], display the content of the external cache\n"
 	"  -k, kill conntrack daemon\n"
-	"  -s  [|network|cache|runtime|link|rsqueue|queue], dump statistics\n"
-	"  -R, resync with kernel conntrack table\n"
+	"  -s  [|network|cache|runtime|link|rsqueue|queue|ct|expect], "
+		"dump statistics\n"
+	"  -R [ct|expect], resync with kernel conntrack table\n"
 	"  -n, request resync with other node (only FT-FW and NOTRACK modes)\n"
 	"  -x, dump cache in XML format (requires -i or -e)\n"
 	"  -t, reset the kernel timeout (see PurgeTimeout clause)\n"
@@ -89,6 +91,25 @@ set_operation_mode(int *current, int want, char *argv[])
 	}
 }
 
+static int
+set_action_by_table(int i, int argc, char *argv[],
+		    int ct_action, int exp_action, int dfl_action, int *action)
+{
+	if (i+1 < argc && argv[i+1][0] != '-') {
+		if (strncmp(argv[i+1], "ct", strlen(argv[i+1])) == 0) {
+			*action = ct_action;
+			i++;
+		} else if (strncmp(argv[i+1], "expect",
+						strlen(argv[i+1])) == 0) {
+			*action = exp_action;
+			i++;
+		}
+	} else
+		*action = dfl_action;
+
+	return i;
+}
+
 int main(int argc, char *argv[])
 {
 	int ret, i, action = -1;
@@ -115,15 +136,23 @@ int main(int argc, char *argv[])
 			break;
 		case 'c':
 			set_operation_mode(&type, REQUEST, argv);
-			action = COMMIT;
+			i = set_action_by_table(i, argc, argv,
+						CT_COMMIT, EXP_COMMIT,
+						ALL_COMMIT, &action);
 			break;
 		case 'i':
 			set_operation_mode(&type, REQUEST, argv);
-			action = DUMP_INTERNAL;
+			i = set_action_by_table(i, argc, argv,
+						CT_DUMP_INTERNAL,
+						EXP_DUMP_INTERNAL,
+						CT_DUMP_INTERNAL, &action);
 			break;
 		case 'e':
 			set_operation_mode(&type, REQUEST, argv);
-			action = DUMP_EXTERNAL;
+			i = set_action_by_table(i, argc, argv,
+						CT_DUMP_EXTERNAL,
+						EXP_DUMP_EXTERNAL,
+						CT_DUMP_EXTERNAL, &action);
 			break;
 		case 'C':
 			if (++i < argc) {
@@ -142,18 +171,21 @@ int main(int argc, char *argv[])
 			break;
 		case 'F':
 			set_operation_mode(&type, REQUEST, argv);
-			action = FLUSH_MASTER;
+			i = set_action_by_table(i, argc, argv,
+						CT_FLUSH_MASTER,
+						EXP_FLUSH_MASTER,
+						ALL_FLUSH_MASTER, &action);
 			break;
 		case 'f':
 			set_operation_mode(&type, REQUEST, argv);
 			if (i+1 < argc && argv[i+1][0] != '-') {
 				if (strncmp(argv[i+1], "internal",
 					    strlen(argv[i+1])) == 0) {
-					action = FLUSH_INT_CACHE;
+					action = CT_FLUSH_INT_CACHE;
 					i++;
 				} else if (strncmp(argv[i+1], "external",
 						 strlen(argv[i+1])) == 0) {
-					action = FLUSH_EXT_CACHE;
+					action = CT_FLUSH_EXT_CACHE;
 					i++;
 				} else {
 					fprintf(stderr, "ERROR: unknown "
@@ -164,12 +196,15 @@ int main(int argc, char *argv[])
 				}
 			} else {
 				/* default to general flushing */
-				action = FLUSH_CACHE;
+				action = ALL_FLUSH_CACHE;
 			}
 			break;
 		case 'R':
 			set_operation_mode(&type, REQUEST, argv);
-			action = RESYNC_MASTER;
+			i = set_action_by_table(i, argc, argv,
+						CT_RESYNC_MASTER,
+						EXP_RESYNC_MASTER,
+						ALL_RESYNC_MASTER, &action);
 			break;
 		case 'B':
 			set_operation_mode(&type, REQUEST, argv);
@@ -222,6 +257,14 @@ int main(int argc, char *argv[])
 						strlen(argv[i+1])) == 0) {
 					action = STATS_QUEUE;
 					i++;
+				} else if (strncmp(argv[i+1], "ct",
+						strlen(argv[i+1])) == 0) {
+					action = STATS;
+					i++;
+				} else if (strncmp(argv[i+1], "expect",
+						strlen(argv[i+1])) == 0) {
+					action = EXP_STATS;
+					i++;
 				} else {
 					fprintf(stderr, "ERROR: unknown "
 							"parameter `%s' for "
@@ -243,10 +286,10 @@ int main(int argc, char *argv[])
 			action = REQUEST_DUMP;
 			break;
 		case 'x':
-			if (action == DUMP_INTERNAL)
-				action = DUMP_INT_XML;
-			else if (action == DUMP_EXTERNAL)
-				action = DUMP_EXT_XML;
+			if (action == CT_DUMP_INTERNAL)
+				action = CT_DUMP_INT_XML;
+			else if (action == CT_DUMP_EXTERNAL)
+				action = CT_DUMP_EXT_XML;
 			else {
 				show_usage(argv[0]);
 				fprintf(stderr, "Error: Invalid parameters\n");

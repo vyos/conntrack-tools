@@ -1,6 +1,7 @@
 /*
- * (C) 2006-2007 by Pablo Neira Ayuso <pablo@netfilter.org>
- * 
+ * (C) 2006-2011 by Pablo Neira Ayuso <pablo@netfilter.org>
+ * (C) 2011 by Vyatta Inc. <http://www.vyatta.com>
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
@@ -37,7 +38,9 @@ static int init_stats(void)
 	}
 	memset(state.stats, 0, sizeof(struct ct_stats_state));
 
-	STATE_STATS(cache) = cache_create("stats", NO_FEATURES, NULL);
+	STATE_STATS(cache) = cache_create("stats", CACHE_T_CT,
+					  NO_FEATURES, NULL,
+					  &cache_stats_ct_ops);
 	if (!STATE_STATS(cache)) {
 		dlog(LOG_ERR, "can't allocate memory for the "
 			      "external cache");
@@ -59,14 +62,14 @@ static int local_handler_stats(int fd, int type, void *data)
 	int ret = LOCAL_RET_OK;
 
 	switch(type) {
-	case DUMP_INTERNAL:
+	case CT_DUMP_INTERNAL:
 		cache_dump(STATE_STATS(cache), fd, NFCT_O_PLAIN);
 		break;
-	case DUMP_INT_XML:
+	case CT_DUMP_INT_XML:
 		cache_dump(STATE_STATS(cache), fd, NFCT_O_XML);
 		break;
-	case FLUSH_CACHE:
-	case FLUSH_INT_CACHE:
+	case CT_FLUSH_CACHE:
+	case CT_FLUSH_INT_CACHE:
 		dlog(LOG_NOTICE, "flushing caches");
 		cache_flush(STATE_STATS(cache));
 		break;
@@ -88,7 +91,7 @@ static int local_handler_stats(int fd, int type, void *data)
 	return ret;
 }
 
-static void populate_stats(struct nf_conntrack *ct)
+static void stats_populate(struct nf_conntrack *ct)
 {
 	nfct_attr_unset(ct, ATTR_ORIG_COUNTER_BYTES);
 	nfct_attr_unset(ct, ATTR_ORIG_COUNTER_PACKETS);
@@ -100,7 +103,7 @@ static void populate_stats(struct nf_conntrack *ct)
 	cache_update_force(STATE_STATS(cache), ct);
 }
 
-static int resync_stats(enum nf_conntrack_msg_type type,
+static int stats_resync(enum nf_conntrack_msg_type type,
 			struct nf_conntrack *ct,
 			void *data)
 {
@@ -125,23 +128,22 @@ static int purge_step(void *data1, void *data2)
 	struct cache_object *obj = data2;
 
 	STATE(get_retval) = 0;
-	nl_get_conntrack(STATE(get), obj->ct); /* modifies STATE(get_retval) */
+	nl_get_conntrack(STATE(get), obj->ptr); /* modifies STATE(get_retval) */
 	if (!STATE(get_retval)) {
 		cache_del(STATE_STATS(cache), obj);
-		dlog_ct(STATE(stats_log), obj->ct, NFCT_O_PLAIN);
+		dlog_ct(STATE(stats_log), obj->ptr, NFCT_O_PLAIN);
 		cache_object_free(obj);
 	}
 
 	return 0;
 }
 
-static void purge_stats(void)
+static void stats_purge(void)
 {
 	cache_iterate(STATE_STATS(cache), NULL, purge_step);
 }
 
-static void
-event_new_stats(struct nf_conntrack *ct, int origin)
+static void stats_event_new(struct nf_conntrack *ct, int origin)
 {
 	int id;
 	struct cache_object *obj;
@@ -162,15 +164,13 @@ event_new_stats(struct nf_conntrack *ct, int origin)
 	return;
 }
 
-static void
-event_update_stats(struct nf_conntrack *ct, int origin)
+static void stats_event_upd(struct nf_conntrack *ct, int origin)
 {
 	nfct_attr_unset(ct, ATTR_TIMEOUT);
 	cache_update_force(STATE_STATS(cache), ct);
 }
 
-static int
-event_destroy_stats(struct nf_conntrack *ct, int origin)
+static int stats_event_del(struct nf_conntrack *ct, int origin)
 {
 	int id;
 	struct cache_object *obj;
@@ -189,12 +189,14 @@ event_destroy_stats(struct nf_conntrack *ct, int origin)
 
 static struct internal_handler internal_cache_stats = {
 	.flags			= INTERNAL_F_POPULATE | INTERNAL_F_RESYNC,
-	.populate		= populate_stats,
-	.resync			= resync_stats,
-	.purge			= purge_stats,
-	.new			= event_new_stats,
-	.update			= event_update_stats,
-	.destroy		= event_destroy_stats
+	.ct = {
+		.populate		= stats_populate,
+		.resync			= stats_resync,
+		.purge			= stats_purge,
+		.new			= stats_event_new,
+		.upd			= stats_event_upd,
+		.del			= stats_event_del,
+	},
 };
 
 struct ct_mode stats_mode = {

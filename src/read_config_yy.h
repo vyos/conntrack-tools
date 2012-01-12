@@ -127,11 +127,14 @@
      T_DISABLE_INTERNAL_CACHE = 343,
      T_DISABLE_EXTERNAL_CACHE = 344,
      T_ERROR_QUEUE_LENGTH = 345,
-     T_IP = 346,
-     T_PATH_VAL = 347,
-     T_NUMBER = 348,
-     T_SIGNED_NUMBER = 349,
-     T_STRING = 350
+     T_OPTIONS = 346,
+     T_TCP_WINDOW_TRACKING = 347,
+     T_EXPECT_SYNC = 348,
+     T_IP = 349,
+     T_PATH_VAL = 350,
+     T_NUMBER = 351,
+     T_SIGNED_NUMBER = 352,
+     T_STRING = 353
    };
 #endif
 /* Tokens.  */
@@ -223,11 +226,14 @@
 #define T_DISABLE_INTERNAL_CACHE 343
 #define T_DISABLE_EXTERNAL_CACHE 344
 #define T_ERROR_QUEUE_LENGTH 345
-#define T_IP 346
-#define T_PATH_VAL 347
-#define T_NUMBER 348
-#define T_SIGNED_NUMBER 349
-#define T_STRING 350
+#define T_OPTIONS 346
+#define T_TCP_WINDOW_TRACKING 347
+#define T_EXPECT_SYNC 348
+#define T_IP 349
+#define T_PATH_VAL 350
+#define T_NUMBER 351
+#define T_SIGNED_NUMBER 352
+#define T_STRING 353
 
 
 
@@ -245,7 +251,7 @@ typedef union YYSTYPE
 
 
 /* Line 1676 of yacc.c  */
-#line 249 "read_config_yy.h"
+#line 255 "read_config_yy.h"
 } YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */

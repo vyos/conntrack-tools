@@ -145,6 +145,43 @@ void dlog_ct(FILE *fd, struct nf_conntrack *ct, unsigned int type)
 	}
 }
 
+void dlog_exp(FILE *fd, struct nf_expect *exp, unsigned int type)
+{
+	time_t t;
+	char buf[1024];
+	char *tmp;
+	unsigned int flags = 0;
+
+	buf[0]='\0';
+
+	switch(type) {
+	case NFCT_O_PLAIN:
+		t = time(NULL);
+		ctime_r(&t, buf);
+		tmp = buf + strlen(buf);
+		buf[strlen(buf)-1]='\t';
+		break;
+	default:
+		return;
+	}
+	nfexp_snprintf(buf+strlen(buf), 1024-strlen(buf), exp, 0, type, flags);
+
+	if (fd) {
+		snprintf(buf+strlen(buf), 1024-strlen(buf), "\n");
+		fputs(buf, fd);
+	}
+
+	if (fd == STATE(log)) {
+		/* error reporting */
+		if (CONFIG(syslog_facility) != -1)
+			syslog(LOG_ERR, "%s", tmp);
+	} else if (fd == STATE(stats_log)) {
+		/* connection logging */
+		if (CONFIG(stats).syslog_facility != -1)
+			syslog(LOG_INFO, "%s", tmp);
+	}
+}
+
 void close_log(void)
 {
 	if (STATE(log) != NULL)

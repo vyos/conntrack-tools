@@ -58,10 +58,219 @@
 #include <fcntl.h>
 #include <libnetfilter_conntrack/libnetfilter_conntrack.h>
 
+struct u32_mask {
+	uint32_t value;
+	uint32_t mask;
+};
+
+/* These are the template objects that are used to send commands. */
+static struct {
+	struct nf_conntrack *ct;
+	struct nf_expect *exp;
+	/* Expectations require the expectation tuple and the mask. */
+	struct nf_conntrack *exptuple, *mask;
+
+	/* Allows filtering/setting specific bits in the ctmark */
+	struct u32_mask mark;
+} tmpl;
+
+static int alloc_tmpl_objects(void)
+{
+	tmpl.ct = nfct_new();
+	tmpl.exptuple = nfct_new();
+	tmpl.mask = nfct_new();
+	tmpl.exp = nfexp_new();
+
+	memset(&tmpl.mark, 0, sizeof(tmpl.mark));
+
+	return tmpl.ct != NULL && tmpl.exptuple != NULL &&
+	       tmpl.mask != NULL && tmpl.exp != NULL;
+}
+
+static void free_tmpl_objects(void)
+{
+	if (tmpl.ct)
+		nfct_destroy(tmpl.ct);
+	if (tmpl.exptuple)
+		nfct_destroy(tmpl.exptuple);
+	if (tmpl.mask)
+		nfct_destroy(tmpl.mask);
+	if (tmpl.exp)
+		nfexp_destroy(tmpl.exp);
+}
+
+enum ct_command {
+	CT_NONE		= 0,
+
+	CT_LIST_BIT 	= 0,
+	CT_LIST 	= (1 << CT_LIST_BIT),
+
+	CT_CREATE_BIT	= 1,
+	CT_CREATE	= (1 << CT_CREATE_BIT),
+
+	CT_UPDATE_BIT	= 2,
+	CT_UPDATE	= (1 << CT_UPDATE_BIT),
+
+	CT_DELETE_BIT	= 3,
+	CT_DELETE	= (1 << CT_DELETE_BIT),
+
+	CT_GET_BIT	= 4,
+	CT_GET		= (1 << CT_GET_BIT),
+
+	CT_FLUSH_BIT	= 5,
+	CT_FLUSH	= (1 << CT_FLUSH_BIT),
+
+	CT_EVENT_BIT	= 6,
+	CT_EVENT	= (1 << CT_EVENT_BIT),
+
+	CT_VERSION_BIT	= 7,
+	CT_VERSION	= (1 << CT_VERSION_BIT),
+
+	CT_HELP_BIT	= 8,
+	CT_HELP		= (1 << CT_HELP_BIT),
+
+	EXP_LIST_BIT 	= 9,
+	EXP_LIST 	= (1 << EXP_LIST_BIT),
+
+	EXP_CREATE_BIT	= 10,
+	EXP_CREATE	= (1 << EXP_CREATE_BIT),
+
+	EXP_DELETE_BIT	= 11,
+	EXP_DELETE	= (1 << EXP_DELETE_BIT),
+
+	EXP_GET_BIT	= 12,
+	EXP_GET		= (1 << EXP_GET_BIT),
+
+	EXP_FLUSH_BIT	= 13,
+	EXP_FLUSH	= (1 << EXP_FLUSH_BIT),
+
+	EXP_EVENT_BIT	= 14,
+	EXP_EVENT	= (1 << EXP_EVENT_BIT),
+
+	CT_COUNT_BIT	= 15,
+	CT_COUNT	= (1 << CT_COUNT_BIT),
+
+	EXP_COUNT_BIT	= 16,
+	EXP_COUNT	= (1 << EXP_COUNT_BIT),
+
+	X_STATS_BIT	= 17,
+	X_STATS		= (1 << X_STATS_BIT),
+};
+/* If you add a new command, you have to update NUMBER_OF_CMD in conntrack.h */
+
+enum ct_options {
+	CT_OPT_ORIG_SRC_BIT	= 0,
+	CT_OPT_ORIG_SRC 	= (1 << CT_OPT_ORIG_SRC_BIT),
+
+	CT_OPT_ORIG_DST_BIT	= 1,
+	CT_OPT_ORIG_DST		= (1 << CT_OPT_ORIG_DST_BIT),
+
+	CT_OPT_ORIG		= (CT_OPT_ORIG_SRC | CT_OPT_ORIG_DST),
+
+	CT_OPT_REPL_SRC_BIT	= 2,
+	CT_OPT_REPL_SRC		= (1 << CT_OPT_REPL_SRC_BIT),
+
+	CT_OPT_REPL_DST_BIT	= 3,
+	CT_OPT_REPL_DST		= (1 << CT_OPT_REPL_DST_BIT),
+
+	CT_OPT_REPL		= (CT_OPT_REPL_SRC | CT_OPT_REPL_DST),
+
+	CT_OPT_PROTO_BIT	= 4,
+	CT_OPT_PROTO		= (1 << CT_OPT_PROTO_BIT),
+
+	CT_OPT_TUPLE_ORIG	= (CT_OPT_ORIG | CT_OPT_PROTO),
+	CT_OPT_TUPLE_REPL	= (CT_OPT_REPL | CT_OPT_PROTO),
+
+	CT_OPT_TIMEOUT_BIT	= 5,
+	CT_OPT_TIMEOUT		= (1 << CT_OPT_TIMEOUT_BIT),
+
+	CT_OPT_STATUS_BIT	= 6,
+	CT_OPT_STATUS		= (1 << CT_OPT_STATUS_BIT),
+
+	CT_OPT_ZERO_BIT		= 7,
+	CT_OPT_ZERO		= (1 << CT_OPT_ZERO_BIT),
+
+	CT_OPT_EVENT_MASK_BIT	= 8,
+	CT_OPT_EVENT_MASK	= (1 << CT_OPT_EVENT_MASK_BIT),
+
+	CT_OPT_EXP_SRC_BIT	= 9,
+	CT_OPT_EXP_SRC		= (1 << CT_OPT_EXP_SRC_BIT),
+
+	CT_OPT_EXP_DST_BIT	= 10,
+	CT_OPT_EXP_DST		= (1 << CT_OPT_EXP_DST_BIT),
+
+	CT_OPT_MASK_SRC_BIT	= 11,
+	CT_OPT_MASK_SRC		= (1 << CT_OPT_MASK_SRC_BIT),
+
+	CT_OPT_MASK_DST_BIT	= 12,
+	CT_OPT_MASK_DST		= (1 << CT_OPT_MASK_DST_BIT),
+
+	CT_OPT_NATRANGE_BIT	= 13,
+	CT_OPT_NATRANGE		= (1 << CT_OPT_NATRANGE_BIT),
+
+	CT_OPT_MARK_BIT		= 14,
+	CT_OPT_MARK		= (1 << CT_OPT_MARK_BIT),
+
+	CT_OPT_ID_BIT		= 15,
+	CT_OPT_ID		= (1 << CT_OPT_ID_BIT),
+
+	CT_OPT_FAMILY_BIT	= 16,
+	CT_OPT_FAMILY		= (1 << CT_OPT_FAMILY_BIT),
+
+	CT_OPT_SRC_NAT_BIT	= 17,
+	CT_OPT_SRC_NAT		= (1 << CT_OPT_SRC_NAT_BIT),
+
+	CT_OPT_DST_NAT_BIT	= 18,
+	CT_OPT_DST_NAT		= (1 << CT_OPT_DST_NAT_BIT),
+
+	CT_OPT_OUTPUT_BIT	= 19,
+	CT_OPT_OUTPUT		= (1 << CT_OPT_OUTPUT_BIT),
+
+	CT_OPT_SECMARK_BIT	= 20,
+	CT_OPT_SECMARK		= (1 << CT_OPT_SECMARK_BIT),
+
+	CT_OPT_BUFFERSIZE_BIT	= 21,
+	CT_OPT_BUFFERSIZE	= (1 << CT_OPT_BUFFERSIZE_BIT),
+
+	CT_OPT_ANY_NAT_BIT	= 22,
+	CT_OPT_ANY_NAT		= (1 << CT_OPT_ANY_NAT_BIT),
+
+	CT_OPT_ZONE_BIT		= 23,
+	CT_OPT_ZONE		= (1 << CT_OPT_ZONE_BIT),
+};
+/* If you add a new option, you have to update NUMBER_OF_OPT in conntrack.h */
+
+/* Update this mask to allow to filter based on new options. */
+#define CT_COMPARISON (CT_OPT_PROTO | CT_OPT_ORIG | CT_OPT_REPL | \
+		       CT_OPT_MARK | CT_OPT_SECMARK |  CT_OPT_STATUS | \
+		       CT_OPT_ID | CT_OPT_ZONE)
+
 static const char *optflags[NUMBER_OF_OPT] = {
-"src","dst","reply-src","reply-dst","protonum","timeout","status","zero",
-"event-mask","tuple-src","tuple-dst","mask-src","mask-dst","nat-range","mark",
-"id","family","src-nat","dst-nat","output","secmark","buffersize"};
+	[CT_OPT_ORIG_SRC_BIT] 	= "src",
+	[CT_OPT_ORIG_DST_BIT]	= "dst",
+	[CT_OPT_REPL_SRC_BIT]	= "reply-src",
+	[CT_OPT_REPL_DST_BIT]	= "reply-dst",
+	[CT_OPT_PROTO_BIT]	= "protonum",
+	[CT_OPT_TIMEOUT_BIT]	= "timeout",
+	[CT_OPT_STATUS_BIT]	= "status",
+	[CT_OPT_ZERO_BIT]	= "zero",
+	[CT_OPT_EVENT_MASK_BIT]	= "event-mask",
+	[CT_OPT_EXP_SRC_BIT]	= "tuple-src",
+	[CT_OPT_EXP_DST_BIT]	= "tuple-dst",
+	[CT_OPT_MASK_SRC_BIT]	= "mask-src",
+	[CT_OPT_MASK_DST_BIT]	= "mask-dst",
+	[CT_OPT_NATRANGE_BIT]	= "nat-range",
+	[CT_OPT_MARK_BIT]	= "mark",
+	[CT_OPT_ID_BIT]		= "id",
+	[CT_OPT_FAMILY_BIT]	= "family",
+	[CT_OPT_SRC_NAT_BIT]	= "src-nat",
+	[CT_OPT_DST_NAT_BIT]	= "dst-nat",
+	[CT_OPT_OUTPUT_BIT]	= "output",
+	[CT_OPT_SECMARK_BIT]	= "secmark",
+	[CT_OPT_BUFFERSIZE_BIT]	= "buffer-size",
+	[CT_OPT_ANY_NAT_BIT]	= "any-nat",
+	[CT_OPT_ZONE_BIT]	= "zone",
+};
 
 static struct option original_opts[] = {
 	{"dump", 2, 0, 'L'},
@@ -99,14 +308,14 @@ static struct option original_opts[] = {
 	{"dst-nat", 2, 0, 'g'},
 	{"output", 1, 0, 'o'},
 	{"buffer-size", 1, 0, 'b'},
+	{"any-nat", 2, 0, 'j'},
+	{"zone", 1, 0, 'w'},
 	{0, 0, 0, 0}
 };
 
-#define OPTION_OFFSET 256
-
-static struct nfct_handle *cth, *ith;
-static struct option *opts = original_opts;
-static unsigned int global_option_offset = 0;
+static const char *getopt_str = "L::I::U::D::G::E::F::hVs:d:r:q:"
+				"p:t:u:e:a:z[:]:{:}:m:i:f:o:n::"
+				"g::c:b:C::Sj::w:";
 
 /* Table of legal combinations of commands and options.  If any of the
  * given commands make an option legal, that option is legal (applies to
@@ -121,26 +330,142 @@ static unsigned int global_option_offset = 0;
 static char commands_v_options[NUMBER_OF_CMD][NUMBER_OF_OPT] =
 /* Well, it's better than "Re: Linux vs FreeBSD" */
 {
-          /*   s d r q p t u z e [ ] { } a m i f n g o c b*/
-/*CT_LIST*/   {2,2,2,2,2,0,2,2,0,0,0,0,0,0,2,0,2,2,2,2,2,0},
-/*CT_CREATE*/ {3,3,3,3,1,1,2,0,0,0,0,0,0,2,2,0,0,2,2,0,0,0},
-/*CT_UPDATE*/ {2,2,2,2,2,2,2,0,0,0,0,0,0,0,2,2,2,2,2,2,0,0},
-/*CT_DELETE*/ {2,2,2,2,2,2,2,0,0,0,0,0,0,0,2,2,2,2,2,2,0,0},
-/*CT_GET*/    {3,3,3,3,1,0,0,0,0,0,0,0,0,0,0,2,0,0,0,2,0,0},
-/*CT_FLUSH*/  {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-/*CT_EVENT*/  {2,2,2,2,2,0,0,0,2,0,0,0,0,0,2,0,0,2,2,2,2,2},
-/*VERSION*/   {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-/*HELP*/      {0,0,0,0,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-/*EXP_LIST*/  {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,0,0,0,0,0},
-/*EXP_CREATE*/{1,1,2,2,1,1,2,0,0,1,1,1,1,0,0,0,0,0,0,0,0,0},
-/*EXP_DELETE*/{1,1,2,2,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-/*EXP_GET*/   {1,1,2,2,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-/*EXP_FLUSH*/ {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-/*EXP_EVENT*/ {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-/*CT_COUNT*/  {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-/*EXP_COUNT*/ {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-/*X_STATS*/   {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+          /*   s d r q p t u z e [ ] { } a m i f n g o c b j w*/
+/*CT_LIST*/   {2,2,2,2,2,0,2,2,0,0,0,0,0,0,2,0,2,2,2,2,2,0,2,2},
+/*CT_CREATE*/ {3,3,3,3,1,1,2,0,0,0,0,0,0,2,2,0,0,2,2,0,0,0,0,2},
+/*CT_UPDATE*/ {2,2,2,2,2,2,2,0,0,0,0,0,0,0,2,2,2,2,2,2,0,0,0,0},
+/*CT_DELETE*/ {2,2,2,2,2,2,2,0,0,0,0,0,0,0,2,2,2,2,2,2,0,0,0,2},
+/*CT_GET*/    {3,3,3,3,1,0,0,0,0,0,0,0,0,0,0,2,0,0,0,2,0,0,0,0},
+/*CT_FLUSH*/  {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+/*CT_EVENT*/  {2,2,2,2,2,0,0,0,2,0,0,0,0,0,2,0,0,2,2,2,2,2,2,2},
+/*VERSION*/   {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+/*HELP*/      {0,0,0,0,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+/*EXP_LIST*/  {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,0,0,0,0,0,0,0},
+/*EXP_CREATE*/{1,1,2,2,1,1,2,0,0,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0},
+/*EXP_DELETE*/{1,1,2,2,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+/*EXP_GET*/   {1,1,2,2,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+/*EXP_FLUSH*/ {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+/*EXP_EVENT*/ {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+/*CT_COUNT*/  {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+/*EXP_COUNT*/ {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+/*X_STATS*/   {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
 };
+
+static const int cmd2type[][2] = {
+	['L']	= { CT_LIST, 	EXP_LIST },
+	['I']	= { CT_CREATE,	EXP_CREATE },
+	['D']	= { CT_DELETE,	EXP_DELETE },
+	['G']	= { CT_GET,	EXP_GET },
+	['F']	= { CT_FLUSH,	EXP_FLUSH },
+	['E']	= { CT_EVENT,	EXP_EVENT },
+	['V']	= { CT_VERSION,	CT_VERSION },
+	['h']	= { CT_HELP,	CT_HELP },
+	['C']	= { CT_COUNT,	EXP_COUNT },
+};
+
+static const int opt2type[] = {
+	['s']	= CT_OPT_ORIG_SRC,
+	['d']	= CT_OPT_ORIG_DST,
+	['r']	= CT_OPT_REPL_SRC,
+	['q']	= CT_OPT_REPL_DST,
+	['{']	= CT_OPT_MASK_SRC,
+	['}']	= CT_OPT_MASK_DST,
+	['[']	= CT_OPT_EXP_SRC,
+	[']']	= CT_OPT_EXP_DST,
+	['n']	= CT_OPT_SRC_NAT,
+	['g']	= CT_OPT_DST_NAT,
+	['m']	= CT_OPT_MARK,
+	['c']	= CT_OPT_SECMARK,
+	['i']	= CT_OPT_ID,
+	['j']	= CT_OPT_ANY_NAT,
+	['w']	= CT_OPT_ZONE,
+};
+
+static const int opt2family_attr[][2] = {
+	['s']	= { ATTR_ORIG_IPV4_SRC,	ATTR_ORIG_IPV6_SRC },
+	['d']	= { ATTR_ORIG_IPV4_DST,	ATTR_ORIG_IPV6_DST },
+	['r']	= { ATTR_REPL_IPV4_SRC, ATTR_REPL_IPV6_SRC },
+	['q']	= { ATTR_REPL_IPV4_DST, ATTR_REPL_IPV6_DST },
+	['{']	= { ATTR_ORIG_IPV4_SRC,	ATTR_ORIG_IPV6_SRC },
+	['}']	= { ATTR_ORIG_IPV4_DST,	ATTR_ORIG_IPV6_DST },
+	['[']	= { ATTR_ORIG_IPV4_SRC, ATTR_ORIG_IPV6_SRC },
+	[']']	= { ATTR_ORIG_IPV4_DST, ATTR_ORIG_IPV6_DST },
+};
+
+static const int opt2attr[] = {
+	['s']	= ATTR_ORIG_L3PROTO,
+	['d']	= ATTR_ORIG_L3PROTO,
+	['r']	= ATTR_REPL_L3PROTO,
+	['q']	= ATTR_REPL_L3PROTO,
+	['m']	= ATTR_MARK,
+	['c']	= ATTR_SECMARK,
+	['i']	= ATTR_ID,
+	['w']	= ATTR_ZONE,
+};
+
+static char exit_msg[NUMBER_OF_CMD][64] = {
+	[CT_LIST_BIT] 		= "%d flow entries have been shown.\n",
+	[CT_CREATE_BIT]		= "%d flow entries have been created.\n",
+	[CT_UPDATE_BIT]		= "%d flow entries have been updated.\n",
+	[CT_DELETE_BIT]		= "%d flow entries have been deleted.\n",
+	[CT_GET_BIT] 		= "%d flow entries have been shown.\n",
+	[CT_EVENT_BIT]		= "%d flow events have been shown.\n",
+	[EXP_LIST_BIT]		= "%d expectations have been shown.\n",
+	[EXP_DELETE_BIT]	= "%d expectations have been shown.\n",
+};
+
+static const char usage_commands[] =
+	"Commands:\n"
+	"  -L [table] [options]\t\tList conntrack or expectation table\n"
+	"  -G [table] parameters\t\tGet conntrack or expectation\n"
+	"  -D [table] parameters\t\tDelete conntrack or expectation\n"
+	"  -I [table] parameters\t\tCreate a conntrack or expectation\n"
+	"  -U [table] parameters\t\tUpdate a conntrack\n"
+	"  -E [table] [options]\t\tShow events\n"
+	"  -F [table]\t\t\tFlush table\n"
+	"  -C [table]\t\t\tShow counter\n"
+	"  -S\t\t\t\tShow statistics\n";
+
+static const char usage_tables[] =
+	"Tables: conntrack, expect\n";
+
+static const char usage_conntrack_parameters[] =
+	"Conntrack parameters and options:\n"
+	"  -n, --src-nat ip\t\t\tsource NAT ip\n"
+	"  -g, --dst-nat ip\t\t\tdestination NAT ip\n"
+	"  -j, --any-nat ip\t\t\tsource or destination NAT ip\n"
+	"  -m, --mark mark\t\t\tSet mark\n"
+	"  -c, --secmark secmark\t\t\tSet selinux secmark\n"
+	"  -e, --event-mask eventmask\t\tEvent mask, eg. NEW,DESTROY\n"
+	"  -z, --zero \t\t\t\tZero counters while listing\n"
+	"  -o, --output type[,...]\t\tOutput format, eg. xml\n";
+
+static const char usage_expectation_parameters[] =
+	"Expectation parameters and options:\n"
+	"  --tuple-src ip\tSource address in expect tuple\n"
+	"  --tuple-dst ip\tDestination address in expect tuple\n"
+	"  --mask-src ip\t\tSource mask address\n"
+	"  --mask-dst ip\t\tDestination mask address\n";
+
+static const char usage_parameters[] =
+	"Common parameters and options:\n"
+	"  -s, --orig-src ip\t\tSource address from original direction\n"
+	"  -d, --orig-dst ip\t\tDestination address from original direction\n"
+	"  -r, --reply-src ip\t\tSource addres from reply direction\n"
+	"  -q, --reply-dst ip\t\tDestination address from reply direction\n"
+	"  -p, --protonum proto\t\tLayer 4 Protocol, eg. 'tcp'\n"
+	"  -f, --family proto\t\tLayer 3 Protocol, eg. 'ipv6'\n"
+	"  -t, --timeout timeout\t\tSet timeout\n"
+	"  -u, --status status\t\tSet status, eg. ASSURED\n"
+	"  -w, --zone value\t\tSet conntrack zone\n"
+	"  -b, --buffer-size\t\tNetlink socket buffer size\n"
+	;
+
+#define OPTION_OFFSET 256
+
+static struct nfct_handle *cth, *ith;
+static struct option *opts = original_opts;
+static unsigned int global_option_offset = 0;
 
 #define ADDR_VALID_FLAGS_MAX   2
 static unsigned int addr_valid_flags[ADDR_VALID_FLAGS_MAX] = {
@@ -151,9 +476,6 @@ static unsigned int addr_valid_flags[ADDR_VALID_FLAGS_MAX] = {
 static LIST_HEAD(proto_list);
 
 static unsigned int options;
-
-#define CT_COMPARISON (CT_OPT_PROTO | CT_OPT_ORIG | CT_OPT_REPL | CT_OPT_MARK |\
-		       CT_OPT_SECMARK |  CT_OPT_STATUS | CT_OPT_ID)
 
 void register_proto(struct ctproto_handler *h)
 {
@@ -348,11 +670,11 @@ merge_options(struct option *oldopts, const struct option *newopts,
 
 /* Translates errno numbers into more human-readable form than strerror. */
 static const char *
-err2str(int err, enum action command)
+err2str(int err, enum ct_command command)
 {
 	unsigned int i;
 	struct table_struct {
-		enum action act;
+		enum ct_command act;
 		int err;
 		const char *message;
 	} table [] =
@@ -378,10 +700,31 @@ err2str(int err, enum action command)
 	return strerror(err);
 }
 
+static int mark_cmp(const struct u32_mask *m, const struct nf_conntrack *ct)
+{
+	return nfct_attr_is_set(ct, ATTR_MARK) &&
+		(nfct_get_attr_u32(ct, ATTR_MARK) & m->mask) == m->value;
+}
+
 #define PARSE_STATUS 0
 #define PARSE_EVENT 1
 #define PARSE_OUTPUT 2
 #define PARSE_MAX 3
+
+enum {
+	_O_XML	= (1 << 0),
+	_O_EXT	= (1 << 1),
+	_O_TMS	= (1 << 2),
+	_O_ID	= (1 << 3),
+	_O_KTMS	= (1 << 4),
+};
+
+enum {
+	CT_EVENT_F_NEW	= (1 << 0),
+	CT_EVENT_F_UPD	= (1 << 1),
+	CT_EVENT_F_DEL 	= (1 << 2),
+	CT_EVENT_F_ALL	= CT_EVENT_F_NEW | CT_EVENT_F_UPD | CT_EVENT_F_DEL,
+};
 
 static struct parse_parameter {
 	const char	*parameter[6];
@@ -391,10 +734,9 @@ static struct parse_parameter {
 	{ {"ASSURED", "SEEN_REPLY", "UNSET", "FIXED_TIMEOUT", "EXPECTED"}, 5,
 	  { IPS_ASSURED, IPS_SEEN_REPLY, 0, IPS_FIXED_TIMEOUT, IPS_EXPECTED} },
 	{ {"ALL", "NEW", "UPDATES", "DESTROY"}, 4,
-	  {~0U, NF_NETLINK_CONNTRACK_NEW, NF_NETLINK_CONNTRACK_UPDATE, 
-	   NF_NETLINK_CONNTRACK_DESTROY} },
-	{ {"xml", "extended", "timestamp", "id" }, 4, 
-	  { _O_XML, _O_EXT, _O_TMS, _O_ID },
+	  { CT_EVENT_F_ALL, CT_EVENT_F_NEW, CT_EVENT_F_UPD, CT_EVENT_F_DEL } },
+	{ {"xml", "extended", "timestamp", "id", "ktimestamp"}, 5, 
+	  { _O_XML, _O_EXT, _O_TMS, _O_ID, _O_KTMS },
 	},
 };
 
@@ -443,6 +785,19 @@ parse_parameter(const char *arg, unsigned int *status, int parse_type)
 	if (strlen(arg) == 0
 	    || !do_parse_parameter(arg, strlen(arg), status, parse_type))
 		exit_error(PARAMETER_PROBLEM, "Bad parameter `%s'", arg);
+}
+
+static void
+parse_u32_mask(const char *arg, struct u32_mask *m)
+{
+	char *end;
+
+	m->value = (uint32_t) strtoul(arg, &end, 0);
+
+	if (*end == '/')
+		m->mask = (uint32_t) strtoul(end+1, NULL, 0);
+	else
+		m->mask = ~0;
 }
 
 static void
@@ -503,8 +858,7 @@ parse_inetaddr(const char *cp, struct addr_parse *parse)
 	else if (inet_pton(AF_INET6, cp, &parse->addr6) > 0)
 		return AF_INET6;
 #endif
-
-	exit_error(PARAMETER_PROBLEM, "Invalid IP address `%s'", cp);
+	return AF_UNSPEC;
 }
 
 union ct_address {
@@ -526,9 +880,8 @@ parse_addr(const char *cp, union ct_address *address)
 	return ret;
 }
 
-/* Shamelessly stolen from libipt_DNAT ;). Ranges expected in network order. */
 static void
-nat_parse(char *arg, int portok, struct nf_conntrack *obj, int type)
+nat_parse(char *arg, struct nf_conntrack *obj, int type)
 {
 	char *colon, *error;
 	union ct_address parse;
@@ -538,14 +891,18 @@ nat_parse(char *arg, int portok, struct nf_conntrack *obj, int type)
 	if (colon) {
 		uint16_t port;
 
-		if (!portok)
-			exit_error(PARAMETER_PROBLEM,
-				   "Need TCP or UDP with port specification");
+		*colon = '\0';
 
 		port = (uint16_t)atoi(colon+1);
-		if (port == 0)
-			exit_error(PARAMETER_PROBLEM,
-				   "Port `%s' not valid", colon+1);
+		if (port == 0) {
+			if (strlen(colon+1) == 0) {
+				exit_error(PARAMETER_PROBLEM,
+					   "No port specified after `:'");
+			} else {
+				exit_error(PARAMETER_PROBLEM,
+					   "Port `%s' not valid", colon+1);
+			}
+		}
 
 		error = strchr(colon+1, ':');
 		if (error)
@@ -553,65 +910,29 @@ nat_parse(char *arg, int portok, struct nf_conntrack *obj, int type)
 				   "Invalid port:port syntax");
 
 		if (type == CT_OPT_SRC_NAT)
-			nfct_set_attr_u16(obj, ATTR_SNAT_PORT, port);
+			nfct_set_attr_u16(tmpl.ct, ATTR_SNAT_PORT, ntohs(port));
 		else if (type == CT_OPT_DST_NAT)
-			nfct_set_attr_u16(obj, ATTR_DNAT_PORT, port);
+			nfct_set_attr_u16(tmpl.ct, ATTR_DNAT_PORT, ntohs(port));
+		else if (type == CT_OPT_ANY_NAT) {
+			nfct_set_attr_u16(tmpl.ct, ATTR_SNAT_PORT, ntohs(port));
+			nfct_set_attr_u16(tmpl.ct, ATTR_DNAT_PORT, ntohs(port));
+		}
 	}
 
-	if (parse_addr(arg, &parse) != AF_INET)
-		return;
+	if (parse_addr(arg, &parse) == AF_UNSPEC) {
+		if (strlen(arg) == 0) {
+			exit_error(PARAMETER_PROBLEM, "No IP specified");
+		} else {
+			exit_error(PARAMETER_PROBLEM,
+					"Invalid IP address `%s'", arg);
+		}
+	}
 
-	if (type == CT_OPT_SRC_NAT)
-		nfct_set_attr_u32(obj, ATTR_SNAT_IPV4, parse.v4);
-	else if (type == CT_OPT_DST_NAT)
-		nfct_set_attr_u32(obj, ATTR_DNAT_IPV4, parse.v4);
+	if (type == CT_OPT_SRC_NAT || type == CT_OPT_ANY_NAT)
+		nfct_set_attr_u32(tmpl.ct, ATTR_SNAT_IPV4, parse.v4);
+	else if (type == CT_OPT_DST_NAT || type == CT_OPT_ANY_NAT)
+		nfct_set_attr_u32(tmpl.ct, ATTR_DNAT_IPV4, parse.v4);
 }
-
-static const char usage_commands[] =
-	"Commands:\n"
-	"  -L [table] [options]\t\tList conntrack or expectation table\n"
-	"  -G [table] parameters\t\tGet conntrack or expectation\n"
-	"  -D [table] parameters\t\tDelete conntrack or expectation\n"
-	"  -I [table] parameters\t\tCreate a conntrack or expectation\n"
-	"  -U [table] parameters\t\tUpdate a conntrack\n"
-	"  -E [table] [options]\t\tShow events\n"
-	"  -F [table]\t\t\tFlush table\n"
-	"  -C [table]\t\t\tShow counter\n"
-	"  -S\t\t\t\tShow statistics\n";
-
-static const char usage_tables[] =
-	"Tables: conntrack, expect\n";
-
-static const char usage_conntrack_parameters[] =
-	"Conntrack parameters and options:\n"
-	"  -n, --src-nat ip\t\t\tsource NAT ip\n"
-	"  -g, --dst-nat ip\t\t\tdestination NAT ip\n"
-	"  -m, --mark mark\t\t\tSet mark\n"
-	"  -c, --secmark secmark\t\t\tSet selinux secmark\n"
-	"  -e, --event-mask eventmask\t\tEvent mask, eg. NEW,DESTROY\n"
-	"  -z, --zero \t\t\t\tZero counters while listing\n"
-	"  -o, --output type[,...]\t\tOutput format, eg. xml\n";
-
-static const char usage_expectation_parameters[] =
-	"Expectation parameters and options:\n"
-	"  --tuple-src ip\tSource address in expect tuple\n"
-	"  --tuple-dst ip\tDestination address in expect tuple\n"
-	"  --mask-src ip\t\tSource mask address\n"
-	"  --mask-dst ip\t\tDestination mask address\n";
-
-static const char usage_parameters[] =
-	"Common parameters and options:\n"
-	"  -s, --orig-src ip\t\tSource address from original direction\n"
-	"  -d, --orig-dst ip\t\tDestination address from original direction\n"
-	"  -r, --reply-src ip\t\tSource addres from reply direction\n"
-	"  -q, --reply-dst ip\t\tDestination address from reply direction\n"
-	"  -p, --protonum proto\t\tLayer 4 Protocol, eg. 'tcp'\n"
-	"  -f, --family proto\t\tLayer 3 Protocol, eg. 'ipv6'\n"
-	"  -t, --timeout timeout\t\tSet timeout\n"
-	"  -u, --status status\t\tSet status, eg. ASSURED\n"
-	"  -b, --buffer-size\t\tNetlink socket buffer size\n"
-	;
-  
 
 static void
 usage(char *prog)
@@ -629,31 +950,97 @@ usage(char *prog)
 
 static unsigned int output_mask;
 
+
+static int
+filter_mark(const struct nf_conntrack *ct)
+{
+	if ((options & CT_OPT_MARK) &&
+	     !mark_cmp(&tmpl.mark, ct))
+		return 1;
+	return 0;
+}
+
+
 static int 
 filter_nat(const struct nf_conntrack *obj, const struct nf_conntrack *ct)
 {
+	int check_srcnat = options & CT_OPT_SRC_NAT ? 1 : 0;
+	int check_dstnat = options & CT_OPT_DST_NAT ? 1 : 0;
+	int has_srcnat = 0, has_dstnat = 0;
 	uint32_t ip;
+	uint16_t port;
 
-	if (options & CT_OPT_SRC_NAT) {
-		if (!nfct_getobjopt(ct, NFCT_GOPT_IS_SNAT))
-		  	return 1;
+	if (options & CT_OPT_ANY_NAT)
+		check_srcnat = check_dstnat = 1;
+
+	if (check_srcnat) {
+		int check_address = 0, check_port = 0;
 
 		if (nfct_attr_is_set(obj, ATTR_SNAT_IPV4)) {
+			check_address = 1;
 			ip = nfct_get_attr_u32(obj, ATTR_SNAT_IPV4);
-			if (ip != nfct_get_attr_u32(ct, ATTR_REPL_IPV4_DST))
-				return 1;
+			if (nfct_getobjopt(ct, NFCT_GOPT_IS_SNAT) &&
+			    ip == nfct_get_attr_u32(ct, ATTR_REPL_IPV4_DST))
+				has_srcnat = 1;
 		}
+		if (nfct_attr_is_set(obj, ATTR_SNAT_PORT)) {
+			int ret = 0;
+
+			check_port = 1;
+			port = nfct_get_attr_u16(obj, ATTR_SNAT_PORT);
+			if (nfct_getobjopt(ct, NFCT_GOPT_IS_SPAT) &&
+			    port == nfct_get_attr_u16(ct, ATTR_REPL_PORT_DST))
+				ret = 1;
+
+			/* the address matches but the port does not. */
+			if (check_address && has_srcnat && !ret)
+				has_srcnat = 0;
+			if (!check_address && ret)
+				has_srcnat = 1;
+		}
+		if (!check_address && !check_port &&
+		    (nfct_getobjopt(ct, NFCT_GOPT_IS_SNAT) ||
+		     nfct_getobjopt(ct, NFCT_GOPT_IS_SPAT)))
+		  	has_srcnat = 1;
 	}
-	if (options & CT_OPT_DST_NAT) {
-		if (!nfct_getobjopt(ct, NFCT_GOPT_IS_DNAT))
-			return 1;
+	if (check_dstnat) {
+		int check_address = 0, check_port = 0;
 
 		if (nfct_attr_is_set(obj, ATTR_DNAT_IPV4)) {
+			check_address = 1;
 			ip = nfct_get_attr_u32(obj, ATTR_DNAT_IPV4);
-			if (ip != nfct_get_attr_u32(ct, ATTR_REPL_IPV4_SRC))
-				return 1;
+			if (nfct_getobjopt(ct, NFCT_GOPT_IS_DNAT) &&
+			    ip == nfct_get_attr_u32(ct, ATTR_REPL_IPV4_SRC))
+				has_dstnat = 1;
 		}
+		if (nfct_attr_is_set(obj, ATTR_DNAT_PORT)) {
+			int ret = 0;
+
+			check_port = 1;
+			port = nfct_get_attr_u16(obj, ATTR_DNAT_PORT);
+			if (nfct_getobjopt(ct, NFCT_GOPT_IS_DPAT) &&
+			    port == nfct_get_attr_u16(ct, ATTR_REPL_PORT_SRC))
+				ret = 1;
+
+			/* the address matches but the port does not. */
+			if (check_address && has_dstnat && !ret)
+				has_dstnat = 0;
+			if (!check_address && ret)
+				has_dstnat = 1;
+		}
+		if (!check_address && !check_port &&
+		    (nfct_getobjopt(ct, NFCT_GOPT_IS_DNAT) ||
+		     nfct_getobjopt(ct, NFCT_GOPT_IS_DPAT)))
+			has_dstnat = 1;
 	}
+	if (options & CT_OPT_ANY_NAT)
+		return !(has_srcnat || has_dstnat);
+	else if ((options & CT_OPT_SRC_NAT) && (options & CT_OPT_DST_NAT))
+		return !(has_srcnat && has_dstnat);
+	else if (options & CT_OPT_SRC_NAT)
+		return !has_srcnat;
+	else if (options & CT_OPT_DST_NAT)
+		return !has_dstnat;
 
 	return 0;
 }
@@ -687,6 +1074,9 @@ static int event_cb(enum nf_conntrack_msg_type type,
 	if (filter_nat(obj, ct))
 		return NFCT_CB_CONTINUE;
 
+	if (filter_mark(ct))
+		return NFCT_CB_CONTINUE;
+
 	if (options & CT_COMPARISON &&
 	    !nfct_cmp(obj, ct, NFCT_CMP_ALL | NFCT_CMP_MASK))
 		return NFCT_CB_CONTINUE;
@@ -709,6 +1099,8 @@ static int event_cb(enum nf_conntrack_msg_type type,
 		} else
 			op_flags |= NFCT_OF_TIME;
 	}
+	if (output_mask & _O_KTMS)
+		op_flags |= NFCT_OF_TIMESTAMP;
 	if (output_mask & _O_ID)
 		op_flags |= NFCT_OF_ID;
 
@@ -734,6 +1126,9 @@ static int dump_cb(enum nf_conntrack_msg_type type,
 	if (filter_nat(obj, ct))
 		return NFCT_CB_CONTINUE;
 
+	if (filter_mark(ct))
+		return NFCT_CB_CONTINUE;
+
 	if (options & CT_COMPARISON &&
 	    !nfct_cmp(obj, ct, NFCT_CMP_ALL | NFCT_CMP_MASK))
 		return NFCT_CB_CONTINUE;
@@ -748,6 +1143,8 @@ static int dump_cb(enum nf_conntrack_msg_type type,
 	}
 	if (output_mask & _O_EXT)
 		op_flags = NFCT_OF_SHOW_LAYER3;
+	if (output_mask & _O_KTMS)
+		op_flags |= NFCT_OF_TIMESTAMP;
 	if (output_mask & _O_ID)
 		op_flags |= NFCT_OF_ID;
 
@@ -770,6 +1167,9 @@ static int delete_cb(enum nf_conntrack_msg_type type,
 	unsigned int op_flags = 0;
 
 	if (filter_nat(obj, ct))
+		return NFCT_CB_CONTINUE;
+
+	if (filter_mark(ct))
 		return NFCT_CB_CONTINUE;
 
 	if (options & CT_COMPARISON &&
@@ -818,16 +1218,23 @@ static int print_cb(enum nf_conntrack_msg_type type,
 	return NFCT_CB_CONTINUE;
 }
 
+static void copy_mark(struct nf_conntrack *tmp,
+		      const struct nf_conntrack *ct,
+		      const struct u32_mask *m)
+{
+	if (options & CT_OPT_MARK) {
+		uint32_t mark = nfct_get_attr_u32(ct, ATTR_MARK);
+		mark = (mark & ~m->mask) ^ m->value;
+		nfct_set_attr_u32(tmp, ATTR_MARK, mark);
+	}
+}
+
 static int update_cb(enum nf_conntrack_msg_type type,
 		     struct nf_conntrack *ct,
 		     void *data)
 {
 	int res;
-	struct nf_conntrack *obj = data;
-	char __tmp[nfct_maxsize()];
-	struct nf_conntrack *tmp = (struct nf_conntrack *) (void *)__tmp;
-
-	memset(tmp, 0, sizeof(__tmp));
+	struct nf_conntrack *obj = data, *tmp;
 
 	if (filter_nat(obj, ct))
 		return NFCT_CB_CONTINUE;
@@ -841,30 +1248,42 @@ static int update_cb(enum nf_conntrack_msg_type type,
 	if (options & CT_OPT_TUPLE_REPL && !nfct_cmp(obj, ct, NFCT_CMP_REPL))
 		return NFCT_CB_CONTINUE;
 
+	tmp = nfct_new();
+	if (tmp == NULL)
+		exit_error(OTHER_PROBLEM, "out of memory");
+
 	nfct_copy(tmp, ct, NFCT_CP_ORIG);
 	nfct_copy(tmp, obj, NFCT_CP_META);
+	copy_mark(tmp, ct, &tmpl.mark);
+
+	/* do not send NFCT_Q_UPDATE if ct appears unchanged */
+	if (nfct_cmp(tmp, ct, NFCT_CMP_ALL | NFCT_CMP_MASK)) {
+		nfct_destroy(tmp);
+		return NFCT_CB_CONTINUE;
+	}
 
 	res = nfct_query(ith, NFCT_Q_UPDATE, tmp);
-	if (res < 0)
+	if (res < 0) {
+		nfct_destroy(tmp);
 		exit_error(OTHER_PROBLEM,
 			   "Operation failed: %s",
 			   err2str(errno, CT_UPDATE));
-
+	}
 	nfct_callback_register(ith, NFCT_T_ALL, print_cb, NULL);
 
 	res = nfct_query(ith, NFCT_Q_GET, tmp);
 	if (res < 0) {
+		nfct_destroy(tmp);
 		/* the entry has vanish in middle of the update */
 		if (errno == ENOENT) {
 			nfct_callback_unregister(ith);
 			return NFCT_CB_CONTINUE;
 		}
-
 		exit_error(OTHER_PROBLEM,
 			   "Operation failed: %s",
 			   err2str(errno, CT_UPDATE));
 	}
-
+	nfct_destroy(tmp);
 	nfct_callback_unregister(ith);
 
 	counter++;
@@ -879,6 +1298,18 @@ static int dump_exp_cb(enum nf_conntrack_msg_type type,
 	char buf[1024];
 
 	nfexp_snprintf(buf,sizeof(buf), exp, NFCT_T_UNKNOWN, NFCT_O_DEFAULT, 0);
+	printf("%s\n", buf);
+	counter++;
+
+	return NFCT_CB_CONTINUE;
+}
+
+static int event_exp_cb(enum nf_conntrack_msg_type type,
+			struct nf_expect *exp, void *data)
+{
+	char buf[1024];
+
+	nfexp_snprintf(buf,sizeof(buf), exp, type, NFCT_O_DEFAULT, 0);
 	printf("%s\n", buf);
 	counter++;
 
@@ -926,10 +1357,9 @@ static int display_proc_conntrack_stats(void)
 
 	/* trim off trailing \n */
 	nl = strchr(buf, '\n');
-	if (nl != NULL) {
+	if (nl != NULL)
 		*nl = '\0';
-		nl = strchr(buf, '\n');
-	}
+
 	token = strtok(buf, " ");
 	for (i=0; token != NULL && i<CT_STATS_ENTRIES_MAX; i++) {
 		strncpy(output[i], token, CT_STATS_STRING_MAX);
@@ -964,66 +1394,6 @@ out_err:
 
 static struct ctproto_handler *h;
 
-static const int cmd2type[][2] = {
-	['L']	= { CT_LIST, 	EXP_LIST },
-	['I']	= { CT_CREATE,	EXP_CREATE },
-	['D']	= { CT_DELETE,	EXP_DELETE },
-	['G']	= { CT_GET,	EXP_GET },
-	['F']	= { CT_FLUSH,	EXP_FLUSH },
-	['E']	= { CT_EVENT,	EXP_EVENT },
-	['V']	= { CT_VERSION,	CT_VERSION },
-	['h']	= { CT_HELP,	CT_HELP },
-	['C']	= { CT_COUNT,	EXP_COUNT },
-};
-
-static const int opt2type[] = {
-	['s']	= CT_OPT_ORIG_SRC,
-	['d']	= CT_OPT_ORIG_DST,
-	['r']	= CT_OPT_REPL_SRC,
-	['q']	= CT_OPT_REPL_DST,
-	['{']	= CT_OPT_MASK_SRC,
-	['}']	= CT_OPT_MASK_DST,
-	['[']	= CT_OPT_EXP_SRC,
-	[']']	= CT_OPT_EXP_DST,
-	['n']	= CT_OPT_SRC_NAT,
-	['g']	= CT_OPT_DST_NAT,
-	['m']	= CT_OPT_MARK,
-	['c']	= CT_OPT_SECMARK,
-	['i']	= CT_OPT_ID,
-};
-
-static const int opt2family_attr[][2] = {
-	['s']	= { ATTR_ORIG_IPV4_SRC,	ATTR_ORIG_IPV6_SRC },
-	['d']	= { ATTR_ORIG_IPV4_DST,	ATTR_ORIG_IPV6_DST },
-	['r']	= { ATTR_REPL_IPV4_SRC, ATTR_REPL_IPV6_SRC },
-	['q']	= { ATTR_REPL_IPV4_DST, ATTR_REPL_IPV6_DST },
-	['{']	= { ATTR_ORIG_IPV4_SRC,	ATTR_ORIG_IPV6_SRC },
-	['}']	= { ATTR_ORIG_IPV4_DST,	ATTR_ORIG_IPV6_DST },
-	['[']	= { ATTR_ORIG_IPV4_SRC, ATTR_ORIG_IPV6_SRC },
-	[']']	= { ATTR_ORIG_IPV4_DST, ATTR_ORIG_IPV6_DST },
-};
-
-static const int opt2attr[] = {
-	['s']	= ATTR_ORIG_L3PROTO,
-	['d']	= ATTR_ORIG_L3PROTO,
-	['r']	= ATTR_REPL_L3PROTO,
-	['q']	= ATTR_REPL_L3PROTO,
-	['m']	= ATTR_MARK,
-	['c']	= ATTR_SECMARK,
-	['i']	= ATTR_ID,
-};
-
-static char exit_msg[NUMBER_OF_CMD][64] = {
-	[CT_LIST_BIT] 		= "%d flow entries have been shown.\n",
-	[CT_CREATE_BIT]		= "%d flow entries have been created.\n",
-	[CT_UPDATE_BIT]		= "%d flow entries have been updated.\n",
-	[CT_DELETE_BIT]		= "%d flow entries have been deleted.\n",
-	[CT_GET_BIT] 		= "%d flow entries have been shown.\n",
-	[CT_EVENT_BIT]		= "%d flow events have been shown.\n",
-	[EXP_LIST_BIT]		= "%d expectations have been shown.\n",
-	[EXP_DELETE_BIT]	= "%d expectations have been shown.\n",
-};
-
 int main(int argc, char *argv[])
 {
 	int c, cmd;
@@ -1031,23 +1401,13 @@ int main(int argc, char *argv[])
 	int res = 0, partial;
 	size_t socketbuffersize = 0;
 	int family = AF_UNSPEC;
-	char __obj[nfct_maxsize()];
-	char __exptuple[nfct_maxsize()];
-	char __mask[nfct_maxsize()];
-	struct nf_conntrack *obj = (struct nf_conntrack *)(void*) __obj;
-	struct nf_conntrack *exptuple = 
-		(struct nf_conntrack *)(void*) __exptuple;
-	struct nf_conntrack *mask = (struct nf_conntrack *)(void*) __mask;
-	char __exp[nfexp_maxsize()];
-	struct nf_expect *exp = (struct nf_expect *)(void*) __exp;
 	int l3protonum, protonum = 0;
 	union ct_address ad;
 	unsigned int command = 0;
 
-	memset(__obj, 0, sizeof(__obj));
-	memset(__exptuple, 0, sizeof(__exptuple));
-	memset(__mask, 0, sizeof(__mask));
-	memset(__exp, 0, sizeof(__exp));
+	/* we release these objects in the exit_error() path. */
+	if (!alloc_tmpl_objects())
+		exit_error(OTHER_PROBLEM, "out of memory");
 
 	register_tcp();
 	register_udp();
@@ -1062,10 +1422,7 @@ int main(int argc, char *argv[])
 	/* disable explicit missing arguments error output from getopt_long */
 	opterr = 0;
 
-	while ((c = getopt_long(argc, argv, "L::I::U::D::G::E::F::hVs:d:r:q:"
-					    "p:t:u:e:a:z[:]:{:}:m:i:f:o:n::"
-					    "g::c:b:C::S", 
-					    opts, NULL)) != -1) {
+	while ((c = getopt_long(argc, argv, getopt_str, opts, NULL)) != -1) {
 	switch(c) {
 		/* commands */
 		case 'L':
@@ -1099,17 +1456,21 @@ int main(int argc, char *argv[])
 			options |= opt2type[c];
 
 			l3protonum = parse_addr(optarg, &ad);
+			if (l3protonum == AF_UNSPEC) {
+				exit_error(PARAMETER_PROBLEM,
+					   "Invalid IP address `%s'", optarg);
+			}
 			set_family(&family, l3protonum);
 			if (l3protonum == AF_INET) {
-				nfct_set_attr_u32(obj,
+				nfct_set_attr_u32(tmpl.ct,
 						  opt2family_attr[c][0],
 						  ad.v4);
 			} else if (l3protonum == AF_INET6) {
-				nfct_set_attr(obj,
+				nfct_set_attr(tmpl.ct,
 					      opt2family_attr[c][1],
 					      &ad.v6);
 			}
-			nfct_set_attr_u8(obj, opt2attr[c], l3protonum);
+			nfct_set_attr_u8(tmpl.ct, opt2attr[c], l3protonum);
 			break;
 		case '{':
 		case '}':
@@ -1117,17 +1478,22 @@ int main(int argc, char *argv[])
 		case ']':
 			options |= opt2type[c];
 			l3protonum = parse_addr(optarg, &ad);
+			if (l3protonum == AF_UNSPEC) {
+				exit_error(PARAMETER_PROBLEM,
+					   "Invalid IP address `%s'", optarg);
+			}
 			set_family(&family, l3protonum);
 			if (l3protonum == AF_INET) {
-				nfct_set_attr_u32(mask, 
+				nfct_set_attr_u32(tmpl.mask, 
 						  opt2family_attr[c][0],
 						  ad.v4);
 			} else if (l3protonum == AF_INET6) {
-				nfct_set_attr(mask,
+				nfct_set_attr(tmpl.mask,
 					      opt2family_attr[c][1],
 					      &ad.v6);
 			}
-			nfct_set_attr_u8(mask, ATTR_ORIG_L3PROTO, l3protonum);
+			nfct_set_attr_u8(tmpl.mask,
+					 ATTR_ORIG_L3PROTO, l3protonum);
 			break;
 		case 'p':
 			options |= CT_OPT_PROTO;
@@ -1141,17 +1507,18 @@ int main(int argc, char *argv[])
 			if (opts == NULL)
 				exit_error(OTHER_PROBLEM, "out of memory");
 
-			nfct_set_attr_u8(obj, ATTR_L4PROTO, protonum);
+			nfct_set_attr_u8(tmpl.ct, ATTR_L4PROTO, protonum);
 			break;
 		case 't':
 			options |= CT_OPT_TIMEOUT;
-			nfct_set_attr_u32(obj, ATTR_TIMEOUT, atol(optarg));
-			nfexp_set_attr_u32(exp, ATTR_EXP_TIMEOUT, atol(optarg));
+			nfct_set_attr_u32(tmpl.ct, ATTR_TIMEOUT, atol(optarg));
+			nfexp_set_attr_u32(tmpl.exp,
+					   ATTR_EXP_TIMEOUT, atol(optarg));
 			break;
 		case 'u':
 			options |= CT_OPT_STATUS;
 			parse_parameter(optarg, &status, PARSE_STATUS);
-			nfct_set_attr_u32(obj, ATTR_STATUS, status);
+			nfct_set_attr_u32(tmpl.ct, ATTR_STATUS, status);
 			break;
 		case 'e':
 			options |= CT_OPT_EVENT_MASK;
@@ -1165,7 +1532,8 @@ int main(int argc, char *argv[])
 			options |= CT_OPT_ZERO;
 			break;
 		case 'n':
-		case 'g': {
+		case 'g':
+		case 'j': {
 			char *tmp = NULL;
 
 			options |= opt2type[c];
@@ -1180,16 +1548,25 @@ int main(int argc, char *argv[])
 				continue;
 
 			set_family(&family, AF_INET);
-			nat_parse(tmp, 1, obj, opt2type[c]);
+			nat_parse(tmp, tmpl.ct, opt2type[c]);
 			break;
 		}
-		case 'i':
-		case 'm':
-		case 'c':
+		case 'w':
 			options |= opt2type[c];
-			nfct_set_attr_u32(obj,
+			nfct_set_attr_u16(tmpl.ct,
 					  opt2attr[c],
 					  strtoul(optarg, NULL, 0));
+			break;
+		case 'i':
+		case 'c':
+			options |= opt2type[c];
+			nfct_set_attr_u32(tmpl.ct,
+					  opt2attr[c],
+					  strtoul(optarg, NULL, 0));
+			break;
+		case 'm':
+			options |= opt2type[c];
+			parse_u32_mask(optarg, &tmpl.mark);
 			break;
 		case 'a':
 			fprintf(stderr, "WARNING: ignoring -%c, "
@@ -1222,8 +1599,9 @@ int main(int argc, char *argv[])
 			break;
 		default:
 			if (h && h->parse_opts 
-			    &&!h->parse_opts(c - h->option_offset, obj,
-			    		     exptuple, mask, &l4flags))
+			    &&!h->parse_opts(c - h->option_offset, tmpl.ct,
+			    		     tmpl.exptuple, tmpl.mask,
+					     &l4flags))
 				exit_error(PARAMETER_PROBLEM, "parse error");
 			break;
 		}
@@ -1233,6 +1611,12 @@ int main(int argc, char *argv[])
 	if (family == AF_UNSPEC)
 		family = AF_INET;
 
+	/* we cannot check this combination with generic_opt_check. */
+	if (options & CT_OPT_ANY_NAT &&
+	   ((options & CT_OPT_SRC_NAT) || (options & CT_OPT_DST_NAT))) {
+		exit_error(PARAMETER_PROBLEM, "cannot specify `--src-nat' or "
+					      "`--dst-nat' with `--any-nat'");
+	}
 	cmd = bit2cmd(command);
 	res = generic_opt_check(options, NUMBER_OF_OPT,
 				commands_v_options[cmd], optflags,
@@ -1253,7 +1637,7 @@ int main(int argc, char *argv[])
 		}
 	}
 	if (!(command & CT_HELP) && h && h->final_check)
-		h->final_check(l4flags, cmd, obj);
+		h->final_check(l4flags, cmd, tmpl.ct);
 
 	switch(command) {
 
@@ -1267,7 +1651,7 @@ int main(int argc, char *argv[])
 			exit_error(PARAMETER_PROBLEM, "Can't use -z with "
 						      "filtering parameters");
 
-		nfct_callback_register(cth, NFCT_T_ALL, dump_cb, obj);
+		nfct_callback_register(cth, NFCT_T_ALL, dump_cb, tmpl.ct);
 
 		if (options & CT_OPT_ZERO)
 			res = nfct_query(cth, NFCT_Q_DUMP_RESET, &family);
@@ -1294,30 +1678,33 @@ int main(int argc, char *argv[])
 			
 	case CT_CREATE:
 		if ((options & CT_OPT_ORIG) && !(options & CT_OPT_REPL))
-		    	nfct_setobjopt(obj, NFCT_SOPT_SETUP_REPLY);
+		    	nfct_setobjopt(tmpl.ct, NFCT_SOPT_SETUP_REPLY);
 		else if (!(options & CT_OPT_ORIG) && (options & CT_OPT_REPL))
-			nfct_setobjopt(obj, NFCT_SOPT_SETUP_ORIGINAL);
+			nfct_setobjopt(tmpl.ct, NFCT_SOPT_SETUP_ORIGINAL);
+
+		if (options & CT_OPT_MARK)
+			nfct_set_attr_u32(tmpl.ct, ATTR_MARK, tmpl.mark.value);
 
 		cth = nfct_open(CONNTRACK, 0);
 		if (!cth)
 			exit_error(OTHER_PROBLEM, "Can't open handler");
 
-		res = nfct_query(cth, NFCT_Q_CREATE, obj);
+		res = nfct_query(cth, NFCT_Q_CREATE, tmpl.ct);
 		if (res != -1)
 			counter++;
 		nfct_close(cth);
 		break;
 
 	case EXP_CREATE:
-		nfexp_set_attr(exp, ATTR_EXP_MASTER, obj);
-		nfexp_set_attr(exp, ATTR_EXP_EXPECTED, exptuple);
-		nfexp_set_attr(exp, ATTR_EXP_MASK, mask);
+		nfexp_set_attr(tmpl.exp, ATTR_EXP_MASTER, tmpl.ct);
+		nfexp_set_attr(tmpl.exp, ATTR_EXP_EXPECTED, tmpl.exptuple);
+		nfexp_set_attr(tmpl.exp, ATTR_EXP_MASK, tmpl.mask);
 
 		cth = nfct_open(EXPECT, 0);
 		if (!cth)
 			exit_error(OTHER_PROBLEM, "Can't open handler");
 
-		res = nfexp_query(cth, NFCT_Q_CREATE, exp);
+		res = nfexp_query(cth, NFCT_Q_CREATE, tmpl.exp);
 		nfct_close(cth);
 		break;
 
@@ -1328,7 +1715,7 @@ int main(int argc, char *argv[])
 		if (!cth || !ith)
 			exit_error(OTHER_PROBLEM, "Can't open handler");
 
-		nfct_callback_register(cth, NFCT_T_ALL, update_cb, obj);
+		nfct_callback_register(cth, NFCT_T_ALL, update_cb, tmpl.ct);
 
 		res = nfct_query(cth, NFCT_Q_DUMP, &family);
 		nfct_close(ith);
@@ -1341,7 +1728,7 @@ int main(int argc, char *argv[])
 		if (!cth || !ith)
 			exit_error(OTHER_PROBLEM, "Can't open handler");
 
-		nfct_callback_register(cth, NFCT_T_ALL, delete_cb, obj);
+		nfct_callback_register(cth, NFCT_T_ALL, delete_cb, tmpl.ct);
 
 		res = nfct_query(cth, NFCT_Q_DUMP, &family);
 		nfct_close(ith);
@@ -1349,13 +1736,13 @@ int main(int argc, char *argv[])
 		break;
 
 	case EXP_DELETE:
-		nfexp_set_attr(exp, ATTR_EXP_EXPECTED, obj);
+		nfexp_set_attr(tmpl.exp, ATTR_EXP_EXPECTED, tmpl.ct);
 
 		cth = nfct_open(EXPECT, 0);
 		if (!cth)
 			exit_error(OTHER_PROBLEM, "Can't open handler");
 
-		res = nfexp_query(cth, NFCT_Q_DESTROY, exp);
+		res = nfexp_query(cth, NFCT_Q_DESTROY, tmpl.exp);
 		nfct_close(cth);
 		break;
 
@@ -1364,20 +1751,20 @@ int main(int argc, char *argv[])
 		if (!cth)
 			exit_error(OTHER_PROBLEM, "Can't open handler");
 
-		nfct_callback_register(cth, NFCT_T_ALL, dump_cb, obj);
-		res = nfct_query(cth, NFCT_Q_GET, obj);
+		nfct_callback_register(cth, NFCT_T_ALL, dump_cb, tmpl.ct);
+		res = nfct_query(cth, NFCT_Q_GET, tmpl.ct);
 		nfct_close(cth);
 		break;
 
 	case EXP_GET:
-		nfexp_set_attr(exp, ATTR_EXP_MASTER, obj);
+		nfexp_set_attr(tmpl.exp, ATTR_EXP_MASTER, tmpl.ct);
 
 		cth = nfct_open(EXPECT, 0);
 		if (!cth)
 			exit_error(OTHER_PROBLEM, "Can't open handler");
 
 		nfexp_callback_register(cth, NFCT_T_ALL, dump_exp_cb, NULL);
-		res = nfexp_query(cth, NFCT_Q_GET, exp);
+		res = nfexp_query(cth, NFCT_Q_GET, tmpl.exp);
 		nfct_close(cth);
 		break;
 
@@ -1397,14 +1784,28 @@ int main(int argc, char *argv[])
 			exit_error(OTHER_PROBLEM, "Can't open handler");
 		res = nfexp_query(cth, NFCT_Q_FLUSH, &family);
 		nfct_close(cth);
+		fprintf(stderr, "%s v%s (conntrack-tools): ",PROGNAME,VERSION);
+		fprintf(stderr,"expectation table has been emptied.\n");
 		break;
 		
 	case CT_EVENT:
-		if (options & CT_OPT_EVENT_MASK)
+		if (options & CT_OPT_EVENT_MASK) {
+			unsigned int nl_events = 0;
+
+			if (event_mask & CT_EVENT_F_NEW)
+				nl_events |= NF_NETLINK_CONNTRACK_NEW;
+			if (event_mask & CT_EVENT_F_UPD)
+				nl_events |= NF_NETLINK_CONNTRACK_UPDATE;
+			if (event_mask & CT_EVENT_F_DEL)
+				nl_events |= NF_NETLINK_CONNTRACK_DESTROY;
+
+			cth = nfct_open(CONNTRACK, nl_events);
+		} else {
 			cth = nfct_open(CONNTRACK,
-					event_mask & NFCT_ALL_CT_GROUPS);
-		else
-			cth = nfct_open(CONNTRACK, NFCT_ALL_CT_GROUPS);
+					NF_NETLINK_CONNTRACK_NEW |
+					NF_NETLINK_CONNTRACK_UPDATE |
+					NF_NETLINK_CONNTRACK_DESTROY);
+		}
 
 		if (!cth)
 			exit_error(OTHER_PROBLEM, "Can't open handler");
@@ -1417,7 +1818,7 @@ int main(int argc, char *argv[])
 		}
 		signal(SIGINT, event_sighandler);
 		signal(SIGTERM, event_sighandler);
-		nfct_callback_register(cth, NFCT_T_ALL, event_cb, obj);
+		nfct_callback_register(cth, NFCT_T_ALL, event_cb, tmpl.ct);
 		res = nfct_catch(cth);
 		if (res == -1) {
 			if (errno == ENOBUFS) {
@@ -1434,12 +1835,29 @@ int main(int argc, char *argv[])
 		break;
 
 	case EXP_EVENT:
-		cth = nfct_open(EXPECT, NF_NETLINK_CONNTRACK_EXP_NEW);
+		if (options & CT_OPT_EVENT_MASK) {
+			unsigned int nl_events = 0;
+
+			if (event_mask & CT_EVENT_F_NEW)
+				nl_events |= NF_NETLINK_CONNTRACK_EXP_NEW;
+			if (event_mask & CT_EVENT_F_UPD)
+				nl_events |= NF_NETLINK_CONNTRACK_EXP_UPDATE;
+			if (event_mask & CT_EVENT_F_DEL)
+				nl_events |= NF_NETLINK_CONNTRACK_EXP_DESTROY;
+
+			cth = nfct_open(CONNTRACK, nl_events);
+		} else {
+			cth = nfct_open(EXPECT,
+					NF_NETLINK_CONNTRACK_EXP_NEW |
+					NF_NETLINK_CONNTRACK_EXP_UPDATE |
+					NF_NETLINK_CONNTRACK_EXP_DESTROY);
+		}
+
 		if (!cth)
 			exit_error(OTHER_PROBLEM, "Can't open handler");
 		signal(SIGINT, event_sighandler);
 		signal(SIGTERM, event_sighandler);
-		nfexp_callback_register(cth, NFCT_T_ALL, dump_exp_cb, NULL);
+		nfexp_callback_register(cth, NFCT_T_ALL, event_exp_cb, NULL);
 		res = nfexp_catch(cth);
 		nfct_close(cth);
 		break;
@@ -1491,6 +1909,7 @@ int main(int argc, char *argv[])
 		exit_error(OTHER_PROBLEM, "Operation failed: %s",
 			   err2str(errno, command));
 
+	free_tmpl_objects();
 	free_options();
 
 	if (command && exit_msg[cmd][0]) {

@@ -1,6 +1,7 @@
 /*
- * (C) 2006-2009 by Pablo Neira Ayuso <pablo@netfilter.org>
- * 
+ * (C) 2006-2011 by Pablo Neira Ayuso <pablo@netfilter.org>
+ * (C) 2011 by Vyatta Inc. <http://www.vyatta.com>
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
@@ -186,40 +187,91 @@ static void dump_stats_runtime(int fd)
 	send(fd, buf, size, 0);
 }
 
+static void local_flush_master(void)
+{
+	STATE(stats).nl_kernel_table_flush++;
+	dlog(LOG_NOTICE, "flushing kernel conntrack table");
+
+	/* fork a child process that performs the flush operation,
+	 * meanwhile the parent process handles events. */
+	if (fork_process_new(CTD_PROC_FLUSH, CTD_PROC_F_EXCL,
+			     NULL, NULL) == 0) {
+		nl_flush_conntrack_table(STATE(flush));
+		exit(EXIT_SUCCESS);
+	}
+}
+
+static void local_resync_master(void)
+{
+	if (STATE(mode)->internal->flags & INTERNAL_F_POPULATE) {
+		STATE(stats).nl_kernel_table_resync++;
+		dlog(LOG_NOTICE, "resync with master conntrack table");
+		nl_dump_conntrack_table(STATE(dump));
+	} else {
+		dlog(LOG_NOTICE, "resync is unsupported in this mode");
+	}
+}
+
+static void local_exp_flush_master(void)
+{
+	if (!(CONFIG(flags) & CTD_EXPECT))
+		return;
+
+	STATE(stats).nl_kernel_table_flush++;
+	dlog(LOG_NOTICE, "flushing kernel expect table");
+
+	/* fork a child process that performs the flush operation,
+	 * meanwhile the parent process handles events. */
+	if (fork_process_new(CTD_PROC_FLUSH, CTD_PROC_F_EXCL,
+			     NULL, NULL) == 0) {
+		nl_flush_expect_table(STATE(flush));
+		exit(EXIT_SUCCESS);
+	}
+}
+
+static void local_exp_resync_master(void)
+{
+	if (!(CONFIG(flags) & CTD_EXPECT))
+		return;
+
+	if (STATE(mode)->internal->flags & INTERNAL_F_POPULATE) {
+		STATE(stats).nl_kernel_table_resync++;
+		dlog(LOG_NOTICE, "resync with master expect table");
+		nl_dump_expect_table(STATE(dump));
+	} else {
+		dlog(LOG_NOTICE, "resync is unsupported in this mode");
+	}
+}
+
 static int local_handler(int fd, void *data)
 {
 	int ret = LOCAL_RET_OK;
 	int type;
 
-	ret = read(fd, &type, sizeof(type));
-	if (ret == -1) {
+	if (read(fd, &type, sizeof(type)) <= 0) {
 		STATE(stats).local_read_failed++;
 		return LOCAL_RET_OK;
 	}
-	if (ret == 0)
-		return LOCAL_RET_OK;
-
 	switch(type) {
-	case FLUSH_MASTER:
-		STATE(stats).nl_kernel_table_flush++;
-		dlog(LOG_NOTICE, "flushing kernel conntrack table");
-
-		/* fork a child process that performs the flush operation,
-		 * meanwhile the parent process handles events. */
-		if (fork_process_new(CTD_PROC_FLUSH, CTD_PROC_F_EXCL,
-				     NULL, NULL) == 0) {
-			nl_flush_conntrack_table(STATE(flush));
-			exit(EXIT_SUCCESS);
-		}
+	case CT_FLUSH_MASTER:
+		local_flush_master();
 		break;
-	case RESYNC_MASTER:
-		if (STATE(mode)->internal->flags & INTERNAL_F_POPULATE) {
-			STATE(stats).nl_kernel_table_resync++;
-			dlog(LOG_NOTICE, "resync with master table");
-			nl_dump_conntrack_table(STATE(dump));
-		} else {
-			dlog(LOG_NOTICE, "resync is unsupported in this mode");
-		}
+	case CT_RESYNC_MASTER:
+		local_resync_master();
+		break;
+	case EXP_FLUSH_MASTER:
+		local_exp_flush_master();
+		break;
+	case EXP_RESYNC_MASTER:
+		local_exp_resync_master();
+		break;
+	case ALL_FLUSH_MASTER:
+		local_flush_master();
+		local_exp_flush_master();
+		break;
+	case ALL_RESYNC_MASTER:
+		local_resync_master();
+		local_exp_resync_master();
 		break;
 	case STATS_RUNTIME:
 		dump_stats_runtime(fd);
@@ -245,10 +297,14 @@ static void do_overrun_resync_alarm(struct alarm_block *a, void *data)
 
 static void do_polling_alarm(struct alarm_block *a, void *data)
 {
-	if (STATE(mode)->internal->purge)
-		STATE(mode)->internal->purge();
+	if (STATE(mode)->internal->ct.purge)
+		STATE(mode)->internal->ct.purge();
+
+	if (STATE(mode)->internal->exp.purge)
+		STATE(mode)->internal->exp.purge();
 
 	nl_send_resync(STATE(resync));
+	nl_send_expect_resync(STATE(resync));
 	add_alarm(&STATE(polling_alarm), CONFIG(poll_kernel_secs), 0);
 }
 
@@ -271,13 +327,13 @@ static int event_handler(const struct nlmsghdr *nlh,
 
 	switch(type) {
 	case NFCT_T_NEW:
-		STATE(mode)->internal->new(ct, origin_type);
+		STATE(mode)->internal->ct.new(ct, origin_type);
 		break;
 	case NFCT_T_UPDATE:
-		STATE(mode)->internal->update(ct, origin_type);
+		STATE(mode)->internal->ct.upd(ct, origin_type);
 		break;
 	case NFCT_T_DESTROY:
-		if (STATE(mode)->internal->destroy(ct, origin_type))
+		if (STATE(mode)->internal->ct.del(ct, origin_type))
 			update_traffic_stats(ct);
 		break;
 	default:
@@ -286,10 +342,52 @@ static int event_handler(const struct nlmsghdr *nlh,
 	}
 
 out:
-	if (STATE(event_iterations_limit)-- <= 0) {
-		STATE(event_iterations_limit) = CONFIG(event_iterations_limit);
+	if (STATE(event_iterations_limit)-- <= 0)
 		return NFCT_CB_STOP;
-	} else
+	else
+		return NFCT_CB_CONTINUE;
+}
+
+static int exp_event_handler(const struct nlmsghdr *nlh,
+			     enum nf_conntrack_msg_type type,
+			     struct nf_expect *exp,
+			     void *data)
+{
+	int origin_type;
+	const struct nf_conntrack *master =
+		nfexp_get_attr(exp, ATTR_EXP_MASTER);
+
+	STATE(stats).nl_events_received++;
+
+	if (!exp_filter_find(STATE(exp_filter), exp)) {
+		STATE(stats).nl_events_filtered++;
+		goto out;
+	}
+	if (ct_filter_conntrack(master, 1))
+		return NFCT_CB_CONTINUE;
+
+	origin_type = origin_find(nlh);
+
+	switch(type) {
+	case NFCT_T_NEW:
+		STATE(mode)->internal->exp.new(exp, origin_type);
+		break;
+	case NFCT_T_UPDATE:
+		STATE(mode)->internal->exp.upd(exp, origin_type);
+		break;
+	case NFCT_T_DESTROY:
+		STATE(mode)->internal->exp.del(exp, origin_type);
+		break;
+	default:
+		STATE(stats).nl_events_unknown_type++;
+		break;
+	}
+
+out:
+	/* we reset the iteration limiter in the main select loop. */
+	if (STATE(event_iterations_limit)-- <= 0)
+		return NFCT_CB_STOP;
+	else
 		return NFCT_CB_CONTINUE;
 }
 
@@ -302,7 +400,30 @@ static int dump_handler(enum nf_conntrack_msg_type type,
 
 	switch(type) {
 	case NFCT_T_UPDATE:
-		STATE(mode)->internal->populate(ct);
+		STATE(mode)->internal->ct.populate(ct);
+		break;
+	default:
+		STATE(stats).nl_dump_unknown_type++;
+		break;
+	}
+	return NFCT_CB_CONTINUE;
+}
+
+static int exp_dump_handler(enum nf_conntrack_msg_type type,
+			    struct nf_expect *exp, void *data)
+{
+	const struct nf_conntrack *master =
+		nfexp_get_attr(exp, ATTR_EXP_MASTER);
+
+	if (!exp_filter_find(STATE(exp_filter), exp))
+		return NFCT_CB_CONTINUE;
+
+	if (ct_filter_conntrack(master, 1))
+		return NFCT_CB_CONTINUE;
+
+	switch(type) {
+	case NFCT_T_UPDATE:
+		STATE(mode)->internal->exp.populate(exp);
 		break;
 	default:
 		STATE(stats).nl_dump_unknown_type++;
@@ -322,9 +443,27 @@ static int get_handler(enum nf_conntrack_msg_type type,
 	return NFCT_CB_CONTINUE;
 }
 
+static int exp_get_handler(enum nf_conntrack_msg_type type,
+			   struct nf_expect *exp, void *data)
+{
+	const struct nf_conntrack *master =
+		nfexp_get_attr(exp, ATTR_EXP_MASTER);
+
+	if (!exp_filter_find(STATE(exp_filter), exp))
+		return NFCT_CB_CONTINUE;
+
+	if (ct_filter_conntrack(master, 1))
+		return NFCT_CB_CONTINUE;
+
+	STATE(get_retval) = 1;
+	return NFCT_CB_CONTINUE;
+}
+
 int
 init(void)
 {
+	do_gettimeofday();
+
 	if (CONFIG(flags) & CTD_STATS_MODE)
 		STATE(mode) = &stats_mode;
 	else if (CONFIG(flags) & CTD_SYNC_MODE)
@@ -355,21 +494,8 @@ init(void)
 	}
 	register_fd(STATE(local).fd, STATE(fds));
 
-	if (!(CONFIG(flags) & CTD_POLL)) {
-		STATE(event) = nl_init_event_handler();
-		if (STATE(event) == NULL) {
-			dlog(LOG_ERR, "can't open netlink handler: %s",
-			     strerror(errno));
-			dlog(LOG_ERR, "no ctnetlink kernel support?");
-			return -1;
-		}
-		nfct_callback_register2(STATE(event), NFCT_T_ALL,
-				        event_handler, NULL);
-		register_fd(nfct_fd(STATE(event)), STATE(fds));
-	}
-
 	/* resynchronize (like 'dump' socket) but it also purges old entries */
-	STATE(resync) = nfct_open(CONNTRACK, 0);
+	STATE(resync) = nfct_open(CONFIG(netlink).subsys_id, 0);
 	if (STATE(resync)== NULL) {
 		dlog(LOG_ERR, "can't open netlink handler: %s",
 		     strerror(errno));
@@ -378,13 +504,13 @@ init(void)
 	}
 	nfct_callback_register(STATE(resync),
 			       NFCT_T_ALL,
-			       STATE(mode)->internal->resync,
+			       STATE(mode)->internal->ct.resync,
 			       NULL);
 	register_fd(nfct_fd(STATE(resync)), STATE(fds));
 	fcntl(nfct_fd(STATE(resync)), F_SETFL, O_NONBLOCK);
 
 	if (STATE(mode)->internal->flags & INTERNAL_F_POPULATE) {
-		STATE(dump) = nfct_open(CONNTRACK, 0);
+		STATE(dump) = nfct_open(CONFIG(netlink).subsys_id, 0);
 		if (STATE(dump) == NULL) {
 			dlog(LOG_ERR, "can't open netlink handler: %s",
 			     strerror(errno));
@@ -394,13 +520,26 @@ init(void)
 		nfct_callback_register(STATE(dump), NFCT_T_ALL,
 				       dump_handler, NULL);
 
+		if (CONFIG(flags) & CTD_EXPECT) {
+			nfexp_callback_register(STATE(dump), NFCT_T_ALL,
+						exp_dump_handler, NULL);
+		}
+
 		if (nl_dump_conntrack_table(STATE(dump)) == -1) {
 			dlog(LOG_ERR, "can't get kernel conntrack table");
 			return -1;
 		}
+
+		if (CONFIG(flags) & CTD_EXPECT) {
+			if (nl_dump_expect_table(STATE(dump)) == -1) {
+				dlog(LOG_ERR, "can't get kernel "
+					      "expect table");
+				return -1;
+			}
+		}
 	}
 
-	STATE(get) = nfct_open(CONNTRACK, 0);
+	STATE(get) = nfct_open(CONFIG(netlink).subsys_id, 0);
 	if (STATE(get) == NULL) {
 		dlog(LOG_ERR, "can't open netlink handler: %s",
 		     strerror(errno));
@@ -409,7 +548,12 @@ init(void)
 	}
 	nfct_callback_register(STATE(get), NFCT_T_ALL, get_handler, NULL);
 
-	STATE(flush) = nfct_open(CONNTRACK, 0);
+	if (CONFIG(flags) & CTD_EXPECT) {
+		nfexp_callback_register(STATE(get), NFCT_T_ALL,
+					exp_get_handler, NULL);
+	}
+
+	STATE(flush) = nfct_open(CONFIG(netlink).subsys_id, 0);
 	if (STATE(flush) == NULL) {
 		dlog(LOG_ERR, "cannot open flusher handler");
 		return -1;
@@ -423,6 +567,29 @@ init(void)
 		dlog(LOG_NOTICE, "running in polling mode");
 	} else {
 		init_alarm(&STATE(resync_alarm), NULL, do_overrun_resync_alarm);
+		/*
+		 * The last nfct handler that we register is the event handler.
+		 * The reason to do this is that we may receive events while
+		 * populating the internal cache. Thus, we hit ENOBUFS
+		 * prematurely. However, if we open the event handler before
+		 * populating the internal cache, we may still lose events
+		 * that have occured during the population.
+		 */
+		STATE(event) = nl_init_event_handler();
+		if (STATE(event) == NULL) {
+			dlog(LOG_ERR, "can't open netlink handler: %s",
+			     strerror(errno));
+			dlog(LOG_ERR, "no ctnetlink kernel support?");
+			return -1;
+		}
+		nfct_callback_register2(STATE(event), NFCT_T_ALL,
+				        event_handler, NULL);
+
+		if (CONFIG(flags) & CTD_EXPECT) {
+			nfexp_callback_register2(STATE(event), NFCT_T_ALL,
+						 exp_event_handler, NULL);
+		}
+		register_fd(nfct_fd(STATE(event)), STATE(fds));
 	}
 
 	/* Signals handling */
@@ -451,7 +618,7 @@ init(void)
 	return 0;
 }
 
-static void __run(struct timeval *next_alarm)
+static void run_events(struct timeval *next_alarm)
 {
 	int ret;
 	fd_set readfds = STATE(fds)->readfds;
@@ -473,76 +640,69 @@ static void __run(struct timeval *next_alarm)
 	if (FD_ISSET(STATE(local).fd, &readfds))
 		do_local_server_step(&STATE(local), NULL, local_handler);
 
-	if (!(CONFIG(flags) & CTD_POLL)) {
-		/* conntrack event has happened */
-		if (FD_ISSET(nfct_fd(STATE(event)), &readfds)) {
-			ret = nfct_catch(STATE(event));
-			/* reset event iteration limit counter */
-			STATE(event_iterations_limit) =
-					CONFIG(event_iterations_limit);
-			if (ret == -1) {
-			switch(errno) {
-			case ENOBUFS:
-				/* We have hit ENOBUFS, it's likely that we are
-				 * losing events. Two possible situations may
-				 * trigger this error:
-				 *
-				 * 1) The netlink receiver buffer is too small:
-				 *    increasing the netlink buffer size should
-				 *    be enough. However, some event messages
-				 *    got lost. We have to resync ourselves
-				 *    with the kernel table conntrack table to
-				 *    resolve the inconsistency. 
-				 *
-				 * 2) The receiver is too slow to process the
-				 *    netlink messages so that the queue gets
-				 *    full quickly. This generally happens
-				 *    if the system is under heavy workload
-				 *    (busy CPU). In this case, increasing the
-				 *    size of the netlink receiver buffer
-				 *    would not help anymore since we would
-				 *    be delaying the overrun. Moreover, we
-				 *    should avoid resynchronizations. We 
-				 *    should do our best here and keep
-				 *    replicating as much states as possible.
-				 *    If workload lowers at some point,
-				 *    we resync ourselves.
-				 */
-				nl_resize_socket_buffer(STATE(event));
-				if (CONFIG(nl_overrun_resync) > 0 &&
-				    STATE(mode)->internal->flags &
-				    			INTERNAL_F_RESYNC) {
-					add_alarm(&STATE(resync_alarm),
-						  CONFIG(nl_overrun_resync),0);
-				}
-				STATE(stats).nl_catch_event_failed++;
-				STATE(stats).nl_overrun++;
-				break;
-			case ENOENT:
-				/*
-				 * We received a message from another
-				 * netfilter subsystem that we are not
-				 * interested in. Just ignore it.
-				 */
-				break;
-			case EAGAIN:
-				break;
-			default:
-				STATE(stats).nl_catch_event_failed++;
-				break;
+	/* we have receive an event from ctnetlink */
+	if (FD_ISSET(nfct_fd(STATE(event)), &readfds)) {
+		ret = nfct_catch(STATE(event));
+		/* reset event iteration limit counter */
+		STATE(event_iterations_limit) = CONFIG(event_iterations_limit);
+		if (ret == -1) {
+		switch(errno) {
+		case ENOBUFS:
+			/* We have hit ENOBUFS, it's likely that we are
+			 * losing events. Two possible situations may
+			 * trigger this error:
+			 *
+			 * 1) The netlink receiver buffer is too small:
+			 *    increasing the netlink buffer size should
+			 *    be enough. However, some event messages
+			 *    got lost. We have to resync ourselves
+			 *    with the kernel table conntrack table to
+			 *    resolve the inconsistency. 
+			 *
+			 * 2) The receiver is too slow to process the
+			 *    netlink messages so that the queue gets
+			 *    full quickly. This generally happens
+			 *    if the system is under heavy workload
+			 *    (busy CPU). In this case, increasing the
+			 *    size of the netlink receiver buffer
+			 *    would not help anymore since we would
+			 *    be delaying the overrun. Moreover, we
+			 *    should avoid resynchronizations. We 
+			 *    should do our best here and keep
+			 *    replicating as much states as possible.
+			 *    If workload lowers at some point,
+			 *    we resync ourselves.
+			 */
+			nl_resize_socket_buffer(STATE(event));
+			if (CONFIG(nl_overrun_resync) > 0 &&
+			    STATE(mode)->internal->flags & INTERNAL_F_RESYNC) {
+				add_alarm(&STATE(resync_alarm),
+					  CONFIG(nl_overrun_resync),0);
 			}
-			}
+			STATE(stats).nl_catch_event_failed++;
+			STATE(stats).nl_overrun++;
+			break;
+		case ENOENT:
+			/*
+			 * We received a message from another
+			 * netfilter subsystem that we are not
+			 * interested in. Just ignore it.
+			 */
+			break;
+		case EAGAIN:
+			/* No more events to receive, try later. */
+			break;
+		default:
+			STATE(stats).nl_catch_event_failed++;
+			break;
 		}
-		if (FD_ISSET(nfct_fd(STATE(resync)), &readfds)) {
-			nfct_catch(STATE(resync));
-			if (STATE(mode)->internal->purge)
-				STATE(mode)->internal->purge();
 		}
-	} else {
-		/* using polling mode */
-		if (FD_ISSET(nfct_fd(STATE(resync)), &readfds)) {
-			nfct_catch(STATE(resync));
-		}
+	}
+	/* we previously requested a resync due to buffer overrun. */
+	if (FD_ISSET(nfct_fd(STATE(resync)), &readfds)) {
+		nfct_catch(STATE(resync));
+		if (STATE(mode)->internal->ct.purge)
+			STATE(mode)->internal->ct.purge();
 	}
 
 	if (STATE(mode)->run)
@@ -551,8 +711,40 @@ static void __run(struct timeval *next_alarm)
 	sigprocmask(SIG_UNBLOCK, &STATE(block), NULL);
 }
 
-void __attribute__((noreturn))
-run(void)
+static void run_polling(struct timeval *next_alarm)
+{
+	int ret;
+	fd_set readfds = STATE(fds)->readfds;
+
+	ret = select(STATE(fds)->maxfd + 1, &readfds, NULL, NULL, next_alarm);
+	if (ret == -1) {
+		/* interrupted syscall, retry */
+		if (errno == EINTR)
+			return;
+
+		STATE(stats).select_failed++;
+		return;
+	}
+
+	/* signals are racy */
+	sigprocmask(SIG_BLOCK, &STATE(block), NULL);
+
+	/* order received via UNIX socket */
+	if (FD_ISSET(STATE(local).fd, &readfds))
+		do_local_server_step(&STATE(local), NULL, local_handler);
+
+	/* we requested a dump from the kernel via polling_alarm */
+	if (FD_ISSET(nfct_fd(STATE(resync)), &readfds))
+		nfct_catch(STATE(resync));
+
+	if (STATE(mode)->run)
+		STATE(mode)->run(&readfds);
+
+	sigprocmask(SIG_UNBLOCK, &STATE(block), NULL);
+}
+
+static void __attribute__((noreturn))
+do_run(void (*run_step)(struct timeval *next_alarm))
 {
 	struct timeval next_alarm; 
 	struct timeval *next = NULL;
@@ -567,6 +759,15 @@ run(void)
 			next = get_next_alarm_run(&next_alarm);
 		sigprocmask(SIG_UNBLOCK, &STATE(block), NULL);
 
-		__run(next);
+		run_step(next);
+	}
+}
+
+void run(void)
+{
+	if (CONFIG(flags) & CTD_POLL) {
+		do_run(run_polling);
+	} else {
+		do_run(run_events);
 	}
 }
