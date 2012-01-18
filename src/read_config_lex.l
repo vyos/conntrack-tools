@@ -47,7 +47,7 @@ ip6_part	{hex_255}":"?
 ip6_form1	{ip6_part}{0,16}"::"{ip6_part}{0,16}
 ip6_form2	({hex_255}":"){16}{hex_255}
 ip6		{ip6_form1}{ip6_cidr}?|{ip6_form2}{ip6_cidr}?
-string		[a-zA-Z][a-zA-Z0-9\.]*
+string		[a-zA-Z][a-zA-Z0-9\.\-]*
 persistent	[P|p][E|e][R|r][S|s][I|i][S|s][T|t][E|e][N|n][T|T]
 nack		[N|n][A|a][C|c][K|k]
 alarm		[A|a][L|l][A|a][R|r][M|m]
@@ -138,6 +138,9 @@ notrack		[N|n][O|o][T|t][R|r][A|a][C|c][K|k]
 "NetlinkEventsReliable"		{ return T_NETLINK_EVENTS_RELIABLE; }
 "DisableInternalCache"		{ return T_DISABLE_INTERNAL_CACHE; }
 "DisableExternalCache"		{ return T_DISABLE_EXTERNAL_CACHE; }
+"Options"			{ return T_OPTIONS; }
+"TCPWindowTracking"		{ return T_TCP_WINDOW_TRACKING; }
+"ExpectationSync"		{ return T_EXPECT_SYNC; }
 "ErrorQueueLength"		{ return T_ERROR_QUEUE_LENGTH; }
 
 {is_on}			{ return T_ON; }

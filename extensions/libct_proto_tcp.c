@@ -82,7 +82,8 @@ static const char *tcp_states[TCP_CONNTRACK_MAX] = {
 	[TCP_CONNTRACK_LAST_ACK]	= "LAST_ACK",
 	[TCP_CONNTRACK_TIME_WAIT]	= "TIME_WAIT",
 	[TCP_CONNTRACK_CLOSE]		= "CLOSE",
-	[TCP_CONNTRACK_LISTEN]		= "LISTEN"
+	/* Since Linux kernel 2.6.31, LISTEN is SYN_SENT2. */
+	[TCP_CONNTRACK_SYN_SENT2]	= "SYN_SENT2"
 };
 
 static void help(void)
@@ -151,7 +152,11 @@ static int parse_options(char c,
 				break;
 			}
 		}
-		if (i == TCP_CONNTRACK_MAX)
+		/* For backward compatibility with Linux kernel < 2.6.31. */
+		if (strcmp(optarg, "LISTEN") == 0) {
+			nfct_set_attr_u8(ct, ATTR_TCP_STATE,
+					 TCP_CONNTRACK_LISTEN);
+		} else if (i == TCP_CONNTRACK_MAX)
 			exit_error(PARAMETER_PROBLEM,
 				   "unknown TCP state `%s'", optarg);
 		*flags |= CT_TCP_STATE;

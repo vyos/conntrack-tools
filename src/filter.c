@@ -235,7 +235,7 @@ void ct_filter_add_state(struct ct_filter *f, int protonum, int val)
 }
 
 static inline int
-__ct_filter_test_ipv4(struct ct_filter *f, struct nf_conntrack *ct)
+__ct_filter_test_ipv4(struct ct_filter *f, const struct nf_conntrack *ct)
 {
 	int id_src, id_dst;
 	uint32_t src, dst;
@@ -252,7 +252,7 @@ __ct_filter_test_ipv4(struct ct_filter *f, struct nf_conntrack *ct)
 }
 
 static inline int
-__ct_filter_test_ipv6(struct ct_filter *f, struct nf_conntrack *ct)
+__ct_filter_test_ipv6(struct ct_filter *f, const struct nf_conntrack *ct)
 {
 	int id_src, id_dst;
 	const uint32_t *src, *dst;
@@ -295,7 +295,8 @@ __ct_filter_test_mask6(const void *ptr, const void *ct)
 		 (elem->ip[3] & elem->mask[3]) == (dst[3] & elem->mask[3])));
 }
 
-static int __ct_filter_test_state(struct ct_filter *f, struct nf_conntrack *ct)
+static int
+__ct_filter_test_state(struct ct_filter *f, const struct nf_conntrack *ct)
 {
 	uint16_t val = 0;
 	uint8_t protonum = nfct_get_attr_u8(ct, ATTR_L4PROTO);
@@ -314,7 +315,8 @@ static int __ct_filter_test_state(struct ct_filter *f, struct nf_conntrack *ct)
 	return test_bit_u16(val, &f->statemap[protonum]);
 }
 
-static int ct_filter_check(struct ct_filter *f, struct nf_conntrack *ct)
+static int
+ct_filter_check(struct ct_filter *f, const struct nf_conntrack *ct)
 {
 	int ret, protonum = nfct_get_attr_u8(ct, ATTR_L4PROTO);
 
@@ -361,7 +363,7 @@ static int ct_filter_check(struct ct_filter *f, struct nf_conntrack *ct)
 	return 1;
 }
 
-static inline int ct_filter_sanity_check(struct nf_conntrack *ct)
+static inline int ct_filter_sanity_check(const struct nf_conntrack *ct)
 {
 	if (!nfct_attr_is_set(ct, ATTR_L3PROTO)) {
 		dlog(LOG_ERR, "missing layer 3 protocol");
@@ -371,9 +373,7 @@ static inline int ct_filter_sanity_check(struct nf_conntrack *ct)
 	switch(nfct_get_attr_u8(ct, ATTR_L3PROTO)) {
 	case AF_INET:
 		if (!nfct_attr_is_set(ct, ATTR_IPV4_SRC) ||
-		    !nfct_attr_is_set(ct, ATTR_IPV4_DST) ||
-		    !nfct_attr_is_set(ct, ATTR_REPL_IPV4_SRC) ||
-		    !nfct_attr_is_set(ct, ATTR_REPL_IPV4_DST)) {
+		    !nfct_attr_is_set(ct, ATTR_IPV4_DST)) {
 		    	dlog(LOG_ERR, "missing IPv4 address. "
 				      "You forgot to load "
 				      "nf_conntrack_ipv4?");
@@ -382,9 +382,7 @@ static inline int ct_filter_sanity_check(struct nf_conntrack *ct)
 		break;
 	case AF_INET6:
 		if (!nfct_attr_is_set(ct, ATTR_IPV6_SRC) ||
-		    !nfct_attr_is_set(ct, ATTR_IPV6_DST) ||
-		    !nfct_attr_is_set(ct, ATTR_REPL_IPV6_SRC) ||
-		    !nfct_attr_is_set(ct, ATTR_REPL_IPV6_DST)) {
+		    !nfct_attr_is_set(ct, ATTR_IPV6_DST)) {
 		    	dlog(LOG_ERR, "missing IPv6 address. "
 				      "You forgot to load "
 				      "nf_conntrack_ipv6?");
@@ -396,7 +394,7 @@ static inline int ct_filter_sanity_check(struct nf_conntrack *ct)
 }
 
 /* we do user-space filtering for dump and resyncs */
-int ct_filter_conntrack(struct nf_conntrack *ct, int userspace)
+int ct_filter_conntrack(const struct nf_conntrack *ct, int userspace)
 {
 	/* missing mandatory attributes in object */
 	if (!ct_filter_sanity_check(ct))
@@ -405,5 +403,81 @@ int ct_filter_conntrack(struct nf_conntrack *ct, int userspace)
 	if (userspace && !ct_filter_check(STATE(us_filter), ct))
 		return 1;
 
+	return 0;
+}
+
+struct exp_filter {
+	struct list_head 	list;
+};
+
+struct exp_filter *exp_filter_create(void)
+{
+	struct exp_filter *f;
+
+	f = calloc(1, sizeof(struct exp_filter));
+	if (f == NULL)
+		return NULL;
+
+	INIT_LIST_HEAD(&f->list);
+	return f;
+}
+
+struct exp_filter_item {
+	struct list_head	head;
+	char			helper_name[NFCT_HELPER_NAME_MAX];
+};
+
+/* this is ugly, but it simplifies read_config_yy.y */
+static struct exp_filter *exp_filter_alloc(void)
+{
+	if (STATE(exp_filter) == NULL) {
+		STATE(exp_filter) = exp_filter_create();
+		if (STATE(exp_filter) == NULL) {
+			fprintf(stderr, "Can't init expectation filtering!\n");
+			return NULL;
+		}
+	}
+	return STATE(exp_filter);;
+}
+
+int exp_filter_add(struct exp_filter *f, const char *helper_name)
+{
+	struct exp_filter_item *item;
+
+	f = exp_filter_alloc();
+	if (f == NULL)
+		return -1;
+
+	list_for_each_entry(item, &f->list, head) {
+		if (strncmp(item->helper_name, helper_name,
+				NFCT_HELPER_NAME_MAX) == 0) {
+			return -1;
+		}
+	}
+	item = calloc(1, sizeof(struct exp_filter_item));
+	if (item == NULL)
+		return -1;
+
+	strncpy(item->helper_name, helper_name, NFCT_HELPER_NAME_MAX);
+	list_add(&item->head, &f->list);
+	return 0;
+}
+
+int exp_filter_find(struct exp_filter *f, const struct nf_expect *exp)
+{
+	struct exp_filter_item *item;
+
+	if (f == NULL)
+		return 0;
+
+	list_for_each_entry(item, &f->list, head) {
+		const char *name = nfexp_get_attr(exp, ATTR_EXP_HELPER_NAME);
+
+		/* we allow partial matching to support things like sip-PORT. */
+		if (strncmp(item->helper_name, name,
+				strlen(item->helper_name)) == 0) {
+			return 1;
+		}
+	}
 	return 0;
 }

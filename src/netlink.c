@@ -1,5 +1,6 @@
 /*
- * (C) 2006 by Pablo Neira Ayuso <pablo@netfilter.org>
+ * (C) 2006-2011 by Pablo Neira Ayuso <pablo@netfilter.org>
+ * (C) 2011 by Vyatta Inc. <http://www.vyatta.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -32,9 +33,22 @@ struct nfct_handle *nl_init_event_handler(void)
 {
 	struct nfct_handle *h;
 
-	h = nfct_open(CONNTRACK, NFCT_ALL_CT_GROUPS);
+	h = nfct_open(CONFIG(netlink).subsys_id, CONFIG(netlink).groups);
 	if (h == NULL)
 		return NULL;
+
+	if (CONFIG(netlink).events_reliable) {
+		int on = 1;
+
+		setsockopt(nfct_fd(h), SOL_NETLINK,
+			   NETLINK_BROADCAST_SEND_ERROR, &on, sizeof(int));
+
+		setsockopt(nfct_fd(h), SOL_NETLINK,
+			   NETLINK_NO_ENOBUFS, &on, sizeof(int));
+
+		dlog(LOG_NOTICE, "reliable ctnetlink event delivery "
+				 "is ENABLED.");
+	}
 
 	if (STATE(filter)) {
 		if (CONFIG(filter_from_kernelspace)) {
@@ -54,14 +68,16 @@ struct nfct_handle *nl_init_event_handler(void)
 
 	/* set up socket buffer size */
 	if (CONFIG(netlink_buffer_size) &&
-	    CONFIG(netlink_buffer_size) <= CONFIG(netlink_buffer_size_max_grown)) {
+	    CONFIG(netlink_buffer_size) <=
+			CONFIG(netlink_buffer_size_max_grown)) {
 		/* we divide netlink_buffer_size by 2 here since value passed
 		   to kernel gets doubled in SO_RCVBUF; see net/core/sock.c */
 		CONFIG(netlink_buffer_size) =
-		    nfnl_rcvbufsiz(nfct_nfnlh(h), CONFIG(netlink_buffer_size)/2);
+		  nfnl_rcvbufsiz(nfct_nfnlh(h), CONFIG(netlink_buffer_size)/2);
 	} else {
-		dlog(LOG_NOTICE, "NetlinkBufferSize is either not set or is greater "
-			"than NetlinkBufferSizeMaxGrowth. Using current system buffer size");
+		dlog(LOG_NOTICE, "NetlinkBufferSize is either not set or "
+				 "is greater than NetlinkBufferSizeMaxGrowth. "
+				 "Using current system buffer size");
 
 		socklen_t socklen = sizeof(unsigned int);
 		unsigned int read_size;
@@ -76,18 +92,6 @@ struct nfct_handle *nl_init_event_handler(void)
 	dlog(LOG_NOTICE, "netlink event socket buffer size has been set "
 			 "to %u bytes", CONFIG(netlink_buffer_size));
 
-	if (CONFIG(netlink).events_reliable) {
-		int on = 1;
-
-		setsockopt(nfct_fd(h), SOL_NETLINK,
-			   NETLINK_BROADCAST_SEND_ERROR, &on, sizeof(int));
-
-		setsockopt(nfct_fd(h), SOL_NETLINK,
-			   NETLINK_NO_ENOBUFS, &on, sizeof(int));
-
-		dlog(LOG_NOTICE, "reliable ctnetlink event delivery "
-				 "is ENABLED.");
-	}
 	return h;
 }
 
@@ -161,20 +165,21 @@ int nl_send_resync(struct nfct_handle *h)
 /* if the handle has no callback, check for existence, otherwise, update */
 int nl_get_conntrack(struct nfct_handle *h, const struct nf_conntrack *ct)
 {
-	int ret;
-	char __tmp[nfct_maxsize()];
-	struct nf_conntrack *tmp = (struct nf_conntrack *) (void *)__tmp;
+	int ret = 1;
+	struct nf_conntrack *tmp;
 
-	memset(__tmp, 0, sizeof(__tmp));
+	tmp = nfct_new();
+	if (tmp == NULL)
+		return -1;
 
 	/* use the original tuple to check if it is there */
 	nfct_copy(tmp, ct, NFCT_CP_ORIG);
 
-	ret = nfct_query(h, NFCT_Q_GET, tmp);
-	if (ret == -1)
-		return errno == ENOENT ? 0 : -1;
+	if (nfct_query(h, NFCT_Q_GET, tmp) == -1)
+		ret = (errno == ENOENT) ? 0 : -1;
 
-	return 1;
+	nfct_destroy(tmp);
+	return ret;
 }
 
 int nl_create_conntrack(struct nfct_handle *h, 
@@ -200,12 +205,14 @@ int nl_create_conntrack(struct nfct_handle *h,
 
 	nfct_setobjopt(ct, NFCT_SOPT_SETUP_REPLY);
 
-	/*
-	 * TCP flags to overpass window tracking for recovered connections
-	 */
+	/* disable TCP window tracking for recovered connections if required */
 	if (nfct_attr_is_set(ct, ATTR_TCP_STATE)) {
-		uint8_t flags = IP_CT_TCP_FLAG_BE_LIBERAL |
-				IP_CT_TCP_FLAG_SACK_PERM;
+		uint8_t flags = IP_CT_TCP_FLAG_SACK_PERM;
+
+		if (!CONFIG(sync).tcp_window_tracking)
+			flags |= IP_CT_TCP_FLAG_BE_LIBERAL;
+		else
+			flags |= IP_CT_TCP_FLAG_WINDOW_SCALE;
 
 		/* FIXME: workaround, we should send TCP flags in updates */
 		if (nfct_get_attr_u8(ct, ATTR_TCP_STATE) >=
@@ -265,12 +272,14 @@ int nl_update_conntrack(struct nfct_handle *h,
 		nfct_attr_unset(ct, ATTR_MASTER_PORT_DST);
 	}
 
-	/*
-	 * TCP flags to overpass window tracking for recovered connections
-	 */
+	/* disable TCP window tracking for recovered connections if required */
 	if (nfct_attr_is_set(ct, ATTR_TCP_STATE)) {
-		uint8_t flags = IP_CT_TCP_FLAG_BE_LIBERAL |
-				IP_CT_TCP_FLAG_SACK_PERM;
+		uint8_t flags = IP_CT_TCP_FLAG_SACK_PERM;
+
+		if (!CONFIG(sync).tcp_window_tracking)
+			flags |= IP_CT_TCP_FLAG_BE_LIBERAL;
+		else
+			flags |= IP_CT_TCP_FLAG_WINDOW_SCALE;
 
 		/* FIXME: workaround, we should send TCP flags in updates */
 		if (nfct_get_attr_u8(ct, ATTR_TCP_STATE) >=
@@ -292,4 +301,62 @@ int nl_update_conntrack(struct nfct_handle *h,
 int nl_destroy_conntrack(struct nfct_handle *h, const struct nf_conntrack *ct)
 {
 	return nfct_query(h, NFCT_Q_DESTROY, ct);
+}
+
+int nl_create_expect(struct nfct_handle *h, const struct nf_expect *orig,
+		     int timeout)
+{
+	int ret;
+	struct nf_expect *exp;
+
+	exp = nfexp_clone(orig);
+	if (exp == NULL)
+		return -1;
+
+	if (timeout > 0)
+		nfexp_set_attr_u32(exp, ATTR_EXP_TIMEOUT, timeout);
+
+	ret = nfexp_query(h, NFCT_Q_CREATE, exp);
+	nfexp_destroy(exp);
+
+	return ret;
+}
+
+int nl_destroy_expect(struct nfct_handle *h, const struct nf_expect *exp)
+{
+	return nfexp_query(h, NFCT_Q_DESTROY, exp);
+}
+
+/* if the handle has no callback, check for existence, otherwise, update */
+int nl_get_expect(struct nfct_handle *h, const struct nf_expect *exp)
+{
+	int ret = 1;
+	struct nf_expect *tmp;
+
+	/* XXX: we only need the expectation, not the mask and the master. */
+	tmp = nfexp_clone(exp);
+	if (tmp == NULL)
+		return -1;
+
+	if (nfexp_query(h, NFCT_Q_GET, tmp) == -1)
+		ret = (errno == ENOENT) ? 0 : -1;
+
+	nfexp_destroy(tmp);
+	return ret;
+}
+
+int nl_dump_expect_table(struct nfct_handle *h)
+{
+	return nfexp_query(h, NFCT_Q_DUMP, &CONFIG(family));
+}
+
+int nl_flush_expect_table(struct nfct_handle *h)
+{
+	return nfexp_query(h, NFCT_Q_FLUSH, &CONFIG(family));
+}
+
+int nl_send_expect_resync(struct nfct_handle *h)
+{
+	int family = CONFIG(family);
+	return nfexp_send(h, NFCT_Q_DUMP, &family);
 }

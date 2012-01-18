@@ -24,10 +24,10 @@ Run conntrackd in daemon mode.
 .B conntrackd 
 can be used in client mode to request several information and operations to a running daemon
 .TP
-.BI "-i "
+.BI "-i "[ct|expect]"
 Dump the internal cache, i.e. show local states
 .TP
-.BI "-e "
+.BI "-e "[ct|expect]"
 Dump the external cache, i.e. show foreign states
 .TP
 .BI "-x "
@@ -37,7 +37,7 @@ with "-i" and "-e" parameters.
 .BI "-f " "[|internal|external]"
 Flush the internal and/or external cache
 .TP
-.BI "-F "
+.BI "-F [ct|expect]"
 Flush the kernel conntrack table (if you use a Linux kernel >= 2.6.29, this
 option will not flush your internal and external cache).
 .TP
@@ -48,15 +48,17 @@ ask conntrackd to send the state-entries that it owns to others.
 .BI "-k "
 Kill the daemon
 .TP
-.BI "-s " "[|network|cache|runtime|link|rsqueue|process|queue]"
+.BI "-s " "[|network|cache|runtime|link|rsqueue|process|queue|ct|expect]"
 Dump statistics. If no parameter is passed, it displays the general statistics.
 If "network" is passed as parameter it displays the networking statistics.
 If "cache" is passed as parameter, it shows the extended cache statistics.
 If "runtime" is passed as parameter, it shows the run-time statistics.
 If "process" is passed as parameter, it shows existing child processes (if any).
 If "queue" is passed as parameter, it shows queue statistics.
+If "ct" is passed, it displays the general statistics.
+If "expect" is passed as parameter, it shows expectation statistics.
 .TP
-.BI "-R "
+.BI "-R " "[ct|expect]"
 Force a resync against the kernel connection tracking table
 .TP
 .BI "-t "
