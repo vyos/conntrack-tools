@@ -21,7 +21,7 @@ CFLAGS += -DYY_NO_INPUT
 build: debian/stamp-build
 debian/stamp-build:
 	dh_testdir
-
+	autoreconf -i
 	# ./configure
 	CFLAGS="$(CFLAGS)" ./configure --host=$(DEB_HOST_GNU_TYPE) --build=$(DEB_BUILD_GNU_TYPE) \
 		--disable-dependency-tracking \
