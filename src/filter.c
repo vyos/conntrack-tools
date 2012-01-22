@@ -467,8 +467,9 @@ int exp_filter_find(struct exp_filter *f, const struct nf_expect *exp)
 {
 	struct exp_filter_item *item;
 
+	/* if filtering is not active, accept everything. */
 	if (f == NULL)
-		return 0;
+		return 1;
 
 	list_for_each_entry(item, &f->list, head) {
 		const char *name = nfexp_get_attr(exp, ATTR_EXP_HELPER_NAME);
