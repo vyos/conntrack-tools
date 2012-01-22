@@ -340,12 +340,12 @@ static char commands_v_options[NUMBER_OF_CMD][NUMBER_OF_OPT] =
 /*CT_EVENT*/  {2,2,2,2,2,0,0,0,2,0,0,0,0,0,2,0,0,2,2,2,2,2,2,2},
 /*VERSION*/   {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
 /*HELP*/      {0,0,0,0,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-/*EXP_LIST*/  {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,0,0,0,0,0,0,0},
+/*EXP_LIST*/  {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,0,0,2,0,0,0,0},
 /*EXP_CREATE*/{1,1,2,2,1,1,2,0,0,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0},
 /*EXP_DELETE*/{1,1,2,2,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
 /*EXP_GET*/   {1,1,2,2,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
 /*EXP_FLUSH*/ {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-/*EXP_EVENT*/ {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+/*EXP_EVENT*/ {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,0,0,0,0},
 /*CT_COUNT*/  {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
 /*EXP_COUNT*/ {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
 /*X_STATS*/   {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
@@ -1064,6 +1064,20 @@ event_sighandler(int s)
 	exit(0);
 }
 
+static void __attribute__((noreturn))
+exp_event_sighandler(int s)
+{
+	if (dump_xml_header_done == 0) {
+		printf("</expect>\n");
+		fflush(stdout);
+	}
+
+	fprintf(stderr, "%s v%s (conntrack-tools): ", PROGNAME, VERSION);
+	fprintf(stderr, "%d expectation events have been shown.\n", counter);
+	nfct_close(cth);
+	exit(0);
+}
+
 static int event_cb(enum nf_conntrack_msg_type type,
 		    struct nf_conntrack *ct,
 		    void *data)
@@ -1298,8 +1312,27 @@ static int dump_exp_cb(enum nf_conntrack_msg_type type,
 		      void *data)
 {
 	char buf[1024];
+	unsigned int op_type = NFCT_O_DEFAULT;
+	unsigned int op_flags = 0;
 
-	nfexp_snprintf(buf,sizeof(buf), exp, NFCT_T_UNKNOWN, NFCT_O_DEFAULT, 0);
+	if (output_mask & _O_XML) {
+		op_type = NFCT_O_XML;
+		if (dump_xml_header_done) {
+			dump_xml_header_done = 0;
+			printf("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
+			       "<expect>\n");
+		}
+	}
+	if (output_mask & _O_TMS) {
+		if (!(output_mask & _O_XML)) {
+			struct timeval tv;
+			gettimeofday(&tv, NULL);
+			printf("[%-8ld.%-6ld]\t", tv.tv_sec, tv.tv_usec);
+		} else
+			op_flags |= NFCT_OF_TIME;
+	}
+
+	nfexp_snprintf(buf,sizeof(buf), exp, NFCT_T_UNKNOWN, op_type, op_flags);
 	printf("%s\n", buf);
 	counter++;
 
@@ -1310,8 +1343,27 @@ static int event_exp_cb(enum nf_conntrack_msg_type type,
 			struct nf_expect *exp, void *data)
 {
 	char buf[1024];
+	unsigned int op_type = NFCT_O_DEFAULT;
+	unsigned int op_flags = 0;
 
-	nfexp_snprintf(buf,sizeof(buf), exp, type, NFCT_O_DEFAULT, 0);
+	if (output_mask & _O_XML) {
+		op_type = NFCT_O_XML;
+		if (dump_xml_header_done) {
+			dump_xml_header_done = 0;
+			printf("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
+			       "<expect>\n");
+		}
+	}
+	if (output_mask & _O_TMS) {
+		if (!(output_mask & _O_XML)) {
+			struct timeval tv;
+			gettimeofday(&tv, NULL);
+			printf("[%-8ld.%-6ld]\t", tv.tv_sec, tv.tv_usec);
+		} else
+			op_flags |= NFCT_OF_TIME;
+	}
+
+	nfexp_snprintf(buf,sizeof(buf), exp, type, op_type, op_flags);
 	printf("%s\n", buf);
 	counter++;
 
@@ -1676,8 +1728,13 @@ int main(int argc, char *argv[])
 		nfexp_callback_register(cth, NFCT_T_ALL, dump_exp_cb, NULL);
 		res = nfexp_query(cth, NFCT_Q_DUMP, &family);
 		nfct_close(cth);
+
+		if (dump_xml_header_done == 0) {
+			printf("</expect>\n");
+			fflush(stdout);
+		}
 		break;
-			
+
 	case CT_CREATE:
 		if ((options & CT_OPT_ORIG) && !(options & CT_OPT_REPL))
 		    	nfct_setobjopt(tmpl.ct, NFCT_SOPT_SETUP_REPLY);
@@ -1857,8 +1914,8 @@ int main(int argc, char *argv[])
 
 		if (!cth)
 			exit_error(OTHER_PROBLEM, "Can't open handler");
-		signal(SIGINT, event_sighandler);
-		signal(SIGTERM, event_sighandler);
+		signal(SIGINT, exp_event_sighandler);
+		signal(SIGTERM, exp_event_sighandler);
 		nfexp_callback_register(cth, NFCT_T_ALL, event_exp_cb, NULL);
 		res = nfexp_catch(cth);
 		nfct_close(cth);
