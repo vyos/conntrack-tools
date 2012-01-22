@@ -290,6 +290,10 @@ int main(int argc, char *argv[])
 				action = CT_DUMP_INT_XML;
 			else if (action == CT_DUMP_EXTERNAL)
 				action = CT_DUMP_EXT_XML;
+			else if (action == EXP_DUMP_INTERNAL)
+				action = EXP_DUMP_INT_XML;
+			else if (action == EXP_DUMP_EXTERNAL)
+				action = EXP_DUMP_EXT_XML;
 			else {
 				show_usage(argv[0]);
 				fprintf(stderr, "Error: Invalid parameters\n");
