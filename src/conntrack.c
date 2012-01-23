@@ -1245,6 +1245,16 @@ static void copy_mark(struct nf_conntrack *tmp,
 	}
 }
 
+static void copy_status(struct nf_conntrack *tmp, const struct nf_conntrack *ct)
+{
+	if (options & CT_OPT_STATUS) {
+		/* copy existing flags, we only allow setting them. */
+		uint32_t status = nfct_get_attr_u32(ct, ATTR_STATUS);
+		status |= nfct_get_attr_u32(tmp, ATTR_STATUS);
+		nfct_set_attr_u32(tmp, ATTR_STATUS, status);
+	}
+}
+
 static int update_cb(enum nf_conntrack_msg_type type,
 		     struct nf_conntrack *ct,
 		     void *data)
@@ -1271,6 +1281,7 @@ static int update_cb(enum nf_conntrack_msg_type type,
 	nfct_copy(tmp, ct, NFCT_CP_ORIG);
 	nfct_copy(tmp, obj, NFCT_CP_META);
 	copy_mark(tmp, ct, &tmpl.mark);
+	copy_status(tmp, ct);
 
 	/* do not send NFCT_Q_UPDATE if ct appears unchanged */
 	if (nfct_cmp(tmp, ct, NFCT_CMP_ALL | NFCT_CMP_MASK)) {
