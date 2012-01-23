@@ -47,6 +47,8 @@
 #define ALL_RESYNC_MASTER	44	/* resync w/all kernel tables	*/
 #define ALL_FLUSH_CACHE		45	/* flush all caches		*/
 #define ALL_COMMIT		46	/* commit all tables		*/
+#define EXP_DUMP_INT_XML	47	/* dump internal cache in XML	*/
+#define EXP_DUMP_EXT_XML	48	/* dump external cache in XML	*/
 
 #define DEFAULT_CONFIGFILE	"/etc/conntrackd/conntrackd.conf"
 #define DEFAULT_LOCKFILE	"/var/lock/conntrackd.lock"

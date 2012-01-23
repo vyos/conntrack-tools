@@ -706,6 +706,18 @@ static int local_handler_sync(int fd, int type, void *data)
 		}
 		local_commit(fd);
 		break;
+	case EXP_DUMP_INT_XML:
+		if (fork_process_new(CTD_PROC_ANY, 0, NULL, NULL) == 0) {
+			STATE(mode)->internal->exp.dump(fd, NFCT_O_XML);
+			exit(EXIT_SUCCESS);
+		}
+		break;
+	case EXP_DUMP_EXT_XML:
+		if (fork_process_new(CTD_PROC_ANY, 0, NULL, NULL) == 0) {
+			STATE_SYNC(external)->exp.dump(fd, NFCT_O_XML);
+			exit(EXIT_SUCCESS);
+		}
+		break;
 	default:
 		if (STATE_SYNC(sync)->local)
 			ret = STATE_SYNC(sync)->local(fd, type, data);
