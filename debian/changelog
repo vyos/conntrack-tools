@@ -1,3 +1,20 @@
+conntrack (1.0.1-2+vyatta18) unstable; urgency=low
+
+  [ Pablo Neira Ayuso ]
+  * conntrackd: fix expectation filtering if ExpectationSync On is used
+  * conntrack: add expectation support for `-o' option
+  * conntrackd: support `-i exp -x' and `-e exp -x' options
+  * conntrack: fix setting fixed-timeout status flag
+
+  [ Gaurav Sinha ]
+  * Merge of conntrack-tools from netfilter.org with support for dumping
+    expectations in XML format.
+  * Revert "Merge of conntrack-tools from netfilter.org with support for
+    dumping expectations in XML format."
+  * updating version string for conntrack-tools to 1.0.1
+
+ -- Gaurav Sinha <gaurav.sinha@vyatta.com>  Mon, 23 Jan 2012 15:23:34 -0800
+
 conntrack (1.0.1-2+vyatta17) unstable; urgency=low
 
   * Bumping version to 1.0.1
