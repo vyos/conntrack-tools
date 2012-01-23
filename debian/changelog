@@ -1,3 +1,9 @@
+conntrack (1.0.1-2+vyatta17) unstable; urgency=low
+
+  * Bumping version to 1.0.1
+
+ -- Gaurav Sinha <gaurav.sinha@vyatta.com>  Fri, 20 Jan 2012 16:09:58 -0800
+
 conntrack (0.9.14-2+vyatta16) unstable; urgency=low
 
   * Fixing build issue in debian/rules
