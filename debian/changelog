@@ -1,3 +1,9 @@
+conntrack (1:1.0.1-2+vyatta18) unstable; urgency=low
+
+  * add epoch to version number to match Debian numbering
+
+ -- Stephen Hemminger <shemminger@vyatta.com>  Tue, 31 Jan 2012 11:15:50 -0800
+
 conntrack (1.0.1-2+vyatta18) unstable; urgency=low
 
   [ Pablo Neira Ayuso ]
