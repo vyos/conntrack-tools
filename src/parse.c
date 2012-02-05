@@ -393,6 +393,11 @@ static struct exp_parser {
 		.exp_attr	= ATTR_EXP_HELPER_NAME,
 		.max_size	= NFCT_HELPER_NAME_MAX,
 	},
+	[NTA_EXP_FN] = {
+		.parse		= exp_parse_str,
+		.exp_attr	= ATTR_EXP_FN,
+		.max_size	= NFCT_HELPER_NAME_MAX,
+	},
 };
 
 static void exp_parse_ct_group(void *ct, int attr, void *data)

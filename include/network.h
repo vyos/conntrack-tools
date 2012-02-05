@@ -276,6 +276,7 @@ enum nta_exp_attr {
 	NTA_EXP_NAT_L4PROTO,		/* uint8_t */
 	NTA_EXP_NAT_DIR,		/* uint32_t */
 	NTA_EXP_HELPER_NAME,		/* string (variable length) */
+	NTA_EXP_FN,			/* string (variable length) */
 	NTA_EXP_MAX
 };
 
