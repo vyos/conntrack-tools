@@ -269,6 +269,7 @@ enum nta_exp_attr {
 	NTA_EXP_MASK_PORT,		/* struct nfct_attr_grp_port */
 	NTA_EXP_TIMEOUT,		/* uint32_t */
 	NTA_EXP_FLAGS,			/* uint32_t */
+	NTA_EXP_CLASS,			/* uint32_t */
 	NTA_EXP_MAX
 };
 

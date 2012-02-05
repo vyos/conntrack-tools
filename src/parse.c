@@ -341,6 +341,11 @@ static struct exp_parser {
 		.exp_attr	= ATTR_EXP_FLAGS,
 		.size		= NTA_SIZE(sizeof(uint32_t)),
 	},
+	[NTA_EXP_CLASS] = {
+		.parse		= exp_parse_u32,
+		.exp_attr	= ATTR_EXP_CLASS,
+		.size		= NTA_SIZE(sizeof(uint32_t)),
+	},
 };
 
 static void exp_parse_ct_group(void *ct, int attr, void *data)

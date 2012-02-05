@@ -322,4 +322,6 @@ void exp2msg(const struct nf_expect *exp, struct nethdr *n)
 		exp_build_u32(exp, ATTR_EXP_TIMEOUT, n, NTA_EXP_TIMEOUT);
 
 	exp_build_u32(exp, ATTR_EXP_FLAGS, n, NTA_EXP_FLAGS);
+	if (nfexp_attr_is_set(exp, ATTR_EXP_CLASS))
+		exp_build_u32(exp, ATTR_EXP_CLASS, n, NTA_EXP_CLASS);
 }
