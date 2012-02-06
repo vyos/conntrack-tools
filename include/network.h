@@ -270,6 +270,10 @@ enum nta_exp_attr {
 	NTA_EXP_TIMEOUT,		/* uint32_t */
 	NTA_EXP_FLAGS,			/* uint32_t */
 	NTA_EXP_CLASS,			/* uint32_t */
+	NTA_EXP_NAT_IPV4,		/* struct nfct_attr_grp_ipv4 */
+	NTA_EXP_NAT_PORT,		/* struct nfct_attr_grp_port */
+	NTA_EXP_NAT_L4PROTO,		/* uint8_t */
+	NTA_EXP_NAT_DIR,		/* uint32_t */
 	NTA_EXP_MAX
 };
 

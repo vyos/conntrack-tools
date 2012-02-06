@@ -346,6 +346,29 @@ static struct exp_parser {
 		.exp_attr	= ATTR_EXP_CLASS,
 		.size		= NTA_SIZE(sizeof(uint32_t)),
 	},
+	[NTA_EXP_NAT_IPV4] = {
+		.parse		= exp_parse_ct_group,
+		.exp_attr	= ATTR_EXP_NAT_TUPLE,
+		.ct_attr	= ATTR_GRP_ORIG_IPV4,
+		.size		= NTA_SIZE(sizeof(struct nfct_attr_grp_ipv4)),
+	},
+	[NTA_EXP_NAT_L4PROTO] = {
+		.parse		= exp_parse_ct_u8,
+		.exp_attr	= ATTR_EXP_NAT_TUPLE,
+		.ct_attr	= ATTR_L4PROTO,
+		.size		= NTA_SIZE(sizeof(uint8_t)),
+	},
+	[NTA_EXP_NAT_PORT] = {
+		.parse		= exp_parse_ct_group,
+		.exp_attr	= ATTR_EXP_NAT_TUPLE,
+		.ct_attr	= ATTR_GRP_ORIG_PORT,
+		.size		= NTA_SIZE(sizeof(struct nfct_attr_grp_port)),
+	},
+	[NTA_EXP_NAT_DIR] = {
+		.parse		= exp_parse_u32,
+		.exp_attr	= ATTR_EXP_NAT_DIR,
+		.size		= NTA_SIZE(sizeof(uint32_t)),
+	},
 };
 
 static void exp_parse_ct_group(void *ct, int attr, void *data)
