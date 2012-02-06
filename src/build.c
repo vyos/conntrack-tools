@@ -65,6 +65,13 @@ ct_build_u32(const struct nf_conntrack *ct, int a, struct nethdr *n, int b)
 	addattr(n, b, &data, sizeof(uint32_t));
 }
 
+static inline void
+ct_build_str(const struct nf_conntrack *ct, int a, struct nethdr *n, int b)
+{
+	const char *data = nfct_get_attr(ct, a);
+	addattr(n, b, data, strlen(data)+1);
+}
+
 static inline void 
 ct_build_group(const struct nf_conntrack *ct, int a, struct nethdr *n, 
 	      int b, int size)
@@ -223,6 +230,9 @@ void ct2msg(const struct nf_conntrack *ct, struct nethdr *n)
 	/* NAT sequence adjustment */
 	if (nfct_attr_is_set_array(ct, nat_type, 6))
 		ct_build_natseqadj(ct, n);
+
+	if (nfct_attr_is_set(ct, ATTR_HELPER_NAME))
+		ct_build_str(ct, ATTR_HELPER_NAME, n, NTA_HELPER_NAME);
 }
 
 static void
@@ -268,6 +278,13 @@ exp_build_u32(const struct nf_expect *exp, int a, struct nethdr *n, int b)
 	uint32_t data = nfexp_get_attr_u32(exp, a);
 	data = htonl(data);
 	addattr(n, b, &data, sizeof(uint32_t));
+}
+
+static inline void
+exp_build_str(const struct nf_expect *exp, int a, struct nethdr *n, int b)
+{
+	const char *data = nfexp_get_attr(exp, a);
+	addattr(n, b, data, strlen(data)+1);
 }
 
 void exp2msg(const struct nf_expect *exp, struct nethdr *n)
@@ -339,4 +356,5 @@ void exp2msg(const struct nf_expect *exp, struct nethdr *n)
 
 		exp_build_u32(exp, ATTR_EXP_NAT_DIR, n, NTA_EXP_NAT_DIR);
 	}
+	exp_build_str(exp, ATTR_EXP_HELPER_NAME, n, NTA_EXP_HELPER_NAME);
 }
