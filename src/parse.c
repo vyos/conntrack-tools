@@ -426,7 +426,7 @@ int msg2exp(struct nf_expect *exp, struct nethdr *net, size_t remain)
 {
 	int len;
 	struct netattr *attr;
-	struct nf_conntrack *master, *expected, *mask;
+	struct nf_conntrack *master, *expected, *mask, *nat;
 
 	if (remain < net->len)
 		return -1;
@@ -445,6 +445,10 @@ int msg2exp(struct nf_expect *exp, struct nethdr *net, size_t remain)
 	mask = nfct_new();
 	if (mask == NULL)
 		goto err_mask;
+
+	nat = nfct_new();
+	if (nat == NULL)
+		goto err_nat;
 
 	while (len > ssizeof(struct netattr)) {
 		ATTR_NETWORK2HOST(attr);
@@ -473,8 +477,17 @@ int msg2exp(struct nf_expect *exp, struct nethdr *net, size_t remain)
 			exp_h[attr->nta_attr].parse(mask, attr->nta_attr,
 						    NTA_DATA(attr));
 			break;
+		case ATTR_EXP_NAT_TUPLE:
+			exp_h[attr->nta_attr].parse(nat, attr->nta_attr,
+						    NTA_DATA(attr));
+			nfexp_set_attr(exp, ATTR_EXP_NAT_TUPLE, nat);
+			break;
 		case ATTR_EXP_TIMEOUT:
 		case ATTR_EXP_FLAGS:
+		case ATTR_EXP_CLASS:
+		case ATTR_EXP_HELPER_NAME:
+		case ATTR_EXP_NAT_DIR:
+		case ATTR_EXP_FN:
 			exp_h[attr->nta_attr].parse(exp, attr->nta_attr,
 						    NTA_DATA(attr));
 			break;
@@ -495,9 +508,12 @@ int msg2exp(struct nf_expect *exp, struct nethdr *net, size_t remain)
 	nfct_destroy(mask);
 	nfct_destroy(expected);
 	nfct_destroy(master);
+	nfct_destroy(nat);
 
 	return 0;
 err:
+	nfct_destroy(nat);
+err_nat:
 	nfct_destroy(mask);
 err_mask:
 	nfct_destroy(expected);
