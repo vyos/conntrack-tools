@@ -1,3 +1,16 @@
+conntrack (1:1.0.1-2+vyatta20) unstable; urgency=low
+
+  [ Pablo Neira Ayuso ]
+  * conntrackd: add support expectation class synchronization
+  * conntrackd: add NAT expectation support
+  * conntrackd: add support to synchronize helper name
+  * conntrackd: support expectfn synchronization for expectations
+  * conntrackd: fix parsing of expectation class, helper name and NAT
+
+  [ Gaurav Sinha ]
+
+ -- Gaurav Sinha <gaurav.sinha@vyatta.com>  Wed, 08 Feb 2012 11:53:16 -0800
+
 conntrack (1:1.0.1-2+vyatta19) unstable; urgency=low
 
   * reset epoch
