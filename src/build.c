@@ -65,6 +65,13 @@ ct_build_u32(const struct nf_conntrack *ct, int a, struct nethdr *n, int b)
 	addattr(n, b, &data, sizeof(uint32_t));
 }
 
+static inline void
+ct_build_str(const struct nf_conntrack *ct, int a, struct nethdr *n, int b)
+{
+	const char *data = nfct_get_attr(ct, a);
+	addattr(n, b, data, strlen(data)+1);
+}
+
 static inline void 
 ct_build_group(const struct nf_conntrack *ct, int a, struct nethdr *n, 
 	      int b, int size)
@@ -223,6 +230,9 @@ void ct2msg(const struct nf_conntrack *ct, struct nethdr *n)
 	/* NAT sequence adjustment */
 	if (nfct_attr_is_set_array(ct, nat_type, 6))
 		ct_build_natseqadj(ct, n);
+
+	if (nfct_attr_is_set(ct, ATTR_HELPER_NAME))
+		ct_build_str(ct, ATTR_HELPER_NAME, n, NTA_HELPER_NAME);
 }
 
 static void
@@ -268,6 +278,13 @@ exp_build_u32(const struct nf_expect *exp, int a, struct nethdr *n, int b)
 	uint32_t data = nfexp_get_attr_u32(exp, a);
 	data = htonl(data);
 	addattr(n, b, &data, sizeof(uint32_t));
+}
+
+static inline void
+exp_build_str(const struct nf_expect *exp, int a, struct nethdr *n, int b)
+{
+	const char *data = nfexp_get_attr(exp, a);
+	addattr(n, b, data, strlen(data)+1);
 }
 
 void exp2msg(const struct nf_expect *exp, struct nethdr *n)
@@ -322,4 +339,24 @@ void exp2msg(const struct nf_expect *exp, struct nethdr *n)
 		exp_build_u32(exp, ATTR_EXP_TIMEOUT, n, NTA_EXP_TIMEOUT);
 
 	exp_build_u32(exp, ATTR_EXP_FLAGS, n, NTA_EXP_FLAGS);
+	if (nfexp_attr_is_set(exp, ATTR_EXP_CLASS))
+		exp_build_u32(exp, ATTR_EXP_CLASS, n, NTA_EXP_CLASS);
+
+	/* include NAT information, if any. */
+	ct = nfexp_get_attr(exp, ATTR_EXP_NAT_TUPLE);
+	if (ct != NULL) {
+		if (nfct_attr_grp_is_set(ct, ATTR_GRP_ORIG_IPV4)) {
+			ct_build_group(ct, ATTR_GRP_ORIG_IPV4, n,
+					NTA_EXP_NAT_IPV4,
+					sizeof(struct nfct_attr_grp_ipv4));
+		}
+		ct_build_u8(ct, ATTR_L4PROTO, n, NTA_EXP_NAT_L4PROTO);
+		if (exp_l4proto_fcn[l4proto].build)
+			exp_l4proto_fcn[l4proto].build(ct, n, NTA_EXP_NAT_PORT);
+
+		exp_build_u32(exp, ATTR_EXP_NAT_DIR, n, NTA_EXP_NAT_DIR);
+	}
+	exp_build_str(exp, ATTR_EXP_HELPER_NAME, n, NTA_EXP_HELPER_NAME);
+	if (nfexp_attr_is_set(exp, ATTR_EXP_FN))
+		exp_build_str(exp, ATTR_EXP_FN, n, NTA_EXP_FN);
 }

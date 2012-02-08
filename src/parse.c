@@ -28,6 +28,7 @@
 static void ct_parse_u8(struct nf_conntrack *ct, int attr, void *data);
 static void ct_parse_u16(struct nf_conntrack *ct, int attr, void *data);
 static void ct_parse_u32(struct nf_conntrack *ct, int attr, void *data);
+static void ct_parse_str(struct nf_conntrack *ct, int attr, void *data);
 static void ct_parse_group(struct nf_conntrack *ct, int attr, void *data);
 static void ct_parse_nat_seq_adj(struct nf_conntrack *ct, int attr, void *data);
 
@@ -35,6 +36,7 @@ struct ct_parser {
 	void 	(*parse)(struct nf_conntrack *ct, int attr, void *data);
 	int 	attr;
 	int	size;
+	int	max_size;
 };
 
 static struct ct_parser h[NTA_MAX] = {
@@ -172,6 +174,11 @@ static struct ct_parser h[NTA_MAX] = {
 		.attr	= ATTR_TCP_WSCALE_REPL,
 		.size	= NTA_SIZE(sizeof(uint8_t)),
 	},
+	[NTA_HELPER_NAME] = {
+		.parse	= ct_parse_str,
+		.attr	= ATTR_HELPER_NAME,
+		.max_size = NFCT_HELPER_NAME_MAX,
+	},
 };
 
 static void
@@ -193,6 +200,12 @@ ct_parse_u32(struct nf_conntrack *ct, int attr, void *data)
 {
 	uint32_t *value = (uint32_t *) data;
 	nfct_set_attr_u32(ct, h[attr].attr, ntohl(*value));
+}
+
+static void
+ct_parse_str(struct nf_conntrack *ct, int attr, void *data)
+{
+	nfct_set_attr(ct, h[attr].attr, data);
 }
 
 static void
@@ -236,7 +249,11 @@ int msg2ct(struct nf_conntrack *ct, struct nethdr *net, size_t remain)
 			return -1;
 		if (attr->nta_attr > NTA_MAX)
 			return -1;
-		if (attr->nta_len != h[attr->nta_attr].size)
+		if (h[attr->nta_attr].size &&
+		    attr->nta_len != h[attr->nta_attr].size)
+			return -1;
+		if (h[attr->nta_attr].max_size &&
+		    attr->nta_len > h[attr->nta_attr].max_size)
 			return -1;
 		if (h[attr->nta_attr].parse == NULL) {
 			attr = NTA_NEXT(attr, len);
@@ -252,12 +269,14 @@ int msg2ct(struct nf_conntrack *ct, struct nethdr *net, size_t remain)
 static void exp_parse_ct_group(void *ct, int attr, void *data);
 static void exp_parse_ct_u8(void *ct, int attr, void *data);
 static void exp_parse_u32(void *exp, int attr, void *data);
+static void exp_parse_str(void *exp, int attr, void *data);
 
 static struct exp_parser {
 	void 	(*parse)(void *obj, int attr, void *data);
 	int 	exp_attr;
 	int 	ct_attr;
 	int	size;
+	int	max_size;
 } exp_h[NTA_EXP_MAX] = {
 	[NTA_EXP_MASTER_IPV4] = {
 		.parse		= exp_parse_ct_group,
@@ -341,6 +360,44 @@ static struct exp_parser {
 		.exp_attr	= ATTR_EXP_FLAGS,
 		.size		= NTA_SIZE(sizeof(uint32_t)),
 	},
+	[NTA_EXP_CLASS] = {
+		.parse		= exp_parse_u32,
+		.exp_attr	= ATTR_EXP_CLASS,
+		.size		= NTA_SIZE(sizeof(uint32_t)),
+	},
+	[NTA_EXP_NAT_IPV4] = {
+		.parse		= exp_parse_ct_group,
+		.exp_attr	= ATTR_EXP_NAT_TUPLE,
+		.ct_attr	= ATTR_GRP_ORIG_IPV4,
+		.size		= NTA_SIZE(sizeof(struct nfct_attr_grp_ipv4)),
+	},
+	[NTA_EXP_NAT_L4PROTO] = {
+		.parse		= exp_parse_ct_u8,
+		.exp_attr	= ATTR_EXP_NAT_TUPLE,
+		.ct_attr	= ATTR_L4PROTO,
+		.size		= NTA_SIZE(sizeof(uint8_t)),
+	},
+	[NTA_EXP_NAT_PORT] = {
+		.parse		= exp_parse_ct_group,
+		.exp_attr	= ATTR_EXP_NAT_TUPLE,
+		.ct_attr	= ATTR_GRP_ORIG_PORT,
+		.size		= NTA_SIZE(sizeof(struct nfct_attr_grp_port)),
+	},
+	[NTA_EXP_NAT_DIR] = {
+		.parse		= exp_parse_u32,
+		.exp_attr	= ATTR_EXP_NAT_DIR,
+		.size		= NTA_SIZE(sizeof(uint32_t)),
+	},
+	[NTA_EXP_HELPER_NAME] = {
+		.parse		= exp_parse_str,
+		.exp_attr	= ATTR_EXP_HELPER_NAME,
+		.max_size	= NFCT_HELPER_NAME_MAX,
+	},
+	[NTA_EXP_FN] = {
+		.parse		= exp_parse_str,
+		.exp_attr	= ATTR_EXP_FN,
+		.max_size	= NFCT_HELPER_NAME_MAX,
+	},
 };
 
 static void exp_parse_ct_group(void *ct, int attr, void *data)
@@ -360,11 +417,16 @@ static void exp_parse_u32(void *exp, int attr, void *data)
 	nfexp_set_attr_u32(exp, exp_h[attr].exp_attr, ntohl(*value));
 }
 
+static void exp_parse_str(void *exp, int attr, void *data)
+{
+	nfexp_set_attr(exp, exp_h[attr].exp_attr, data);
+}
+
 int msg2exp(struct nf_expect *exp, struct nethdr *net, size_t remain)
 {
 	int len;
 	struct netattr *attr;
-	struct nf_conntrack *master, *expected, *mask;
+	struct nf_conntrack *master, *expected, *mask, *nat;
 
 	if (remain < net->len)
 		return -1;
@@ -384,13 +446,21 @@ int msg2exp(struct nf_expect *exp, struct nethdr *net, size_t remain)
 	if (mask == NULL)
 		goto err_mask;
 
+	nat = nfct_new();
+	if (nat == NULL)
+		goto err_nat;
+
 	while (len > ssizeof(struct netattr)) {
 		ATTR_NETWORK2HOST(attr);
 		if (attr->nta_len > len)
 			goto err;
 		if (attr->nta_attr > NTA_MAX)
 			goto err;
-		if (attr->nta_len != exp_h[attr->nta_attr].size)
+		if (exp_h[attr->nta_attr].size &&
+		    attr->nta_len != exp_h[attr->nta_attr].size)
+			goto err;
+		if (exp_h[attr->nta_attr].max_size &&
+		    attr->nta_len > exp_h[attr->nta_attr].max_size)
 			goto err;
 		if (exp_h[attr->nta_attr].parse == NULL) {
 			attr = NTA_NEXT(attr, len);
@@ -407,8 +477,17 @@ int msg2exp(struct nf_expect *exp, struct nethdr *net, size_t remain)
 			exp_h[attr->nta_attr].parse(mask, attr->nta_attr,
 						    NTA_DATA(attr));
 			break;
+		case ATTR_EXP_NAT_TUPLE:
+			exp_h[attr->nta_attr].parse(nat, attr->nta_attr,
+						    NTA_DATA(attr));
+			nfexp_set_attr(exp, ATTR_EXP_NAT_TUPLE, nat);
+			break;
 		case ATTR_EXP_TIMEOUT:
 		case ATTR_EXP_FLAGS:
+		case ATTR_EXP_CLASS:
+		case ATTR_EXP_HELPER_NAME:
+		case ATTR_EXP_NAT_DIR:
+		case ATTR_EXP_FN:
 			exp_h[attr->nta_attr].parse(exp, attr->nta_attr,
 						    NTA_DATA(attr));
 			break;
@@ -429,9 +508,12 @@ int msg2exp(struct nf_expect *exp, struct nethdr *net, size_t remain)
 	nfct_destroy(mask);
 	nfct_destroy(expected);
 	nfct_destroy(master);
+	nfct_destroy(nat);
 
 	return 0;
 err:
+	nfct_destroy(nat);
+err_nat:
 	nfct_destroy(mask);
 err_mask:
 	nfct_destroy(expected);

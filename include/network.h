@@ -239,6 +239,7 @@ enum nta_attr {
 	NTA_ICMP_ID,		/* uint16_t */
 	NTA_TCP_WSCALE_ORIG,	/* uint8_t */
 	NTA_TCP_WSCALE_REPL,	/* uint8_t */
+	NTA_HELPER_NAME,	/* string (variable length) */
 	NTA_MAX
 };
 
@@ -269,6 +270,13 @@ enum nta_exp_attr {
 	NTA_EXP_MASK_PORT,		/* struct nfct_attr_grp_port */
 	NTA_EXP_TIMEOUT,		/* uint32_t */
 	NTA_EXP_FLAGS,			/* uint32_t */
+	NTA_EXP_CLASS,			/* uint32_t */
+	NTA_EXP_NAT_IPV4,		/* struct nfct_attr_grp_ipv4 */
+	NTA_EXP_NAT_PORT,		/* struct nfct_attr_grp_port */
+	NTA_EXP_NAT_L4PROTO,		/* uint8_t */
+	NTA_EXP_NAT_DIR,		/* uint32_t */
+	NTA_EXP_HELPER_NAME,		/* string (variable length) */
+	NTA_EXP_FN,			/* string (variable length) */
 	NTA_EXP_MAX
 };
 
