@@ -1,5 +1,6 @@
 /*
- * (C) 2005-2008 by Pablo Neira Ayuso <pablo@netfilter.org>
+ * (C) 2005-2012 by Pablo Neira Ayuso <pablo@netfilter.org>
+ * (C) 2012 by Intra2net AG <http://www.intra2net.com>
  *
  *      This program is free software; you can redistribute it and/or modify
  *      it under the terms of the GNU General Public License as published by
@@ -72,6 +73,9 @@ static struct {
 
 	/* Allows filtering/setting specific bits in the ctmark */
 	struct u32_mask mark;
+
+	/* Allow to filter by mark from kernel-space. */
+	struct nfct_filter_dump_mark filter_mark_kernel;
 } tmpl;
 
 static int alloc_tmpl_objects(void)
@@ -1632,6 +1636,8 @@ int main(int argc, char *argv[])
 		case 'm':
 			options |= opt2type[c];
 			parse_u32_mask(optarg, &tmpl.mark);
+			tmpl.filter_mark_kernel.val = tmpl.mark.value;
+			tmpl.filter_mark_kernel.mask = tmpl.mark.mask;
 			break;
 		case 'a':
 			fprintf(stderr, "WARNING: ignoring -%c, "
@@ -1705,6 +1711,7 @@ int main(int argc, char *argv[])
 		h->final_check(l4flags, cmd, tmpl.ct);
 
 	switch(command) {
+	struct nfct_filter_dump *filter_dump;
 
 	case CT_LIST:
 		cth = nfct_open(CONNTRACK, 0);
@@ -1718,10 +1725,23 @@ int main(int argc, char *argv[])
 
 		nfct_callback_register(cth, NFCT_T_ALL, dump_cb, tmpl.ct);
 
+		filter_dump = nfct_filter_dump_create();
+		if (filter_dump == NULL)
+			exit_error(OTHER_PROBLEM, "OOM");
+
+		nfct_filter_dump_set_attr(filter_dump, NFCT_FILTER_DUMP_MARK,
+					  &tmpl.filter_mark_kernel);
+		nfct_filter_dump_set_attr_u8(filter_dump,
+					     NFCT_FILTER_DUMP_L3NUM,
+					     family);
+
 		if (options & CT_OPT_ZERO)
-			res = nfct_query(cth, NFCT_Q_DUMP_RESET, &family);
+			res = nfct_query(cth, NFCT_Q_DUMP_FILTER_RESET,
+					filter_dump);
 		else
-			res = nfct_query(cth, NFCT_Q_DUMP, &family);
+			res = nfct_query(cth, NFCT_Q_DUMP_FILTER, filter_dump);
+
+		nfct_filter_dump_destroy(filter_dump);
 
 		if (dump_xml_header_done == 0) {
 			printf("</conntrack>\n");
@@ -1800,7 +1820,20 @@ int main(int argc, char *argv[])
 
 		nfct_callback_register(cth, NFCT_T_ALL, delete_cb, tmpl.ct);
 
-		res = nfct_query(cth, NFCT_Q_DUMP, &family);
+		filter_dump = nfct_filter_dump_create();
+		if (filter_dump == NULL)
+			exit_error(OTHER_PROBLEM, "OOM");
+
+		nfct_filter_dump_set_attr(filter_dump, NFCT_FILTER_DUMP_MARK,
+					  &tmpl.filter_mark_kernel);
+		nfct_filter_dump_set_attr_u8(filter_dump,
+					     NFCT_FILTER_DUMP_L3NUM,
+					     family);
+
+		res = nfct_query(cth, NFCT_Q_DUMP_FILTER, filter_dump);
+
+		nfct_filter_dump_destroy(filter_dump);
+
 		nfct_close(ith);
 		nfct_close(cth);
 		break;
