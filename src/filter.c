@@ -1,6 +1,7 @@
 /*
- * (C) 2006-2008 by Pablo Neira Ayuso <pablo@netfilter.org>
- * 
+ * (C) 2006-2012 by Pablo Neira Ayuso <pablo@netfilter.org>
+ * (C) 2011-2012 by Vyatta Inc <http://www.vyatta.com>
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
@@ -449,7 +450,7 @@ int exp_filter_add(struct exp_filter *f, const char *helper_name)
 		return -1;
 
 	list_for_each_entry(item, &f->list, head) {
-		if (strncmp(item->helper_name, helper_name,
+		if (strncasecmp(item->helper_name, helper_name,
 				NFCT_HELPER_NAME_MAX) == 0) {
 			return -1;
 		}
@@ -475,7 +476,7 @@ int exp_filter_find(struct exp_filter *f, const struct nf_expect *exp)
 		const char *name = nfexp_get_attr(exp, ATTR_EXP_HELPER_NAME);
 
 		/* we allow partial matching to support things like sip-PORT. */
-		if (strncmp(item->helper_name, name,
+		if (strncasecmp(item->helper_name, name,
 				strlen(item->helper_name)) == 0) {
 			return 1;
 		}
