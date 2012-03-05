@@ -641,10 +641,11 @@ Sync {
  broken.</para>
 
  <para>The following example shows how to only generate the
- <emphasis>assured</emphasis> event:</para>
+ <emphasis>assured</emphasis> and <emphasis>destroy</emphasis>
+ events:</para>
 
  <programlisting>
- # iptables -I PREROUTING -t raw -j CT --ctevents assured
+ # iptables -I PREROUTING -t raw -j CT --ctevents assured,destroy
  </programlisting>
 
  <note><title>Assured flows</title>
