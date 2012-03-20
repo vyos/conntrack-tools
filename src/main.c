@@ -49,6 +49,7 @@ static const char usage_client_commands[] =
 		"dump statistics\n"
 	"  -R [ct|expect], resync with kernel conntrack table\n"
 	"  -n, request resync with other node (only FT-FW and NOTRACK modes)\n"
+	"  -B, force a bulk send to other replica firewalls\n"
 	"  -x, dump cache in XML format (requires -i or -e)\n"
 	"  -t, reset the kernel timeout (see PurgeTimeout clause)\n"
 	"  -v, display conntrackd version\n"
