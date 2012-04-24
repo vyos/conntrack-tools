@@ -20,6 +20,7 @@ conntrackd_SOURCES = alarm.c main.c run.c hash.c queue.c rbtree.c \
 		    filter.c fds.c event.c process.c origin.c date.c \
 		    cache.c cache-ct.c cache-exp.c \
 		    cache_timer.c \
+		    ctnl.c \
 		    sync-mode.c sync-alarm.c sync-ftfw.c sync-notrack.c \
 		    traffic_stats.c stats-mode.c \
 		    network.c cidr.c \

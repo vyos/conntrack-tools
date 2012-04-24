@@ -641,9 +641,6 @@ static int local_handler_sync(int fd, int type, void *data)
 		dlog(LOG_NOTICE, "flushing external cache");
 		STATE_SYNC(external)->ct.flush();
 		break;
-	case KILL:
-		killer(0);
-		break;
 	case STATS:
 		STATE(mode)->internal->ct.stats(fd);
 		STATE_SYNC(external)->ct.stats(fd);

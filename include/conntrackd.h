@@ -268,7 +268,12 @@ struct ct_mode {
 	void (*kill)(void);
 };
 
-/* conntrackd modes */
+/* basic ctnl functions */
+void ctnl_kill(void);
+int ctnl_local(int fd, int type, void *data);
+int ctnl_init(void);
+
+/* conntrackd ctnl modes */
 extern struct ct_mode sync_mode;
 extern struct ct_mode stats_mode;
 
