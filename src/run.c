@@ -1,5 +1,5 @@
 /*
- * (C) 2006-2011 by Pablo Neira Ayuso <pablo@netfilter.org>
+ * (C) 2006-2012 by Pablo Neira Ayuso <pablo@netfilter.org>
  * (C) 2011 by Vyatta Inc. <http://www.vyatta.com>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- * Description: run and init functions
+ * Part of this code has been sponsored by Vyatta Inc. <http://www.vyatta.com>
  */
 
 #include "conntrackd.h"
@@ -460,6 +460,87 @@ static int exp_get_handler(enum nf_conntrack_msg_type type,
 	return NFCT_CB_CONTINUE;
 }
 
+/* order received via UNIX socket */
+static void local_cb(void *data)
+{
+	do_local_server_step(&STATE(local), NULL, local_handler);
+}
+
+/* we have received an event from ctnetlink */
+static void event_cb(void *data)
+{
+	int ret;
+
+	ret = nfct_catch(STATE(event));
+	/* reset event iteration limit counter */
+	STATE(event_iterations_limit) = CONFIG(event_iterations_limit);
+	if (ret == -1) {
+		switch(errno) {
+		case ENOBUFS:
+			/* We have hit ENOBUFS, it's likely that we are
+			 * losing events. Two possible situations may
+			 * trigger this error:
+			 *
+			 * 1) The netlink receiver buffer is too small:
+			 *    increasing the netlink buffer size should
+			 *    be enough. However, some event messages
+			 *    got lost. We have to resync ourselves
+			 *    with the kernel table conntrack table to
+			 *    resolve the inconsistency.
+			 *
+			 * 2) The receiver is too slow to process the
+			 *    netlink messages so that the queue gets
+			 *    full quickly. This generally happens
+			 *    if the system is under heavy workload
+			 *    (busy CPU). In this case, increasing the
+			 *    size of the netlink receiver buffer
+			 *    would not help anymore since we would
+			 *    be delaying the overrun. Moreover, we
+			 *    should avoid resynchronizations. We
+			 *    should do our best here and keep
+			 *    replicating as much states as possible.
+			 *    If workload lowers at some point,
+			 *    we resync ourselves.
+			 */
+			nl_resize_socket_buffer(STATE(event));
+			if (CONFIG(nl_overrun_resync) > 0 &&
+			    STATE(mode)->internal->flags & INTERNAL_F_RESYNC) {
+				add_alarm(&STATE(resync_alarm),
+					  CONFIG(nl_overrun_resync),0);
+			}
+			STATE(stats).nl_catch_event_failed++;
+			STATE(stats).nl_overrun++;
+			break;
+		case ENOENT:
+			/*
+			 * We received a message from another
+			 * netfilter subsystem that we are not
+			 * interested in. Just ignore it.
+			 */
+		break;
+		case EAGAIN:
+			/* No more events to receive, try later. */
+			break;
+		default:
+			STATE(stats).nl_catch_event_failed++;
+			break;
+		}
+	}
+}
+
+/* we previously requested a resync due to buffer overrun. */
+static void resync_cb(void *data)
+{
+	nfct_catch(STATE(resync));
+	if (STATE(mode)->internal->ct.purge)
+		STATE(mode)->internal->ct.purge();
+}
+
+static void poll_cb(void *data)
+{
+	nfct_catch(STATE(resync));
+}
+
 int
 init(void)
 {
@@ -493,7 +574,7 @@ init(void)
 		dlog(LOG_ERR, "can't open unix socket!");
 		return -1;
 	}
-	register_fd(STATE(local).fd, STATE(fds));
+	register_fd(STATE(local).fd, local_cb, NULL, STATE(fds));
 
 	/* resynchronize (like 'dump' socket) but it also purges old entries */
 	STATE(resync) = nfct_open(CONFIG(netlink).subsys_id, 0);
@@ -507,7 +588,13 @@ init(void)
 			       NFCT_T_ALL,
 			       STATE(mode)->internal->ct.resync,
 			       NULL);
-	register_fd(nfct_fd(STATE(resync)), STATE(fds));
+	if (CONFIG(flags) & CTD_POLL) {
+		register_fd(nfct_fd(STATE(resync)), poll_cb,
+				NULL, STATE(fds));
+	} else {
+		register_fd(nfct_fd(STATE(resync)), resync_cb,
+				NULL, STATE(fds));
+	}
 	fcntl(nfct_fd(STATE(resync)), F_SETFL, O_NONBLOCK);
 
 	if (STATE(mode)->internal->flags & INTERNAL_F_POPULATE) {
@@ -590,7 +677,7 @@ init(void)
 			nfexp_callback_register2(STATE(event), NFCT_T_ALL,
 						 exp_event_handler, NULL);
 		}
-		register_fd(nfct_fd(STATE(event)), STATE(fds));
+		register_fd(nfct_fd(STATE(event)), event_cb, NULL, STATE(fds));
 	}
 
 	/* Signals handling */
@@ -617,158 +704,4 @@ init(void)
 	dlog(LOG_NOTICE, "initialization completed");
 
 	return 0;
-}
-
-static void run_events(struct timeval *next_alarm)
-{
-	int ret;
-	fd_set readfds = STATE(fds)->readfds;
-
-	ret = select(STATE(fds)->maxfd + 1, &readfds, NULL, NULL, next_alarm);
-	if (ret == -1) {
-		/* interrupted syscall, retry */
-		if (errno == EINTR)
-			return;
-
-		STATE(stats).select_failed++;
-		return;
-	}
-
-	/* signals are racy */
-	sigprocmask(SIG_BLOCK, &STATE(block), NULL);
-
-	/* order received via UNIX socket */
-	if (FD_ISSET(STATE(local).fd, &readfds))
-		do_local_server_step(&STATE(local), NULL, local_handler);
-
-	/* we have receive an event from ctnetlink */
-	if (FD_ISSET(nfct_fd(STATE(event)), &readfds)) {
-		ret = nfct_catch(STATE(event));
-		/* reset event iteration limit counter */
-		STATE(event_iterations_limit) = CONFIG(event_iterations_limit);
-		if (ret == -1) {
-		switch(errno) {
-		case ENOBUFS:
-			/* We have hit ENOBUFS, it's likely that we are
-			 * losing events. Two possible situations may
-			 * trigger this error:
-			 *
-			 * 1) The netlink receiver buffer is too small:
-			 *    increasing the netlink buffer size should
-			 *    be enough. However, some event messages
-			 *    got lost. We have to resync ourselves
-			 *    with the kernel table conntrack table to
-			 *    resolve the inconsistency. 
-			 *
-			 * 2) The receiver is too slow to process the
-			 *    netlink messages so that the queue gets
-			 *    full quickly. This generally happens
-			 *    if the system is under heavy workload
-			 *    (busy CPU). In this case, increasing the
-			 *    size of the netlink receiver buffer
-			 *    would not help anymore since we would
-			 *    be delaying the overrun. Moreover, we
-			 *    should avoid resynchronizations. We 
-			 *    should do our best here and keep
-			 *    replicating as much states as possible.
-			 *    If workload lowers at some point,
-			 *    we resync ourselves.
-			 */
-			nl_resize_socket_buffer(STATE(event));
-			if (CONFIG(nl_overrun_resync) > 0 &&
-			    STATE(mode)->internal->flags & INTERNAL_F_RESYNC) {
-				add_alarm(&STATE(resync_alarm),
-					  CONFIG(nl_overrun_resync),0);
-			}
-			STATE(stats).nl_catch_event_failed++;
-			STATE(stats).nl_overrun++;
-			break;
-		case ENOENT:
-			/*
-			 * We received a message from another
-			 * netfilter subsystem that we are not
-			 * interested in. Just ignore it.
-			 */
-			break;
-		case EAGAIN:
-			/* No more events to receive, try later. */
-			break;
-		default:
-			STATE(stats).nl_catch_event_failed++;
-			break;
-		}
-		}
-	}
-	/* we previously requested a resync due to buffer overrun. */
-	if (FD_ISSET(nfct_fd(STATE(resync)), &readfds)) {
-		nfct_catch(STATE(resync));
-		if (STATE(mode)->internal->ct.purge)
-			STATE(mode)->internal->ct.purge();
-	}
-
-	if (STATE(mode)->run)
-		STATE(mode)->run(&readfds);
-
-	sigprocmask(SIG_UNBLOCK, &STATE(block), NULL);
-}
-
-static void run_polling(struct timeval *next_alarm)
-{
-	int ret;
-	fd_set readfds = STATE(fds)->readfds;
-
-	ret = select(STATE(fds)->maxfd + 1, &readfds, NULL, NULL, next_alarm);
-	if (ret == -1) {
-		/* interrupted syscall, retry */
-		if (errno == EINTR)
-			return;
-
-		STATE(stats).select_failed++;
-		return;
-	}
-
-	/* signals are racy */
-	sigprocmask(SIG_BLOCK, &STATE(block), NULL);
-
-	/* order received via UNIX socket */
-	if (FD_ISSET(STATE(local).fd, &readfds))
-		do_local_server_step(&STATE(local), NULL, local_handler);
-
-	/* we requested a dump from the kernel via polling_alarm */
-	if (FD_ISSET(nfct_fd(STATE(resync)), &readfds))
-		nfct_catch(STATE(resync));
-
-	if (STATE(mode)->run)
-		STATE(mode)->run(&readfds);
-
-	sigprocmask(SIG_UNBLOCK, &STATE(block), NULL);
-}
-
-static void __attribute__((noreturn))
-do_run(void (*run_step)(struct timeval *next_alarm))
-{
-	struct timeval next_alarm; 
-	struct timeval *next = NULL;
-
-	while(1) {
-		do_gettimeofday();
-
-		sigprocmask(SIG_BLOCK, &STATE(block), NULL);
-		if (next != NULL && !timerisset(next))
-			next = do_alarm_run(&next_alarm);
-		else
-			next = get_next_alarm_run(&next_alarm);
-		sigprocmask(SIG_UNBLOCK, &STATE(block), NULL);
-
-		run_step(next);
-	}
-}
-
-void run(void)
-{
-	if (CONFIG(flags) & CTD_POLL) {
-		do_run(run_polling);
-	} else {
-		do_run(run_events);
-	}
 }
