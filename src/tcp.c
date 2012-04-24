@@ -264,7 +264,6 @@ int tcp_accept(struct tcp_sock *m)
 
 		m->client_fd = ret;
 		m->state = TCP_SERVER_CONNECTED;
-		register_fd(m->client_fd, STATE(fds));
 	}
 	return m->client_fd;
 }

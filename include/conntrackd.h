@@ -264,7 +264,6 @@ extern struct ct_general_state st;
 struct ct_mode {
 	struct internal_handler *internal;
 	int (*init)(void);
-	void (*run)(fd_set *readfds);
 	int (*local)(int fd, int type, void *data);
 	void (*kill)(void);
 };
@@ -278,7 +277,7 @@ extern struct ct_mode stats_mode;
 /* These live in run.c */
 void killer(int foo);
 int init(void);
-void run(void);
+void select_main_loop(void);
 
 /* from read_config_yy.c */
 int

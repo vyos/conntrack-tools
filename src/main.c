@@ -406,6 +406,6 @@ int main(int argc, char *argv[])
 	/*
 	 * run main process
 	 */
-	run();
+	select_main_loop();
 	return 0;
 }
