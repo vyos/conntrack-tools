@@ -4,10 +4,16 @@ AM_YFLAGS = -d
 
 CLEANFILES = read_config_yy.c read_config_lex.c
 
-sbin_PROGRAMS = conntrack conntrackd
+sbin_PROGRAMS = conntrack conntrackd nfct
 
 conntrack_SOURCES = conntrack.c
 conntrack_LDADD = ../extensions/libct_proto_tcp.la ../extensions/libct_proto_udp.la ../extensions/libct_proto_udplite.la ../extensions/libct_proto_icmp.la ../extensions/libct_proto_icmpv6.la ../extensions/libct_proto_sctp.la ../extensions/libct_proto_dccp.la ../extensions/libct_proto_gre.la ../extensions/libct_proto_unknown.la ${LIBNETFILTER_CONNTRACK_LIBS}
+
+nfct_SOURCES = nfct.c			\
+	       nfct-extensions/timeout.c
+nfct_LDADD = ${LIBMNL_LIBS} 			\
+	     ${LIBNETFILTER_CONNTRACK_LIBS}	\
+	     ${LIBNETFILTER_CTTIMEOUT_LIBS}
 
 conntrackd_SOURCES = alarm.c main.c run.c hash.c queue.c rbtree.c \
 		    local.c log.c mcast.c udp.c netlink.c vector.c \
