@@ -56,6 +56,8 @@ int main(int argc, char *argv[])
 	}
 	if (strncmp(argv[1], "timeout", strlen(argv[1])) == 0) {
 		subsys = NFCT_SUBSYS_TIMEOUT;
+	} else if (strncmp(argv[1], "helper", strlen(argv[1])) == 0) {
+		subsys = NFCT_SUBSYS_HELPER;
 	} else if (strncmp(argv[1], "version", strlen(argv[1])) == 0)
 		subsys = NFCT_SUBSYS_VERSION;
 	else if (strncmp(argv[1], "help", strlen(argv[1])) == 0)
@@ -70,6 +72,9 @@ int main(int argc, char *argv[])
 	switch(subsys) {
 	case NFCT_SUBSYS_TIMEOUT:
 		ret = nfct_cmd_timeout_parse_params(argc, argv);
+		break;
+	case NFCT_SUBSYS_HELPER:
+		ret = nfct_cmd_helper_parse_params(argc, argv);
 		break;
 	case NFCT_SUBSYS_VERSION:
 		ret = nfct_cmd_version(argc, argv);
@@ -99,6 +104,7 @@ static const char help_msg[] =
 	"nfct v%s: utility for the Netfilter's Connection Tracking System\n"
 	"Usage: %s command [parameters]...\n\n"
 	"Subsystem:\n"
+	"  helper\t\tAllows to configure user-space helper\n"
 	"  timeout\t\tAllows definition of fine-grain timeout policies\n"
 	"  version\t\tDisplay version and disclaimer\n"
 	"  help\t\t\tDisplay this help message\n"

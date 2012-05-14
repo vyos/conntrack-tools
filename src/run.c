@@ -50,6 +50,9 @@ void killer(int foo)
 	if (CONFIG(flags) & (CTD_SYNC_MODE | CTD_STATS_MODE))
 		ctnl_kill();
 
+	if (CONFIG(flags) & CTD_HELPER)
+		cthelper_kill();
+
 	destroy_fds(STATE(fds));
 	unlink(CONFIG(lockfile));
 	dlog(LOG_NOTICE, "---- shutdown received ----");
@@ -199,6 +202,9 @@ static int local_handler(int fd, void *data)
 	if (CONFIG(flags) & (CTD_SYNC_MODE | CTD_STATS_MODE))
 		return ctnl_local(fd, type, data);
 
+	if (CONFIG(flags) & CTD_HELPER)
+		return cthelper_local(fd, type, data);
+
 	return ret;
 }
 
@@ -249,6 +255,11 @@ init(void)
 	if (CONFIG(flags) & (CTD_SYNC_MODE | CTD_STATS_MODE))
 		if (ctnl_init() < 0)
 			return -1;
+
+	if (CONFIG(flags) & CTD_HELPER) {
+		if (cthelper_init() < 0)
+			return -1;
+	}
 
 	time(&STATE(stats).daemon_start_time);
 

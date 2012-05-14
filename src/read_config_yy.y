@@ -28,8 +28,11 @@
 #include "conntrackd.h"
 #include "bitops.h"
 #include "cidr.h"
+#include "helper.h"
+#include "stack.h"
 #include <syslog.h>
 #include <sched.h>
+#include <dlfcn.h>
 #include <libnetfilter_conntrack/libnetfilter_conntrack.h>
 #include <libnetfilter_conntrack/libnetfilter_conntrack_tcp.h>
 
@@ -48,6 +51,15 @@ static void print_err(int err, const char *msg, ...);
 static void __kernel_filter_start(void);
 static void __kernel_filter_add_state(int value);
 static void __max_dedicated_links_reached(void);
+
+struct stack symbol_stack;
+
+enum {
+	SYMBOL_HELPER_QUEUE_NUM,
+	SYMBOL_HELPER_POLICY_EXPECT_ROOT,
+	SYMBOL_HELPER_EXPECT_POLICY_LEAF,
+};
+
 %}
 
 %union {
@@ -74,6 +86,8 @@ static void __max_dedicated_links_reached(void);
 %token T_SCHEDULER T_TYPE T_PRIO T_NETLINK_EVENTS_RELIABLE
 %token T_DISABLE_INTERNAL_CACHE T_DISABLE_EXTERNAL_CACHE T_ERROR_QUEUE_LENGTH
 %token T_OPTIONS T_TCP_WINDOW_TRACKING T_EXPECT_SYNC
+%token T_HELPER T_HELPER_QUEUE_NUM T_HELPER_POLICY T_HELPER_EXPECT_MAX
+%token T_HELPER_EXPECT_TIMEOUT
 
 %token <string> T_IP T_PATH_VAL
 %token <val> T_NUMBER
@@ -96,6 +110,7 @@ line : ignore_protocol
      | general
      | sync
      | stats
+     | helper
      ;
 
 logfile_bool : T_LOG T_ON
@@ -1561,6 +1576,186 @@ buffer_size: T_STAT_BUFFER_SIZE T_NUMBER
 	print_err(CTD_CFG_WARN, "`LogFileBufferSize' is deprecated");
 };
 
+helper: T_HELPER '{' helper_list '}'
+{
+	conf.flags |= CTD_HELPER;
+};
+
+helper_list:
+	    | helper_list helper_line
+	    ;
+
+helper_line: helper_type
+	    ;
+
+helper_type: T_TYPE T_STRING T_STRING T_STRING '{' helper_type_list  '}'
+{
+	struct ctd_helper_instance *helper_inst;
+	struct ctd_helper *helper;
+	struct stack_item *e;
+	uint16_t l3proto;
+	uint8_t l4proto;
+
+	if (strcmp($3, "inet") == 0)
+		l3proto = AF_INET;
+	else if (strcmp($3, "inet6") == 0)
+		l3proto = AF_INET6;
+	else {
+		print_err(CTD_CFG_ERROR, "unknown layer 3 protocol");
+		exit(EXIT_FAILURE);
+	}
+
+	if (strcmp($4, "tcp") == 0)
+		l4proto = IPPROTO_TCP;
+	else if (strcmp($4, "udp") == 0)
+		l4proto = IPPROTO_UDP;
+	else {
+		print_err(CTD_CFG_ERROR, "unknown layer 4 protocol");
+		exit(EXIT_FAILURE);
+	}
+
+	/* XXX use configure.ac definitions. */
+	helper = helper_find("/usr/lib/conntrack-tools", $2, l4proto, RTLD_NOW);
+	if (helper == NULL) {
+		print_err(CTD_CFG_ERROR, "Unknown `%s' helper", $2);
+		exit(EXIT_FAILURE);
+	}
+
+	helper_inst = calloc(1, sizeof(struct ctd_helper_instance));
+	if (helper_inst == NULL)
+		break;
+
+	helper_inst->l3proto = l3proto;
+	helper_inst->l4proto = l4proto;
+	helper_inst->helper = helper;
+
+	while ((e = stack_item_pop(&symbol_stack, -1)) != NULL) {
+
+		switch(e->type) {
+		case SYMBOL_HELPER_QUEUE_NUM: {
+			int *qnum = (int *) &e->data;
+
+			helper_inst->queue_num = *qnum;
+			stack_item_free(e);
+			break;
+		}
+		case SYMBOL_HELPER_POLICY_EXPECT_ROOT: {
+			struct ctd_helper_policy *pol =
+				(struct ctd_helper_policy *) &e->data;
+			struct ctd_helper_policy *matching = NULL;
+			int i;
+
+			for (i=0; i<CTD_HELPER_POLICY_MAX; i++) {
+				if (strcmp(helper->policy[i].name,
+					   pol->name) != 0)
+					continue;
+
+				matching = pol;
+				break;
+			}
+			if (matching == NULL) {
+				print_err(CTD_CFG_ERROR,
+					  "Unknown policy `%s' in helper "
+					  "configuration", pol->name);
+				exit(EXIT_FAILURE);
+			}
+			/* FIXME: First set default policy, then change only
+			 * tuned fields, not everything.
+			 */
+			memcpy(&helper->policy[i], pol,
+				sizeof(struct ctd_helper_policy));
+
+			stack_item_free(e);
+			break;
+		}
+		default:
+			print_err(CTD_CFG_ERROR,
+				  "Unexpected symbol parsing helper policy");
+				exit(EXIT_FAILURE);
+			break;
+		}
+	}
+	list_add(&helper_inst->head, &CONFIG(cthelper).list);
+};
+
+helper_type_list:
+		| helper_type_list helper_type_line
+		;
+
+helper_type_line: helper_type
+		;
+
+helper_type: T_HELPER_QUEUE_NUM T_NUMBER
+{
+	int *qnum;
+	struct stack_item *e;
+
+	e = stack_item_alloc(SYMBOL_HELPER_QUEUE_NUM, sizeof(int));
+	qnum = (int *) e->data;
+	*qnum = $2;
+	stack_item_push(&symbol_stack, e);
+};
+
+helper_type: T_HELPER_POLICY T_STRING '{' helper_policy_list '}'
+{
+	struct stack_item *e;
+	struct ctd_helper_policy *policy;
+
+	e = stack_item_pop(&symbol_stack, SYMBOL_HELPER_EXPECT_POLICY_LEAF);
+	if (e == NULL) {
+		print_err(CTD_CFG_ERROR,
+			  "Helper policy configuration empty, fix your "
+			  "configuration file, please");
+		exit(EXIT_FAILURE);
+		break;
+	}
+
+	policy = (struct ctd_helper_policy *) &e->data;
+	strncpy(policy->name, $2, CTD_HELPER_NAME_LEN);
+	policy->name[CTD_HELPER_NAME_LEN-1] = '\0';
+	/* Now object is complete. */
+	e->type = SYMBOL_HELPER_POLICY_EXPECT_ROOT;
+	stack_item_push(&symbol_stack, e);
+};
+
+helper_policy_list:
+		  | helper_policy_list helper_policy_line
+		  ;
+
+helper_policy_line: helper_policy_expect_max
+		  | helper_policy_expect_timeout
+		  ;
+
+helper_policy_expect_max: T_HELPER_EXPECT_MAX T_NUMBER
+{
+	struct stack_item *e;
+	struct ctd_helper_policy *policy;
+
+	e = stack_item_pop(&symbol_stack, SYMBOL_HELPER_EXPECT_POLICY_LEAF);
+	if (e == NULL) {
+		e = stack_item_alloc(SYMBOL_HELPER_EXPECT_POLICY_LEAF,
+				     sizeof(struct ctd_helper_policy));
+	}
+	policy = (struct ctd_helper_policy *) &e->data;
+	policy->expect_max = $2;
+	stack_item_push(&symbol_stack, e);
+};
+
+helper_policy_expect_timeout: T_HELPER_EXPECT_TIMEOUT T_NUMBER
+{
+	struct stack_item *e;
+	struct ctd_helper_policy *policy;
+
+	e = stack_item_pop(&symbol_stack, SYMBOL_HELPER_EXPECT_POLICY_LEAF);
+	if (e == NULL) {
+		e = stack_item_alloc(SYMBOL_HELPER_EXPECT_POLICY_LEAF,
+				     sizeof(struct ctd_helper_policy));
+	}
+	policy = (struct ctd_helper_policy *) &e->data;
+	policy->expect_timeout = $2;
+	stack_item_push(&symbol_stack, e);
+};
+
 %%
 
 int __attribute__((noreturn))
@@ -1639,6 +1834,11 @@ init_config(char *filename)
 	CONFIG(syslog_facility) = -1;
 	CONFIG(stats).syslog_facility = -1;
 	CONFIG(netlink).subsys_id = -1;
+
+	/* Initialize list of user-space helpers */
+	INIT_LIST_HEAD(&CONFIG(cthelper).list);
+
+	stack_init(&symbol_stack);
 
 	yyrestart(fp);
 	yyparse();
