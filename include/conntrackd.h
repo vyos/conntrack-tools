@@ -69,6 +69,7 @@
 #define CTD_SYNC_NOTRACK	(1UL << 4)
 #define CTD_POLL		(1UL << 5)
 #define CTD_EXPECT		(1UL << 6)
+#define CTD_HELPER		(1UL << 7)
 
 /* FILENAME_MAX is 4096 on my system, perhaps too much? */
 #ifndef FILENAME_MAXLEN
@@ -134,6 +135,9 @@ struct ct_conf {
 		int syslog_facility;
 		size_t buffer_size;
 	} stats;
+	struct {
+		struct list_head list;
+	} cthelper;
 };
 
 #define STATE(x) st.x
@@ -252,13 +256,21 @@ struct ct_stats_state {
 	struct cache *cache;            /* internal events cache (netlink) */
 };
 
-union ct_state {
+#define STATE_CTH(x) state.cthelper->x
+
+struct ct_helper_state {
+	struct mnl_socket *nl;
+	uint32_t portid;
+};
+
+struct ct_state {
 	struct ct_sync_state *sync;
 	struct ct_stats_state *stats;
+	struct ct_helper_state *cthelper;
 };
 
 extern struct ct_conf conf;
-extern union ct_state state;
+extern struct ct_state state;
 extern struct ct_general_state st;
 
 struct ct_mode {
@@ -272,6 +284,11 @@ struct ct_mode {
 void ctnl_kill(void);
 int ctnl_local(int fd, int type, void *data);
 int ctnl_init(void);
+
+/* basic cthelper functions */
+void cthelper_kill(void);
+int cthelper_local(int fd, int type, void *data);
+int cthelper_init(void);
 
 /* conntrackd ctnl modes */
 extern struct ct_mode sync_mode;
