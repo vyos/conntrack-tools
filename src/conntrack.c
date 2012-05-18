@@ -1380,6 +1380,7 @@ static int event_exp_cb(enum nf_conntrack_msg_type type,
 
 	nfexp_snprintf(buf,sizeof(buf), exp, type, op_type, op_flags);
 	printf("%s\n", buf);
+	fflush(stdout);
 	counter++;
 
 	return NFCT_CB_CONTINUE;
