@@ -1,0 +1,2 @@
+This directory contains PCAP files with traffic traces that we can use to test
+the user-space helpers.
