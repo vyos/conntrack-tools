@@ -37,7 +37,7 @@ nfct_cmd_timeout_usage(char *argv[])
 
 int nfct_cmd_timeout_parse_params(int argc, char *argv[])
 {
-	int cmd = NFCT_CMD_NONE, ret = 0;
+	int cmd = NFCT_CMD_NONE, ret;
 
 	if (argc < 3) {
 		nfct_cmd_timeout_usage(argv);
@@ -77,7 +77,7 @@ int nfct_cmd_timeout_parse_params(int argc, char *argv[])
 		break;
 	}
 
-	return 0;
+	return ret;
 }
 
 static int nfct_timeout_cb(const struct nlmsghdr *nlh, void *data)
