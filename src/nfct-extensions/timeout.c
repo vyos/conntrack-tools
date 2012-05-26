@@ -96,7 +96,7 @@ static int nfct_timeout_cb(const struct nlmsghdr *nlh, void *data)
 		goto err_free;
 	}
 
-	nfct_timeout_snprintf(buf, sizeof(buf), t, 0);
+	nfct_timeout_snprintf(buf, sizeof(buf), t, NFCT_TIMEOUT_O_DEFAULT, 0);
 	printf("%s\n", buf);
 
 err_free:
