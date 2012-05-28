@@ -19,6 +19,7 @@
 
 #include "network.h"
 
+#include <stdlib.h>
 #include <libnetfilter_conntrack/libnetfilter_conntrack.h>
 
 #ifndef ssizeof
