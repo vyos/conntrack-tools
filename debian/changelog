@@ -1,3 +1,9 @@
+conntrack (1:1.0.1-2+vyatta25) unstable; urgency=low
+
+  * force release:dependency fix on build machine
+
+ -- Gaurav Sinha <gaurav.sinha@vyatta.com>  Wed, 30 May 2012 10:55:48 -0700
+
 conntrack (1:1.0.1-2+vyatta24) unstable; urgency=low
 
   * force release:post build dependency fix on build machine
