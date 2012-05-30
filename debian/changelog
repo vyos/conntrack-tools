@@ -1,3 +1,9 @@
+conntrack (1:1.0.1-2+vyatta27) unstable; urgency=low
+
+  * forced release
+
+ -- Gaurav Sinha <gaurav.sinha@vyatta.com>  Wed, 30 May 2012 14:48:09 -0700
+
 conntrack (1:1.0.1-2+vyatta26) unstable; urgency=low
 
   * forced release
