@@ -1,3 +1,54 @@
+conntrack (1:1.0.1-2+vyatta23) unstable; urgency=low
+
+  [ Pablo Neira Ayuso ]
+  * conntrack: allow to filter by mark from kernel-space
+  * conntrackd: allow using lower/upper case in ExpectationSync
+  * doc: add ras, q.931 and h.245 to examples configuration file
+  * doc: fix example on how to filter events via iptables CT target
+
+  [ Adrian Bridgett ]
+  * src: manpage and help display improvements
+
+  [ Pablo Neira Ayuso ]
+  * icmp[v6]: --icmp[v6]-[type|code] are optional for updates and
+    deletes
+
+  [ Florian Westphal ]
+  * conntrack: flush stdout for each expectation event, too
+
+  [ Pablo Neira Ayuso ]
+  * src: integrate nfct into the conntrack-tools tree
+  * tests: add nfct tests for cttimeout
+  * build: bump version to 1.2.0
+  * nfct: fix compilation warning in cttimeout support
+  * build: update dependencies with libnetfilter_conntrack (>= 1.0.1)
+  * move qa directory to tests/conntrack/
+  * tests: conntrack: add run-test.sh script
+  * add nfct(8) manpage
+  * add README.nfct
+  * nfct: fix compilation of timeout extension
+  * bump version to 1.2.1
+
+  [ Jan Engelhardt ]
+  * update .gitignore
+
+  [ Pablo Neira Ayuso ]
+  * conntrackd: simplify TCP connection handling logic
+  * conntrackd: generalize file descriptor infrastructure
+  * conntrackd: move ctnetlink code to ctnl.c (removed from run.c)
+  * conntrackd: add cthelper infrastructure (+ example FTP helper)
+
+  [ Jozsef Kadlecsik ]
+  * conntrackd: RPC helper added to cthelper
+  * conntrackd: TNS helper added to cthelper
+
+  [ Pablo Neira Ayuso ]
+  * tests: conntrackd: add cthelper-test infrastructure
+
+  [ Gaurav Sinha ]
+
+ -- Gaurav Sinha <gaurav.sinha@vyatta.com>  Wed, 30 May 2012 07:59:05 -0700
+
 conntrack (1:1.0.1-2+vyatta22) unstable; urgency=low
 
   * force release:i386 vm build environ fixed
