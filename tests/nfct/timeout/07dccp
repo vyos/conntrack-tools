@@ -1,0 +1,16 @@
+# add policy object `test'
+nfct timeout add test inet dccp request 100 ; OK
+# get policy object `test'
+nfct timeout get test ; OK
+# delete policy object `test'
+nfct timeout delete test ; OK
+# get unexistent policy object `dummy'
+nfct timeout get test ; BAD
+# delete policy object `test', however, it does not exists anymore
+nfct timeout delete test ; BAD
+# add policy object `test'
+nfct timeout add test inet dccp request 1 respond 2 partopen 3 open 4 closereq 5 closing 6 timewait 7 ; OK
+# get policy object `test'
+nfct timeout get test ; OK
+# delete policy object `test'
+nfct timeout delete test ; OK

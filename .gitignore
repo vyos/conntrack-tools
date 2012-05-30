@@ -7,6 +7,11 @@
 *.deps
 .dirstamp
 libtool
+Makefile
+Makefile.in
+*.o
+*.la
+*.lo
 /aclocal.m4
 /autom4te.cache
 /build-stamp

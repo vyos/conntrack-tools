@@ -310,3 +310,8 @@ int channel_accept(struct channel *c)
 {
 	return c->ops->accept(c);
 }
+
+int channel_type(struct channel *c)
+{
+	return c->ops->type;
+}

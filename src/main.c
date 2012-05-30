@@ -19,6 +19,7 @@
 
 #include "conntrackd.h"
 #include "log.h"
+#include "helper.h"
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -31,7 +32,7 @@
 #include <limits.h>
 
 struct ct_general_state st;
-union ct_state state;
+struct ct_state state;
 
 static const char usage_daemon_commands[] =
 	"Daemon mode commands:\n"
@@ -49,6 +50,7 @@ static const char usage_client_commands[] =
 		"dump statistics\n"
 	"  -R [ct|expect], resync with kernel conntrack table\n"
 	"  -n, request resync with other node (only FT-FW and NOTRACK modes)\n"
+	"  -B, force a bulk send to other replica firewalls\n"
 	"  -x, dump cache in XML format (requires -i or -e)\n"
 	"  -t, reset the kernel timeout (see PurgeTimeout clause)\n"
 	"  -v, display conntrackd version\n"
@@ -405,6 +407,6 @@ int main(int argc, char *argv[])
 	/*
 	 * run main process
 	 */
-	run();
+	select_main_loop();
 	return 0;
 }

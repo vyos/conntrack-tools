@@ -1,5 +1,5 @@
 /*
- * (C) 2006-2008 by Pablo Neira Ayuso <pablo@netfilter.org>
+ * (C) 2006-2012 by Pablo Neira Ayuso <pablo@netfilter.org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,9 +14,16 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ *
+ * Part of this code has been sponsored by Vyatta Inc. <http://www.vyatta.com>
  */
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
+#include <signal.h>
+
+#include "conntrackd.h"
+#include "date.h"
 #include "fds.h"
 
 struct fds *create_fds(void)
@@ -44,7 +51,7 @@ void destroy_fds(struct fds *fds)
 	free(fds);
 }
 
-int register_fd(int fd, struct fds *fds)
+int register_fd(int fd, void (*cb)(void *data), void *data, struct fds *fds)
 {
 	struct fds_item *item;
 	
@@ -58,7 +65,10 @@ int register_fd(int fd, struct fds *fds)
 		return -1;
 
 	item->fd = fd;
-	list_add(&item->head, &fds->list);
+	item->cb = cb;
+	item->data = data;
+	/* Order matters: the descriptors are served in FIFO basis. */
+	list_add_tail(&item->head, &fds->list);
 
 	return 0;
 }
@@ -92,3 +102,48 @@ int unregister_fd(int fd, struct fds *fds)
 	return 0;
 }
 
+static void select_main_step(struct timeval *next_alarm)
+{
+	int ret;
+	fd_set readfds = STATE(fds)->readfds;
+	struct fds_item *cur, *tmp;
+
+	ret = select(STATE(fds)->maxfd + 1, &readfds, NULL, NULL, next_alarm);
+	if (ret == -1) {
+		/* interrupted syscall, retry */
+		if (errno == EINTR)
+			return;
+
+		STATE(stats).select_failed++;
+		return;
+	}
+
+	/* signals are racy */
+	sigprocmask(SIG_BLOCK, &STATE(block), NULL);
+
+	list_for_each_entry_safe(cur, tmp, &STATE(fds)->list, head) {
+		if (FD_ISSET(cur->fd, &readfds))
+			cur->cb(cur->data);
+	}
+
+	sigprocmask(SIG_UNBLOCK, &STATE(block), NULL);
+}
+
+void __attribute__((noreturn)) select_main_loop(void)
+{
+	struct timeval next_alarm;
+	struct timeval *next = NULL;
+
+	while(1) {
+		do_gettimeofday();
+
+		sigprocmask(SIG_BLOCK, &STATE(block), NULL);
+		if (next != NULL && !timerisset(next))
+			next = do_alarm_run(&next_alarm);
+		else
+			next = get_next_alarm_run(&next_alarm);
+		sigprocmask(SIG_UNBLOCK, &STATE(block), NULL);
+
+		select_main_step(next);
+	}
+}
