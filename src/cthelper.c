@@ -42,6 +42,7 @@
 
 #include <libmnl/libmnl.h>
 #include <libnetfilter_queue/libnetfilter_queue.h>
+#include <libnetfilter_queue/pktbuff.h>
 #include <libnetfilter_cthelper/libnetfilter_cthelper.h>
 #include <linux/netfilter.h>
 #include <libnetfilter_queue/pktbuff.h>
@@ -59,7 +60,7 @@ int cthelper_local(int fd, int type, void *data)
 }
 
 static struct nlmsghdr *
-nfq_build_header(char *buf, int type, uint32_t queue_num)
+nfq_hdr_put(char *buf, int type, uint32_t queue_num)
 {
 	struct nlmsghdr *nlh = mnl_nlmsg_put_header(buf);
 	nlh->nlmsg_type = (NFNL_SUBSYS_QUEUE << 8) | type;
@@ -133,19 +134,22 @@ pkt_get(void *pkt, uint32_t pktlen, uint16_t proto, uint32_t *protoff)
 
 static int
 pkt_verdict_issue(struct ctd_helper_instance *cur, struct myct *myct,
-		  uint16_t queue_num, uint32_t id, uint32_t verdict)
+		  uint16_t queue_num, uint32_t id, uint32_t verdict,
+		  struct pkt_buff *pktb)
 {
 	struct nlmsghdr *nlh;
 	char buf[MNL_SOCKET_BUFFER_SIZE];
 	struct nlattr *nest;
 
-	nlh = nfq_build_header(buf, NFQNL_MSG_VERDICT, queue_num);
+	nlh = nfq_hdr_put(buf, NFQNL_MSG_VERDICT, queue_num);
 
 	/* save private data and send it back to kernel-space. */
 	nfct_set_attr_l(myct->ct, ATTR_HELPER_INFO, myct->priv_data,
 			cur->helper->priv_data_len);
 
-	nfq_nlmsg_verdict_build(nlh, id, verdict);
+	nfq_nlmsg_verdict_put(nlh, id, verdict);
+	if (pktb_mangled(pktb))
+		nfq_nlmsg_verdict_put_pkt(nlh, pktb_data(pktb), pktb_len(pktb));
 
 	nest = mnl_attr_nest_start(nlh, NFQA_CT);
 	if (nest == NULL)
@@ -168,8 +172,8 @@ pkt_verdict_error(uint16_t queue_num, uint32_t id)
 	struct nlmsghdr *nlh;
 	char buf[MNL_SOCKET_BUFFER_SIZE];
 
-	nlh = nfq_build_header(buf, NFQNL_MSG_VERDICT, queue_num);
-	nfq_nlmsg_verdict_build(nlh, id, NF_ACCEPT);
+	nlh = nfq_hdr_put(buf, NFQNL_MSG_VERDICT, queue_num);
+	nfq_nlmsg_verdict_put(nlh, id, NF_ACCEPT);
 
 	if (mnl_socket_sendto(STATE_CTH(nl), nlh, nlh->nlmsg_len) < 0) {
 		dlog(LOG_ERR, "failed to send verdict: %s", strerror(errno));
@@ -179,16 +183,14 @@ pkt_verdict_error(uint16_t queue_num, uint32_t id)
 }
 
 static struct ctd_helper_instance *
-helper_run(void *pkt, uint32_t pktlen, uint32_t protoff,
-	   struct myct *myct, uint32_t ctinfo, uint32_t queue_num,
-	   int *verdict)
+helper_run(struct pkt_buff *pktb, uint32_t protoff, struct myct *myct,
+	   uint32_t ctinfo, uint32_t queue_num, int *verdict)
 {
 	struct ctd_helper_instance *cur, *helper = NULL;
 
 	list_for_each_entry(cur, &CONFIG(cthelper).list, head) {
 		if (cur->queue_num == queue_num) {
 			const void *priv_data;
-			struct pkt_buff *pktb;
 
 			/* retrieve helper private data. */
 			priv_data = nfct_get_attr(myct->ct, ATTR_HELPER_INFO);
@@ -203,17 +205,7 @@ helper_run(void *pkt, uint32_t pktlen, uint32_t protoff,
 					cur->helper->priv_data_len);
 			}
 
-			/* XXX: 256 bytes for extra allocation for all mangling
-			 * we do in helpers.
-			 */
-			pktb = pktb_alloc(AF_INET, pkt, pktlen, 256);
-			if (pktb == NULL)
-				break;
-
 			*verdict = cur->helper->cb(pktb, protoff, myct, ctinfo);
-
-			pktb_free(pktb);
-
 			helper = cur;
 			break;
 		}
@@ -232,6 +224,7 @@ static int nfq_queue_cb(const struct nlmsghdr *nlh, void *data)
 	struct nf_conntrack *ct = NULL;
 	struct myct *myct;
 	struct ctd_helper_instance *helper;
+	struct pkt_buff *pktb;
 	int verdict = NF_ACCEPT;
 
 	if (nfq_nlmsg_parse(nlh, attr) < 0) {
@@ -285,14 +278,18 @@ static int nfq_queue_cb(const struct nlmsghdr *nlh, void *data)
 	myct->ct = ct;
 	ctinfo = ntohl(mnl_attr_get_u32(attr[NFQA_CT_INFO]));
 
-	/* Misconfiguration: if no helper found, accept the packet. */
-	helper = helper_run(pkt, pktlen, protoff, myct, ctinfo, queue_num,
-			    &verdict);
-	if (!helper)
+	/* XXX: 256 bytes enough for possible NAT mangling in helpers? */
+	pktb = pktb_alloc(AF_INET, pkt, pktlen, 256);
+	if (pktb == NULL)
 		goto err;
 
-	if (pkt_verdict_issue(helper, myct, queue_num, id, verdict) < 0)
-		goto err;
+	/* Misconfiguration: if no helper found, accept the packet. */
+	helper = helper_run(pktb, protoff, myct, ctinfo, queue_num, &verdict);
+	if (!helper)
+		goto err_pktb;
+
+	if (pkt_verdict_issue(helper, myct, queue_num, id, verdict, pktb) < 0)
+		goto err_pktb;
 
 	if (ct != NULL)
 		nfct_destroy(ct);
@@ -302,6 +299,8 @@ static int nfq_queue_cb(const struct nlmsghdr *nlh, void *data)
 		free(myct);
 
 	return MNL_CB_OK;
+err_pktb:
+	pktb_free(pktb);
 err:
 	/* In case of error, we don't want to disrupt traffic. We accept all.
 	 * This is connection tracking after all. The policy is not to drop
@@ -422,16 +421,16 @@ static int cthelper_nfqueue_setup(struct ctd_helper_instance *cur)
 	char buf[MNL_SOCKET_BUFFER_SIZE];
 	struct nlmsghdr *nlh;
 
-	nlh = nfq_build_header(buf, NFQNL_MSG_CONFIG, cur->queue_num);
-	nfq_nlmsg_cfg_build_request(nlh, AF_INET, NFQNL_CFG_CMD_BIND);
+	nlh = nfq_hdr_put(buf, NFQNL_MSG_CONFIG, cur->queue_num);
+	nfq_nlmsg_cfg_put_cmd(nlh, AF_INET, NFQNL_CFG_CMD_BIND);
 
 	if (mnl_socket_sendto(STATE_CTH(nl), nlh, nlh->nlmsg_len) < 0) {
 		dlog(LOG_ERR, "failed to send bind command");
 		return -1;
 	}
 
-	nlh = nfq_build_header(buf, NFQNL_MSG_CONFIG, cur->queue_num);
-	nfq_nlmsg_cfg_add_copy(nlh, NFQNL_COPY_PACKET, 0xffff);
+	nlh = nfq_hdr_put(buf, NFQNL_MSG_CONFIG, cur->queue_num);
+	nfq_nlmsg_cfg_put_params(nlh, NFQNL_COPY_PACKET, 0xffff);
 	mnl_attr_put_u32(nlh, NFQA_CFG_FLAGS, htonl(NFQNL_F_CONNTRACK));
 
 	if (mnl_socket_sendto(STATE_CTH(nl), nlh, nlh->nlmsg_len) < 0) {
@@ -463,16 +462,16 @@ static int nfq_configure(void)
 	char buf[MNL_SOCKET_BUFFER_SIZE];
 	struct nlmsghdr *nlh;
 
-	nlh = nfq_build_header(buf, NFQNL_MSG_CONFIG, 0);
-	nfq_nlmsg_cfg_build_request(nlh, AF_INET, NFQNL_CFG_CMD_PF_UNBIND);
+	nlh = nfq_hdr_put(buf, NFQNL_MSG_CONFIG, 0);
+	nfq_nlmsg_cfg_put_cmd(nlh, AF_INET, NFQNL_CFG_CMD_PF_UNBIND);
 
 	if (mnl_socket_sendto(STATE_CTH(nl), nlh, nlh->nlmsg_len) < 0) {
 		dlog(LOG_ERR, "failed to send pf unbind command");
 		return -1;
 	}
 
-	nlh = nfq_build_header(buf, NFQNL_MSG_CONFIG, 0);
-	nfq_nlmsg_cfg_build_request(nlh, AF_INET, NFQNL_CFG_CMD_PF_BIND);
+	nlh = nfq_hdr_put(buf, NFQNL_MSG_CONFIG, 0);
+	nfq_nlmsg_cfg_put_cmd(nlh, AF_INET, NFQNL_CFG_CMD_PF_BIND);
 
 	if (mnl_socket_sendto(STATE_CTH(nl), nlh, nlh->nlmsg_len) < 0) {
 		dlog(LOG_ERR, "failed to send pf bind command");

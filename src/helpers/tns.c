@@ -242,7 +242,7 @@ nf_nat_tns(struct pkt_buff *pkt, struct tns_header *tns, struct nf_expect *exp,
 	if (!buflen)
 		goto out;
 
-	if (!nfq_tcp_mangle(pkt, matchoff, matchlen, buffer, buflen))
+	if (!nfq_tcp_mangle_ipv4(pkt, matchoff, matchlen, buffer, buflen))
 		goto out;
 
 	if (buflen != matchlen) {
