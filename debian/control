@@ -3,13 +3,17 @@ Section: net
 Priority: optional
 Maintainer: Alexander Wirt <formorer@debian.org>
 Homepage: http://conntrack-tools.netfilter.org/
-Build-Depends: debhelper (>= 5),
- libnetfilter-conntrack-dev (>= 1.0.1-1), bison, flex, dpatch, libmnl-dev (>= 1.0.1-1)
+Build-Depends: bison,
+               debhelper (>= 5),
+               dpatch,
+               flex,
+               libmnl-dev (>= 1.0.1-1),
+               libnetfilter-conntrack-dev (>= 1.0.1-1)
 Standards-Version: 3.9.1
 
 Package: conntrack
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}
+Depends: ${misc:Depends}, ${shlibs:Depends}
 Description: Program to modify the conntrack tables
  conntrack is a userspace command line program targeted at system
  administrators. It enables them to view and manage the in-kernel
@@ -17,7 +21,7 @@ Description: Program to modify the conntrack tables
 
 Package: conntrackd
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}
+Depends: ${misc:Depends}, ${shlibs:Depends}
 Description: Connection tracking daemon
  Conntrackd can replicate the status of the connections that are
  currently being processed by your stateful firewall based on Linux.
