@@ -1,3 +1,9 @@
+conntrack (1:1.0.1-2+vyatta31) unstable; urgency=low
+
+  * Debian package conntrack-helpers to package helpers in user space
+
+ -- Gaurav Sinha <gaurav.sinha@vyatta.com>  Tue, 05 Jun 2012 14:01:51 -0700
+
 conntrack (1:1.0.1-2+vyatta30) unstable; urgency=low
 
   * forced release:cttimeout refreshed on build machine
