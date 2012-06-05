@@ -4,12 +4,12 @@ Priority: optional
 Maintainer: Alexander Wirt <formorer@debian.org>
 Homepage: http://conntrack-tools.netfilter.org/
 Build-Depends: bison,
-               debhelper (>= 5),
-               dpatch,
+               debhelper (>= 9),
                flex,
-               libmnl-dev (>= 1.0.1-1),
-               libnetfilter-conntrack-dev (>= 1.0.1-1)
-Standards-Version: 3.9.1
+               libmnl-dev (>= 1.0.1),
+               libnetfilter-conntrack-dev (>= 1.0.1),
+               libnetfilter-cttimeout-dev (>= 1.0.0)
+Standards-Version: 3.9.3
 
 Package: conntrack
 Architecture: any
