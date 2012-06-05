@@ -1,3 +1,9 @@
+conntrack (1:1.0.1-2+vyatta30) unstable; urgency=low
+
+  * forced release:cttimeout refreshed on build machine
+
+ -- Gaurav Sinha <gaurav.sinha@vyatta.com>  Mon, 04 Jun 2012 21:31:24 -0700
+
 conntrack (1:1.0.1-2+vyatta29) unstable; urgency=low
 
   * Add nfct debian package to this submodule.
