@@ -43,3 +43,9 @@ Description: Tool to interact with the connection tracking system
  Connection Tracking System.
  .
  By now, the supported subsystem is timeout.
+
+Package: conntrack-helpers
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: conntrack-helpers
+ conntrack-helpers
