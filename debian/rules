@@ -1,98 +1,13 @@
 #!/usr/bin/make -f
-# -*- mode: makefile; coding: utf-8 -*-
+# -*- makefile -*-
+# Sample debian/rules that uses debhelper.
+# This file was originally written by Joey Hess and Craig Small.
+# As a special exception, when this file is copied by dh-make into a
+# dh-make output file, you may use that output file without restriction.
+# This special exception was added by Craig Small in version 0.37 of dh-make.
 
 # Uncomment this to turn on verbose mode.
 #export DH_VERBOSE=1
 
-DEB_HOST_GNU_TYPE ?= $(shell dpkg-architecture -qDEB_HOST_GNU_TYPE)
-DEB_BUILD_GNU_TYPE ?= $(shell dpkg-architecture -qDEB_BUILD_GNU_TYPE)
-
-CFLAGS = -g
-
-ifneq (,$(findstring noopt,$(DEB_BUILD_OPTIONS)))
-  CFLAGS += -O0
-else
-  CFLAGS += -O2 -fno-strict-aliasing
-endif
-
-# fix "read_config_lex.c:4451: error: 'input' defined but not used"
-CFLAGS += -DYY_NO_INPUT
-
-build: debian/stamp-build
-debian/stamp-build: patch
-	dh_testdir
-
-	# ./configure
-	CFLAGS="$(CFLAGS)" ./configure --host=$(DEB_HOST_GNU_TYPE) --build=$(DEB_BUILD_GNU_TYPE) \
-		--disable-dependency-tracking \
-		--prefix=/usr
-
-	# Build libnetfilter-conntrack
-	$(MAKE)
-
-	touch $@
-
-clean: clean1 unpatch
-clean1:
-	dh_testdir
-	dh_testroot
-	rm -f debian/stamp-*
-
-	[ ! -f Makefile ] || $(MAKE) distclean
-
-	dh_clean
-
-install: debian/stamp-install
-debian/stamp-install: debian/stamp-build
-	dh_testdir
-	dh_testroot
-	dh_clean -k
-	dh_installdirs
-
-	$(MAKE) DESTDIR=`pwd`/debian/tmp install
-
-	touch $@
-
-# And now the simple things for dpatch. Here we only apply/unapply the patches.
-# You can do more things with dpatch, like having patches only applied on
-# a special architecture - see the non-dh version of the sample for this!
-patch: patch-stamp
-patch-stamp:
-	dpatch apply-all
-	dpatch cat-all >patch-stamp
-	touch patch-stamp
-
-unpatch:
-	dpatch deapply-all
-	rm -rf patch-stamp debian/patched
-
-
-
-# Build architecture-independent files here.
-binary-indep:
-
-# Build architecture-dependent files here.
-binary-arch: build install
-	dh_testdir -a
-	dh_testroot -a
-	dh_installdocs -a -A AUTHORS
-	dh_installchangelogs -a
-	dh_installlogrotate -a
-	dh_installinit -a
-	dh_install -a -X.svn
-	dh_link -a
-	dh_strip -a
-	dh_compress -a
-	dh_fixperms -a
-	dh_installdeb -a
-	dh_shlibdeps -a
-	dh_gencontrol -a
-	dh_md5sums -a
-	dh_builddeb -a
-
-source diff:                                                                  
-	@echo >&2 'source and diff are obsolete - use dpkg-source -b'; false
-
-binary: binary-indep binary-arch
-.PHONY: build clean binary-indep binary-arch binary install patch unpatch \
-	clean1 
+%:
+	dh $@
