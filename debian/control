@@ -29,3 +29,9 @@ Depends: ${shlibs:Depends}, ${misc:Depends}
 Build-Depends: libnetfilter_cttimeout (>= 0.0.1), 
 Description: nfct library
  nfct library 
+
+Package: conntrack-helpers
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: conntrack-helpers
+ conntrack-helpers 
