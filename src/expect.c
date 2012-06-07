@@ -24,7 +24,8 @@ cthelper_expect_init(struct nf_expect *exp, struct nf_conntrack *master,
 		  uint32_t class,
 		  union nfct_attr_grp_addr *saddr,
 		  union nfct_attr_grp_addr *daddr,
-		  uint8_t l4proto, uint16_t *sport, uint16_t *dport)
+		  uint8_t l4proto, uint16_t *sport, uint16_t *dport,
+		  uint32_t flags)
 {
 	struct nf_conntrack *expected, *mask;
 
@@ -151,6 +152,7 @@ cthelper_expect_init(struct nf_expect *exp, struct nf_conntrack *master,
 	nfexp_set_attr(exp, ATTR_EXP_MASTER, master);
 	nfexp_set_attr(exp, ATTR_EXP_EXPECTED, expected);
 	nfexp_set_attr(exp, ATTR_EXP_MASK, mask);
+	nfexp_set_attr_u32(exp, ATTR_EXP_FLAGS, flags);
 
 	nfct_destroy(expected);
 	nfct_destroy(mask);

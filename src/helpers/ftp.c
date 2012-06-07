@@ -544,7 +544,7 @@ ftp_helper_cb(struct pkt_buff *pkt, uint32_t protoff,
 	cthelper_get_addr_src(myct->ct, !dir, &addr);
 
 	if (cthelper_expect_init(exp, myct->ct, 0, &addr, &daddr, IPPROTO_TCP,
-				 NULL, &cmd.u.port)) {
+				 NULL, &cmd.u.port, 0)) {
 		pr_debug("conntrack_ftp: failed to init expectation\n");
 		goto out_update_nl;
 	}

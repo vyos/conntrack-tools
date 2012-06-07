@@ -423,7 +423,7 @@ rpc_helper_cb(struct pkt_buff *pkt, uint32_t protoff,
 
 		if (cthelper_expect_init(exp, myct->ct, 0, &addr, &daddr,
 					 rpc_info->pm_prot,
-					 NULL, &port)) {
+					 NULL, &port, NF_CT_EXPECT_PERMANENT)) {
 			pr_debug("RPC: failed to init expectation\n");
 			goto out_exp;
 		}

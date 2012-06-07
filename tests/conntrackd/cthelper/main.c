@@ -2,6 +2,7 @@
 #include <pcap.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <stdbool.h>
 #include <netinet/ip.h>
 #include <arpa/inet.h>
 #include <string.h>
@@ -16,9 +17,15 @@
 
 struct cthelper_test_stats cthelper_test_stats;
 
+enum {
+	TEST_NORMAL = 0,
+	TEST_DNAT,
+};
+
 static int
 cthelper_process_packet(const uint8_t *pkt, uint32_t pktlen,
-			struct ctd_helper *h, int proto, uint16_t port)
+			struct ctd_helper *h, int proto, uint16_t port,
+			int type)
 {
 	struct pkt_buff *pktb;
 	struct cthelper_proto_l2l3_helper *l3h;
@@ -94,7 +101,37 @@ cthelper_process_packet(const uint8_t *pkt, uint32_t pktlen,
 		return -1;
 	}
 
-	ret = h->cb(pktb, dataoff, ct->myct, ctinfo);
+	/* tweak to run DNAT mangling code using the same PCAP file. */
+	if (type == TEST_DNAT) {
+		struct nf_conntrack *tmp = ct->myct->ct;
+		/* as long as this is tested, who cares the destination IP? */
+		in_addr_t addr = inet_addr("1.1.1.1");
+
+		/* clone the real conntrack, to add DNAT information */
+		ct->myct->ct = nfct_clone(ct->myct->ct);
+		/* set fake DNAT information */
+		nfct_set_attr_u32(ct->myct->ct, ATTR_STATUS, IPS_DST_NAT);
+		nfct_set_attr_u32(ct->myct->ct, ATTR_ORIG_IPV4_DST, addr);
+		/* pass it to helper */
+		ret = h->cb(pktb, dataoff, ct->myct, ctinfo);
+		/* restore real conntrack */
+		nfct_destroy(ct->myct->ct);
+		ct->myct->ct = tmp;
+
+		if (pktb_mangled(pktb)) {
+			int i;
+			uint8_t *data = pktb_network_header(pktb);
+
+			printf("\e[1;31mmangled content: ", pktb_len(pktb));
+
+			for (i=0; i < pktb_len(pktb); i++)
+				printf("%c", data[i]);
+
+			printf("\e[0m\n");
+		}
+	} else
+		ret = h->cb(pktb, dataoff, ct->myct, ctinfo);
+
 	pktb_free(pktb);
 
 	return ret;
@@ -102,7 +139,7 @@ cthelper_process_packet(const uint8_t *pkt, uint32_t pktlen,
 
 static int
 cthelper_test(const char *pcapfile, const char *helper_name,
-	      int l4proto, uint16_t port)
+	      int l4proto, uint16_t port, int type)
 {
 	struct pcap_pkthdr pcaph;
 	char errbuf[PCAP_ERRBUF_SIZE];
@@ -125,7 +162,8 @@ cthelper_test(const char *pcapfile, const char *helper_name,
 	}
 	while ((pkt = pcap_next(handle, &pcaph)) != NULL) {
 		cthelper_test_stats.pkts++;
-		cthelper_process_packet(pkt, pcaph.caplen, h, l4proto, port);
+		cthelper_process_packet(pkt, pcaph.caplen, h, l4proto, port,
+					type);
 	}
 
 	ct_flush();
@@ -135,11 +173,12 @@ cthelper_test(const char *pcapfile, const char *helper_name,
 
 int main(int argc, char *argv[])
 {
-	int ret, l4proto;
+	int ret, l4proto, type = TEST_NORMAL;
 
-	if (argc != 5) {
+	if (argc < 5 || argc > 6) {
 		fprintf(stderr, "Wrong usage:\n");
-		fprintf(stderr, "%s [pcap_file] [helper-name] [proto] [port]\n",
+		fprintf(stderr, "%s <pcap_file> <helper-name> <proto> "
+				"<port> [dnat]\n",
 				argv[0]);
 		fprintf(stderr, "example: %s file.pcap ftp tcp 21\n", argv[0]);
 		exit(EXIT_FAILURE);
@@ -153,13 +192,19 @@ int main(int argc, char *argv[])
 			argv[3]);
 		exit(EXIT_FAILURE);
 	}
+	if (argc == 6) {
+		if (strncmp("dnat", argv[5], strlen("dnat")) == 0) {
+			type = TEST_DNAT;
+			printf("test dnat\n");
+		}
+	}
 
 	/* Initialization of supported layer 3 and 4 protocols here. */
 	l2l3_ipv4_init();
 	l4_tcp_init();
 	l4_udp_init();
 
-	if (cthelper_test(argv[1], argv[2], l4proto, atoi(argv[4])) < 0)
+	if (cthelper_test(argv[1], argv[2], l4proto, atoi(argv[4]), type) < 0)
 		ret = EXIT_FAILURE;
 	else
 		ret = EXIT_SUCCESS;

@@ -132,9 +132,9 @@ find_pattern(struct pkt_buff *pkt, unsigned int dataoff, size_t dlen,
 {
 	const char *data = (const char *)pktb_network_header(pkt) + dataoff
 						+ sizeof(struct tns_header);
-	int length, offset;
+	int length, offset, ret;
 	uint32_t array[4];
-	const char *p;
+	const char *p, *start;
 
 	p = strstr(data, "(");
 	if (!p)
@@ -146,8 +146,9 @@ find_pattern(struct pkt_buff *pkt, unsigned int dataoff, size_t dlen,
 		return 0;
 	}
 
+	start = p + strlen("HOST=");
 	offset = (int)(p - data) + strlen("HOST=");
-	*numoff = offset;
+	*numoff = offset + sizeof(struct tns_header);
 	data += offset;
 
 	length = try_number(data, dlen - offset, array, 4, '.', ')');
@@ -168,7 +169,12 @@ find_pattern(struct pkt_buff *pkt, unsigned int dataoff, size_t dlen,
 	}
 
 	p += strlen("PORT=");
-	return get_port(p, dlen - offset - length, ')', cmd);
+	ret = get_port(p, dlen - offset - length, ')', cmd);
+	if (ret == 0)
+		return 0;
+
+	p += ret;
+	return (int)(p - start);
 }
 
 static inline uint16_t
@@ -238,7 +244,11 @@ nf_nat_tns(struct pkt_buff *pkt, struct tns_header *tns, struct nf_expect *exp,
 		return NF_DROP;
 
 	buflen = snprintf(buffer, sizeof(buffer),
-			  "%pI4)(PORT=%u)", &newip.ip, port);
+				"%u.%u.%u.%u)(PORT=%u)",
+                                ((unsigned char *)&newip.ip)[0],
+                                ((unsigned char *)&newip.ip)[1],
+                                ((unsigned char *)&newip.ip)[2],
+                                ((unsigned char *)&newip.ip)[3], port);
 	if (!buflen)
 		goto out;
 
@@ -346,7 +356,7 @@ parse:
 	if (cthelper_expect_init(exp, myct->ct, 0,
 				 &addr, &cmd.u3,
 				 IPPROTO_TCP,
-				 NULL, &cmd.u.port)) {
+				 NULL, &cmd.u.port, 0)) {
 		pr_debug("TNS: failed to init expectation\n");
 		goto out_exp;
 	}
@@ -355,7 +365,8 @@ parse:
 	 * (possibly changed) expectation itself.
 	 */
 	if (nfct_get_attr_u32(myct->ct, ATTR_STATUS) & IPS_NAT_MASK) {
-		ret = nf_nat_tns(pkt, tns, exp, myct->ct, dir, numoff, numlen);
+		ret = nf_nat_tns(pkt, tns, exp, myct->ct, dir,
+				numoff + sizeof(struct tns_header), numlen);
 		goto out_exp;
 	}
 
