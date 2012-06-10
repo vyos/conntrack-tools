@@ -12,11 +12,13 @@ struct fds {
 struct fds_item {
 	struct list_head        head;
 	int                     fd;
+	void			(*cb)(void *data);
+	void			*data;
 };
 
 struct fds *create_fds(void);
 void destroy_fds(struct fds *);
-int register_fd(int fd, struct fds *fds);
+int register_fd(int fd, void (*cb)(void *data), void *data, struct fds *fds);
 int unregister_fd(int fd, struct fds *fds);
 
 #endif

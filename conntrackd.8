@@ -41,9 +41,15 @@ Flush the internal and/or external cache
 Flush the kernel conntrack table (if you use a Linux kernel >= 2.6.29, this
 option will not flush your internal and external cache).
 .TP
+.BI "-c "
+Commit external cache to conntrack table.
+.TP
 .BI "-B "
 Force a bulk send to other replica firewalls. With this command, you will
 ask conntrackd to send the state-entries that it owns to others.
+.TP
+.BI "-n "
+Request resync with other node (only FT-FW and NOTRACK modes).
 .TP
 .BI "-k "
 Kill the daemon
@@ -69,6 +75,10 @@ Display version information.
 .TP
 .BI "-h "
 Display help information.
+.TP
+.BI "-C config file"
+Configuration file path.
+.TP
 .SH DIAGNOSTICS
 The exit code is 0 for correct function. Errors cause an exit code of 1.
 .SH EXAMPLES

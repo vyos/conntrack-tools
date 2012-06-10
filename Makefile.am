@@ -2,7 +2,7 @@ include Make_global.am
 
 ACLOCAL_AMFLAGS  = -I m4
 
-man_MANS = conntrack.8 conntrackd.8
+man_MANS = conntrack.8 conntrackd.8 nfct.8
 EXTRA_DIST = $(man_MANS) Make_global.am doc m4
 
 SUBDIRS   = extensions src

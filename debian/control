@@ -22,3 +22,16 @@ Description: Connection tracking daemon
  Conntrackd can replicate the status of the connections that are
  currently being processed by your stateful firewall based on Linux.
  Conntrackd can also run as statistics daemon.
+
+Package: nfct
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Build-Depends: libnetfilter_cttimeout (>= 0.0.1), 
+Description: nfct library
+ nfct library 
+
+Package: conntrack-helpers
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: conntrack-helpers
+ conntrack-helpers 

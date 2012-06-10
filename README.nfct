@@ -1,0 +1,62 @@
+= nfct: command line tool to interact with the Connection Tracking System =
+
+This tool only supports the cttimeout infrastructure by now. However,
+the plan is that it will replace `conntrack' with a syntax that looks
+more similar to `ip' and `nftables' tools (in the long run!).
+
+== cttimeout: fine-grain timeout tuning for the Connection Tracking System ==
+
+The `nfct' command line tool allows you to define custom timeout
+policies:
+
+# nfct timeout add custom-tcp-policy1 inet tcp established 100
+
+You can also retrieve the existing timeout policies with:
+
+# nfct timeout list
+.tcp-policy = {
+        .l3proto = 2,
+        .l4proto = 6,
+        .policy = {
+                .SYN_SENT = 120,
+                .SYN_RECV = 60,
+                .ESTABLISHED = 100,
+                .FIN_WAIT = 120,
+                .CLOSE_WAIT = 60,
+                .LAST_ACK = 30,
+                .TIME_WAIT = 120,
+                .CLOSE = 10,
+                .SYN_SENT2 = 120,
+                .RETRANS = 300,
+                .UNACKNOWLEDGED = 300,
+        },
+};
+
+Then, you can use the timeout policy with iptables:
+
+# iptables -I PREROUTING -t raw -s 1.1.1.1 -d 2.2.2.2 -p tcp \
+	-j CT --timeout custom-tcp-policy1
+
+You can define policies for other protocols as well, eg:
+
+# nfct timeout add custom-udp-policy1 inet udp unreplied 10 replied 20
+
+And attach them via iptables:
+
+# iptables -I PREROUTING -t raw -s 1.1.1.1 -d 2.2.2.2 -p udp \
+	-j CT --timeout custom-udp-policy1
+
+== Compilation & Installation ==
+
+This tool requires libmnl and libnetfilter_cttimeout. You also require
+nfnetlink_cttimeout support in the Linux kernel.
+
+If you obtain a working copy from git, you have to run:
+
+$ autoreconf -fi # this is the lingo that replaces old autogen.sh scripts
+$ ./configure --prefix=/usr
+$ make
+$ sudo make install
+
+-o-
+(c) 2012 by Pablo Neira Ayuso <pablo@netfilter.org>

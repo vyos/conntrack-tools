@@ -1,8 +1,144 @@
+conntrack (1:1.0.1-2+vyatta20+oxnard2) unstable; urgency=low
+
+  * Merge pacifica to oxnard to support user space helpers. Backportin.  
+
+ -- Gaurav Sinha <gaurav.sinha@vyatta.com>  Sun, 10 May 2012 02:21:37 -0800
+
 conntrack (1:1.0.1-2+vyatta20+oxnard1) unstable; urgency=low
 
   * new branch
 
  -- Deepti Kulkarni <deepti@vyatta.com>  Sat, 03 Mar 2012 02:21:37 -0800
+conntrack (1:1.0.1-2+vyatta32) unstable; urgency=low
+
+  [ Pablo Neira Ayuso ]
+  * conntrackd: add cthelper infrastructure (+ example FTP helper)
+
+  [ Jozsef Kadlecsik ]
+  * conntrackd: RPC helper added to cthelper
+  * conntrackd: TNS helper added to cthelper
+
+  [ Pablo Neira Ayuso ]
+  * tests: conntrackd: add cthelper-test infrastructure
+
+  [ Gaurav Sinha ]
+
+ -- Gaurav Sinha <gaurav.sinha@vyatta.com>  Thu, 07 Jun 2012 10:37:08 -0700
+
+conntrack (1:1.0.1-2+vyatta31) unstable; urgency=low
+
+  * Debian package conntrack-helpers to package helpers in user space
+
+ -- Gaurav Sinha <gaurav.sinha@vyatta.com>  Tue, 05 Jun 2012 14:01:51 -0700
+
+conntrack (1:1.0.1-2+vyatta30) unstable; urgency=low
+
+  * forced release:cttimeout refreshed on build machine
+
+ -- Gaurav Sinha <gaurav.sinha@vyatta.com>  Mon, 04 Jun 2012 21:31:24 -0700
+
+conntrack (1:1.0.1-2+vyatta29) unstable; urgency=low
+
+  * Add nfct debian package to this submodule.
+
+ -- Gaurav Sinha <gaurav.sinha@vyatta.com>  Mon, 04 Jun 2012 21:07:05 -0700
+
+conntrack (1:1.0.1-2+vyatta28) unstable; urgency=low
+
+  [ Pablo Neira Ayuso ]
+  * conntrackd: add cthelper infrastructure (+ example FTP helper)
+
+  [ Jozsef Kadlecsik ]
+  * conntrackd: RPC helper added to cthelper
+  * conntrackd: TNS helper added to cthelper
+
+  [ Pablo Neira Ayuso ]
+  * tests: conntrackd: add cthelper-test infrastructure
+
+  [ Gaurav Sinha ]
+
+ -- Gaurav Sinha <gaurav.sinha@vyatta.com>  Fri, 01 Jun 2012 13:10:21 -0700
+
+conntrack (1:1.0.1-2+vyatta27) unstable; urgency=low
+
+  * forced release
+
+ -- Gaurav Sinha <gaurav.sinha@vyatta.com>  Wed, 30 May 2012 14:48:09 -0700
+
+conntrack (1:1.0.1-2+vyatta26) unstable; urgency=low
+
+  * forced release
+
+ -- Gaurav Sinha <gaurav.sinha@vyatta.com>  Wed, 30 May 2012 13:03:49 -0700
+
+conntrack (1:1.0.1-2+vyatta25) unstable; urgency=low
+
+  * force release:dependency fix on build machine
+
+ -- Gaurav Sinha <gaurav.sinha@vyatta.com>  Wed, 30 May 2012 10:55:48 -0700
+
+conntrack (1:1.0.1-2+vyatta24) unstable; urgency=low
+
+  * force release:post build dependency fix on build machine
+
+ -- Gaurav Sinha <gaurav.sinha@vyatta.com>  Wed, 30 May 2012 09:47:46 -0700
+
+conntrack (1:1.0.1-2+vyatta23) unstable; urgency=low
+
+  [ Pablo Neira Ayuso ]
+  * conntrack: allow to filter by mark from kernel-space
+  * conntrackd: allow using lower/upper case in ExpectationSync
+  * doc: add ras, q.931 and h.245 to examples configuration file
+  * doc: fix example on how to filter events via iptables CT target
+
+  [ Adrian Bridgett ]
+  * src: manpage and help display improvements
+
+  [ Pablo Neira Ayuso ]
+  * icmp[v6]: --icmp[v6]-[type|code] are optional for updates and
+    deletes
+
+  [ Florian Westphal ]
+  * conntrack: flush stdout for each expectation event, too
+
+  [ Pablo Neira Ayuso ]
+  * src: integrate nfct into the conntrack-tools tree
+  * tests: add nfct tests for cttimeout
+  * build: bump version to 1.2.0
+  * nfct: fix compilation warning in cttimeout support
+  * build: update dependencies with libnetfilter_conntrack (>= 1.0.1)
+  * move qa directory to tests/conntrack/
+  * tests: conntrack: add run-test.sh script
+  * add nfct(8) manpage
+  * add README.nfct
+  * nfct: fix compilation of timeout extension
+  * bump version to 1.2.1
+
+  [ Jan Engelhardt ]
+  * update .gitignore
+
+  [ Pablo Neira Ayuso ]
+  * conntrackd: simplify TCP connection handling logic
+  * conntrackd: generalize file descriptor infrastructure
+  * conntrackd: move ctnetlink code to ctnl.c (removed from run.c)
+  * conntrackd: add cthelper infrastructure (+ example FTP helper)
+
+  [ Jozsef Kadlecsik ]
+  * conntrackd: RPC helper added to cthelper
+  * conntrackd: TNS helper added to cthelper
+
+  [ Pablo Neira Ayuso ]
+  * tests: conntrackd: add cthelper-test infrastructure
+
+  [ Gaurav Sinha ]
+
+ -- Gaurav Sinha <gaurav.sinha@vyatta.com>  Wed, 30 May 2012 07:59:05 -0700
+
+conntrack (1:1.0.1-2+vyatta22) unstable; urgency=low
+
+  * force release:i386 vm build environ fixed
+
+ -- Gaurav <gaurav.sinha@vyatta.com>  Mon, 09 Apr 2012 17:05:19 -0700
 
 conntrack (1:1.0.1-2+vyatta20) unstable; urgency=low
 

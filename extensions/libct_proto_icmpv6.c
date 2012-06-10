@@ -46,8 +46,8 @@ static char icmpv6_commands_v_options[NUMBER_OF_CMD][ICMPV6_NUMBER_OF_OPT] =
 		/* 1 2 3 */
 /*CT_LIST*/	  {2,2,2},
 /*CT_CREATE*/	  {1,1,2},
-/*CT_UPDATE*/	  {1,1,2},
-/*CT_DELETE*/	  {1,1,2},
+/*CT_UPDATE*/	  {2,2,2},
+/*CT_DELETE*/	  {2,2,2},
 /*CT_GET*/	  {1,1,2},
 /*CT_FLUSH*/	  {0,0,0},
 /*CT_EVENT*/	  {2,2,2},
