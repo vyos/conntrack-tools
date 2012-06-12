@@ -1,3 +1,13 @@
+conntrack (1:1.0.1-2+vyatta20+oxnard3) unstable; urgency=low
+
+  [ Deepti Kulkarni ]
+  * new branch
+  * 1:1.0.1-2+vyatta20+oxnard1
+
+  [ Gaurav Sinha ]
+
+ -- Gaurav Sinha <gaurav.sinha@vyatta.com>  Mon, 11 Jun 2012 17:04:45 -0700
+
 conntrack (1:1.0.1-2+vyatta20+oxnard2) unstable; urgency=low
 
   * Merge pacifica to oxnard to support user space helpers. Backportin.  
