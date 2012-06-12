@@ -1,3 +1,20 @@
+conntrack (1:1.2.1-1) unstable; urgency=low
+
+  * [ed902b3] Initial upstream branch.
+  * [ea27bb4] Imported Upstream version 1.2.1
+  * [9a5f9ae] Update libnetfilter_conntrack requirement
+  * [92005c6] Fix dependency
+  * [fb4a63b] wrap-and-sort debian/control
+  * [21100c2] Remove obsolete stuff
+  * [30f468d] Convert to dh9
+  * [b96ec88] Bump standards version
+  * [741f6a6] wrap-and-sort
+  * [9c43cb9] Install examples
+  * [f403c41] Installation of examples moved to dh_installexamples
+  * [d60e302] Remove wrong example
+
+ -- Alexander Wirt <formorer@debian.org>  Tue, 12 Jun 2012 18:09:58 +0200
+
 conntrack (1:1.0.0-2) unstable; urgency=low
 
   * Build depend on libnetfilter-conntrack >= 0.9.1 
