@@ -1541,6 +1541,26 @@ nfct_mnl_dump(uint16_t subsys, uint16_t type, mnl_cb_t cb)
 	return res;
 }
 
+static int
+nfct_mnl_get(uint16_t subsys, uint16_t type, mnl_cb_t cb)
+{
+	char buf[MNL_SOCKET_BUFFER_SIZE];
+	struct nlmsghdr *nlh;
+	int res;
+
+	nlh = nfct_mnl_nlmsghdr_put(buf, subsys, type);
+
+	res = mnl_socket_sendto(sock.mnl, nlh, nlh->nlmsg_len);
+	if (res < 0)
+		return res;
+
+	res = mnl_socket_recvfrom(sock.mnl, buf, sizeof(buf));
+	if (res < 0)
+		return res;
+
+	return mnl_cb_run(buf, res, nlh->nlmsg_seq, sock.portid, cb, NULL);
+}
+
 static int nfct_stats_attr_cb(const struct nlattr *attr, void *data)
 {
 	const struct nlattr **tb = data;
@@ -1632,6 +1652,37 @@ static int nfexp_stats_cb(const struct nlmsghdr *nlh, void *data)
 		}
 	}
 	printf("\n");
+	return MNL_CB_OK;
+}
+
+static int nfct_stats_global_attr_cb(const struct nlattr *attr, void *data)
+{
+	const struct nlattr **tb = data;
+	int type = mnl_attr_get_type(attr);
+
+	if (mnl_attr_type_valid(attr, CTA_STATS_GLOBAL_MAX) < 0)
+		return MNL_CB_OK;
+
+	if (mnl_attr_validate(attr, MNL_TYPE_U32) < 0) {
+		perror("mnl_attr_validate");
+		return MNL_CB_ERROR;
+	}
+
+	tb[type] = attr;
+	return MNL_CB_OK;
+}
+
+static int nfct_global_stats_cb(const struct nlmsghdr *nlh, void *data)
+{
+	struct nlattr *tb[CTA_STATS_GLOBAL_MAX+1] = {};
+	struct nfgenmsg *nfg = mnl_nlmsg_get_payload(nlh);
+
+	mnl_attr_parse(nlh, sizeof(*nfg), nfct_stats_global_attr_cb, tb);
+
+	if (tb[CTA_STATS_GLOBAL_ENTRIES]) {
+		printf("%d\n",
+			ntohl(mnl_attr_get_u32(tb[CTA_STATS_GLOBAL_ENTRIES])));
+	}
 	return MNL_CB_OK;
 }
 
@@ -2136,7 +2187,25 @@ int main(int argc, char *argv[])
 		res = nfexp_catch(cth);
 		nfct_close(cth);
 		break;
-	case CT_COUNT: {
+	case CT_COUNT:
+		/* If we fail with netlink, fall back to /proc to ensure
+		 * backward compatibility.
+		 */
+		if (nfct_mnl_socket_open() < 0)
+			goto try_proc_count;
+
+		res = nfct_mnl_get(NFNL_SUBSYS_CTNETLINK,
+				   IPCTNL_MSG_CT_GET_STATS,
+				   nfct_global_stats_cb);
+
+		nfct_mnl_socket_close();
+
+		/* don't look at /proc, we got the information via ctnetlink */
+		if (res >= 0)
+			break;
+
+try_proc_count:
+		{
 #define NF_CONNTRACK_COUNT_PROC "/proc/sys/net/netfilter/nf_conntrack_count"
 		FILE *fd;
 		int count;
