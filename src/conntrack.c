@@ -34,6 +34,8 @@
  * 	Ported to the new libnetfilter_conntrack API
  * 2008-04-13 Pablo Neira Ayuso <pablo@netfilter.org>:
  *	Way more flexible update and delete operations
+ *
+ * Part of this code has been funded by Sophos Astaro <http://www.sophos.com>
  */
 
 #include "conntrack.h"
@@ -57,6 +59,7 @@
 #include <netdb.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <libmnl/libmnl.h>
 #include <libnetfilter_conntrack/libnetfilter_conntrack.h>
 
 struct u32_mask {
@@ -157,8 +160,11 @@ enum ct_command {
 	EXP_COUNT_BIT	= 16,
 	EXP_COUNT	= (1 << EXP_COUNT_BIT),
 
-	X_STATS_BIT	= 17,
-	X_STATS		= (1 << X_STATS_BIT),
+	CT_STATS_BIT	= 17,
+	CT_STATS	= (1 << CT_STATS_BIT),
+
+	EXP_STATS_BIT	= 18,
+	EXP_STATS	= (1 << EXP_STATS_BIT),
 };
 /* If you add a new command, you have to update NUMBER_OF_CMD in conntrack.h */
 
@@ -352,7 +358,8 @@ static char commands_v_options[NUMBER_OF_CMD][NUMBER_OF_OPT] =
 /*EXP_EVENT*/ {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,0,0,0,0},
 /*CT_COUNT*/  {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
 /*EXP_COUNT*/ {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-/*X_STATS*/   {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+/*CT_STATS*/  {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+/*EXP_STATS*/ {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
 };
 
 static const int cmd2type[][2] = {
@@ -365,6 +372,7 @@ static const int cmd2type[][2] = {
 	['V']	= { CT_VERSION,	CT_VERSION },
 	['h']	= { CT_HELP,	CT_HELP },
 	['C']	= { CT_COUNT,	EXP_COUNT },
+	['S']	= { CT_STATS,	EXP_STATS },
 };
 
 static const int opt2type[] = {
@@ -1462,6 +1470,171 @@ out_err:
 	return ret;
 }
 
+static struct nfct_mnl_socket {
+	struct mnl_socket	*mnl;
+	uint32_t		portid;
+} sock;
+
+static int nfct_mnl_socket_open(void)
+{
+	sock.mnl = mnl_socket_open(NETLINK_NETFILTER);
+	if (sock.mnl == NULL) {
+		perror("mnl_socket_open");
+		return -1;
+	}
+	if (mnl_socket_bind(sock.mnl, 0, MNL_SOCKET_AUTOPID) < 0) {
+		perror("mnl_socket_bind");
+		return -1;
+	}
+	sock.portid = mnl_socket_get_portid(sock.mnl);
+
+	return 0;
+}
+
+static struct nlmsghdr *
+nfct_mnl_nlmsghdr_put(char *buf, uint16_t subsys, uint16_t type)
+{
+	struct nlmsghdr *nlh;
+	struct nfgenmsg *nfh;
+
+	nlh = mnl_nlmsg_put_header(buf);
+	nlh->nlmsg_type = (subsys << 8) | type;
+	nlh->nlmsg_flags = NLM_F_REQUEST|NLM_F_DUMP;
+	nlh->nlmsg_seq = time(NULL);
+
+	nfh = mnl_nlmsg_put_extra_header(nlh, sizeof(struct nfgenmsg));
+	nfh->nfgen_family = AF_INET;
+	nfh->version = NFNETLINK_V0;
+	nfh->res_id = 0;
+
+	return nlh;
+}
+
+static void nfct_mnl_socket_close(void)
+{
+	mnl_socket_close(sock.mnl);
+}
+
+static int
+nfct_mnl_dump(uint16_t subsys, uint16_t type, mnl_cb_t cb)
+{
+	char buf[MNL_SOCKET_BUFFER_SIZE];
+	struct nlmsghdr *nlh;
+	int res;
+
+	nlh = nfct_mnl_nlmsghdr_put(buf, subsys, type);
+
+	res = mnl_socket_sendto(sock.mnl, nlh, nlh->nlmsg_len);
+	if (res < 0)
+		return res;
+
+	res = mnl_socket_recvfrom(sock.mnl, buf, sizeof(buf));
+	while (res > 0) {
+		res = mnl_cb_run(buf, res, nlh->nlmsg_seq, sock.portid,
+					 cb, NULL);
+		if (res <= MNL_CB_STOP)
+			break;
+
+		res = mnl_socket_recvfrom(sock.mnl, buf, sizeof(buf));
+	}
+
+	return res;
+}
+
+static int nfct_stats_attr_cb(const struct nlattr *attr, void *data)
+{
+	const struct nlattr **tb = data;
+	int type = mnl_attr_get_type(attr);
+
+	if (mnl_attr_type_valid(attr, CTA_STATS_MAX) < 0)
+		return MNL_CB_OK;
+
+	if (mnl_attr_validate(attr, MNL_TYPE_U32) < 0) {
+		perror("mnl_attr_validate");
+		return MNL_CB_ERROR;
+	}
+
+	tb[type] = attr;
+	return MNL_CB_OK;
+}
+
+static int nfct_stats_cb(const struct nlmsghdr *nlh, void *data)
+{
+	struct nlattr *tb[CTA_STATS_MAX+1] = {};
+	struct nfgenmsg *nfg = mnl_nlmsg_get_payload(nlh);
+	const char *attr2name[CTA_STATS_MAX+1] = {
+		[CTA_STATS_SEARCHED]	= "searched",
+		[CTA_STATS_FOUND]	= "found",
+		[CTA_STATS_NEW]		= "new",
+		[CTA_STATS_INVALID]	= "invalid",
+		[CTA_STATS_IGNORE]	= "ignore",
+		[CTA_STATS_DELETE]	= "delete",
+		[CTA_STATS_DELETE_LIST]	= "delete_list",
+		[CTA_STATS_INSERT]	= "insert",
+		[CTA_STATS_INSERT_FAILED] = "insert_failed",
+		[CTA_STATS_DROP]	= "drop",
+		[CTA_STATS_EARLY_DROP]	= "early_drop",
+		[CTA_STATS_ERROR]	= "error",
+		[CTA_STATS_SEARCH_RESTART] = "search_restart",
+	};
+	int i;
+
+	mnl_attr_parse(nlh, sizeof(*nfg), nfct_stats_attr_cb, tb);
+
+	printf("cpu=%-4u\t", ntohs(nfg->res_id));
+
+	for (i=0; i<CTA_STATS_MAX+1; i++) {
+		if (tb[i]) {
+			printf("%s=%u ",
+				attr2name[i], ntohl(mnl_attr_get_u32(tb[i])));
+		}
+	}
+	printf("\n");
+	return MNL_CB_OK;
+}
+
+static int nfexp_stats_attr_cb(const struct nlattr *attr, void *data)
+{
+	const struct nlattr **tb = data;
+	int type = mnl_attr_get_type(attr);
+
+	if (mnl_attr_type_valid(attr, CTA_STATS_EXP_MAX) < 0)
+		return MNL_CB_OK;
+
+	if (mnl_attr_validate(attr, MNL_TYPE_U32) < 0) {
+		perror("mnl_attr_validate");
+		return MNL_CB_ERROR;
+	}
+
+	tb[type] = attr;
+	return MNL_CB_OK;
+}
+
+static int nfexp_stats_cb(const struct nlmsghdr *nlh, void *data)
+{
+	struct nlattr *tb[CTA_STATS_EXP_MAX+1] = {};
+	struct nfgenmsg *nfg = mnl_nlmsg_get_payload(nlh);
+	const char *attr2name[CTA_STATS_EXP_MAX+1] = {
+		[CTA_STATS_EXP_NEW] = "expect_new",
+		[CTA_STATS_EXP_CREATE] = "expect_create",
+		[CTA_STATS_EXP_DELETE] = "expect_delete",
+	};
+	int i;
+
+	mnl_attr_parse(nlh, sizeof(*nfg), nfexp_stats_attr_cb, tb);
+
+	printf("cpu=%-4u\t", ntohs(nfg->res_id));
+
+	for (i=0; i<CTA_STATS_EXP_MAX+1; i++) {
+		if (tb[i]) {
+			printf("%s=%u ",
+				attr2name[i], ntohl(mnl_attr_get_u32(tb[i])));
+		}
+	}
+	printf("\n");
+	return MNL_CB_OK;
+}
+
 static struct ctproto_handler *h;
 
 int main(int argc, char *argv[])
@@ -1504,6 +1677,7 @@ int main(int argc, char *argv[])
 		case 'V':
 		case 'h':
 		case 'C':
+		case 'S':
 			type = check_type(argc, argv);
 			add_command(&command, cmd2type[c][type]);
 			break;
@@ -1514,9 +1688,6 @@ int main(int argc, char *argv[])
 			else
 				exit_error(PARAMETER_PROBLEM, 
 					   "Can't update expectations");
-			break;
-		case 'S':
-			add_command(&command, X_STATS);
 			break;
 		/* options */
 		case 's':
@@ -1992,7 +2163,42 @@ int main(int argc, char *argv[])
 		nfct_close(cth);
 		printf("%d\n", counter);
 		break;
-	case X_STATS:
+	case CT_STATS:
+		/* If we fail with netlink, fall back to /proc to ensure
+		 * backward compatibility.
+		 */
+		if (nfct_mnl_socket_open() < 0)
+			goto try_proc;
+
+		res = nfct_mnl_dump(NFNL_SUBSYS_CTNETLINK,
+				    IPCTNL_MSG_CT_GET_STATS_CPU,
+				    nfct_stats_cb);
+
+		nfct_mnl_socket_close();
+
+		/* don't look at /proc, we got the information via ctnetlink */
+		if (res >= 0)
+			break;
+
+		goto try_proc;
+
+	case EXP_STATS:
+		/* If we fail with netlink, fall back to /proc to ensure
+		 * backward compatibility.
+		 */
+		if (nfct_mnl_socket_open() < 0)
+			goto try_proc;
+
+		res = nfct_mnl_dump(NFNL_SUBSYS_CTNETLINK_EXP,
+				    IPCTNL_MSG_EXP_GET_STATS_CPU,
+				    nfexp_stats_cb);
+
+		nfct_mnl_socket_close();
+
+		/* don't look at /proc, we got the information via ctnetlink */
+		if (res >= 0)
+			break;
+try_proc:
 		if (display_proc_conntrack_stats() < 0)
 			exit_error(OTHER_PROBLEM, "Can't open /proc interface");
 		break;
