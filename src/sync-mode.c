@@ -608,6 +608,12 @@ static int local_handler_sync(int fd, int type, void *data)
 		}
 		break;
 	case CT_FLUSH_CACHE:
+		/* if we're still committing, abort this command */
+		if (STATE_SYNC(commit).clientfd != -1) {
+			dlog(LOG_ERR, "ignoring flush command, "
+				      "commit still in progress");
+			break;
+		}
 		/* inmediate flush, remove pending flush scheduled if any */
 		del_alarm(&STATE_SYNC(reset_cache_alarm));
 		dlog(LOG_NOTICE, "flushing caches");
@@ -621,6 +627,12 @@ static int local_handler_sync(int fd, int type, void *data)
 		STATE(mode)->internal->ct.flush();
 		break;
 	case CT_FLUSH_EXT_CACHE:
+		/* if we're still committing, abort this command */
+		if (STATE_SYNC(commit).clientfd != -1) {
+			dlog(LOG_ERR, "ignoring flush command, "
+				      "commit still in progress");
+			break;
+		}
 		dlog(LOG_NOTICE, "flushing external cache");
 		STATE_SYNC(external)->ct.flush();
 		break;
@@ -687,6 +699,12 @@ static int local_handler_sync(int fd, int type, void *data)
 		local_commit(fd);
 		break;
 	case ALL_FLUSH_CACHE:
+		/* if we're still committing, abort this command */
+		if (STATE_SYNC(commit).clientfd != -1) {
+			dlog(LOG_ERR, "ignoring flush command, "
+				      "commit still in progress");
+			break;
+		}
 		dlog(LOG_NOTICE, "flushing caches");
 		STATE(mode)->internal->ct.flush();
 		STATE_SYNC(external)->ct.flush();
