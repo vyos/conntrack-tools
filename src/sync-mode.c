@@ -698,7 +698,7 @@ static int local_handler_sync(int fd, int type, void *data)
 		dlog(LOG_NOTICE, "committing expectation cache");
 		STATE_SYNC(commit).rq[0].cb = STATE_SYNC(external)->exp.commit;
 		STATE_SYNC(commit).rq[1].cb = NULL;
-		local_commit(fd);
+		ret = local_commit(fd);
 		break;
 	case ALL_FLUSH_CACHE:
 		/* if we're still committing, abort this command */
@@ -724,7 +724,7 @@ static int local_handler_sync(int fd, int type, void *data)
 		} else {
 			STATE_SYNC(commit).rq[1].cb = NULL;
 		}
-		local_commit(fd);
+		ret = local_commit(fd);
 		break;
 	case EXP_DUMP_INT_XML:
 		if (fork_process_new(CTD_PROC_ANY, 0, NULL, NULL) == 0) {
