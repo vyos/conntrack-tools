@@ -1,3 +1,14 @@
+conntrack (1:1.0.1-2+vyatta33) unstable; urgency=low
+
+  [ Pablo Neira Ayuso ]
+  * conntrackd: add bugtrap notice in case of flush while commit in
+    progress
+  * conntrackd: fix commit operation, needs to be synchronous
+
+  [ Gaurav Sinha ]
+
+ -- Gaurav Sinha <gaurav.sinha@vyatta.com>  Fri, 06 Jul 2012 17:04:58 -0700
+
 conntrack (1:1.0.1-2+vyatta32) unstable; urgency=low
 
   [ Pablo Neira Ayuso ]
