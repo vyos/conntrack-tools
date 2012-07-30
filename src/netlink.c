@@ -151,9 +151,42 @@ int nl_dump_conntrack_table(struct nfct_handle *h)
 	return nfct_query(h, NFCT_Q_DUMP, &CONFIG(family));
 }
 
-int nl_flush_conntrack_table(struct nfct_handle *h)
+static int
+nl_flush_selective_cb(enum nf_conntrack_msg_type type,
+		      struct nf_conntrack *ct, void *data)
 {
-	return nfct_query(h, NFCT_Q_FLUSH, &CONFIG(family));
+	/* don't delete this conntrack, it's in the ignore filter */
+	if (ct_filter_conntrack(ct, 1))
+		return NFCT_CB_CONTINUE;
+
+	switch(type) {
+	case NFCT_T_UPDATE:
+		nl_destroy_conntrack(STATE(flush), ct);
+		break;
+	default:
+		STATE(stats).nl_dump_unknown_type++;
+		break;
+	}
+	return NFCT_CB_CONTINUE;
+}
+
+int nl_flush_conntrack_table_selective(void)
+{
+	struct nfct_handle *h;
+	int ret;
+
+	h = nfct_open(CONNTRACK, 0);
+	if (h == NULL) {
+		dlog(LOG_ERR, "cannot open handle");
+		return -1;
+	}
+	nfct_callback_register(h, NFCT_T_ALL, nl_flush_selective_cb, NULL);
+
+	ret = nfct_query(h, NFCT_Q_DUMP, &CONFIG(family));
+
+	nfct_close(h);
+
+	return ret;
 }
 
 int nl_send_resync(struct nfct_handle *h)

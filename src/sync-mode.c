@@ -304,7 +304,7 @@ static void do_reset_cache_alarm(struct alarm_block *a, void *data)
 	 * meanwhile the parent process handles events. */
 	if (fork_process_new(CTD_PROC_FLUSH, CTD_PROC_F_EXCL,
 			     NULL, NULL) == 0) {
-		nl_flush_conntrack_table(STATE(flush));
+		nl_flush_conntrack_table_selective();
 		exit(EXIT_SUCCESS);
 	}
 	/* this is not required if events don't get lost */
