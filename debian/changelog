@@ -1,3 +1,10 @@
+conntrack (1:1.0.1-2+vyatta34) unstable; urgency=low
+
+  * fixing 8243: fix will selectively flush the conntrack table on
+    master, ignoring ignored addresses during flush
+
+ -- Gaurav Sinha <gaurav.sinha@vyatta.com>  Tue, 31 Jul 2012 10:25:55 -0700
+
 conntrack (1:1.0.1-2+vyatta33) unstable; urgency=low
 
   [ Pablo Neira Ayuso ]
