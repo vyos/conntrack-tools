@@ -67,7 +67,7 @@ static void local_flush_master(void)
 	 * meanwhile the parent process handles events. */
 	if (fork_process_new(CTD_PROC_FLUSH, CTD_PROC_F_EXCL,
 			     NULL, NULL) == 0) {
-		nl_flush_conntrack_table(STATE(flush));
+		nl_flush_conntrack_table_selective();
 		exit(EXIT_SUCCESS);
 	}
 }
