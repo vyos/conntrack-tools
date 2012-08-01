@@ -202,9 +202,7 @@ int nfct_cmd_helper_add(int argc, char *argv[])
 		return -1;
 	}
 
-	/* XXX use prefix defined in configure.ac. */
-	helper = helper_find("/usr/lib/conntrack-tools",
-				argv[3], l4proto, RTLD_LAZY);
+	helper = helper_find(CONNTRACKD_LIB_DIR, argv[3], l4proto, RTLD_LAZY);
 	if (helper == NULL) {
 		nfct_perror("that helper is not supported");
 		return -1;
@@ -558,9 +556,7 @@ int nfct_cmd_helper_disable(int argc, char *argv[])
 		return -1;
 	}
 
-	/* XXX use prefix defined in configure.ac. */
-	helper = helper_find("/usr/lib/conntrack-tools",
-				argv[3], l4proto, RTLD_LAZY);
+	helper = helper_find(CONNTRACKD_LIB_DIR, argv[3], l4proto, RTLD_LAZY);
 	if (helper == NULL) {
 		nfct_perror("that helper is not supported");
 		return -1;

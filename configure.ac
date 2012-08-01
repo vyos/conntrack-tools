@@ -119,5 +119,10 @@ dnl                  debug/src/Makefile
 dnl                  extensions/Makefile
 dnl                  src/Makefile])
 
+if test ! -z "$libdir"; then
+	MODULE_DIR="\\\"$libdir/conntrack-tools/\\\""
+	CFLAGS="$CFLAGS -DCONNTRACKD_LIB_DIR=$MODULE_DIR"
+fi
+
 AC_CONFIG_FILES([Makefile src/Makefile include/Makefile include/linux/Makefile include/linux/netfilter/Makefile extensions/Makefile src/helpers/Makefile])
 AC_OUTPUT
