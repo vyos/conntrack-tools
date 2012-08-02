@@ -164,7 +164,9 @@ static void do_polling_alarm(struct alarm_block *a, void *data)
 		STATE(mode)->internal->exp.purge();
 
 	nl_send_resync(STATE(resync));
-	nl_send_expect_resync(STATE(resync));
+	if (CONFIG(flags) & CTD_EXPECT)
+		nl_send_expect_resync(STATE(resync));
+
 	add_alarm(&STATE(polling_alarm), CONFIG(poll_kernel_secs), 0);
 }
 
