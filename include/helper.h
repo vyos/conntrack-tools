@@ -99,6 +99,12 @@ enum ip_conntrack_info {
 
 #define CTINFO2DIR(ctinfo) ((ctinfo) >= IP_CT_IS_REPLY ? IP_CT_DIR_REPLY : IP_CT_DIR_ORIGINAL)
 
-#define pr_debug printf
+#if 0
+#define pr_debug(fmt, arg...) \
+	printf(fmt, ##arg)
+#else
+#define pr_debug(fmt, arg...) \
+        ({ if (0) printf(fmt, ##arg); 0; })
+#endif
 
 #endif
