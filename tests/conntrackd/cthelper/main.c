@@ -119,10 +119,10 @@ cthelper_process_packet(const uint8_t *pkt, uint32_t pktlen,
 		ct->myct->ct = tmp;
 
 		if (pktb_mangled(pktb)) {
-			int i;
+			uint32_t i;
 			uint8_t *data = pktb_network_header(pktb);
 
-			printf("\e[1;31mmangled content: ", pktb_len(pktb));
+			printf("\e[1;31mmangled content: ");
 
 			for (i=0; i < pktb_len(pktb); i++)
 				printf("%c", data[i]);
