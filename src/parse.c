@@ -397,7 +397,7 @@ static struct exp_parser {
 	[NTA_EXP_FN] = {
 		.parse		= exp_parse_str,
 		.exp_attr	= ATTR_EXP_FN,
-		.max_size	= NFCT_HELPER_NAME_MAX,
+		.max_size	= 32,	/* XXX: artificial limit */
 	},
 };
 
