@@ -35,6 +35,7 @@ struct ctd_helper {
 struct ctd_helper_instance {
 	struct list_head	head;
 	uint32_t		queue_num;
+	uint32_t		queue_len;
 	uint16_t		l3proto;
 	uint8_t			l4proto;
 	struct ctd_helper	*helper;

@@ -144,6 +144,7 @@ notrack		[N|n][O|o][T|t][R|r][A|a][C|c][K|k]
 "ErrorQueueLength"		{ return T_ERROR_QUEUE_LENGTH; }
 "Helper"			{ return T_HELPER; }
 "QueueNum"			{ return T_HELPER_QUEUE_NUM; }
+"QueueLen"			{ return T_HELPER_QUEUE_LEN; }
 "Policy"			{ return T_HELPER_POLICY; }
 "ExpectMax"			{ return T_HELPER_EXPECT_MAX; }
 "ExpectTimeout"			{ return T_HELPER_EXPECT_TIMEOUT; }
