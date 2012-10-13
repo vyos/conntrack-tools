@@ -1,3 +1,9 @@
+conntrack (1:1.0.1-2+vyatta36) unstable; urgency=low
+
+  * fix tags
+
+ -- John Southworth <john.southworth@vyatta.com>  Sat, 13 Oct 2012 13:34:05 -0700
+
 conntrack (1:1.0.1-2+vyatta35+daisy1) unstable; urgency=low
 
   * create daisy branch
