@@ -8,3 +8,4 @@ Wed May 30 10:55:48 PDT 2012: [force release:dependency fix on build machine] at
 Wed May 30 13:03:48 PDT 2012: [forced release] at [debian/1.0.1-2+vyatta25]
 Wed May 30 14:48:07 PDT 2012: [forced release] at [debian/1.0.1-2+vyatta26]
 Mon Jun  4 21:31:23 PDT 2012: [forced release:cttimeout refreshed on build machine] at [debian/1.0.1-2+vyatta29]
+Sat Oct 13 13:29:18 PDT 2012: [create daisy branch] at [debian/1.0.1-2+vyatta35]
