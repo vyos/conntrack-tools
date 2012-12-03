@@ -1,3 +1,9 @@
+conntrack (1:1.0.1-2+vyatta20+oxnard8) unstable; urgency=low
+
+  * From patchwork Thu Nov 29 13:52:20 2012
+
+ -- Gaurav Sinha <gaurav.sinha@vyatta.com>  Mon, 03 Dec 2012 11:33:32 -0800
+
 conntrack (1:1.0.1-2+vyatta20+oxnard7) unstable; urgency=low
 
   [ Pablo Neira Ayuso ]
