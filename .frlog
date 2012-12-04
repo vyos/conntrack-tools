@@ -11,3 +11,4 @@ Mon Jun  4 21:31:23 PDT 2012: [forced release:cttimeout refreshed on build machi
 Mon Jun 11 17:35:46 PDT 2012: [dependency on libnetfilter-queue fixed] at [debian/1.0.1-2+vyatta20+oxnard3]
 Mon Jun 11 22:32:38 PDT 2012: [force release] at [debian/1.0.1-2+vyatta20+oxnard4]
 Mon Dec  3 11:34:22 PST 2012: [force release: conntrack trace mode patch] at [debian/1.0.1-2+vyatta20+oxnard8]
+Mon Dec  3 16:34:00 PST 2012: [force release: build failed due to dependencies] at [debian/1.0.1-2+vyatta20+oxnard9]
