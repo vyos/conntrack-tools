@@ -1,3 +1,9 @@
+conntrack (1:1.0.1-2+vyatta20+oxnard10) unstable; urgency=low
+
+  * force release: build failed due to dependencies
+
+ -- Gaurav Sinha <gaurav.sinha@vyatta.com>  Mon, 03 Dec 2012 16:34:02 -0800
+
 conntrack (1:1.0.1-2+vyatta20+oxnard9) unstable; urgency=low
 
   * force release: conntrack trace mode patch
