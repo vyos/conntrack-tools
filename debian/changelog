@@ -1,3 +1,11 @@
+conntrack (1:1.0.1-2+vyatta37) unstable; urgency=low
+
+  * Patch to allow tracking dying and unconfirmed lists in conntrack to
+    detect leaks.
+  * 1:1.0.1-2+vyatta36
+
+ -- Gaurav Sinha <gaurav.sinha@vyatta.com>  Thu, 13 Dec 2012 11:51:23 -0800
+
 conntrack (1:1.0.1-2+vyatta36) unstable; urgency=low
 
   * Patch to allow tracking dying and unconfirmed lists in conntrack to
