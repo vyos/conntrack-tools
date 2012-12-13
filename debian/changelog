@@ -1,3 +1,10 @@
+conntrack (1:1.0.1-2+vyatta35+daisy3) unstable; urgency=low
+
+  * patch to allow tracking dying and unconfirmed lists in conntrack to
+    detect leaks
+
+ -- Gaurav Sinha <gaurav.sinha@vyatta.com>  Thu, 13 Dec 2012 11:50:30 -0800
+
 conntrack (1:1.0.1-2+vyatta35+daisy2) unstable; urgency=low
 
   * create daisy branch
