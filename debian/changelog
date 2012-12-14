@@ -1,3 +1,10 @@
+conntrack (1:1.0.1-2+vyatta35+daisy4) unstable; urgency=low
+
+  * force release: build failed due to race with libnetfilter-conntrack
+    build
+
+ -- Gaurav Sinha <gaurav.sinha@vyatta.com>  Fri, 14 Dec 2012 13:27:38 -0800
+
 conntrack (1:1.0.1-2+vyatta35+daisy3) unstable; urgency=low
 
   * patch to allow tracking dying and unconfirmed lists in conntrack to
