@@ -17,6 +17,7 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#include <stddef.h>
 #include "network.h"
 
 #include <libnetfilter_conntrack/libnetfilter_conntrack.h>
