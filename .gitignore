@@ -8,7 +8,6 @@
 .dirstamp
 libtool
 Makefile
-Makefile.in
 *.o
 *.la
 *.lo
