@@ -1141,7 +1141,7 @@ static int event_cb(enum nf_conntrack_msg_type type,
 		if (!(output_mask & _O_XML)) {
 			struct timeval tv;
 			gettimeofday(&tv, NULL);
-			printf("[%-8ld.%-6ld]\t", tv.tv_sec, tv.tv_usec);
+			printf("[%-.8ld.%-.6ld]\t", tv.tv_sec, tv.tv_usec);
 		} else
 			op_flags |= NFCT_OF_TIME;
 	}
