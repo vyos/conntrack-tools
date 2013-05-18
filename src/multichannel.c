@@ -109,8 +109,9 @@ void multichannel_set_current_channel(struct multichannel *m, int i)
 	m->current = m->channel[i];
 }
 
-void multichannel_change_current_channel(struct multichannel *m, int i)
+void
+multichannel_change_current_channel(struct multichannel *m, struct channel *c)
 {
-	if (m->current != m->channel[i])
-		m->current = m->channel[i];
+	if (m->current != c)
+		m->current = c;
 }

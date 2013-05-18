@@ -67,7 +67,7 @@ static void internal_bypass_ct_dump(int fd, int type)
 
 static void internal_bypass_ct_flush(void)
 {
-	nl_flush_conntrack_table(STATE(flush));
+	nl_flush_conntrack_table_selective();
 }
 
 struct {

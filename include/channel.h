@@ -35,7 +35,8 @@ struct tcp_channel {
 #define CHANNEL_F_BUFFERED	(1 << 1)
 #define CHANNEL_F_STREAM	(1 << 2)
 #define CHANNEL_F_ERRORS	(1 << 3)
-#define CHANNEL_F_MAX		(1 << 4)
+#define CHANNEL_F_ACCEPT	(1 << 4)
+#define CHANNEL_F_MAX		(1 << 5)
 
 union channel_type_conf {
 	struct mcast_conf mcast;
@@ -52,8 +53,12 @@ struct channel_conf {
 
 struct nlif_handle;
 
+#define CHANNEL_T_DATAGRAM	0
+#define CHANNEL_T_STREAM	1
+
 struct channel_ops {
 	int	headersiz;
+	int	type;
 	void *	(*open)(void *conf);
 	void	(*close)(void *channel);
 	int	(*send)(void *channel, const void *data, int len);
@@ -97,6 +102,8 @@ void channel_stats(struct channel *c, int fd);
 void channel_stats_extended(struct channel *c, int active,
 			    struct nlif_handle *h, int fd);
 
+int channel_type(struct channel *c);
+
 #define MULTICHANNEL_MAX	4
 
 struct multichannel {
@@ -119,6 +126,6 @@ void multichannel_stats_extended(struct multichannel *m,
 int multichannel_get_ifindex(struct multichannel *m, int i);
 int multichannel_get_current_ifindex(struct multichannel *m);
 void multichannel_set_current_channel(struct multichannel *m, int i);
-void multichannel_change_current_channel(struct multichannel *m, int i);
+void multichannel_change_current_channel(struct multichannel *m, struct channel *c);
 
 #endif /* _CHANNEL_H_ */

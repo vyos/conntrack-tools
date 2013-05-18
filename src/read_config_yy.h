@@ -128,11 +128,17 @@
      T_OPTIONS = 346,
      T_TCP_WINDOW_TRACKING = 347,
      T_EXPECT_SYNC = 348,
-     T_IP = 349,
-     T_PATH_VAL = 350,
-     T_NUMBER = 351,
-     T_SIGNED_NUMBER = 352,
-     T_STRING = 353
+     T_HELPER = 349,
+     T_HELPER_QUEUE_NUM = 350,
+     T_HELPER_QUEUE_LEN = 351,
+     T_HELPER_POLICY = 352,
+     T_HELPER_EXPECT_TIMEOUT = 353,
+     T_HELPER_EXPECT_MAX = 354,
+     T_IP = 355,
+     T_PATH_VAL = 356,
+     T_NUMBER = 357,
+     T_SIGNED_NUMBER = 358,
+     T_STRING = 359
    };
 #endif
 /* Tokens.  */
@@ -227,11 +233,17 @@
 #define T_OPTIONS 346
 #define T_TCP_WINDOW_TRACKING 347
 #define T_EXPECT_SYNC 348
-#define T_IP 349
-#define T_PATH_VAL 350
-#define T_NUMBER 351
-#define T_SIGNED_NUMBER 352
-#define T_STRING 353
+#define T_HELPER 349
+#define T_HELPER_QUEUE_NUM 350
+#define T_HELPER_QUEUE_LEN 351
+#define T_HELPER_POLICY 352
+#define T_HELPER_EXPECT_TIMEOUT 353
+#define T_HELPER_EXPECT_MAX 354
+#define T_IP 355
+#define T_PATH_VAL 356
+#define T_NUMBER 357
+#define T_SIGNED_NUMBER 358
+#define T_STRING 359
 
 
 
@@ -241,7 +253,7 @@ typedef union YYSTYPE
 {
 
 /* Line 2068 of yacc.c  */
-#line 53 "read_config_yy.y"
+#line 66 "read_config_yy.y"
 
 	int		val;
 	char		*string;
@@ -249,7 +261,7 @@ typedef union YYSTYPE
 
 
 /* Line 2068 of yacc.c  */
-#line 253 "read_config_yy.h"
+#line 265 "read_config_yy.h"
 } YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */

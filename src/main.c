@@ -19,6 +19,7 @@
 
 #include "conntrackd.h"
 #include "log.h"
+#include "helper.h"
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -31,7 +32,7 @@
 #include <limits.h>
 
 struct ct_general_state st;
-union ct_state state;
+struct ct_state state;
 
 static const char usage_daemon_commands[] =
 	"Daemon mode commands:\n"
@@ -406,6 +407,6 @@ int main(int argc, char *argv[])
 	/*
 	 * run main process
 	 */
-	run();
+	select_main_loop();
 	return 0;
 }
