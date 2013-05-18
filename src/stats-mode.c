@@ -201,7 +201,6 @@ static struct internal_handler internal_cache_stats = {
 
 struct ct_mode stats_mode = {
 	.init 			= init_stats,
-	.run			= NULL,
 	.local			= local_handler_stats,
 	.kill			= kill_stats,
 	.internal		= &internal_cache_stats,
