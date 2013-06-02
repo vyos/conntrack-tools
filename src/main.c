@@ -23,6 +23,7 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <sys/utsname.h>
 #include <string.h>
@@ -110,6 +111,23 @@ set_action_by_table(int i, int argc, char *argv[],
 		*action = dfl_action;
 
 	return i;
+}
+
+static void
+set_nice_value(int nv)
+{
+	errno = 0;
+	if (nice(nv) == -1 && errno) /* warn only */
+		fprintf(stderr, "Cannot set nice level %d: %s\n",
+			nv, strerror(errno));
+}
+
+static void
+do_chdir(const char *d)
+{
+	if (chdir(d))
+		fprintf(stderr, "Cannot change current directory to %s: %s\n",
+			d, strerror(errno));
 }
 
 int main(int argc, char *argv[])
@@ -356,7 +374,7 @@ int main(int argc, char *argv[])
 	/*
 	 * Setting process priority and scheduler
 	 */
-	nice(CONFIG(nice));
+	set_nice_value(CONFIG(nice));
 
 	if (CONFIG(sched).type != SCHED_OTHER) {
 		struct sched_param schedparam = {
@@ -382,7 +400,7 @@ int main(int argc, char *argv[])
 		exit(EXIT_FAILURE);
 	}
 
-	chdir("/");
+	do_chdir("/");
 	close(STDIN_FILENO);
 
 	/* Daemonize conntrackd */
