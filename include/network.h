@@ -173,18 +173,6 @@ static inline int between(uint32_t seq1, uint32_t seq2, uint32_t seq3)
 	return seq3 - seq2 >= seq1 - seq2;
 }
 
-#define PLD_NETWORK2HOST(x)						 \
-({									 \
-	x->len = ntohs(x->len);						 \
-	x->query = ntohs(x->query);					 \
-})
-
-#define PLD_HOST2NETWORK(x)						 \
-({									 \
-	x->len = htons(x->len);						 \
-	x->query = htons(x->query);					 \
-})
-
 struct netattr {
 	uint16_t nta_len;
 	uint16_t nta_attr;
