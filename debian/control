@@ -8,7 +8,10 @@ Build-Depends: bison,
                flex,
                libmnl-dev (>= 1.0.1),
                libnetfilter-conntrack-dev (>= 1.0.1),
-               libnetfilter-cttimeout-dev (>= 1.0.0)
+               libnetfilter-cthelper0-dev,
+               libnetfilter-cttimeout-dev (>= 1.0.0),
+               libnetfilter-queue-dev (>= 1.0.2),
+               libnfnetlink-dev (>= 1.0.1)
 Standards-Version: 3.9.3
 
 Package: conntrack
