@@ -165,9 +165,11 @@ pkt_verdict_issue(struct ctd_helper_instance *cur, struct myct *myct,
 
 	nlh = nfq_hdr_put(buf, NFQNL_MSG_VERDICT, queue_num);
 
-	/* save private data and send it back to kernel-space. */
-	nfct_set_attr_l(myct->ct, ATTR_HELPER_INFO, myct->priv_data,
-			cur->helper->priv_data_len);
+	/* save private data and send it back to kernel-space, if any. */
+	if (myct->priv_data) {
+		nfct_set_attr_l(myct->ct, ATTR_HELPER_INFO, myct->priv_data,
+				cur->helper->priv_data_len);
+	}
 
 	nfq_nlmsg_verdict_put(nlh, id, verdict);
 	if (pktb_mangled(pktb))
