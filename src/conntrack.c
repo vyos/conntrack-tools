@@ -488,6 +488,7 @@ static unsigned int addr_valid_flags[ADDR_VALID_FLAGS_MAX] = {
 static LIST_HEAD(proto_list);
 
 static unsigned int options;
+static struct nfct_labelmap *labelmap;
 
 void register_proto(struct ctproto_handler *h)
 {
@@ -731,6 +732,7 @@ enum {
 	_O_TMS	= (1 << 2),
 	_O_ID	= (1 << 3),
 	_O_KTMS	= (1 << 4),
+	_O_CL	= (1 << 5),
 };
 
 enum {
@@ -749,8 +751,8 @@ static struct parse_parameter {
 	  { IPS_ASSURED, IPS_SEEN_REPLY, 0, IPS_FIXED_TIMEOUT, IPS_EXPECTED} },
 	{ {"ALL", "NEW", "UPDATES", "DESTROY"}, 4,
 	  { CT_EVENT_F_ALL, CT_EVENT_F_NEW, CT_EVENT_F_UPD, CT_EVENT_F_DEL } },
-	{ {"xml", "extended", "timestamp", "id", "ktimestamp"}, 5, 
-	  { _O_XML, _O_EXT, _O_TMS, _O_ID, _O_KTMS },
+	{ {"xml", "extended", "timestamp", "id", "ktimestamp", "labels", }, 6,
+	  { _O_XML, _O_EXT, _O_TMS, _O_ID, _O_KTMS, _O_CL },
 	},
 };
 
@@ -1150,7 +1152,7 @@ static int event_cb(enum nf_conntrack_msg_type type,
 	if (output_mask & _O_ID)
 		op_flags |= NFCT_OF_ID;
 
-	nfct_snprintf(buf, sizeof(buf), ct, type, op_type, op_flags);
+	nfct_snprintf_labels(buf, sizeof(buf), ct, type, op_type, op_flags, labelmap);
 
 	printf("%s\n", buf);
 	fflush(stdout);
@@ -1194,7 +1196,7 @@ static int dump_cb(enum nf_conntrack_msg_type type,
 	if (output_mask & _O_ID)
 		op_flags |= NFCT_OF_ID;
 
-	nfct_snprintf(buf, sizeof(buf), ct, NFCT_T_UNKNOWN, op_type, op_flags);
+	nfct_snprintf_labels(buf, sizeof(buf), ct, type, op_type, op_flags, labelmap);
 	printf("%s\n", buf);
 
 	counter++;
@@ -1879,6 +1881,11 @@ int main(int argc, char *argv[])
 		case 'o':
 			options |= CT_OPT_OUTPUT;
 			parse_parameter(optarg, &output_mask, PARSE_OUTPUT);
+			if (output_mask & _O_CL) {
+				labelmap = nfct_labelmap_new(NULL);
+				if (!labelmap)
+					perror("nfct_labelmap_new");
+			}
 			break;
 		case 'z':
 			options |= CT_OPT_ZERO;
@@ -2372,6 +2379,8 @@ try_proc:
 
 	free_tmpl_objects();
 	free_options();
+	if (labelmap)
+		nfct_labelmap_destroy(labelmap);
 
 	if (command && exit_msg[cmd][0]) {
 		fprintf(stderr, "%s v%s (conntrack-tools): ",PROGNAME,VERSION);
