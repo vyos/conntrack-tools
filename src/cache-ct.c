@@ -59,7 +59,7 @@ cache_hash6_ct(const struct nf_conntrack *ct, const struct hashtable *table)
 	uint32_t a[10];
 
 	memcpy(&a[0], nfct_get_attr(ct, ATTR_IPV6_SRC), sizeof(uint32_t)*4);
-	memcpy(&a[4], nfct_get_attr(ct, ATTR_IPV6_SRC), sizeof(uint32_t)*4);
+	memcpy(&a[4], nfct_get_attr(ct, ATTR_IPV6_DST), sizeof(uint32_t)*4);
 	a[8] = nfct_get_attr_u8(ct, ATTR_ORIG_L3PROTO) << 16 |
 	       nfct_get_attr_u8(ct, ATTR_ORIG_L4PROTO);
 	a[9] = nfct_get_attr_u16(ct, ATTR_ORIG_PORT_SRC) << 16 |
