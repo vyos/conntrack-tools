@@ -88,14 +88,21 @@ cache_ct_hash(const void *data, const struct hashtable *table)
 	return ret;
 }
 
+/* master conntrack of expectations have no ID */
+static inline int
+cache_ct_cmp_id(const struct nf_conntrack *ct1, const struct nf_conntrack *ct2)
+{
+	return nfct_attr_is_set(ct2, ATTR_ID) ?
+	       nfct_get_attr_u32(ct1, ATTR_ID) == nfct_get_attr_u32(ct2, ATTR_ID) : 1;
+}
+
 static int cache_ct_cmp(const void *data1, const void *data2)
 {
 	const struct cache_object *obj = data1;
 	const struct nf_conntrack *ct = data2;
 
 	return nfct_cmp(obj->ptr, ct, NFCT_CMP_ORIG) &&
-	       nfct_get_attr_u32(obj->ptr, ATTR_ID) ==
-	       nfct_get_attr_u32(ct, ATTR_ID);
+	       cache_ct_cmp_id(obj->ptr, ct);
 }
 
 static void *cache_ct_alloc(void)

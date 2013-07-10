@@ -211,35 +211,14 @@ out:
 		return NFCT_CB_CONTINUE;
 }
 
-static const struct nf_conntrack *exp_get_master_ct(struct nf_expect *exp)
-{
-	struct nf_conntrack *master =
-		(struct nf_conntrack *)nfexp_get_attr(exp, ATTR_EXP_MASTER);
-
-	/* The function ct_filter_conntrack needs the source address of the
-	 * reply tuple, emulate it.
-	 */
-	switch (nfct_get_attr_u8(master, ATTR_L3PROTO)) {
-	case AF_INET:
-		nfct_set_attr_u32(master, ATTR_REPL_IPV4_SRC,
-				  nfct_get_attr_u32(master, ATTR_IPV4_DST));
-		break;
-	case AF_INET6:
-		nfct_set_attr(master, ATTR_REPL_IPV6_SRC,
-			      nfct_get_attr(master, ATTR_IPV6_DST));
-		break;
-	}
-
-	return master;
-}
-
 static int exp_event_handler(const struct nlmsghdr *nlh,
 			     enum nf_conntrack_msg_type type,
 			     struct nf_expect *exp,
 			     void *data)
 {
 	int origin_type;
-	const struct nf_conntrack *master = exp_get_master_ct(exp);
+	const struct nf_conntrack *master =
+		nfexp_get_attr(exp, ATTR_EXP_MASTER);
 
 	STATE(stats).nl_events_received++;
 
@@ -247,7 +226,7 @@ static int exp_event_handler(const struct nlmsghdr *nlh,
 		STATE(stats).nl_events_filtered++;
 		goto out;
 	}
-	if (ct_filter_conntrack(master, 1))
+	if (ct_filter_master(master))
 		return NFCT_CB_CONTINUE;
 
 	origin_type = origin_find(nlh);
@@ -296,12 +275,13 @@ static int dump_handler(enum nf_conntrack_msg_type type,
 static int exp_dump_handler(enum nf_conntrack_msg_type type,
 			    struct nf_expect *exp, void *data)
 {
-	const struct nf_conntrack *master = exp_get_master_ct(exp);
+	const struct nf_conntrack *master =
+		nfexp_get_attr(exp, ATTR_EXP_MASTER);
 
 	if (!exp_filter_find(STATE(exp_filter), exp))
 		return NFCT_CB_CONTINUE;
 
-	if (ct_filter_conntrack(master, 1))
+	if (ct_filter_master(master))
 		return NFCT_CB_CONTINUE;
 
 	switch(type) {
@@ -329,12 +309,13 @@ static int get_handler(enum nf_conntrack_msg_type type,
 static int exp_get_handler(enum nf_conntrack_msg_type type,
 			   struct nf_expect *exp, void *data)
 {
-	const struct nf_conntrack *master = exp_get_master_ct(exp);
+	const struct nf_conntrack *master =
+		nfexp_get_attr(exp, ATTR_EXP_MASTER);
 
 	if (!exp_filter_find(STATE(exp_filter), exp))
 		return NFCT_CB_CONTINUE;
 
-	if (ct_filter_conntrack(master, 1))
+	if (ct_filter_master(master))
 		return NFCT_CB_CONTINUE;
 
 	STATE(get_retval) = 1;
