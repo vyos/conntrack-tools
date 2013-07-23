@@ -333,7 +333,7 @@ static struct option original_opts[] = {
 	{0, 0, 0, 0}
 };
 
-static const char *getopt_str = "L::I::U::D::G::E::F::hVs:d:r:q:"
+static const char *getopt_str = ":L::I::U::D::G::E::F::hVs:d:r:q:"
 				"p:t:u:e:a:z[:]:{:}:m:i:f:o:n::"
 				"g::c:b:C::Sj::w:l:";
 
@@ -2054,15 +2054,13 @@ int main(int argc, char *argv[])
 			socketbuffersize = atol(optarg);
 			options |= CT_OPT_BUFFERSIZE;
 			break;
+		case ':':
+			exit_error(PARAMETER_PROBLEM,
+				   "option `%s' requires an "
+				   "argument", argv[optind-1]);
 		case '?':
-			if (optopt)
-				exit_error(PARAMETER_PROBLEM,
-					   "option `%s' requires an "
-					   "argument", argv[optind-1]);
-			else
-				exit_error(PARAMETER_PROBLEM,
-					   "unknown option `%s'", 
-					   argv[optind-1]);
+			exit_error(PARAMETER_PROBLEM,
+				   "unknown option `%s'", argv[optind-1]);
 			break;
 		default:
 			if (h && h->parse_opts 
