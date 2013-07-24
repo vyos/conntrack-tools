@@ -1285,7 +1285,7 @@ static int dump_cb(enum nf_conntrack_msg_type type,
 	if (output_mask & _O_ID)
 		op_flags |= NFCT_OF_ID;
 
-	nfct_snprintf_labels(buf, sizeof(buf), ct, type, op_type, op_flags, labelmap);
+	nfct_snprintf_labels(buf, sizeof(buf), ct, NFCT_T_UNKNOWN, op_type, op_flags, labelmap);
 	printf("%s\n", buf);
 
 	counter++;
