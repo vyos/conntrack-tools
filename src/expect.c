@@ -54,7 +54,7 @@ cthelper_expect_init(struct nf_expect *exp, struct nf_conntrack *master,
 			nfct_set_attr(expected, ATTR_IPV6_SRC, saddr->ip6);
 
 			for (i=0; i<4; i++)
-				memset(addr, 0xffffffff, sizeof(uint32_t));
+				memset(&addr[i], 0xffffffff, sizeof(uint32_t));
 
 			nfct_set_attr_u8(mask, ATTR_L3PROTO, AF_INET6);
 			nfct_set_attr(mask, ATTR_IPV6_SRC, addr);
@@ -76,7 +76,7 @@ cthelper_expect_init(struct nf_expect *exp, struct nf_conntrack *master,
 			break;
 		case AF_INET6:
 			for (i=0; i<4; i++)
-				memset(addr, 0x00000000, sizeof(uint32_t));
+				memset(&addr[i], 0x00000000, sizeof(uint32_t));
 
 			nfct_set_attr_u8(expected, ATTR_L3PROTO, AF_INET6);
 			nfct_set_attr(expected, ATTR_IPV6_SRC, addr);
