@@ -1601,7 +1601,8 @@ static int nfct_mnl_socket_open(void)
 }
 
 static struct nlmsghdr *
-nfct_mnl_nlmsghdr_put(char *buf, uint16_t subsys, uint16_t type)
+nfct_mnl_nlmsghdr_put(char *buf, uint16_t subsys, uint16_t type,
+		      uint8_t family)
 {
 	struct nlmsghdr *nlh;
 	struct nfgenmsg *nfh;
@@ -1612,7 +1613,7 @@ nfct_mnl_nlmsghdr_put(char *buf, uint16_t subsys, uint16_t type)
 	nlh->nlmsg_seq = time(NULL);
 
 	nfh = mnl_nlmsg_put_extra_header(nlh, sizeof(struct nfgenmsg));
-	nfh->nfgen_family = AF_INET;
+	nfh->nfgen_family = family;
 	nfh->version = NFNETLINK_V0;
 	nfh->res_id = 0;
 
@@ -1625,13 +1626,13 @@ static void nfct_mnl_socket_close(void)
 }
 
 static int
-nfct_mnl_dump(uint16_t subsys, uint16_t type, mnl_cb_t cb)
+nfct_mnl_dump(uint16_t subsys, uint16_t type, mnl_cb_t cb, uint8_t family)
 {
 	char buf[MNL_SOCKET_BUFFER_SIZE];
 	struct nlmsghdr *nlh;
 	int res;
 
-	nlh = nfct_mnl_nlmsghdr_put(buf, subsys, type);
+	nlh = nfct_mnl_nlmsghdr_put(buf, subsys, type, family);
 
 	res = mnl_socket_sendto(sock.mnl, nlh, nlh->nlmsg_len);
 	if (res < 0)
@@ -1651,13 +1652,13 @@ nfct_mnl_dump(uint16_t subsys, uint16_t type, mnl_cb_t cb)
 }
 
 static int
-nfct_mnl_get(uint16_t subsys, uint16_t type, mnl_cb_t cb)
+nfct_mnl_get(uint16_t subsys, uint16_t type, mnl_cb_t cb, uint8_t family)
 {
 	char buf[MNL_SOCKET_BUFFER_SIZE];
 	struct nlmsghdr *nlh;
 	int res;
 
-	nlh = nfct_mnl_nlmsghdr_put(buf, subsys, type);
+	nlh = nfct_mnl_nlmsghdr_put(buf, subsys, type, family);
 
 	res = mnl_socket_sendto(sock.mnl, nlh, nlh->nlmsg_len);
 	if (res < 0)
@@ -2114,7 +2115,7 @@ int main(int argc, char *argv[])
 
 			res = nfct_mnl_dump(NFNL_SUBSYS_CTNETLINK,
 					    IPCTNL_MSG_CT_GET_DYING,
-					    mnl_nfct_dump_cb);
+					    mnl_nfct_dump_cb, family);
 
 			nfct_mnl_socket_close();
 			break;
@@ -2124,7 +2125,7 @@ int main(int argc, char *argv[])
 
 			res = nfct_mnl_dump(NFNL_SUBSYS_CTNETLINK,
 					    IPCTNL_MSG_CT_GET_UNCONFIRMED,
-					    mnl_nfct_dump_cb);
+					    mnl_nfct_dump_cb, family);
 
 			nfct_mnl_socket_close();
 			break;
@@ -2389,7 +2390,7 @@ int main(int argc, char *argv[])
 
 		res = nfct_mnl_get(NFNL_SUBSYS_CTNETLINK,
 				   IPCTNL_MSG_CT_GET_STATS,
-				   nfct_global_stats_cb);
+				   nfct_global_stats_cb, AF_UNSPEC);
 
 		nfct_mnl_socket_close();
 
@@ -2434,7 +2435,7 @@ try_proc_count:
 
 		res = nfct_mnl_dump(NFNL_SUBSYS_CTNETLINK,
 				    IPCTNL_MSG_CT_GET_STATS_CPU,
-				    nfct_stats_cb);
+				    nfct_stats_cb, AF_UNSPEC);
 
 		nfct_mnl_socket_close();
 
@@ -2453,7 +2454,7 @@ try_proc_count:
 
 		res = nfct_mnl_dump(NFNL_SUBSYS_CTNETLINK_EXP,
 				    IPCTNL_MSG_EXP_GET_STATS_CPU,
-				    nfexp_stats_cb);
+				    nfexp_stats_cb, AF_UNSPEC);
 
 		nfct_mnl_socket_close();
 
