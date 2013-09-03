@@ -890,20 +890,20 @@ add_command(unsigned int *cmd, const int newcmd)
 	*cmd |= newcmd;
 }
 
-static char *get_table(int argc, char *argv[])
+static char *get_optional_arg(int argc, char *argv[])
 {
-	char *table = NULL;
+	char *arg = NULL;
 
 	/* Nasty bug or feature in getopt_long ?
 	 * It seems that it behaves badly with optional arguments.
 	 * Fortunately, I just stole the fix from iptables ;) */
 	if (optarg)
-		return 0;
+		return arg;
 	else if (optind < argc && argv[optind][0] != '-' &&
 		 argv[optind][0] != '!')
-		table = argv[optind++];
+		arg = argv[optind++];
 
-	return table;
+	return arg;
 }
 
 enum {
@@ -915,7 +915,7 @@ enum {
 
 static unsigned int check_type(int argc, char *argv[])
 {
-	const char *table = get_table(argc, argv);
+	const char *table = get_optional_arg(argc, argv);
 
 	/* default to conntrack subsystem if nothing has been specified. */
 	if (table == NULL)
@@ -1819,6 +1819,15 @@ static int mnl_nfct_dump_cb(const struct nlmsghdr *nlh, void *data)
 
 static struct ctproto_handler *h;
 
+static void labelmap_init(void)
+{
+	if (labelmap)
+		return;
+	labelmap = nfct_labelmap_new(NULL);
+	if (!labelmap)
+		perror("nfct_labelmap_new");
+}
+
 int main(int argc, char *argv[])
 {
 	int c, cmd;
@@ -1971,12 +1980,8 @@ int main(int argc, char *argv[])
 		case 'o':
 			options |= CT_OPT_OUTPUT;
 			parse_parameter(optarg, &output_mask, PARSE_OUTPUT);
-			if (output_mask & _O_CL) {
-				if (!labelmap)
-					labelmap = nfct_labelmap_new(NULL);
-				if (!labelmap)
-					perror("nfct_labelmap_new");
-			}
+			if (output_mask & _O_CL)
+				labelmap_init();
 			break;
 		case 'z':
 			options |= CT_OPT_ZERO;
@@ -1988,12 +1993,7 @@ int main(int argc, char *argv[])
 
 			options |= opt2type[c];
 
-			if (optarg)
-				continue;
-			else if (optind < argc && argv[optind][0] != '-'
-				 && argv[optind][0] != '!')
-				tmp = argv[optind++];
-
+			tmp = get_optional_arg(argc, argv);
 			if (tmp == NULL)
 				continue;
 
@@ -2024,10 +2024,7 @@ int main(int argc, char *argv[])
 			options |= opt2type[c];
 			char *optarg2 = strdup(optarg);
 
-			if (!labelmap)
-				labelmap = nfct_labelmap_new(NULL);
-			if (!labelmap)
-				exit_error(OTHER_PROBLEM, "unable to open labelmap file");
+			labelmap_init();
 
 			unsigned int max = parse_label_get_max(optarg);
 			struct nfct_bitmask * b = nfct_bitmask_new(max);
