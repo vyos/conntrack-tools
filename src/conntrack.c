@@ -1828,6 +1828,31 @@ static void labelmap_init(void)
 		perror("nfct_labelmap_new");
 }
 
+static void merge_bitmasks(struct nfct_bitmask **current,
+			  struct nfct_bitmask *src)
+{
+	unsigned int i;
+
+	if (*current == NULL) {
+		*current = src;
+		return;
+	}
+
+	/* "current" must be the larger bitmask object */
+	if (nfct_bitmask_maxbit(src) > nfct_bitmask_maxbit(*current)) {
+		struct nfct_bitmask *tmp = *current;
+		*current = src;
+		src = tmp;
+	}
+
+	for (i = 0; i <= nfct_bitmask_maxbit(src); i++) {
+		if (nfct_bitmask_test_bit(src, i))
+			nfct_bitmask_set_bit(*current, i);
+	}
+
+	nfct_bitmask_destroy(src);
+}
+
 int main(int argc, char *argv[])
 {
 	int c, cmd;
@@ -2030,7 +2055,9 @@ int main(int argc, char *argv[])
 			struct nfct_bitmask * b = nfct_bitmask_new(max);
 
 			parse_label(b, optarg2);
-			tmpl.label = b;
+
+			/* join "-l foo -l bar" into single bitmask object */
+			merge_bitmasks(&tmpl.label, b);
 			free(optarg2);
 			break;
 		case 'a':
