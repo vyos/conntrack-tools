@@ -1492,12 +1492,10 @@ static int update_cb(enum nf_conntrack_msg_type type,
 	}
 
 	res = nfct_query(ith, NFCT_Q_UPDATE, tmp);
-	if (res < 0) {
-		nfct_destroy(tmp);
-		exit_error(OTHER_PROBLEM,
-			   "Operation failed: %s",
+	if (res < 0)
+		fprintf(stderr,
+			   "Operation failed: %s\n",
 			   err2str(errno, CT_UPDATE));
-	}
 	nfct_callback_register(ith, NFCT_T_ALL, print_cb, NULL);
 
 	res = nfct_query(ith, NFCT_Q_GET, tmp);
