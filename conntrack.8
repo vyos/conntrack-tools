@@ -146,9 +146,17 @@ In "--create" mode, the mask is ignored.
 .TP
 .BI "-l, --label " "LABEL"
 Specify a conntrack label.
-This option is only available in conjunction with "-L, --dump" or "-E, --event".
+This option is only available in conjunction with "-L, --dump", "-E, --event", or "-U --update".
 Match entries whose labels match at least those specified.
 Use multiple -l commands to specify multiple labels that need to be set.
+Match entries whose labels matches at least those specified as arguments.
+.BI "--label-add " "LABEL"
+Specify the conntrack label to add to to the selected conntracks.
+This option is only available in conjunction with "-I, --create" or "-U, --update".
+.BI "--label-del " "[LABEL]"
+Specify the conntrack label to delete from the selected conntracks.
+If no label is given, all labels are deleted.
+This option is only available in conjunction with "-U, --update".
 .TP
 .BI "-c, --secmark " "SECMARK"
 Specify the conntrack selinux security mark.
