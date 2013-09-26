@@ -1612,12 +1612,18 @@ helper_type: T_TYPE T_STRING T_STRING T_STRING '{' helper_type_list  '}'
 		exit(EXIT_FAILURE);
 	}
 
+#ifdef BUILD_CTHELPER
 	/* XXX use configure.ac definitions. */
 	helper = helper_find("/usr/lib/conntrack-tools", $2, l4proto, RTLD_NOW);
 	if (helper == NULL) {
 		print_err(CTD_CFG_ERROR, "Unknown `%s' helper", $2);
 		exit(EXIT_FAILURE);
 	}
+#else
+	print_err(CTD_CFG_ERROR, "Helper support is disabled, recompile "
+				 "conntrackd");
+	exit(EXIT_FAILURE);
+#endif
 
 	helper_inst = calloc(1, sizeof(struct ctd_helper_instance));
 	if (helper_inst == NULL)
