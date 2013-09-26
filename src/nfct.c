@@ -25,6 +25,7 @@
 #include <linux/netfilter/nfnetlink_cttimeout.h>
 #include <libnetfilter_cttimeout/libnetfilter_cttimeout.h>
 
+#include "linux_list.h"
 #include "nfct.h"
 
 static int nfct_cmd_version(int argc, char *argv[]);
@@ -46,9 +47,28 @@ void nfct_perror(const char *msg)
 	}
 }
 
+static LIST_HEAD(nfct_extension_list);
+
+void nfct_extension_register(struct nfct_extension *ext)
+{
+	list_add(&ext->head, &nfct_extension_list);
+}
+
+static struct nfct_extension *nfct_extension_lookup(int type)
+{
+	struct nfct_extension *ext;
+
+	list_for_each_entry(ext, &nfct_extension_list, head) {
+		if (ext->type == type)
+			return ext;
+	}
+	return NULL;
+}
+
 int main(int argc, char *argv[])
 {
 	int subsys = NFCT_SUBSYS_NONE, ret = 0;
+	struct nfct_extension *ext;
 
 	if (argc < 2) {
 		usage(argv);
@@ -70,17 +90,20 @@ int main(int argc, char *argv[])
 	}
 
 	switch(subsys) {
-	case NFCT_SUBSYS_TIMEOUT:
-		ret = nfct_cmd_timeout_parse_params(argc, argv);
-		break;
-	case NFCT_SUBSYS_HELPER:
-		ret = nfct_cmd_helper_parse_params(argc, argv);
-		break;
 	case NFCT_SUBSYS_VERSION:
 		ret = nfct_cmd_version(argc, argv);
 		break;
 	case NFCT_SUBSYS_HELP:
 		ret = nfct_cmd_help(argc, argv);
+		break;
+	default:
+		ext = nfct_extension_lookup(subsys);
+		if (ext == NULL) {
+			fprintf(stderr, "nfct v%s: subsystem %s not supported\n",
+				VERSION, argv[1]);
+			return EXIT_FAILURE;
+		}
+		ret = ext->parse_params(argc, argv);
 		break;
 	}
 	return ret < 0 ? EXIT_FAILURE : EXIT_SUCCESS;

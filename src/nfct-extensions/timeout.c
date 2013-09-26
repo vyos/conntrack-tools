@@ -35,7 +35,13 @@ nfct_cmd_timeout_usage(char *argv[])
 			"[parameters...]\n", VERSION, argv[0]);
 }
 
-int nfct_cmd_timeout_parse_params(int argc, char *argv[])
+static int nfct_cmd_timeout_list(int argc, char *argv[]);
+static int nfct_cmd_timeout_add(int argc, char *argv[]);
+static int nfct_cmd_timeout_delete(int argc, char *argv[]);
+static int nfct_cmd_timeout_get(int argc, char *argv[]);
+static int nfct_cmd_timeout_flush(int argc, char *argv[]);
+
+static int nfct_cmd_timeout_parse_params(int argc, char *argv[])
 {
 	int cmd = NFCT_CMD_NONE, ret;
 
@@ -105,7 +111,7 @@ err:
 	return MNL_CB_OK;
 }
 
-int nfct_cmd_timeout_list(int argc, char *argv[])
+static int nfct_cmd_timeout_list(int argc, char *argv[])
 {
 	struct mnl_socket *nl;
 	char buf[MNL_SOCKET_BUFFER_SIZE];
@@ -483,4 +489,14 @@ int nfct_cmd_timeout_flush(int argc, char *argv[])
 	mnl_socket_close(nl);
 
 	return 0;
+}
+
+static struct nfct_extension timeout = {
+	.type		= NFCT_SUBSYS_TIMEOUT,
+	.parse_params	= nfct_cmd_timeout_parse_params,
+};
+
+static void __init timeout_init(void)
+{
+	nfct_extension_register(&timeout);
 }

@@ -37,8 +37,14 @@ nfct_cmd_helper_usage(char *argv[])
 			"[parameters...]\n", VERSION, argv[0]);
 }
 
-int
-nfct_cmd_helper_parse_params(int argc, char *argv[])
+static int nfct_cmd_helper_list(int argc, char *argv[]);
+static int nfct_cmd_helper_add(int argc, char *argv[]);
+static int nfct_cmd_helper_delete(int argc, char *argv[]);
+static int nfct_cmd_helper_get(int argc, char *argv[]);
+static int nfct_cmd_helper_flush(int argc, char *argv[]);
+static int nfct_cmd_helper_disable(int argc, char *argv[]);
+
+static int nfct_cmd_helper_parse_params(int argc, char *argv[])
 {
 	int cmd = NFCT_CMD_NONE, ret = 0;
 
@@ -115,7 +121,7 @@ err:
 	return MNL_CB_OK;
 }
 
-int nfct_cmd_helper_list(int argc, char *argv[])
+static int nfct_cmd_helper_list(int argc, char *argv[])
 {
 	struct mnl_socket *nl;
 	char buf[MNL_SOCKET_BUFFER_SIZE];
@@ -165,7 +171,7 @@ int nfct_cmd_helper_list(int argc, char *argv[])
 	return 0;
 }
 
-int nfct_cmd_helper_add(int argc, char *argv[])
+static int nfct_cmd_helper_add(int argc, char *argv[])
 {
 	struct mnl_socket *nl;
 	char buf[MNL_SOCKET_BUFFER_SIZE];
@@ -281,7 +287,7 @@ int nfct_cmd_helper_add(int argc, char *argv[])
 	return 0;
 }
 
-int nfct_cmd_helper_delete(int argc, char *argv[])
+static int nfct_cmd_helper_delete(int argc, char *argv[])
 {
 	struct mnl_socket *nl;
 	char buf[MNL_SOCKET_BUFFER_SIZE];
@@ -375,7 +381,7 @@ int nfct_cmd_helper_delete(int argc, char *argv[])
 	return 0;
 }
 
-int nfct_cmd_helper_get(int argc, char *argv[])
+static int nfct_cmd_helper_get(int argc, char *argv[])
 {
 	struct mnl_socket *nl;
 	char buf[MNL_SOCKET_BUFFER_SIZE];
@@ -468,7 +474,7 @@ int nfct_cmd_helper_get(int argc, char *argv[])
 	return 0;
 }
 
-int nfct_cmd_helper_flush(int argc, char *argv[])
+static int nfct_cmd_helper_flush(int argc, char *argv[])
 {
 	struct mnl_socket *nl;
 	char buf[MNL_SOCKET_BUFFER_SIZE];
@@ -519,7 +525,7 @@ int nfct_cmd_helper_flush(int argc, char *argv[])
 	return 0;
 }
 
-int nfct_cmd_helper_disable(int argc, char *argv[])
+static int nfct_cmd_helper_disable(int argc, char *argv[])
 {
 	struct mnl_socket *nl;
 	char buf[MNL_SOCKET_BUFFER_SIZE];
@@ -613,3 +619,12 @@ int nfct_cmd_helper_disable(int argc, char *argv[])
 	return 0;
 }
 
+static struct nfct_extension helper = {
+	.type		= NFCT_SUBSYS_HELPER,
+	.parse_params	= nfct_cmd_helper_parse_params,
+};
+
+static void __init helper_init(void)
+{
+	nfct_extension_register(&helper);
+}
