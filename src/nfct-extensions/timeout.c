@@ -118,7 +118,6 @@ static int nfct_cmd_timeout_list(int argc, char *argv[])
 	char buf[MNL_SOCKET_BUFFER_SIZE];
 	struct nlmsghdr *nlh;
 	unsigned int seq, portid;
-	int ret;
 
 	if (argc > 3) {
 		nfct_perror("too many arguments");
@@ -141,22 +140,11 @@ static int nfct_cmd_timeout_list(int argc, char *argv[])
 	}
 	portid = mnl_socket_get_portid(nl);
 
-	if (mnl_socket_sendto(nl, nlh, nlh->nlmsg_len) < 0) {
-		nfct_perror("mnl_socket_send");
+	if (nfct_mnl_talk(nl, nlh, seq, portid, nfct_timeout_cb, NULL) < 0) {
+		nfct_perror("netlink error");
 		return -1;
 	}
 
-	ret = mnl_socket_recvfrom(nl, buf, sizeof(buf));
-	while (ret > 0) {
-		ret = mnl_cb_run(buf, ret, seq, portid, nfct_timeout_cb, NULL);
-		if (ret <= 0)
-			break;
-		ret = mnl_socket_recvfrom(nl, buf, sizeof(buf));
-	}
-	if (ret == -1) {
-		nfct_perror("error");
-		return -1;
-	}
 	mnl_socket_close(nl);
 
 	return 0;
@@ -281,7 +269,6 @@ int nfct_cmd_timeout_add(int argc, char *argv[])
 	struct nlmsghdr *nlh;
 	uint32_t portid, seq;
 	struct nfct_timeout *t;
-	int ret;
 
 	if (argc < 6) {
 		nfct_perror("missing parameters\n"
@@ -321,22 +308,11 @@ int nfct_cmd_timeout_add(int argc, char *argv[])
 	}
 	portid = mnl_socket_get_portid(nl);
 
-	if (mnl_socket_sendto(nl, nlh, nlh->nlmsg_len) < 0) {
-		nfct_perror("mnl_socket_send");
+	if (nfct_mnl_talk(nl, nlh, seq, portid, NULL, NULL) < 0) {
+		nfct_perror("netlink error");
 		return -1;
 	}
 
-	ret = mnl_socket_recvfrom(nl, buf, sizeof(buf));
-	while (ret > 0) {
-		ret = mnl_cb_run(buf, ret, seq, portid, NULL, NULL);
-		if (ret <= 0)
-			break;
-		ret = mnl_socket_recvfrom(nl, buf, sizeof(buf));
-	}
-	if (ret == -1) {
-		nfct_perror("error");
-		return -1;
-	}
 	mnl_socket_close(nl);
 
 	return 0;
@@ -349,7 +325,6 @@ int nfct_cmd_timeout_delete(int argc, char *argv[])
 	struct nlmsghdr *nlh;
 	uint32_t portid, seq;
 	struct nfct_timeout *t;
-	int ret;
 
 	if (argc < 4) {
 		nfct_perror("missing timeout policy name");
@@ -386,20 +361,8 @@ int nfct_cmd_timeout_delete(int argc, char *argv[])
 	}
 	portid = mnl_socket_get_portid(nl);
 
-	if (mnl_socket_sendto(nl, nlh, nlh->nlmsg_len) < 0) {
-		nfct_perror("mnl_socket_send");
-		return -1;
-	}
-
-	ret = mnl_socket_recvfrom(nl, buf, sizeof(buf));
-	while (ret > 0) {
-		ret = mnl_cb_run(buf, ret, seq, portid, NULL, NULL);
-		if (ret <= 0)
-			break;
-		ret = mnl_socket_recvfrom(nl, buf, sizeof(buf));
-	}
-	if (ret == -1) {
-		nfct_perror("error");
+	if (nfct_mnl_talk(nl, nlh, seq, portid, NULL, NULL) < 0) {
+		nfct_perror("netlink error");
 		return -1;
 	}
 
@@ -415,7 +378,6 @@ int nfct_cmd_timeout_get(int argc, char *argv[])
 	struct nlmsghdr *nlh;
 	uint32_t portid, seq;
 	struct nfct_timeout *t;
-	int ret;
 
 	if (argc < 4) {
 		nfct_perror("missing timeout policy name");
@@ -452,22 +414,11 @@ int nfct_cmd_timeout_get(int argc, char *argv[])
 	}
 	portid = mnl_socket_get_portid(nl);
 
-	if (mnl_socket_sendto(nl, nlh, nlh->nlmsg_len) < 0) {
-		nfct_perror("mnl_socket_send");
+	if (nfct_mnl_talk(nl, nlh, seq, portid, nfct_timeout_cb, NULL) < 0) {
+		nfct_perror("netlink error");
 		return -1;
 	}
 
-	ret = mnl_socket_recvfrom(nl, buf, sizeof(buf));
-	while (ret > 0) {
-		ret = mnl_cb_run(buf, ret, seq, portid, nfct_timeout_cb, NULL);
-		if (ret <= 0)
-			break;
-		ret = mnl_socket_recvfrom(nl, buf, sizeof(buf));
-	}
-	if (ret == -1) {
-		nfct_perror("error");
-		return -1;
-	}
 	mnl_socket_close(nl);
 
 	return 0;
@@ -479,7 +430,6 @@ int nfct_cmd_timeout_flush(int argc, char *argv[])
 	char buf[MNL_SOCKET_BUFFER_SIZE];
 	struct nlmsghdr *nlh;
 	uint32_t portid, seq;
-	int ret;
 
 	if (argc > 3) {
 		nfct_perror("too many arguments");
@@ -502,20 +452,8 @@ int nfct_cmd_timeout_flush(int argc, char *argv[])
 	}
 	portid = mnl_socket_get_portid(nl);
 
-	if (mnl_socket_sendto(nl, nlh, nlh->nlmsg_len) < 0) {
-		nfct_perror("mnl_socket_send");
-		return -1;
-	}
-
-	ret = mnl_socket_recvfrom(nl, buf, sizeof(buf));
-	while (ret > 0) {
-		ret = mnl_cb_run(buf, ret, seq, portid, NULL, NULL);
-		if (ret <= 0)
-			break;
-		ret = mnl_socket_recvfrom(nl, buf, sizeof(buf));
-	}
-	if (ret == -1) {
-		nfct_perror("error");
+	if (nfct_mnl_talk(nl, nlh, seq, portid, NULL, NULL) < 0) {
+		nfct_perror("netlink error");
 		return -1;
 	}
 

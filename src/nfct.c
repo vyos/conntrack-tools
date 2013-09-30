@@ -143,3 +143,28 @@ static int nfct_cmd_help(int argc, char *argv[])
 	printf(help_msg, VERSION, argv[0]);
 	return 0;
 }
+
+int nfct_mnl_talk(struct mnl_socket *nl, struct nlmsghdr *nlh,
+		  uint32_t seq, uint32_t portid,
+		  int (*cb)(const struct nlmsghdr *nlh, void *data),
+		  void *data)
+{
+	int ret;
+	char buf[MNL_SOCKET_BUFFER_SIZE];
+
+	if (mnl_socket_sendto(nl, nlh, nlh->nlmsg_len) < 0)
+		return -1;
+
+	ret = mnl_socket_recvfrom(nl, buf, sizeof(buf));
+	while (ret > 0) {
+		ret = mnl_cb_run(buf, ret, seq, portid, cb, data);
+		if (ret <= 0)
+			break;
+
+		ret = mnl_socket_recvfrom(nl, buf, sizeof(buf));
+	}
+	if (ret == -1)
+		return -1;
+
+	return 0;
+}

@@ -33,4 +33,9 @@ struct nfct_extension {
 
 void nfct_extension_register(struct nfct_extension *ext);
 
+int nfct_mnl_talk(struct mnl_socket *nl, struct nlmsghdr *nlh,
+		  uint32_t seq, uint32_t portid,
+		  int (*cb)(const struct nlmsghdr *nlh, void *data),
+		  void *data);
+
 #endif
