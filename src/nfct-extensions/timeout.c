@@ -1,5 +1,5 @@
 /*
- * (C) 2012 by Pablo Neira Ayuso <pablo@netfilter.org>
+ * (C) 2012-2013 by Pablo Neira Ayuso <pablo@netfilter.org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published
@@ -174,6 +174,106 @@ static uint32_t nfct_timeout_attr_max[IPPROTO_MAX] = {
 	[IPPROTO_RAW]		= NFCT_TIMEOUT_ATTR_GENERIC_MAX,
 };
 
+static int nfct_cmd_get_l3proto(char *argv[])
+{
+	int l3proto;
+
+	if (strcmp(*argv, "inet") == 0)
+		l3proto = AF_INET;
+	else if (strcmp(*argv, "inet6") == 0)
+		l3proto = AF_INET6;
+	else {
+		nfct_perror("unknown layer 3 protocol");
+		return -1;
+	}
+	return l3proto;
+}
+
+static int nfct_cmd_get_l4proto(char *argv[])
+{
+	int l4proto;
+	struct protoent *pent;
+
+	pent = getprotobyname(*argv);
+	if (!pent) {
+		/* In Debian, /etc/protocols says ipv6-icmp. Support icmpv6
+		 * as well not to break backward compatibility.
+		 */
+		if (strcmp(*argv, "icmpv6") == 0)
+			l4proto = IPPROTO_ICMPV6;
+		else if (strcmp(*argv, "generic") == 0)
+			l4proto = IPPROTO_RAW;
+		else {
+			nfct_perror("unknown layer 4 protocol");
+			return -1;
+		}
+	} else
+		l4proto = pent->p_proto;
+
+	return l4proto;
+}
+
+static int
+nfct_cmd_timeout_parse(struct nfct_timeout *t, int argc, char *argv[])
+{
+	int l3proto, l4proto;
+	unsigned int j;
+	const char *proto_name;
+
+	l3proto = nfct_cmd_get_l3proto(argv);
+	if (l3proto < 0)
+		return -1;
+
+	nfct_timeout_attr_set_u16(t, NFCT_TIMEOUT_ATTR_L3PROTO, l3proto);
+
+	argc--;
+	argv++;
+	proto_name = *argv;
+
+	l4proto = nfct_cmd_get_l4proto(argv);
+	if (l4proto < 0)
+		return -1;
+
+	nfct_timeout_attr_set_u8(t, NFCT_TIMEOUT_ATTR_L4PROTO, l4proto);
+	argc--;
+	argv++;
+
+	for (; argc>1; argc-=2, argv+=2) {
+		int matching = -1;
+
+		for (j=0; j<nfct_timeout_attr_max[l4proto]; j++) {
+			const char *state_name;
+
+			state_name =
+				nfct_timeout_policy_attr_to_name(l4proto, j);
+			if (state_name == NULL) {
+				nfct_perror("state name is NULL");
+				return -1;
+			}
+			if (strcasecmp(*argv, state_name) != 0)
+				continue;
+
+			matching = j;
+			break;
+		}
+		if (matching != -1) {
+			nfct_timeout_policy_attr_set_u32(t, matching,
+							 atoi(*(argv+1)));
+		} else {
+			fprintf(stderr, "nfct v%s: Wrong state name: `%s' "
+					"for protocol `%s'\n",
+					VERSION, *argv, proto_name);
+			return -1;
+		}
+	}
+	if (argc > 0) {
+		nfct_perror("missing value for this timeout");
+		return -1;
+	}
+
+	return 0;
+}
+
 int nfct_cmd_timeout_add(int argc, char *argv[])
 {
 	struct mnl_socket *nl;
@@ -181,11 +281,7 @@ int nfct_cmd_timeout_add(int argc, char *argv[])
 	struct nlmsghdr *nlh;
 	uint32_t portid, seq;
 	struct nfct_timeout *t;
-	uint16_t l3proto;
-	uint8_t l4proto;
-	int ret, i;
-	unsigned int j;
-	struct protoent *pent;
+	int ret;
 
 	if (argc < 6) {
 		nfct_perror("missing parameters\n"
@@ -203,67 +299,8 @@ int nfct_cmd_timeout_add(int argc, char *argv[])
 
 	nfct_timeout_attr_set(t, NFCT_TIMEOUT_ATTR_NAME, argv[3]);
 
-	if (strcmp(argv[4], "inet") == 0)
-		l3proto = AF_INET;
-	else if (strcmp(argv[4], "inet6") == 0)
-		l3proto = AF_INET6;
-	else {
-		nfct_perror("unknown layer 3 protocol");
+	if (nfct_cmd_timeout_parse(t, argc-4, &argv[4]) < 0)
 		return -1;
-	}
-	nfct_timeout_attr_set_u16(t, NFCT_TIMEOUT_ATTR_L3PROTO, l3proto);
-
-	pent = getprotobyname(argv[5]);
-	if (!pent) {
-		/* In Debian, /etc/protocols says ipv6-icmp. Support icmpv6
-		 * as well not to break backward compatibility.
-		 */
-		if (strcmp(argv[5], "icmpv6") == 0)
-			l4proto = IPPROTO_ICMPV6;
-		else if (strcmp(argv[5], "generic") == 0)
-			l4proto = IPPROTO_RAW;
-		else {
-			nfct_perror("unknown layer 4 protocol");
-			return -1;
-		}
-	} else
-		l4proto = pent->p_proto;
-
-	nfct_timeout_attr_set_u8(t, NFCT_TIMEOUT_ATTR_L4PROTO, l4proto);
-
-	for (i=6; i<argc; i+=2) {
-		int matching = -1;
-
-		for (j=0; j<nfct_timeout_attr_max[l4proto]; j++) {
-			const char *state_name;
-
-			state_name =
-				nfct_timeout_policy_attr_to_name(l4proto, j);
-			if (state_name == NULL) {
-				nfct_perror("state name is NULL");
-				return -1;
-			}
-			if (strcasecmp(argv[i], state_name) != 0)
-				continue;
-
-			matching = j;
-			break;
-		}
-		if (matching != -1) {
-			if (i+1 >= argc) {
-				nfct_perror("missing value for this timeout");
-				return -1;
-			}
-			nfct_timeout_policy_attr_set_u32(t, matching,
-							 atoi(argv[i+1]));
-			matching = -1;
-		} else {
-			fprintf(stderr, "nfct v%s: Wrong state name: `%s' "
-					"for protocol `%s'\n",
-					VERSION, argv[i], argv[5]);
-			return -1;
-		}
-	}
 
 	seq = time(NULL);
 	nlh = nfct_timeout_nlmsg_build_hdr(buf, IPCTNL_MSG_TIMEOUT_NEW,
