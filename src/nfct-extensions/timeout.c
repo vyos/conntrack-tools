@@ -19,6 +19,7 @@
 #include <unistd.h>
 #include <time.h>
 #include <netinet/in.h>
+#include <netdb.h>
 #include <errno.h>
 
 #include <libmnl/libmnl.h>
@@ -184,6 +185,7 @@ int nfct_cmd_timeout_add(int argc, char *argv[])
 	uint8_t l4proto;
 	int ret, i;
 	unsigned int j;
+	struct protoent *pent;
 
 	if (argc < 6) {
 		nfct_perror("missing parameters\n"
@@ -211,28 +213,22 @@ int nfct_cmd_timeout_add(int argc, char *argv[])
 	}
 	nfct_timeout_attr_set_u16(t, NFCT_TIMEOUT_ATTR_L3PROTO, l3proto);
 
-	if (strcmp(argv[5], "tcp") == 0)
-		l4proto = IPPROTO_TCP;
-	else if (strcmp(argv[5], "udp") == 0)
-		l4proto = IPPROTO_UDP;
-	else if (strcmp(argv[5], "udplite") == 0)
-		l4proto = IPPROTO_UDPLITE;
-	else if (strcmp(argv[5], "sctp") == 0)
-		l4proto = IPPROTO_SCTP;
-	else if (strcmp(argv[5], "dccp") == 0)
-		l4proto = IPPROTO_DCCP;
-	else if (strcmp(argv[5], "icmp") == 0)
-		l4proto = IPPROTO_ICMP;
-	else if (strcmp(argv[5], "icmpv6") == 0)
-		l4proto = IPPROTO_ICMPV6;
-	else if (strcmp(argv[5], "gre") == 0)
-		l4proto = IPPROTO_GRE;
-	else if (strcmp(argv[5], "generic") == 0)
-		l4proto = IPPROTO_RAW;
-	else {
-		nfct_perror("unknown layer 4 protocol");
-		return -1;
-	}
+	pent = getprotobyname(argv[5]);
+	if (!pent) {
+		/* In Debian, /etc/protocols says ipv6-icmp. Support icmpv6
+		 * as well not to break backward compatibility.
+		 */
+		if (strcmp(argv[5], "icmpv6") == 0)
+			l4proto = IPPROTO_ICMPV6;
+		else if (strcmp(argv[5], "generic") == 0)
+			l4proto = IPPROTO_RAW;
+		else {
+			nfct_perror("unknown layer 4 protocol");
+			return -1;
+		}
+	} else
+		l4proto = pent->p_proto;
+
 	nfct_timeout_attr_set_u8(t, NFCT_TIMEOUT_ATTR_L4PROTO, l4proto);
 
 	for (i=6; i<argc; i+=2) {
