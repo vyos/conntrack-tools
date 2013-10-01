@@ -19,6 +19,8 @@ enum {
 	NFCT_CMD_GET,
 	NFCT_CMD_FLUSH,
 	NFCT_CMD_DISABLE,
+	NFCT_CMD_DEFAULT_SET,
+	NFCT_CMD_DEFAULT_GET,
 };
 
 #define __init __attribute__((constructor))

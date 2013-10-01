@@ -32,8 +32,8 @@ static void
 nfct_cmd_timeout_usage(char *argv[])
 {
 	fprintf(stderr, "nfct v%s: Missing command\n"
-			"%s timeout list|add|delete|get|flush "
-			"[parameters...]\n", VERSION, argv[0]);
+			"%s timeout <list|add|delete|get|flush|set> "
+			"[<parameters>, ...]\n", VERSION, argv[0]);
 }
 
 static int nfct_cmd_timeout_list(struct mnl_socket *nl, int argc, char *argv[]);
@@ -41,6 +41,8 @@ static int nfct_cmd_timeout_add(struct mnl_socket *nl, int argc, char *argv[]);
 static int nfct_cmd_timeout_delete(struct mnl_socket *nl, int argc, char *argv[]);
 static int nfct_cmd_timeout_get(struct mnl_socket *nl, int argc, char *argv[]);
 static int nfct_cmd_timeout_flush(struct mnl_socket *nl, int argc, char *argv[]);
+static int nfct_cmd_timeout_default_set(struct mnl_socket *nl, int argc, char *argv[]);
+static int nfct_cmd_timeout_default_get(struct mnl_socket *nl, int argc, char *argv[]);
 
 static int
 nfct_cmd_timeout_parse_params(struct mnl_socket *nl, int argc, char *argv[])
@@ -61,6 +63,10 @@ nfct_cmd_timeout_parse_params(struct mnl_socket *nl, int argc, char *argv[])
 		cmd = NFCT_CMD_GET;
 	else if (strncmp(argv[2], "flush", strlen(argv[2])) == 0)
 		cmd = NFCT_CMD_FLUSH;
+	else if (strncmp(argv[2], "default-set", strlen(argv[2])) == 0)
+		cmd = NFCT_CMD_DEFAULT_SET;
+	else if (strncmp(argv[2], "default-get", strlen(argv[2])) == 0)
+		cmd = NFCT_CMD_DEFAULT_GET;
 	else {
 		fprintf(stderr, "nfct v%s: Unknown command: %s\n",
 			VERSION, argv[2]);
@@ -82,6 +88,12 @@ nfct_cmd_timeout_parse_params(struct mnl_socket *nl, int argc, char *argv[])
 		break;
 	case NFCT_CMD_FLUSH:
 		ret = nfct_cmd_timeout_flush(nl, argc, argv);
+		break;
+	case NFCT_CMD_DEFAULT_SET:
+		ret = nfct_cmd_timeout_default_set(nl, argc, argv);
+		break;
+	case NFCT_CMD_DEFAULT_GET:
+		ret = nfct_cmd_timeout_default_get(nl, argc, argv);
 		break;
 	}
 
@@ -386,6 +398,96 @@ int nfct_cmd_timeout_flush(struct mnl_socket *nl, int argc, char *argv[])
 
 	portid = mnl_socket_get_portid(nl);
 	if (nfct_mnl_talk(nl, nlh, seq, portid, NULL, NULL) < 0) {
+		nfct_perror("netlink error");
+		return -1;
+	}
+
+	return 0;
+}
+
+static int
+nfct_cmd_timeout_default_set(struct mnl_socket *nl, int argc, char *argv[])
+{
+	char buf[MNL_SOCKET_BUFFER_SIZE];
+	struct nlmsghdr *nlh;
+	uint32_t portid, seq;
+	struct nfct_timeout *t;
+
+	if (argc < 6) {
+		nfct_perror("missing parameters\n"
+			    "syntax: nfct timeout default-set "
+			    "family protocol state1 "
+			    "timeout1 state2 timeout2...");
+		return -1;
+	}
+
+	t = nfct_timeout_alloc();
+	if (t == NULL)
+		return -1;
+
+	if (nfct_cmd_timeout_parse(t, argc-3, &argv[3]) < 0)
+		return -1;
+
+	seq = time(NULL);
+	nlh = nfct_timeout_nlmsg_build_hdr(buf, IPCTNL_MSG_TIMEOUT_DEFAULT_SET,
+					   NLM_F_ACK, seq);
+	nfct_timeout_nlmsg_build_payload(nlh, t);
+	nfct_timeout_free(t);
+
+	portid = mnl_socket_get_portid(nl);
+	if (nfct_mnl_talk(nl, nlh, seq, portid, nfct_timeout_cb, NULL) < 0) {
+		nfct_perror("netlink error");
+		return -1;
+	}
+
+	return 0;
+}
+
+static int
+nfct_cmd_timeout_default_get(struct mnl_socket *nl, int argc, char *argv[])
+{
+	char buf[MNL_SOCKET_BUFFER_SIZE];
+	struct nlmsghdr *nlh;
+	uint32_t portid, seq;
+	struct nfct_timeout *t;
+	int l3proto, l4proto;
+
+	if (argc < 5) {
+		nfct_perror("missing parameters\n"
+			    "syntax: nfct timeout default-get "
+			    "family protocol");
+		return -1;
+	}
+
+	t = nfct_timeout_alloc();
+	if (t == NULL)
+		return -1;
+
+	argc-=3;
+	argv+=3;
+
+	l3proto = nfct_cmd_get_l3proto(argv);
+	if (l3proto < 0)
+		return -1;
+
+	nfct_timeout_attr_set_u16(t, NFCT_TIMEOUT_ATTR_L3PROTO, l3proto);
+	argc--;
+	argv++;
+
+	l4proto = nfct_cmd_get_l4proto(argv);
+	if (l4proto < 0)
+		return -1;
+
+	nfct_timeout_attr_set_u8(t, NFCT_TIMEOUT_ATTR_L4PROTO, l4proto);
+
+	seq = time(NULL);
+	nlh = nfct_timeout_nlmsg_build_hdr(buf, IPCTNL_MSG_TIMEOUT_DEFAULT_GET,
+					   NLM_F_ACK, seq);
+	nfct_timeout_nlmsg_build_payload(nlh, t);
+	nfct_timeout_free(t);
+
+	portid = mnl_socket_get_portid(nl);
+	if (nfct_mnl_talk(nl, nlh, seq, portid, nfct_timeout_cb, NULL) < 0) {
 		nfct_perror("netlink error");
 		return -1;
 	}
