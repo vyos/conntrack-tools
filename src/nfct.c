@@ -69,6 +69,7 @@ int main(int argc, char *argv[])
 {
 	int subsys = NFCT_SUBSYS_NONE, ret = 0;
 	struct nfct_extension *ext;
+	struct mnl_socket *nl;
 
 	if (argc < 2) {
 		usage(argv);
@@ -103,7 +104,15 @@ int main(int argc, char *argv[])
 				VERSION, argv[1]);
 			return EXIT_FAILURE;
 		}
-		ret = ext->parse_params(argc, argv);
+
+		nl = nfct_mnl_open();
+		if (nl == NULL) {
+			nfct_perror("cannot open netlink");
+			return -1;
+		}
+
+		ret = ext->parse_params(nl, argc, argv);
+		mnl_socket_close(nl);
 		break;
 	}
 	return ret < 0 ? EXIT_FAILURE : EXIT_SUCCESS;
@@ -167,4 +176,18 @@ int nfct_mnl_talk(struct mnl_socket *nl, struct nlmsghdr *nlh,
 		return -1;
 
 	return 0;
+}
+
+struct mnl_socket *nfct_mnl_open(void)
+{
+	struct mnl_socket *nl;
+
+	nl = mnl_socket_open(NETLINK_NETFILTER);
+	if (nl == NULL)
+		return NULL;
+
+	if (mnl_socket_bind(nl, 0, MNL_SOCKET_AUTOPID) < 0)
+		return NULL;
+
+	return nl;
 }

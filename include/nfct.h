@@ -28,11 +28,12 @@ void nfct_perror(const char *msg);
 struct nfct_extension {
 	struct list_head	head;
 	int			type;
-	int (*parse_params)(int argc, char *argv[]);
+	int (*parse_params)(struct mnl_socket *nl, int argc, char *argv[]);
 };
 
 void nfct_extension_register(struct nfct_extension *ext);
 
+struct mnl_socket *nfct_mnl_open(void);
 int nfct_mnl_talk(struct mnl_socket *nl, struct nlmsghdr *nlh,
 		  uint32_t seq, uint32_t portid,
 		  int (*cb)(const struct nlmsghdr *nlh, void *data),
