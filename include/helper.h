@@ -49,6 +49,9 @@ extern int cthelper_del_expect(struct nf_expect *exp);
 extern void cthelper_get_addr_src(struct nf_conntrack *ct, int dir, union nfct_attr_grp_addr *addr);
 extern void cthelper_get_addr_dst(struct nf_conntrack *ct, int dir, union nfct_attr_grp_addr *addr);
 
+void cthelper_get_port_src(struct nf_conntrack *ct, int dir, uint16_t *port);
+void cthelper_get_port_dst(struct nf_conntrack *ct, int dir, uint16_t *port);
+
 extern int in4_pton(const char *src, int srclen, uint8_t *dst, int delim, const char **end);
 extern int in6_pton(const char *src, int srclen, uint8_t *dst, int delim, const char **end);
 

@@ -212,3 +212,27 @@ cthelper_get_addr_dst(struct nf_conntrack *ct, int dir,
 		break;
 	}
 }
+
+void cthelper_get_port_src(struct nf_conntrack *ct, int dir, uint16_t *port)
+{
+	switch (dir) {
+	case MYCT_DIR_ORIG:
+		*port = nfct_get_attr_u16(ct, ATTR_PORT_SRC);
+		break;
+	case MYCT_DIR_REPL:
+		*port = nfct_get_attr_u16(ct, ATTR_REPL_PORT_SRC);
+		break;
+	}
+}
+
+void cthelper_get_port_dst(struct nf_conntrack *ct, int dir, uint16_t *port)
+{
+	switch (dir) {
+	case MYCT_DIR_ORIG:
+		*port = nfct_get_attr_u16(ct, ATTR_PORT_DST);
+		break;
+	case MYCT_DIR_REPL:
+		*port = nfct_get_attr_u16(ct, ATTR_REPL_PORT_DST);
+		break;
+	}
+}
