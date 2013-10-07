@@ -1,11 +1,16 @@
 include $(top_srcdir)/Make_global.am
 
-pkglib_LTLIBRARIES = ct_helper_dhcpv6.la \
+pkglib_LTLIBRARIES = ct_helper_amanda.la \
+		     ct_helper_dhcpv6.la \
 		     ct_helper_ftp.la	\
 		     ct_helper_rpc.la	\
 		     ct_helper_tftp.la	\
 		     ct_helper_tns.la	\
 		     ct_helper_sane.la
+
+ct_helper_amanda_la_SOURCES = amanda.c
+ct_helper_amanda_la_LDFLAGS = -avoid-version -module $(LIBNETFILTER_CONNTRACK_LIBS)
+ct_helper_amanda_la_CFLAGS = $(AM_CFLAGS) $(LIBNETFILTER_CONNTRACK_CFLAGS)
 
 ct_helper_dhcpv6_la_SOURCES = dhcpv6.c
 ct_helper_dhcpv6_la_LDFLAGS = -avoid-version -module $(LIBNETFILTER_CONNTRACK_LIBS)
