@@ -144,8 +144,6 @@ static int nfct_cmd_helper_list(struct mnl_socket *nl, int argc, char *argv[])
 		return -1;
 	}
 
-	mnl_socket_close(nl);
-
 	return 0;
 }
 
@@ -396,8 +394,6 @@ nfct_cmd_helper_flush(struct mnl_socket *nl, int argc, char *argv[])
 		nfct_perror("netlink error");
 		return -1;
 	}
-
-	mnl_socket_close(nl);
 
 	return 0;
 }
