@@ -1,3 +1,9 @@
+conntrack (1:1.0.1-2+vyatta35+hydrogen1) unstable; urgency=low
+
+  * New branch
+
+ -- Daniil Baturin <daniil@baturin.org>  Sat, 16 Nov 2013 23:25:53 +0100
+
 conntrack (1:1.0.1-2+vyatta35+daisy4) unstable; urgency=low
 
   * force release: build failed due to race with libnetfilter-conntrack
