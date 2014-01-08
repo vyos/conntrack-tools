@@ -1,3 +1,11 @@
+conntrack (1:1.0.1-3+vyos+helium2) unstable; urgency=low
+
+  * New branch
+  * 1:1.0.1-3+vyos+helium1
+  * Previous attempt failed due to duplicate tag.
+
+ -- Daniil Baturin <daniil@baturin.org>  Wed, 08 Jan 2014 23:46:26 +0100
+
 conntrack (1:1.0.1-3+vyos+helium1) unstable; urgency=low
 
   * New branch
