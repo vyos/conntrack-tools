@@ -6,7 +6,8 @@ pkglib_LTLIBRARIES = ct_helper_amanda.la \
 		     ct_helper_rpc.la	\
 		     ct_helper_tftp.la	\
 		     ct_helper_tns.la	\
-		     ct_helper_sane.la
+		     ct_helper_sane.la	\
+		     ct_helper_ssdp.la
 
 ct_helper_amanda_la_SOURCES = amanda.c
 ct_helper_amanda_la_LDFLAGS = -avoid-version -module $(LIBNETFILTER_CONNTRACK_LIBS)
@@ -35,3 +36,7 @@ ct_helper_tns_la_CFLAGS = $(AM_CFLAGS) $(LIBNETFILTER_CONNTRACK_CFLAGS)
 ct_helper_sane_la_SOURCES = sane.c
 ct_helper_sane_la_LDFLAGS = -avoid-version -module $(LIBNETFILTER_CONNTRACK_LIBS)
 ct_helper_sane_la_CFLAGS = $(AM_CFLAGS) $(LIBNETFILTER_CONNTRACK_CFLAGS)
+
+ct_helper_ssdp_la_SOURCES = ssdp.c
+ct_helper_ssdp_la_LDFLAGS = -avoid-version -module $(LIBNETFILTER_CONNTRACK_LIBS)
+ct_helper_ssdp_la_CFLAGS = $(AM_CFLAGS) $(LIBNETFILTER_CONNTRACK_CFLAGS)
