@@ -22,8 +22,6 @@
 #include <errno.h>
 
 #include <libmnl/libmnl.h>
-#include <linux/netfilter/nfnetlink_cttimeout.h>
-#include <libnetfilter_cttimeout/libnetfilter_cttimeout.h>
 
 #include "linux_list.h"
 #include "nfct.h"
