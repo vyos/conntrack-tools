@@ -226,7 +226,7 @@ static int exp_event_handler(const struct nlmsghdr *nlh,
 		STATE(stats).nl_events_filtered++;
 		goto out;
 	}
-	if (ct_filter_conntrack(master, 1))
+	if (ct_filter_master(master))
 		return NFCT_CB_CONTINUE;
 
 	origin_type = origin_find(nlh);
@@ -281,7 +281,7 @@ static int exp_dump_handler(enum nf_conntrack_msg_type type,
 	if (!exp_filter_find(STATE(exp_filter), exp))
 		return NFCT_CB_CONTINUE;
 
-	if (ct_filter_conntrack(master, 1))
+	if (ct_filter_master(master))
 		return NFCT_CB_CONTINUE;
 
 	switch(type) {
@@ -315,7 +315,7 @@ static int exp_get_handler(enum nf_conntrack_msg_type type,
 	if (!exp_filter_find(STATE(exp_filter), exp))
 		return NFCT_CB_CONTINUE;
 
-	if (ct_filter_conntrack(master, 1))
+	if (ct_filter_master(master))
 		return NFCT_CB_CONTINUE;
 
 	STATE(get_retval) = 1;

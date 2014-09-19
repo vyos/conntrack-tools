@@ -146,9 +146,11 @@ void nl_resize_socket_buffer(struct nfct_handle *h)
 			 "to %u bytes", CONFIG(netlink_buffer_size));
 }
 
+static const int family = AF_UNSPEC;
+
 int nl_dump_conntrack_table(struct nfct_handle *h)
 {
-	return nfct_query(h, NFCT_Q_DUMP, &CONFIG(family));
+	return nfct_query(h, NFCT_Q_DUMP, &family);
 }
 
 static int
@@ -182,7 +184,7 @@ int nl_flush_conntrack_table_selective(void)
 	}
 	nfct_callback_register(h, NFCT_T_ALL, nl_flush_selective_cb, NULL);
 
-	ret = nfct_query(h, NFCT_Q_DUMP, &CONFIG(family));
+	ret = nfct_query(h, NFCT_Q_DUMP, &family);
 
 	nfct_close(h);
 
@@ -191,7 +193,6 @@ int nl_flush_conntrack_table_selective(void)
 
 int nl_send_resync(struct nfct_handle *h)
 {
-	int family = CONFIG(family);
 	return nfct_send(h, NFCT_Q_DUMP, &family);
 }
 
@@ -380,16 +381,15 @@ int nl_get_expect(struct nfct_handle *h, const struct nf_expect *exp)
 
 int nl_dump_expect_table(struct nfct_handle *h)
 {
-	return nfexp_query(h, NFCT_Q_DUMP, &CONFIG(family));
+	return nfexp_query(h, NFCT_Q_DUMP, &family);
 }
 
 int nl_flush_expect_table(struct nfct_handle *h)
 {
-	return nfexp_query(h, NFCT_Q_FLUSH, &CONFIG(family));
+	return nfexp_query(h, NFCT_Q_FLUSH, &family);
 }
 
 int nl_send_expect_resync(struct nfct_handle *h)
 {
-	int family = CONFIG(family);
 	return nfexp_send(h, NFCT_Q_DUMP, &family);
 }
