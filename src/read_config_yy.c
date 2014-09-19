@@ -810,13 +810,13 @@ static const yytype_uint16 yyrline[] =
     1072,  1080,  1089,  1095,  1101,  1103,  1104,  1107,  1108,  1109,
     1110,  1111,  1112,  1113,  1114,  1115,  1116,  1117,  1118,  1119,
     1120,  1121,  1122,  1123,  1124,  1127,  1132,  1137,  1142,  1147,
-    1152,  1157,  1162,  1167,  1169,  1170,  1173,  1185,  1194,  1202,
-    1207,  1217,  1222,  1227,  1232,  1233,  1235,  1244,  1257,  1258,
-    1260,  1279,  1298,  1317,  1326,  1348,  1349,  1351,  1410,  1470,
-    1479,  1493,  1494,  1496,  1498,  1508,  1509,  1512,  1513,  1514,
-    1515,  1516,  1519,  1524,  1528,  1533,  1538,  1543,  1575,  1580,
-    1585,  1586,  1589,  1592,  1689,  1690,  1693,  1696,  1707,  1718,
-    1740,  1741,  1744,  1745,  1748,  1763
+    1152,  1157,  1162,  1167,  1169,  1170,  1173,  1185,  1194,  1199,
+    1204,  1214,  1219,  1224,  1229,  1230,  1232,  1241,  1254,  1255,
+    1257,  1276,  1295,  1314,  1323,  1345,  1346,  1348,  1407,  1467,
+    1476,  1490,  1491,  1493,  1495,  1505,  1506,  1509,  1510,  1511,
+    1512,  1513,  1516,  1521,  1525,  1530,  1535,  1540,  1572,  1577,
+    1582,  1583,  1586,  1589,  1686,  1687,  1690,  1693,  1704,  1715,
+    1737,  1738,  1741,  1742,  1745,  1760
 };
 #endif
 
@@ -3458,17 +3458,14 @@ yyreduce:
 /* Line 1806 of yacc.c  */
 #line 1195 "read_config_yy.y"
     {
-	if (strncmp((yyvsp[(2) - (2)].string), "IPv6", strlen("IPv6")) == 0)
-		conf.family = AF_INET6;
-	else
-		conf.family = AF_INET;
+	print_err(CTD_CFG_WARN, "`Family' is deprecated, ignoring");
 }
     break;
 
   case 209:
 
 /* Line 1806 of yacc.c  */
-#line 1203 "read_config_yy.y"
+#line 1200 "read_config_yy.y"
     {
 	CONFIG(event_iterations_limit) = (yyvsp[(2) - (2)].val);
 }
@@ -3477,7 +3474,7 @@ yyreduce:
   case 210:
 
 /* Line 1806 of yacc.c  */
-#line 1208 "read_config_yy.y"
+#line 1205 "read_config_yy.y"
     {
 	conf.flags |= CTD_POLL;
 	conf.poll_kernel_secs = (yyvsp[(2) - (2)].val);
@@ -3491,7 +3488,7 @@ yyreduce:
   case 211:
 
 /* Line 1806 of yacc.c  */
-#line 1218 "read_config_yy.y"
+#line 1215 "read_config_yy.y"
     {
 	CONFIG(filter_from_kernelspace) = 0;
 }
@@ -3500,7 +3497,7 @@ yyreduce:
   case 212:
 
 /* Line 1806 of yacc.c  */
-#line 1223 "read_config_yy.y"
+#line 1220 "read_config_yy.y"
     {
 	CONFIG(filter_from_kernelspace) = 0;
 }
@@ -3509,7 +3506,7 @@ yyreduce:
   case 213:
 
 /* Line 1806 of yacc.c  */
-#line 1228 "read_config_yy.y"
+#line 1225 "read_config_yy.y"
     {
 	CONFIG(filter_from_kernelspace) = 1;
 }
@@ -3518,7 +3515,7 @@ yyreduce:
   case 216:
 
 /* Line 1806 of yacc.c  */
-#line 1236 "read_config_yy.y"
+#line 1233 "read_config_yy.y"
     {
 	ct_filter_set_logic(STATE(us_filter),
 			    CT_FILTER_L4PROTO,
@@ -3531,7 +3528,7 @@ yyreduce:
   case 217:
 
 /* Line 1806 of yacc.c  */
-#line 1245 "read_config_yy.y"
+#line 1242 "read_config_yy.y"
     {
 	ct_filter_set_logic(STATE(us_filter),
 			    CT_FILTER_L4PROTO,
@@ -3548,7 +3545,7 @@ yyreduce:
   case 220:
 
 /* Line 1806 of yacc.c  */
-#line 1261 "read_config_yy.y"
+#line 1258 "read_config_yy.y"
     {
 	struct protoent *pent;
 
@@ -3571,7 +3568,7 @@ yyreduce:
   case 221:
 
 /* Line 1806 of yacc.c  */
-#line 1280 "read_config_yy.y"
+#line 1277 "read_config_yy.y"
     {
 	struct protoent *pent;
 
@@ -3594,7 +3591,7 @@ yyreduce:
   case 222:
 
 /* Line 1806 of yacc.c  */
-#line 1299 "read_config_yy.y"
+#line 1296 "read_config_yy.y"
     {
 	struct protoent *pent;
 
@@ -3617,7 +3614,7 @@ yyreduce:
   case 223:
 
 /* Line 1806 of yacc.c  */
-#line 1318 "read_config_yy.y"
+#line 1315 "read_config_yy.y"
     {
 	ct_filter_set_logic(STATE(us_filter),
 			    CT_FILTER_ADDRESS,
@@ -3630,7 +3627,7 @@ yyreduce:
   case 224:
 
 /* Line 1806 of yacc.c  */
-#line 1327 "read_config_yy.y"
+#line 1324 "read_config_yy.y"
     {
 	ct_filter_set_logic(STATE(us_filter),
 			    CT_FILTER_ADDRESS,
@@ -3656,7 +3653,7 @@ yyreduce:
   case 227:
 
 /* Line 1806 of yacc.c  */
-#line 1352 "read_config_yy.y"
+#line 1349 "read_config_yy.y"
     {
 	union inet_address ip;
 	char *slash;
@@ -3719,7 +3716,7 @@ yyreduce:
   case 228:
 
 /* Line 1806 of yacc.c  */
-#line 1411 "read_config_yy.y"
+#line 1408 "read_config_yy.y"
     {
 	union inet_address ip;
 	char *slash;
@@ -3783,7 +3780,7 @@ yyreduce:
   case 229:
 
 /* Line 1806 of yacc.c  */
-#line 1471 "read_config_yy.y"
+#line 1468 "read_config_yy.y"
     {
 	ct_filter_set_logic(STATE(us_filter),
 			    CT_FILTER_STATE,
@@ -3796,7 +3793,7 @@ yyreduce:
   case 230:
 
 /* Line 1806 of yacc.c  */
-#line 1480 "read_config_yy.y"
+#line 1477 "read_config_yy.y"
     {
 	ct_filter_set_logic(STATE(us_filter),
 			    CT_FILTER_STATE,
@@ -3814,7 +3811,7 @@ yyreduce:
   case 234:
 
 /* Line 1806 of yacc.c  */
-#line 1499 "read_config_yy.y"
+#line 1496 "read_config_yy.y"
     {
 	if (conf.flags & CTD_SYNC_MODE) {
 		print_err(CTD_CFG_ERROR, "cannot use both `Stats' and `Sync' "
@@ -3828,7 +3825,7 @@ yyreduce:
   case 242:
 
 /* Line 1806 of yacc.c  */
-#line 1520 "read_config_yy.y"
+#line 1517 "read_config_yy.y"
     {
 	strncpy(conf.stats.logfile, DEFAULT_STATS_LOGFILE, FILENAME_MAXLEN);
 }
@@ -3837,7 +3834,7 @@ yyreduce:
   case 243:
 
 /* Line 1806 of yacc.c  */
-#line 1525 "read_config_yy.y"
+#line 1522 "read_config_yy.y"
     {
 }
     break;
@@ -3845,7 +3842,7 @@ yyreduce:
   case 244:
 
 /* Line 1806 of yacc.c  */
-#line 1529 "read_config_yy.y"
+#line 1526 "read_config_yy.y"
     {
 	strncpy(conf.stats.logfile, (yyvsp[(2) - (2)].string), FILENAME_MAXLEN);
 }
@@ -3854,7 +3851,7 @@ yyreduce:
   case 245:
 
 /* Line 1806 of yacc.c  */
-#line 1534 "read_config_yy.y"
+#line 1531 "read_config_yy.y"
     {
 	conf.stats.syslog_facility = DEFAULT_SYSLOG_FACILITY;
 }
@@ -3863,7 +3860,7 @@ yyreduce:
   case 246:
 
 /* Line 1806 of yacc.c  */
-#line 1539 "read_config_yy.y"
+#line 1536 "read_config_yy.y"
     {
 	conf.stats.syslog_facility = -1;
 }
@@ -3872,7 +3869,7 @@ yyreduce:
   case 247:
 
 /* Line 1806 of yacc.c  */
-#line 1544 "read_config_yy.y"
+#line 1541 "read_config_yy.y"
     {
 	if (!strcmp((yyvsp[(2) - (2)].string), "daemon"))
 		conf.stats.syslog_facility = LOG_DAEMON;
@@ -3908,7 +3905,7 @@ yyreduce:
   case 248:
 
 /* Line 1806 of yacc.c  */
-#line 1576 "read_config_yy.y"
+#line 1573 "read_config_yy.y"
     {
 	print_err(CTD_CFG_WARN, "`LogFileBufferSize' is deprecated");
 }
@@ -3917,7 +3914,7 @@ yyreduce:
   case 249:
 
 /* Line 1806 of yacc.c  */
-#line 1581 "read_config_yy.y"
+#line 1578 "read_config_yy.y"
     {
 	conf.flags |= CTD_HELPER;
 }
@@ -3926,7 +3923,7 @@ yyreduce:
   case 253:
 
 /* Line 1806 of yacc.c  */
-#line 1593 "read_config_yy.y"
+#line 1590 "read_config_yy.y"
     {
 	struct ctd_helper_instance *helper_inst;
 	struct ctd_helper *helper;
@@ -4027,7 +4024,7 @@ yyreduce:
   case 257:
 
 /* Line 1806 of yacc.c  */
-#line 1697 "read_config_yy.y"
+#line 1694 "read_config_yy.y"
     {
 	int *qnum;
 	struct stack_item *e;
@@ -4042,7 +4039,7 @@ yyreduce:
   case 258:
 
 /* Line 1806 of yacc.c  */
-#line 1708 "read_config_yy.y"
+#line 1705 "read_config_yy.y"
     {
 	int *qlen;
 	struct stack_item *e;
@@ -4057,7 +4054,7 @@ yyreduce:
   case 259:
 
 /* Line 1806 of yacc.c  */
-#line 1719 "read_config_yy.y"
+#line 1716 "read_config_yy.y"
     {
 	struct stack_item *e;
 	struct ctd_helper_policy *policy;
@@ -4083,7 +4080,7 @@ yyreduce:
   case 264:
 
 /* Line 1806 of yacc.c  */
-#line 1749 "read_config_yy.y"
+#line 1746 "read_config_yy.y"
     {
 	struct stack_item *e;
 	struct ctd_helper_policy *policy;
@@ -4102,7 +4099,7 @@ yyreduce:
   case 265:
 
 /* Line 1806 of yacc.c  */
-#line 1764 "read_config_yy.y"
+#line 1761 "read_config_yy.y"
     {
 	struct stack_item *e;
 	struct ctd_helper_policy *policy;
@@ -4121,7 +4118,7 @@ yyreduce:
 
 
 /* Line 1806 of yacc.c  */
-#line 4125 "read_config_yy.c"
+#line 4122 "read_config_yy.c"
       default: break;
     }
   /* User semantic actions sometimes alter yychar, and that requires
@@ -4352,7 +4349,7 @@ yyreturn:
 
 
 /* Line 2067 of yacc.c  */
-#line 1778 "read_config_yy.y"
+#line 1775 "read_config_yy.y"
 
 
 int __attribute__((noreturn))
@@ -4440,10 +4437,6 @@ init_config(char *filename)
 	yyrestart(fp);
 	yyparse();
 	fclose(fp);
-
-	/* default to IPv4 */
-	if (CONFIG(family) == 0)
-		CONFIG(family) = AF_INET;
 
 	/* set to default is not specified */
 	if (strcmp(CONFIG(lockfile), "") == 0)

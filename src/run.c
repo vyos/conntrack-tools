@@ -40,14 +40,14 @@
 #include <time.h>
 #include <fcntl.h>
 
-void killer(int signal)
+void killer(int signo)
 {
 	/* Signals are re-entrant, disable signal handling to avoid problems
 	 * in case we receive SIGINT and SIGTERM in a row. This function is
 	 * also called via -k from the unix socket context, we already disabled
 	 * signals in that path, so don't do it.
 	 */
-	if (signal)
+	if (signo)
 		sigprocmask(SIG_BLOCK, &STATE(block), NULL);
 
 	local_server_destroy(&STATE(local));

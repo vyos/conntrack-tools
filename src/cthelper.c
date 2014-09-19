@@ -30,6 +30,7 @@
 
 #include <netinet/in.h>
 #include <netinet/ip.h>
+#include <netinet/ip6.h>
 #include <netinet/tcp.h>
 #include <netinet/udp.h>
 #include <net/ethernet.h>
@@ -77,6 +78,8 @@ nfq_hdr_put(char *buf, int type, uint32_t queue_num)
 static int
 pkt_get(void *pkt, uint32_t pktlen, uint16_t proto, uint32_t *protoff)
 {
+	uint8_t protocol;
+
 	switch(proto) {
 	case ETHERTYPE_IP: {
 		struct iphdr *ip = (struct iphdr *) pkt;
@@ -94,41 +97,60 @@ pkt_get(void *pkt, uint32_t pktlen, uint16_t proto, uint32_t *protoff)
 		}
 
 		*protoff = 4 * ip->ihl;
-
-		switch (ip->protocol) {
-		case IPPROTO_TCP: {
-			struct tcphdr *tcph =
-				(struct tcphdr *) ((char *)pkt + *protoff);
-
-			/* No room for IPv4 header plus TCP header. */
-			if (pktlen < *protoff + sizeof(struct tcphdr)
-			    || pktlen < *protoff + tcph->doff * 4) {
-				dlog(LOG_ERR, "no room for IPv4 + TCP header, skip");
-				return -1;
-			}
-			return 0;
-		}
-		case IPPROTO_UDP:
-			/* No room for IPv4 header plus UDP header. */
-			if (pktlen < *protoff + sizeof(struct udphdr)) {
-				dlog(LOG_ERR, "no room for IPv4 + UDP header, skip");
-				return -1;
-			}
-			return 0;
-		default:
-			dlog(LOG_ERR, "not TCP/UDP, skipping");
-			return -1;
-		}
+		protocol = ip->protocol;
 		break;
 	}
-	case ETHERTYPE_IPV6:
-		dlog(LOG_ERR, "no IPv6 support sorry");
-		return 0;
+	case ETHERTYPE_IPV6: {
+		struct iphdr *ip = (struct iphdr *) pkt;
+		struct ip6_hdr *ip6 = (struct ip6_hdr *) pkt;
+
+		/* No room for IPv6 header. */
+		if (pktlen < sizeof(struct ip6_hdr)) {
+			dlog(LOG_ERR, "no room for IPv6 header");
+			return -1;
+		}
+
+		/* this is not IPv6, skip. */
+		if (ip->version != 6) {
+			dlog(LOG_ERR, "not IPv6, skipping");
+			return -1;
+		}
+
+		*protoff = sizeof(struct ip6_hdr);
+		protocol = ip6->ip6_nxt;
+		break;
+	}
 	default:
 		/* Unknown layer 3 protocol. */
 		dlog(LOG_ERR, "unknown layer 3 protocol (%d), skipping", proto);
 		return -1;
 	}
+
+	switch (protocol) {
+	case IPPROTO_TCP: {
+		struct tcphdr *tcph =
+			(struct tcphdr *) ((char *)pkt + *protoff);
+
+		/* No room for IPv4 header plus TCP header. */
+		if (pktlen < *protoff + sizeof(struct tcphdr) ||
+		    pktlen < *protoff + tcph->doff * 4) {
+			dlog(LOG_ERR, "no room for IPv4 + TCP header, skip");
+			return -1;
+		}
+		return 0;
+	}
+	case IPPROTO_UDP:
+		/* No room for IPv4 header plus UDP header. */
+		if (pktlen < *protoff + sizeof(struct udphdr)) {
+			dlog(LOG_ERR, "no room for IPv4 + UDP header, skip");
+			return -1;
+		}
+		return 0;
+	default:
+		dlog(LOG_ERR, "not TCP/UDP, skipping");
+		return -1;
+	}
+
 	return 0;
 }
 
@@ -143,9 +165,11 @@ pkt_verdict_issue(struct ctd_helper_instance *cur, struct myct *myct,
 
 	nlh = nfq_hdr_put(buf, NFQNL_MSG_VERDICT, queue_num);
 
-	/* save private data and send it back to kernel-space. */
-	nfct_set_attr_l(myct->ct, ATTR_HELPER_INFO, myct->priv_data,
-			cur->helper->priv_data_len);
+	/* save private data and send it back to kernel-space, if any. */
+	if (myct->priv_data) {
+		nfct_set_attr_l(myct->ct, ATTR_HELPER_INFO, myct->priv_data,
+				cur->helper->priv_data_len);
+	}
 
 	nfq_nlmsg_verdict_put(nlh, id, verdict);
 	if (pktb_mangled(pktb))

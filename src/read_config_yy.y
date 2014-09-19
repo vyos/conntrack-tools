@@ -1193,10 +1193,7 @@ scheduler_line : T_PRIO T_NUMBER
 
 family : T_FAMILY T_STRING
 {
-	if (strncmp($2, "IPv6", strlen("IPv6")) == 0)
-		conf.family = AF_INET6;
-	else
-		conf.family = AF_INET;
+	print_err(CTD_CFG_WARN, "`Family' is deprecated, ignoring");
 };
 
 event_iterations_limit : T_EVENT_ITER_LIMIT T_NUMBER
@@ -1862,10 +1859,6 @@ init_config(char *filename)
 	yyrestart(fp);
 	yyparse();
 	fclose(fp);
-
-	/* default to IPv4 */
-	if (CONFIG(family) == 0)
-		CONFIG(family) = AF_INET;
 
 	/* set to default is not specified */
 	if (strcmp(CONFIG(lockfile), "") == 0)

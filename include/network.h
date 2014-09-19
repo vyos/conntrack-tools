@@ -173,18 +173,6 @@ static inline int between(uint32_t seq1, uint32_t seq2, uint32_t seq3)
 	return seq3 - seq2 >= seq1 - seq2;
 }
 
-#define PLD_NETWORK2HOST(x)						 \
-({									 \
-	x->len = ntohs(x->len);						 \
-	x->query = ntohs(x->query);					 \
-})
-
-#define PLD_HOST2NETWORK(x)						 \
-({									 \
-	x->len = htons(x->len);						 \
-	x->query = htons(x->query);					 \
-})
-
 struct netattr {
 	uint16_t nta_len;
 	uint16_t nta_attr;
@@ -240,8 +228,12 @@ enum nta_attr {
 	NTA_TCP_WSCALE_ORIG,	/* uint8_t */
 	NTA_TCP_WSCALE_REPL,	/* uint8_t */
 	NTA_HELPER_NAME,	/* string (variable length) */
+	NTA_LABELS,		/* array of uint32_t (variable length) */
 	NTA_MAX
 };
+
+/* allow to serialize/replicate up to 4k labels per flow */
+#define NTA_LABELS_MAX_SIZE	(4096/sizeof(uint32_t))
 
 struct nta_attr_natseqadj {
 	uint32_t orig_seq_correction_pos;

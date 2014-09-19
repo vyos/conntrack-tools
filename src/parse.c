@@ -29,15 +29,19 @@
 static void ct_parse_u8(struct nf_conntrack *ct, int attr, void *data);
 static void ct_parse_u16(struct nf_conntrack *ct, int attr, void *data);
 static void ct_parse_u32(struct nf_conntrack *ct, int attr, void *data);
-static void ct_parse_str(struct nf_conntrack *ct, int attr, void *data);
+static void ct_parse_str(struct nf_conntrack *ct,
+			 const struct netattr *, void *data);
 static void ct_parse_group(struct nf_conntrack *ct, int attr, void *data);
 static void ct_parse_nat_seq_adj(struct nf_conntrack *ct, int attr, void *data);
+static void ct_parse_clabel(struct nf_conntrack *ct,
+			    const struct netattr *, void *data);
 
 struct ct_parser {
 	void 	(*parse)(struct nf_conntrack *ct, int attr, void *data);
-	int 	attr;
-	int	size;
-	int	max_size;
+	void	(*parse2)(struct nf_conntrack *ct, const struct netattr *, void *);
+	uint16_t attr;
+	uint16_t size;
+	uint16_t max_size;
 };
 
 static struct ct_parser h[NTA_MAX] = {
@@ -176,9 +180,14 @@ static struct ct_parser h[NTA_MAX] = {
 		.size	= NTA_SIZE(sizeof(uint8_t)),
 	},
 	[NTA_HELPER_NAME] = {
-		.parse	= ct_parse_str,
+		.parse2	= ct_parse_str,
 		.attr	= ATTR_HELPER_NAME,
 		.max_size = NFCT_HELPER_NAME_MAX,
+	},
+	[NTA_LABELS] = {
+		.parse2 = ct_parse_clabel,
+		.attr	= ATTR_CONNLABELS,
+		.max_size = NTA_SIZE(NTA_LABELS_MAX_SIZE),
 	},
 };
 
@@ -204,15 +213,53 @@ ct_parse_u32(struct nf_conntrack *ct, int attr, void *data)
 }
 
 static void
-ct_parse_str(struct nf_conntrack *ct, int attr, void *data)
+ct_parse_str(struct nf_conntrack *ct, const struct netattr *attr, void *data)
 {
-	nfct_set_attr(ct, h[attr].attr, data);
+	nfct_set_attr(ct, h[attr->nta_attr].attr, data);
 }
 
 static void
 ct_parse_group(struct nf_conntrack *ct, int attr, void *data)
 {
 	nfct_set_attr_grp(ct, h[attr].attr, data);
+}
+
+static void
+ct_parse_clabel(struct nf_conntrack *ct, const struct netattr *attr, void *data)
+{
+	struct nfct_bitmask *bitm;
+	unsigned int i, wordcount;
+	const uint32_t *words;
+	unsigned int len;
+
+	len = attr->nta_len - NTA_LENGTH(0);
+	wordcount =  len / sizeof(*words);
+	if (!wordcount)
+		return;
+
+	if (len & (sizeof(*words) - 1))
+		return;
+
+	bitm = nfct_bitmask_new((len * 8) - 1);
+	if (!bitm)
+		return;
+
+	words = data;
+	for (i=0; i < wordcount; i++) {
+		uint32_t word;
+		int bit;
+
+		if (words[i] == 0)
+			continue;
+
+		word = htonl(words[i]);
+		bit = 31;
+		do {
+			if (word & (1 << bit))
+				nfct_bitmask_set_bit(bitm, (32 * i) + bit);
+		} while (--bit >= 0);
+	}
+	nfct_set_attr(ct, ATTR_CONNLABELS, bitm);
 }
 
 static void
@@ -248,14 +295,22 @@ int msg2ct(struct nf_conntrack *ct, struct nethdr *net, size_t remain)
 		ATTR_NETWORK2HOST(attr);
 		if (attr->nta_len > len)
 			return -1;
+		if (attr->nta_len < NTA_LENGTH(0))
+			return -1;
 		if (attr->nta_attr > NTA_MAX)
 			return -1;
 		if (h[attr->nta_attr].size &&
 		    attr->nta_len != h[attr->nta_attr].size)
 			return -1;
-		if (h[attr->nta_attr].max_size &&
-		    attr->nta_len > h[attr->nta_attr].max_size)
-			return -1;
+
+		if (h[attr->nta_attr].max_size) {
+			if (attr->nta_len > h[attr->nta_attr].max_size)
+				return -1;
+			h[attr->nta_attr].parse2(ct, attr, NTA_DATA(attr));
+			attr = NTA_NEXT(attr, len);
+			continue;
+		}
+
 		if (h[attr->nta_attr].parse == NULL) {
 			attr = NTA_NEXT(attr, len);
 			continue;
@@ -456,6 +511,8 @@ int msg2exp(struct nf_expect *exp, struct nethdr *net, size_t remain)
 		if (attr->nta_len > len)
 			goto err;
 		if (attr->nta_attr > NTA_MAX)
+			goto err;
+		if (attr->nta_len < NTA_LENGTH(0))
 			goto err;
 		if (exp_h[attr->nta_attr].size &&
 		    attr->nta_len != exp_h[attr->nta_attr].size)

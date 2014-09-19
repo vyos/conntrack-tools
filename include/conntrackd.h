@@ -104,7 +104,6 @@ struct ct_conf {
 	unsigned int netlink_buffer_size_max_grown;
 	int nl_overrun_resync;
 	unsigned int flags;
-	int family;			/* protocol family */
 	unsigned int resend_queue_size; /* FTFW protocol */
 	unsigned int window_size;
 	int poll_kernel_secs;
