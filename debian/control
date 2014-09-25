@@ -5,9 +5,9 @@ Maintainer: Alexander Wirt <formorer@debian.org>
 Uploaders: Arturo Borrero Gonzalez <arturo.borrero.glez@gmail.com>
 Homepage: http://conntrack-tools.netfilter.org/
 Build-Depends: autotools-dev,
-	       bison,
-           dh-systemd,
+               bison,
                debhelper (>= 9),
+               dh-systemd,
                flex,
                libmnl-dev (>= 1.0.1),
                libnetfilter-conntrack-dev (>= 1.0.1),
