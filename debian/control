@@ -4,7 +4,8 @@ Priority: optional
 Maintainer: Alexander Wirt <formorer@debian.org>
 Uploaders: Arturo Borrero Gonzalez <arturo.borrero.glez@gmail.com>
 Homepage: http://conntrack-tools.netfilter.org/
-Build-Depends: bison,
+Build-Depends: autotools-dev,
+	       bison,
                debhelper (>= 9),
                flex,
                libmnl-dev (>= 1.0.1),
