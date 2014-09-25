@@ -2,6 +2,7 @@ Source: conntrack
 Section: net
 Priority: optional
 Maintainer: Alexander Wirt <formorer@debian.org>
+Uploaders: Arturo Borrero Gonzalez <arturo.borrero.glez@gmail.com>
 Homepage: http://conntrack-tools.netfilter.org/
 Build-Depends: bison,
                debhelper (>= 9),
