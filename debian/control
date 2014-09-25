@@ -6,6 +6,7 @@ Uploaders: Arturo Borrero Gonzalez <arturo.borrero.glez@gmail.com>
 Homepage: http://conntrack-tools.netfilter.org/
 Build-Depends: autotools-dev,
 	       bison,
+           dh-systemd,
                debhelper (>= 9),
                flex,
                libmnl-dev (>= 1.0.1),
