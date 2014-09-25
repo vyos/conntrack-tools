@@ -14,7 +14,7 @@ Build-Depends: autotools-dev,
                libnetfilter-cttimeout-dev (>= 1.0.0),
                libnetfilter-queue-dev (>= 1.0.2),
                libnfnetlink-dev (>= 1.0.1)
-Standards-Version: 3.9.3
+Standards-Version: 3.9.6
 
 Package: conntrack
 Architecture: any
