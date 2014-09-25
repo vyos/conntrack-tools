@@ -1,21 +1,52 @@
-This package was debianized by Max Kellermann <max@duempel.org> on
-Thu Sep 21 00:09:44 CEST 2006
+Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: conntrack-tools
+Upstream-Contact: Pablo Neira Ayuso <pablo@netfilter.org>
+Source: http://conntrack-tools.netfilter.org/downloads.html
 
-It was downloaded from http://conntrack-tools.netfilter.org/downloads.html
+Files: src/cache.c src/cache-ct.c src/cache-exp.c src/external_cache.c src/external_inject.c src/internal_bypass.c
+Files: src/internal_cache.c src/main.c src/netlink.c src/network.c src/parse.c src/run.c src/stats-mode.c
+Files: src/sync-alarm.c src/sync-ftfw.c src/sync-mode.c src/sync-notrack.c
+Copyright: 2006-2011 Pablo Neira Ayuso <pablo@netfilter.org>
+	   2011 Vyatta Inc. <http://www.vyatta.com>
+License: GPL-2+
 
-Upstream Authors:
-Pablo Neira Ayuso <pablo@netfilter.org>
-Harald Welte <laforge@netfilter.org>
+Files: src/filter.c
+Copyright: 2006-2012 Pablo Neira Ayuso <pablo@netfilter.org>
+	   2011-2012 Vyatta Inc <http://www.vyatta.com>
+License: GPL-2+
 
-Copyright:
+Files: src/rbtree.c
+Copyright: 1999 Andrea Arcangeli <andrea@suse.de>
+	   2002  David Woodhouse <dwmw2@infradead.org>
+License: GPL-2+
 
-(C) 2005 by Pablo Neira Ayuso <pablo@netfilter.org>
-<laforge@netfilter.org>
+Files: src/utils.c
+Copyright: Alan Cox, Andi Kleen, USAGI/WIDE Project, Alexey Kuznetsov <kuznet@ms2.inr.ac.ru> and others
+License: GPL-2+
 
- This program is free software; you can redistribute it and/or modify
+Files: src/conntrack.c
+Copyright: (C) 2005-2012 by Pablo Neira Ayuso <pablo@netfilter.org>
+	   (C) 2012 by Intra2net AG <http://www.intra2net.com>
+License: GPL-2+
+
+Files: *
+Copyright: 2005-2012 Pablo Neira Ayuso <pablo@netfilter.org>
+	   Harald Welte <laforge@netfilter.org>
+License: GPL-2+
+
+License: GPL-2+
+ This package is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
- the Free Software Foundation; either version 2 of the License, or (at
- your option) any later version.
-
-On Debian GNU/Linux systems, the complete text of the GNU General
-Public License can be found in `/usr/share/common-licenses/GPL'.
+ the Free Software Foundation; either version 2 of the License, or
+ (at your option) any later version.
+ .
+ This package is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+ .
+ You should have received a copy of the GNU General Public License
+ along with this program. If not, see <http://www.gnu.org/licenses/>
+ .
+ On Debian systems, the complete text of the GNU General
+ Public License version 2 can be found in "/usr/share/common-licenses/GPL-2".
