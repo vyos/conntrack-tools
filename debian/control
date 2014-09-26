@@ -16,6 +16,8 @@ Build-Depends: autotools-dev,
                libnetfilter-queue-dev (>= 1.0.2),
                libnfnetlink-dev (>= 1.0.1)
 Standards-Version: 3.9.6
+Vcs-Git: https://github.com/formorer/pkg-conntrack.git
+Vcs-Browser: https://github.com/formorer/pkg-conntrack.git
 
 Package: conntrack
 Architecture: any
