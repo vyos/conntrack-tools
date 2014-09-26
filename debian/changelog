@@ -1,3 +1,22 @@
+conntrack (1:1.4.2-1) unstable; urgency=medium
+
+  [ Arturo Borrero Gonzalez ]
+  * [063c2ed] d/control: add Arturo Borrero Gonzalez as uploader
+  * [2f1d20b] d/rules: delete useless comment
+  * [afca2aa] d/rules: do a verbose build
+  * [932ae12] d/control: add autotools-dev as build-dep
+  * [8c11b54] d/control: bump standars to 3.9.6
+  * [f93ca69] d/copyright: add a proper copyright file
+  * [66d8631] d/copyright: fix overriding of file matching
+  * [bb3229e] d/: new binary package for nfct
+
+  [ Alexander Wirt ]
+  * [b5b4069] Add systemd support
+  * [8beec8e] wrap-and-sort
+  * [9f760e5] Imported Upstream version 1.4.2
+
+ -- Alexander Wirt <formorer@debian.org>  Fri, 26 Sep 2014 15:58:30 +0200
+
 conntrack (1:1.4.1-1) unstable; urgency=low
 
   * [095df09] Move to 3.0 (quilt) for bz2 support
