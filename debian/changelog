@@ -1,3 +1,14 @@
+conntrack (1:1.4.2-2) unstable; urgency=medium
+
+  [ Arturo Borrero Gonzalez ]
+  * [9e57eb1] d/control: add Vcs fields
+  * [d2f808f] d/control: architecture is linux-any
+
+  [ Alexander Wirt ]
+  * [70fd658] Update config.{guess,sub} with autotools-dev (Closes: #763692)
+
+ -- Alexander Wirt <formorer@debian.org>  Thu, 02 Oct 2014 07:51:09 +0200
+
 conntrack (1:1.4.2-1) unstable; urgency=medium
 
   [ Arturo Borrero Gonzalez ]
