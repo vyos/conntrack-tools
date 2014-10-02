@@ -4,7 +4,7 @@
 #export DH_VERBOSE=1
 
 %:
-	dh $@ --with systemd
+	dh $@ --with systemd,autotools-dev
 
 override_dh_auto_configure:
 	./configure --prefix=/usr --disable-silent-rules
