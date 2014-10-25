@@ -1,3 +1,15 @@
+conntrack (1:1.0.1-3+vyos2+lithium2) unstable; urgency=low
+
+  * Force release
+
+ -- Daniil Baturin <dmbaturin@squeeze32devel.multi.eu>  Sat, 25 Oct 2014 17:12:29 +0200
+
+conntrack (1:1.0.1-3+vyos2+lithium1) unstable; urgency=low
+
+  * New branch
+
+ -- Daniil Baturin <daniil@baturin.org>  Sat, 25 Oct 2014 22:10:52 +0700
+
 conntrack (1:1.0.1-3+vyos1+helium4) unstable; urgency=low
 
   * Fix version format
