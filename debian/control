@@ -1,7 +1,7 @@
 Source: conntrack
 Section: net
 Priority: optional
-Maintainer: Alexander Wirt <formorer@debian.org>
+Maintainer: VyOS Package Maintainers <maintainers@vyos.net>
 Homepage: http://conntrack-tools.netfilter.org/
 Build-Depends: debhelper (>= 5), libnfnetlink-dev (>= 1.0.0),
  libnetfilter-conntrack-dev (>= 0.0.101), bison, flex
