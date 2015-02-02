@@ -1422,17 +1422,31 @@ static void copy_label(struct nf_conntrack *tmp, const struct nf_conntrack *ct)
 
 	if (options & CT_OPT_ADD_LABEL) {
 		if (ctb == NULL) {
-			newmask = xnfct_bitmask_clone(tmpl.label_modify);
-			nfct_set_attr(tmp, ATTR_CONNLABELS, newmask);
+			nfct_set_attr(tmp, ATTR_CONNLABELS,
+					xnfct_bitmask_clone(tmpl.label_modify));
 			return;
 		}
+		/* If we send a bitmask shorter than the kernel sent to us, the bits we
+		 * omit will be cleared (as "padding").  So we always have to send the
+		 * same sized bitmask as we received.
+		 *
+		 * Mask has to have the same size as the labels, otherwise it will not
+		 * be encoded by libnetfilter_conntrack, as different sizes are not
+		 * accepted by the kernel.
+		 */
+		newmask = nfct_bitmask_new(nfct_bitmask_maxbit(ctb));
 
 		for (i = 0; i <= nfct_bitmask_maxbit(ctb); i++) {
-			if (nfct_bitmask_test_bit(tmpl.label_modify, i))
+			if (nfct_bitmask_test_bit(tmpl.label_modify, i)) {
 				nfct_bitmask_set_bit(ctb, i);
+				nfct_bitmask_set_bit(newmask, i);
+			} else if (nfct_bitmask_test_bit(ctb, i)) {
+				/* Kernel only retains old bit values that are sent as
+				 * zeroes in BOTH labels and mask.
+				 */
+				nfct_bitmask_unset_bit(ctb, i);
+			}
 		}
-
-		newmask = xnfct_bitmask_clone(tmpl.label_modify);
 		nfct_set_attr(tmp, ATTR_CONNLABELS_MASK, newmask);
 	} else if (ctb != NULL) {
 		/* CT_OPT_DEL_LABEL */
