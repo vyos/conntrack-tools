@@ -75,8 +75,8 @@ static int parse(char c,
 		 unsigned int *flags)
 {
 	switch(c) {
-		u_int8_t tmp;
-		u_int16_t id;
+		uint8_t tmp;
+		uint16_t id;
 		case '1':
 			tmp = atoi(optarg);
 			nfct_set_attr_u8(ct, ATTR_ICMP_TYPE, tmp);

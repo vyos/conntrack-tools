@@ -120,8 +120,8 @@ parse_options(char c, struct nf_conntrack *ct,
 	      unsigned int *flags)
 {
 	int i;
-	u_int16_t port;
-	u_int32_t vtag;
+	uint16_t port;
+	uint32_t vtag;
 
 	switch(c) {
 	case 1:

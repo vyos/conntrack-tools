@@ -58,7 +58,7 @@ enum nf_ct_ftp_type {
 };
 
 static int
-get_ipv6_addr(const char *src, size_t dlen, struct in6_addr *dst, u_int8_t term)
+get_ipv6_addr(const char *src, size_t dlen, struct in6_addr *dst, uint8_t term)
 {
 	const char *end;
 	int ret = in6_pton(src, min_t(size_t, dlen, 0xffff),

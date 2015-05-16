@@ -99,7 +99,7 @@ static int kernel_resync_cb(enum nf_conntrack_msg_type type,
 static void kernel_resync(void)
 {
 	struct nfct_handle *h;
-	u_int32_t family = AF_UNSPEC;
+	uint32_t family = AF_UNSPEC;
 	int ret;
 
 	h = nfct_open(CONFIG(netlink).subsys_id, 0);

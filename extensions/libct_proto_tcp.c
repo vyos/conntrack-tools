@@ -106,7 +106,7 @@ static int parse_options(char c,
 			 unsigned int *flags)
 {
 	int i;
-	u_int16_t port;
+	uint16_t port;
 
 	switch(c) {
 	case '1':

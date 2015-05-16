@@ -34,7 +34,7 @@ static int nat_amanda(struct pkt_buff *pkt, uint32_t ctinfo,
 		      struct nf_expect *exp)
 {
 	char buffer[sizeof("65535")];
-	u_int16_t port, initial_port;
+	uint16_t port, initial_port;
 	unsigned int ret;
 	const struct nf_conntrack *expected;
 	struct nf_conntrack *nat_tuple;
@@ -111,7 +111,7 @@ amanda_helper_cb(struct pkt_buff *pkt, uint32_t protoff,
 	struct nf_expect *exp;
 	char *data, *data_limit, *tmp;
 	unsigned int dataoff, i;
-	u_int16_t port, len;
+	uint16_t port, len;
 	int ret = NF_ACCEPT;
 	struct iphdr *iph;
 	union nfct_attr_grp_addr saddr, daddr;

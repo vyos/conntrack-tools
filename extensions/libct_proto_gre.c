@@ -91,7 +91,7 @@ static int parse_options(char c,
 			 unsigned int *flags)
 {
 	switch(c) {
-	u_int16_t port;
+	uint16_t port;
 	case '1':
 		port = htons(strtoul(optarg, NULL, 0));
 		nfct_set_attr_u16(ct, ATTR_ORIG_PORT_SRC, port);

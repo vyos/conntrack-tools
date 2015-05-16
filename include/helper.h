@@ -25,7 +25,7 @@ struct ctd_helper {
 	int			(*cb)(struct pkt_buff *pkt,
 				      uint32_t protoff,
 				      struct myct *ct,
-				      u_int32_t ctinfo);
+				      uint32_t ctinfo);
 
 	struct ctd_helper_policy policy[CTD_HELPER_POLICY_MAX];
 

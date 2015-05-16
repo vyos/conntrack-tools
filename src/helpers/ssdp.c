@@ -44,7 +44,7 @@ static int ssdp_helper_cb(struct pkt_buff *pkt, uint32_t protoff,
 	struct iphdr *net_hdr = (struct iphdr *)pktb_network_header(pkt);
 	int good_packet = 0;
 	struct nf_expect *exp;
-	u_int16_t port;
+	uint16_t port;
 	unsigned int dataoff;
 	void *sb_ptr;
 
