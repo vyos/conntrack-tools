@@ -26,7 +26,7 @@
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/socket.h>
-#include <sys/fcntl.h>
+#include <fcntl.h>
 #include <libnetfilter_conntrack/libnetfilter_conntrack_tcp.h>
 
 struct nfct_handle *nl_init_event_handler(void)
