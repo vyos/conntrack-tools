@@ -30,6 +30,7 @@
 #include "log.h"
 #include <errno.h>
 #include <netinet/ip.h>
+#define _GNU_SOURCE
 #include <netinet/tcp.h>
 #include <libmnl/libmnl.h>
 #include <libnetfilter_conntrack/libnetfilter_conntrack.h>

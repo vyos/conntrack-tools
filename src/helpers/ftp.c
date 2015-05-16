@@ -25,6 +25,7 @@
 #include <ctype.h>	/* for isdigit */
 #include <errno.h>
 
+#define _GNU_SOURCE
 #include <netinet/tcp.h>
 
 #include <libmnl/libmnl.h>
