@@ -470,7 +470,10 @@ static int cthelper_nfqueue_setup(struct ctd_helper_instance *cur)
 	nfq_nlmsg_cfg_put_params(nlh, NFQNL_COPY_PACKET, 0xffff);
 	mnl_attr_put_u32(nlh, NFQA_CFG_FLAGS, htonl(NFQA_CFG_F_CONNTRACK));
 	mnl_attr_put_u32(nlh, NFQA_CFG_MASK, htonl(0xffffffff));
-	mnl_attr_put_u32(nlh, NFQA_CFG_QUEUE_MAXLEN, htonl(cur->queue_len));
+	if (cur->queue_len > 0) {
+		mnl_attr_put_u32(nlh, NFQA_CFG_QUEUE_MAXLEN,
+				 htonl(cur->queue_len));
+	}
 
 	if (mnl_socket_sendto(STATE_CTH(nl), nlh, nlh->nlmsg_len) < 0) {
 		dlog(LOG_ERR, "failed to send configuration");
