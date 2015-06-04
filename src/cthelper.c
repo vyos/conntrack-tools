@@ -325,14 +325,12 @@ static int nfq_queue_cb(const struct nlmsghdr *nlh, void *data)
 	if (pkt_verdict_issue(helper, myct, queue_num, id, verdict, pktb) < 0)
 		goto err_pktb;
 
-	if (ct != NULL)
-		nfct_destroy(ct);
+	nfct_destroy(ct);
 	if (myct->exp != NULL)
 		nfexp_destroy(myct->exp);
-	if (myct && myct->priv_data != NULL)
+	if (myct->priv_data != NULL)
 		free(myct->priv_data);
-	if (myct != NULL)
-		free(myct);
+	free(myct);
 
 	return MNL_CB_OK;
 err_pktb:
