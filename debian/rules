@@ -72,7 +72,7 @@ binary-arch: build install
 	dh_fixperms -a
 	dh_installdeb -a
 	dh_shlibdeps -av
-	if [ -f "../.VYATTA_DEV_BUILD" ]; then \
+	if [ -f "../.VYOS_DEV_BUILD" ]; then \
 		dh_gencontrol -- -v999.dev; \
 	else \
 		dh_gencontrol; \
