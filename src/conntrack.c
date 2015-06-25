@@ -437,6 +437,10 @@ static const int opt2attr[] = {
 	['d']	= ATTR_ORIG_L3PROTO,
 	['r']	= ATTR_REPL_L3PROTO,
 	['q']	= ATTR_REPL_L3PROTO,
+	['{']	= ATTR_ORIG_L3PROTO,
+	['}']	= ATTR_ORIG_L3PROTO,
+	['[']	= ATTR_ORIG_L3PROTO,
+	[']']	= ATTR_ORIG_L3PROTO,
 	['m']	= ATTR_MARK,
 	['c']	= ATTR_SECMARK,
 	['i']	= ATTR_ID,
@@ -1946,6 +1950,31 @@ static void merge_bitmasks(struct nfct_bitmask **current,
 	nfct_bitmask_destroy(src);
 }
 
+static void
+nfct_set_addr_from_opt(int opt, struct nf_conntrack *ct, union ct_address *ad,
+		       int *family)
+{
+	int l3protonum;
+
+	options |= opt2type[opt];
+	l3protonum = parse_addr(optarg, ad);
+	if (l3protonum == AF_UNSPEC) {
+		exit_error(PARAMETER_PROBLEM,
+			   "Invalid IP address `%s'", optarg);
+	}
+	set_family(family, l3protonum);
+	if (l3protonum == AF_INET) {
+		nfct_set_attr_u32(ct,
+				  opt2family_attr[opt][0],
+				  ad->v4);
+	} else if (l3protonum == AF_INET6) {
+		nfct_set_attr(ct,
+			      opt2family_attr[opt][1],
+			      &ad->v6);
+	}
+	nfct_set_attr_u8(ct, opt2attr[opt], l3protonum);
+}
+
 int main(int argc, char *argv[])
 {
 	int c, cmd;
@@ -1953,7 +1982,7 @@ int main(int argc, char *argv[])
 	int res = 0, partial;
 	size_t socketbuffersize = 0;
 	int family = AF_UNSPEC;
-	int l3protonum, protonum = 0;
+	int protonum = 0;
 	union ct_address ad;
 	unsigned int command = 0;
 
@@ -2024,47 +2053,13 @@ int main(int argc, char *argv[])
 		case 'd':
 		case 'r':
 		case 'q':
-			options |= opt2type[c];
-
-			l3protonum = parse_addr(optarg, &ad);
-			if (l3protonum == AF_UNSPEC) {
-				exit_error(PARAMETER_PROBLEM,
-					   "Invalid IP address `%s'", optarg);
-			}
-			set_family(&family, l3protonum);
-			if (l3protonum == AF_INET) {
-				nfct_set_attr_u32(tmpl.ct,
-						  opt2family_attr[c][0],
-						  ad.v4);
-			} else if (l3protonum == AF_INET6) {
-				nfct_set_attr(tmpl.ct,
-					      opt2family_attr[c][1],
-					      &ad.v6);
-			}
-			nfct_set_attr_u8(tmpl.ct, opt2attr[c], l3protonum);
+			nfct_set_addr_from_opt(c, tmpl.ct, &ad, &family);
 			break;
 		case '{':
 		case '}':
 		case '[':
 		case ']':
-			options |= opt2type[c];
-			l3protonum = parse_addr(optarg, &ad);
-			if (l3protonum == AF_UNSPEC) {
-				exit_error(PARAMETER_PROBLEM,
-					   "Invalid IP address `%s'", optarg);
-			}
-			set_family(&family, l3protonum);
-			if (l3protonum == AF_INET) {
-				nfct_set_attr_u32(tmpl.mask, 
-						  opt2family_attr[c][0],
-						  ad.v4);
-			} else if (l3protonum == AF_INET6) {
-				nfct_set_attr(tmpl.mask,
-					      opt2family_attr[c][1],
-					      &ad.v6);
-			}
-			nfct_set_attr_u8(tmpl.mask,
-					 ATTR_ORIG_L3PROTO, l3protonum);
+			nfct_set_addr_from_opt(c, tmpl.mask, &ad, &family);
 			break;
 		case 'p':
 			options |= CT_OPT_PROTO;
