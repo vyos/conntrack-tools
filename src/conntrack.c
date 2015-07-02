@@ -551,7 +551,7 @@ static struct ctproto_handler *findproto(char *name, int *pnum)
 
 	/* is it in the list of supported protocol? */
 	list_for_each_entry(cur, &proto_list, head) {
-		if (strcmp(cur->name, name) == 0) {
+		if (strcasecmp(cur->name, name) == 0) {
 			*pnum = cur->protonum;
 			return cur;
 		}
