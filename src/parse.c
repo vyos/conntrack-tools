@@ -297,7 +297,7 @@ int msg2ct(struct nf_conntrack *ct, struct nethdr *net, size_t remain)
 			return -1;
 		if (attr->nta_len < NTA_LENGTH(0))
 			return -1;
-		if (attr->nta_attr > NTA_MAX)
+		if (attr->nta_attr >= NTA_MAX)
 			return -1;
 		if (h[attr->nta_attr].size &&
 		    attr->nta_len != h[attr->nta_attr].size)
