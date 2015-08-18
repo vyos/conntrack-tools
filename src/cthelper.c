@@ -277,11 +277,11 @@ static int nfq_queue_cb(const struct nlmsghdr *nlh, void *data)
 
 	if (!attr[NFQA_PAYLOAD]) {
 		dlog(LOG_ERR, "packet with no payload");
-		goto err;
+		goto err1;
 	}
 	if (!attr[NFQA_CT] || !attr[NFQA_CT_INFO]) {
 		dlog(LOG_ERR, "no CT attached to this packet");
-		goto err;
+		goto err1;
 	}
 
 	pkt = mnl_attr_get_payload(attr[NFQA_PAYLOAD]);
@@ -292,22 +292,22 @@ static int nfq_queue_cb(const struct nlmsghdr *nlh, void *data)
 	queue_num = ntohs(nfg->res_id);
 
 	if (pkt_get(pkt, pktlen, ntohs(ph->hw_protocol), &protoff))
-		goto err;
+		goto err1;
 
 	ct = nfct_new();
 	if (ct == NULL)
-		goto err;
+		goto err1;
 
 	if (nfct_payload_parse(mnl_attr_get_payload(attr[NFQA_CT]),
 			       mnl_attr_get_payload_len(attr[NFQA_CT]),
 			       l3num, ct) < 0) {
 		dlog(LOG_ERR, "cannot convert message to CT");
-		goto err;
+		goto err2;
 	}
 
 	myct = calloc(1, sizeof(struct myct));
 	if (myct == NULL)
-		goto err;
+		goto err2;
 
 	myct->ct = ct;
 	ctinfo = ntohl(mnl_attr_get_u32(attr[NFQA_CT_INFO]));
@@ -315,15 +315,15 @@ static int nfq_queue_cb(const struct nlmsghdr *nlh, void *data)
 	/* XXX: 256 bytes enough for possible NAT mangling in helpers? */
 	pktb = pktb_alloc(AF_INET, pkt, pktlen, 256);
 	if (pktb == NULL)
-		goto err;
+		goto err3;
 
 	/* Misconfiguration: if no helper found, accept the packet. */
 	helper = helper_run(pktb, protoff, myct, ctinfo, queue_num, &verdict);
 	if (!helper)
-		goto err_pktb;
+		goto err4;
 
 	if (pkt_verdict_issue(helper, myct, queue_num, id, verdict, pktb) < 0)
-		goto err_pktb;
+		goto err4;
 
 	nfct_destroy(ct);
 	if (myct->exp != NULL)
@@ -333,17 +333,18 @@ static int nfq_queue_cb(const struct nlmsghdr *nlh, void *data)
 	free(myct);
 
 	return MNL_CB_OK;
-err_pktb:
+err4:
 	pktb_free(pktb);
-err:
+err3:
+	free(myct);
+err2:
+	nfct_destroy(ct);
+err1:
 	/* In case of error, we don't want to disrupt traffic. We accept all.
 	 * This is connection tracking after all. The policy is not to drop
 	 * packet unless we enter some inconsistent state.
 	 */
 	pkt_verdict_error(queue_num, id);
-
-	if (ct != NULL)
-		nfct_destroy(ct);
 
 	return MNL_CB_OK;
 }
