@@ -510,7 +510,7 @@ int msg2exp(struct nf_expect *exp, struct nethdr *net, size_t remain)
 		ATTR_NETWORK2HOST(attr);
 		if (attr->nta_len > len)
 			goto err;
-		if (attr->nta_attr > NTA_MAX)
+		if (attr->nta_attr >= NTA_EXP_MAX)
 			goto err;
 		if (attr->nta_len < NTA_LENGTH(0))
 			goto err;
