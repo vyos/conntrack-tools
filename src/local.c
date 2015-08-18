@@ -147,11 +147,14 @@ int do_local_request(int request,
 
 	ret = send(fd, &request, sizeof(int), 0);
 	if (ret == -1)
-		return -1;
+		goto err1;
 
 	do_local_client_step(fd, step);
 
 	local_client_destroy(fd);
-	
+
 	return 0;
+err1:
+	local_client_destroy(fd);
+	return -1;
 }
