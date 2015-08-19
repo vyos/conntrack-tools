@@ -1,3 +1,9 @@
+conntrack (1:1.4.2-2+deb8u1) jessie-security; urgency=high
+
+  * [d2fe984] d/patches: add CVE-2015-6496.patch (Closes: #796103)
+
+ -- Arturo Borrero Gonzalez <arturo.borrero.glez@gmail.com>  Wed, 19 Aug 2015 19:35:14 +0200
+
 conntrack (1:1.4.2-2) unstable; urgency=medium
 
   [ Arturo Borrero Gonzalez ]
