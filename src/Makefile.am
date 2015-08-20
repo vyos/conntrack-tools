@@ -25,7 +25,6 @@ nfct_SOURCES += nfct-extensions/timeout.c
 endif
 
 nfct_LDADD = ${LIBMNL_LIBS} 			\
-	     ${LIBNETFILTER_CONNTRACK_LIBS}	\
 	     ${libdl_LIBS}
 
 if HAVE_CTTIMEOUT
