@@ -32,7 +32,7 @@ static void
 nfct_cmd_timeout_usage(char *argv[])
 {
 	fprintf(stderr, "nfct v%s: Missing command\n"
-			"%s timeout <list|add|delete|get|flush|set> "
+			"%s <list|add|delete|get|flush|set> timeout "
 			"[<parameters>, ...]\n", VERSION, argv[0]);
 }
 
@@ -45,35 +45,30 @@ static int nfct_cmd_timeout_default_set(struct mnl_socket *nl, int argc, char *a
 static int nfct_cmd_timeout_default_get(struct mnl_socket *nl, int argc, char *argv[]);
 
 static int
-nfct_cmd_timeout_parse_params(struct mnl_socket *nl, int argc, char *argv[])
+nfct_timeout_parse_params(struct mnl_socket *nl, int argc, char *argv[], int cmd)
 {
-	int cmd = NFCT_CMD_NONE, ret;
+	int ret;
 
 	if (argc < 3) {
 		nfct_cmd_timeout_usage(argv);
 		return -1;
 	}
-	if (strncmp(argv[2], "list", strlen(argv[2])) == 0)
-		cmd = NFCT_CMD_LIST;
-	else if (strncmp(argv[2], "add", strlen(argv[2])) == 0)
-		cmd = NFCT_CMD_ADD;
-	else if (strncmp(argv[2], "delete", strlen(argv[2])) == 0)
-		cmd = NFCT_CMD_DELETE;
-	else if (strncmp(argv[2], "get", strlen(argv[2])) == 0)
-		cmd = NFCT_CMD_GET;
-	else if (strncmp(argv[2], "flush", strlen(argv[2])) == 0)
-		cmd = NFCT_CMD_FLUSH;
-	else if (strncmp(argv[2], "default-set", strlen(argv[2])) == 0)
-		cmd = NFCT_CMD_DEFAULT_SET;
-	else if (strncmp(argv[2], "default-get", strlen(argv[2])) == 0)
-		cmd = NFCT_CMD_DEFAULT_GET;
-	else {
-		fprintf(stderr, "nfct v%s: Unknown command: %s\n",
-			VERSION, argv[2]);
+
+	switch (cmd) {
+	case NFCT_CMD_LIST:
+	case NFCT_CMD_ADD:
+	case NFCT_CMD_DELETE:
+	case NFCT_CMD_GET:
+	case NFCT_CMD_FLUSH:
+	case NFCT_CMD_DEFAULT_SET:
+	case NFCT_CMD_DEFAULT_GET:
+		break;
+	default:
 		nfct_cmd_timeout_usage(argv);
 		return -1;
 	}
-	switch(cmd) {
+
+	switch (cmd) {
 	case NFCT_CMD_LIST:
 		ret = nfct_cmd_timeout_list(nl, argc, argv);
 		break;
@@ -95,6 +90,9 @@ nfct_cmd_timeout_parse_params(struct mnl_socket *nl, int argc, char *argv[])
 	case NFCT_CMD_DEFAULT_GET:
 		ret = nfct_cmd_timeout_default_get(nl, argc, argv);
 		break;
+	default:
+		nfct_cmd_timeout_usage(argv);
+		return -1;
 	}
 
 	return ret;
@@ -270,9 +268,7 @@ int nfct_cmd_timeout_add(struct mnl_socket *nl, int argc, char *argv[])
 
 	if (argc < 6) {
 		nfct_perror("missing parameters\n"
-			    "syntax: nfct timeout add name "
-			    "family protocol state1 "
-			    "timeout1 state2 timeout2...");
+			    "syntax: nfct add timeout name family protocol state1 timeout1 ...");
 		return -1;
 	}
 
@@ -415,9 +411,7 @@ nfct_cmd_timeout_default_set(struct mnl_socket *nl, int argc, char *argv[])
 
 	if (argc < 6) {
 		nfct_perror("missing parameters\n"
-			    "syntax: nfct timeout default-set "
-			    "family protocol state1 "
-			    "timeout1 state2 timeout2...");
+			    "syntax: nfct default-set timeout family protocol state1 timeout1...");
 		return -1;
 	}
 
@@ -454,8 +448,7 @@ nfct_cmd_timeout_default_get(struct mnl_socket *nl, int argc, char *argv[])
 
 	if (argc < 5) {
 		nfct_perror("missing parameters\n"
-			    "syntax: nfct timeout default-get "
-			    "family protocol");
+			    "syntax: nfct default-get timeout family protocol");
 		return -1;
 	}
 
@@ -497,7 +490,7 @@ nfct_cmd_timeout_default_get(struct mnl_socket *nl, int argc, char *argv[])
 
 static struct nfct_extension timeout = {
 	.type		= NFCT_SUBSYS_TIMEOUT,
-	.parse_params	= nfct_cmd_timeout_parse_params,
+	.parse_params	= nfct_timeout_parse_params,
 };
 
 static void __init timeout_init(void)

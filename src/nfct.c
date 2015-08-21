@@ -31,7 +31,7 @@ static int nfct_cmd_help(int argc, char *argv[]);
 
 static void usage(char *argv[])
 {
-	fprintf(stderr, "Usage: %s subsystem command [parameters]...\n",
+	fprintf(stderr, "Usage: %s command subsystem [parameters]...\n",
 		argv[0]);
 }
 
@@ -63,32 +63,93 @@ static struct nfct_extension *nfct_extension_lookup(int type)
 	return NULL;
 }
 
+static const char *nfct_cmd_array[NFCT_CMD_MAX] = {
+	[NFCT_CMD_LIST]		= "list",
+	[NFCT_CMD_ADD]		= "add",
+	[NFCT_CMD_DELETE]	= "delete",
+	[NFCT_CMD_GET]		= "get",
+	[NFCT_CMD_FLUSH]	= "flush",
+	[NFCT_CMD_DISABLE]	= "disable",
+	[NFCT_CMD_DEFAULT_SET]	= "default-set",
+	[NFCT_CMD_DEFAULT_GET]	= "default-get",
+};
+
+static int nfct_cmd_parse(const char *cmdstr)
+{
+	int i;
+
+	for (i = 1; i < NFCT_CMD_MAX; i++) {
+		if (strncmp(nfct_cmd_array[i], cmdstr, strlen(cmdstr)) == 0)
+			return i;
+	}
+	return -1;
+}
+
+static int nfct_cmd_error(char *argv[])
+{
+	fprintf(stderr, "nfct v%s: Unknown command: %s\n", VERSION, argv[1]);
+	usage(argv);
+
+	return EXIT_FAILURE;
+}
+
+static const char *nfct_subsys_array[NFCT_SUBSYS_MAX] = {
+	[NFCT_SUBSYS_TIMEOUT]	= "timeout",
+	[NFCT_SUBSYS_HELPER]	= "helper",
+	[NFCT_SUBSYS_VERSION]	= "version",
+	[NFCT_SUBSYS_HELP]	= "help",
+};
+
+static int nfct_subsys_parse(const char *cmdstr)
+{
+	int i;
+
+	for (i = 1; i < NFCT_SUBSYS_MAX; i++) {
+		if (strncmp(nfct_subsys_array[i], cmdstr, strlen(cmdstr)) == 0)
+			return i;
+	}
+	return -1;
+}
+
+static int nfct_subsys_error(char *argv[])
+{
+	fprintf(stderr, "nfct v%s: Unknown subsystem: %s\n", VERSION, argv[1]);
+	usage(argv);
+
+	return EXIT_FAILURE;
+}
+
 int main(int argc, char *argv[])
 {
-	int subsys = NFCT_SUBSYS_NONE, ret = 0;
+	int subsys, cmd, ret = 0;
 	struct nfct_extension *ext;
 	struct mnl_socket *nl;
 
-	if (argc < 2) {
-		usage(argv);
-		exit(EXIT_FAILURE);
-	}
-	if (strncmp(argv[1], "timeout", strlen(argv[1])) == 0) {
-		subsys = NFCT_SUBSYS_TIMEOUT;
-	} else if (strncmp(argv[1], "helper", strlen(argv[1])) == 0) {
-		subsys = NFCT_SUBSYS_HELPER;
-	} else if (strncmp(argv[1], "version", strlen(argv[1])) == 0)
-		subsys = NFCT_SUBSYS_VERSION;
-	else if (strncmp(argv[1], "help", strlen(argv[1])) == 0)
-		subsys = NFCT_SUBSYS_HELP;
-	else {
-		fprintf(stderr, "nfct v%s: Unknown subsystem: %s\n",
-			VERSION, argv[1]);
+	if (argc < 3) {
 		usage(argv);
 		exit(EXIT_FAILURE);
 	}
 
-	switch(subsys) {
+	cmd = nfct_cmd_parse(argv[1]);
+	if (cmd < 0) {
+		/* Workaround not to break backward compatibility and to get
+		 * the syntax in sync with nft. Old nfct versions allow to
+		 * specify the subsystem before the command.
+		 */
+		subsys = nfct_subsys_parse(argv[1]);
+		if (subsys < 0)
+			return nfct_subsys_error(argv);
+
+		cmd = nfct_cmd_parse(argv[2]);
+		if (cmd < 0)
+			return nfct_cmd_error(argv);
+	} else {
+		subsys = nfct_subsys_parse(argv[2]);
+		if (subsys < 0)
+			return nfct_subsys_error(argv);
+	}
+
+	switch (subsys) {
 	case NFCT_SUBSYS_VERSION:
 		ret = nfct_cmd_version(argc, argv);
 		break;
@@ -109,7 +170,7 @@ int main(int argc, char *argv[])
 			return -1;
 		}
 
-		ret = ext->parse_params(nl, argc, argv);
+		ret = ext->parse_params(nl, argc, argv, cmd);
 		mnl_socket_close(nl);
 		break;
 	}

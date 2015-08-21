@@ -45,36 +45,31 @@ static int nfct_cmd_helper_flush(struct mnl_socket *nl, int argc, char *argv[]);
 static int nfct_cmd_helper_disable(struct mnl_socket *nl, int argc, char *argv[]);
 
 static int
-nfct_cmd_helper_parse_params(struct mnl_socket *nl, int argc, char *argv[])
+nfct_helper_parse_params(struct mnl_socket *nl, int argc, char *argv[], int cmd)
 {
-	int cmd = NFCT_CMD_NONE, ret = 0;
+	int ret;
 
 	if (argc < 3) {
-		fprintf(stderr, "nfct v%s: Missing command\n"
-				"%s helper list|add|delete|get|flush "
-				"[parameters...]\n", VERSION, argv[0]);
-		exit(EXIT_FAILURE);
+		nfct_cmd_helper_usage(argv);
+		return -1;
 	}
-	if (strncmp(argv[2], "list", strlen(argv[2])) == 0)
-		cmd = NFCT_CMD_LIST;
-	else if (strncmp(argv[2], "add", strlen(argv[2])) == 0)
-		cmd = NFCT_CMD_ADD;
-	else if (strncmp(argv[2], "delete", strlen(argv[2])) == 0)
-		cmd = NFCT_CMD_DELETE;
-	else if (strncmp(argv[2], "get", strlen(argv[2])) == 0)
-		cmd = NFCT_CMD_GET;
-	else if (strncmp(argv[2], "flush", strlen(argv[2])) == 0)
-		cmd = NFCT_CMD_FLUSH;
-	else if (strncmp(argv[2], "disable", strlen(argv[2])) == 0)
-		cmd = NFCT_CMD_DISABLE;
-	else {
+
+	switch (cmd) {
+	case NFCT_CMD_LIST:
+	case NFCT_CMD_ADD:
+	case NFCT_CMD_DELETE:
+	case NFCT_CMD_GET:
+	case NFCT_CMD_FLUSH:
+	case NFCT_CMD_DISABLE:
+		break;
+	default:
 		fprintf(stderr, "nfct v%s: Unknown command: %s\n",
 			VERSION, argv[2]);
 		nfct_cmd_helper_usage(argv);
 		exit(EXIT_FAILURE);
 	}
 
-	switch(cmd) {
+	switch (cmd) {
 	case NFCT_CMD_LIST:
 		ret = nfct_cmd_helper_list(nl, argc, argv);
 		break;
@@ -93,6 +88,9 @@ nfct_cmd_helper_parse_params(struct mnl_socket *nl, int argc, char *argv[])
 	case NFCT_CMD_DISABLE:
 		ret = nfct_cmd_helper_disable(nl, argc, argv);
 		break;
+	default:
+		nfct_cmd_helper_usage(argv);
+		return -1;
 	}
 
 	return ret;
@@ -160,8 +158,7 @@ static int nfct_cmd_helper_add(struct mnl_socket *nl, int argc, char *argv[])
 
 	if (argc < 6) {
 		nfct_perror("missing parameters\n"
-			    "syntax: nfct helper add name "
-			    "family protocol");
+			    "syntax: nfct add helper name family protocol");
 		return -1;
 	}
 
@@ -411,8 +408,7 @@ nfct_cmd_helper_disable(struct mnl_socket *nl, int argc, char *argv[])
 
 	if (argc < 6) {
 		nfct_perror("missing parameters\n"
-			    "syntax: nfct helper add name "
-			    "family protocol");
+			    "syntax: nfct add helper name family protocol");
 		return -1;
 	}
 
@@ -469,7 +465,7 @@ nfct_cmd_helper_disable(struct mnl_socket *nl, int argc, char *argv[])
 
 static struct nfct_extension helper = {
 	.type		= NFCT_SUBSYS_HELPER,
-	.parse_params	= nfct_cmd_helper_parse_params,
+	.parse_params	= nfct_helper_parse_params,
 };
 
 static void __init helper_init(void)

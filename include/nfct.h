@@ -9,6 +9,7 @@ enum {
 	NFCT_SUBSYS_HELPER,
 	NFCT_SUBSYS_VERSION,
 	NFCT_SUBSYS_HELP,
+	NFCT_SUBSYS_MAX
 };
 
 enum {
@@ -21,6 +22,7 @@ enum {
 	NFCT_CMD_DISABLE,
 	NFCT_CMD_DEFAULT_SET,
 	NFCT_CMD_DEFAULT_GET,
+	NFCT_CMD_MAX,
 };
 
 #define __init __attribute__((constructor))
@@ -30,7 +32,7 @@ void nfct_perror(const char *msg);
 struct nfct_extension {
 	struct list_head	head;
 	int			type;
-	int (*parse_params)(struct mnl_socket *nl, int argc, char *argv[]);
+	int (*parse_params)(struct mnl_socket *nl, int argc, char *argv[], int cmd);
 };
 
 void nfct_extension_register(struct nfct_extension *ext);
