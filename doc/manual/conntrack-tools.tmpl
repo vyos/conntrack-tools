@@ -899,8 +899,8 @@ maintainance.</para></listitem>
 <listitem><para>Register user-space helper:
 
 <programlisting>
-nfct helper add rpc inet udp
-nfct helper add rpc inet tcp
+nfct add helper rpc inet udp
+nfct add helper rpc inet tcp
 </programlisting>
 
 This registers the portmapper helper for both UDP and TCP (NFSv3 traffic goes both over TCP and UDP).
