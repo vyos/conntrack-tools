@@ -1,4 +1,4 @@
-.TH CONNTRACK 8 "Sep 25, 2014" "" ""
+.TH CONNTRACK 8 "Aug 24, 2015" "" ""
 
 .\" Man page written by Harald Welte <laforge@netfilter.org (Jun 2005)
 .\" Maintained by Pablo Neira Ayuso <pablo@netfilter.org (May 2007)
@@ -175,6 +175,14 @@ Filter any NAT connections.
 .TP
 .BI "-w, --zone "
 Filter by conntrack zone. See iptables CT target for more information.
+.TP
+.BI "--orig-zone "
+Filter by conntrack zone in original direction.
+See iptables CT target for more information.
+.TP
+.BI "--reply-zone "
+Filter by conntrack zone in reply direction.
+See iptables CT target for more information.
 .TP
 .BI "--tuple-src " IP_ADDRESS
 Specify the tuple source address of an expectation.

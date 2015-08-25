@@ -262,17 +262,24 @@ enum ct_options {
 	CT_OPT_LABEL		= (1 << CT_OPT_LABEL_BIT),
 
 	CT_OPT_ADD_LABEL_BIT	= 25,
-	CT_OPT_ADD_LABEL		= (1 << CT_OPT_ADD_LABEL_BIT),
+	CT_OPT_ADD_LABEL	= (1 << CT_OPT_ADD_LABEL_BIT),
 
 	CT_OPT_DEL_LABEL_BIT	= 26,
-	CT_OPT_DEL_LABEL		= (1 << CT_OPT_DEL_LABEL_BIT),
+	CT_OPT_DEL_LABEL	= (1 << CT_OPT_DEL_LABEL_BIT),
+
+	CT_OPT_ORIG_ZONE_BIT	= 27,
+	CT_OPT_ORIG_ZONE	= (1 << CT_OPT_ORIG_ZONE_BIT),
+
+	CT_OPT_REPL_ZONE_BIT	= 28,
+	CT_OPT_REPL_ZONE	= (1 << CT_OPT_REPL_ZONE_BIT),
 };
 /* If you add a new option, you have to update NUMBER_OF_OPT in conntrack.h */
 
 /* Update this mask to allow to filter based on new options. */
 #define CT_COMPARISON (CT_OPT_PROTO | CT_OPT_ORIG | CT_OPT_REPL | \
 		       CT_OPT_MARK | CT_OPT_SECMARK |  CT_OPT_STATUS | \
-		       CT_OPT_ID | CT_OPT_ZONE | CT_OPT_LABEL)
+		       CT_OPT_ID | CT_OPT_ZONE | CT_OPT_LABEL | \
+		       CT_OPT_ORIG_ZONE | CT_OPT_REPL_ZONE)
 
 static const char *optflags[NUMBER_OF_OPT] = {
 	[CT_OPT_ORIG_SRC_BIT] 	= "src",
@@ -302,6 +309,8 @@ static const char *optflags[NUMBER_OF_OPT] = {
 	[CT_OPT_LABEL_BIT]	= "label",
 	[CT_OPT_ADD_LABEL_BIT]	= "label-add",
 	[CT_OPT_DEL_LABEL_BIT]	= "label-del",
+	[CT_OPT_ORIG_ZONE_BIT]	= "orig-zone",
+	[CT_OPT_REPL_ZONE_BIT]	= "reply-zone",
 };
 
 static struct option original_opts[] = {
@@ -345,12 +354,14 @@ static struct option original_opts[] = {
 	{"label", 1, 0, 'l'},
 	{"label-add", 1, 0, '<'},
 	{"label-del", 2, 0, '>'},
+	{"orig-zone", 1, 0, '('},
+	{"reply-zone", 1, 0, ')'},
 	{0, 0, 0, 0}
 };
 
 static const char *getopt_str = ":L::I::U::D::G::E::F::hVs:d:r:q:"
 				"p:t:u:e:a:z[:]:{:}:m:i:f:o:n::"
-				"g::c:b:C::Sj::w:l:<:>::";
+				"g::c:b:C::Sj::w:l:<:>::(:):";
 
 /* Table of legal combinations of commands and options.  If any of the
  * given commands make an option legal, that option is legal (applies to
@@ -365,26 +376,26 @@ static const char *getopt_str = ":L::I::U::D::G::E::F::hVs:d:r:q:"
 static char commands_v_options[NUMBER_OF_CMD][NUMBER_OF_OPT] =
 /* Well, it's better than "Re: Linux vs FreeBSD" */
 {
-          /*   s d r q p t u z e [ ] { } a m i f n g o c b j w l < > */
-/*CT_LIST*/   {2,2,2,2,2,0,2,2,0,0,0,0,0,0,2,0,2,2,2,2,2,0,2,2,2,0,0},
-/*CT_CREATE*/ {3,3,3,3,1,1,2,0,0,0,0,0,0,2,2,0,0,2,2,0,0,0,0,2,0,2,0},
-/*CT_UPDATE*/ {2,2,2,2,2,2,2,0,0,0,0,0,0,0,2,2,2,2,2,2,0,0,0,0,2,2,2},
-/*CT_DELETE*/ {2,2,2,2,2,2,2,0,0,0,0,0,0,0,2,2,2,2,2,2,0,0,0,2,2,0,0},
-/*CT_GET*/    {3,3,3,3,1,0,0,0,0,0,0,0,0,0,0,2,0,0,0,2,0,0,0,0,2,0,0},
-/*CT_FLUSH*/  {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-/*CT_EVENT*/  {2,2,2,2,2,0,0,0,2,0,0,0,0,0,2,0,0,2,2,2,2,2,2,2,2,0,0},
-/*VERSION*/   {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-/*HELP*/      {0,0,0,0,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-/*EXP_LIST*/  {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,0,0,2,0,0,0,0,0,0,0},
-/*EXP_CREATE*/{1,1,2,2,1,1,2,0,0,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-/*EXP_DELETE*/{1,1,2,2,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-/*EXP_GET*/   {1,1,2,2,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-/*EXP_FLUSH*/ {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-/*EXP_EVENT*/ {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,0,0,0,0,0,0,0},
-/*CT_COUNT*/  {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-/*EXP_COUNT*/ {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-/*CT_STATS*/  {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-/*EXP_STATS*/ {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+          /*   s d r q p t u z e [ ] { } a m i f n g o c b j w l < > ( ) */
+/*CT_LIST*/   {2,2,2,2,2,0,2,2,0,0,0,0,0,0,2,0,2,2,2,2,2,0,2,2,2,0,0,2,2},
+/*CT_CREATE*/ {3,3,3,3,1,1,2,0,0,0,0,0,0,2,2,0,0,2,2,0,0,0,0,2,0,2,0,2,2},
+/*CT_UPDATE*/ {2,2,2,2,2,2,2,0,0,0,0,0,0,0,2,2,2,2,2,2,0,0,0,0,2,2,2,0,0},
+/*CT_DELETE*/ {2,2,2,2,2,2,2,0,0,0,0,0,0,0,2,2,2,2,2,2,0,0,0,2,2,0,0,2,2},
+/*CT_GET*/    {3,3,3,3,1,0,0,0,0,0,0,0,0,0,0,2,0,0,0,2,0,0,0,0,2,0,0,0,0},
+/*CT_FLUSH*/  {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+/*CT_EVENT*/  {2,2,2,2,2,0,0,0,2,0,0,0,0,0,2,0,0,2,2,2,2,2,2,2,2,0,0,2,2},
+/*VERSION*/   {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+/*HELP*/      {0,0,0,0,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+/*EXP_LIST*/  {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,0,0,2,0,0,0,0,0,0,0,0,0},
+/*EXP_CREATE*/{1,1,2,2,1,1,2,0,0,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+/*EXP_DELETE*/{1,1,2,2,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+/*EXP_GET*/   {1,1,2,2,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+/*EXP_FLUSH*/ {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+/*EXP_EVENT*/ {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,0,0,0,0,0,0,0,0,0},
+/*CT_COUNT*/  {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+/*EXP_COUNT*/ {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+/*CT_STATS*/  {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+/*EXP_STATS*/ {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
 };
 
 static const int cmd2type[][2] = {
@@ -419,6 +430,8 @@ static const int opt2type[] = {
 	['l']	= CT_OPT_LABEL,
 	['<']	= CT_OPT_ADD_LABEL,
 	['>']	= CT_OPT_DEL_LABEL,
+	['(']	= CT_OPT_ORIG_ZONE,
+	[')']	= CT_OPT_REPL_ZONE,
 };
 
 static const int opt2family_attr[][2] = {
@@ -448,6 +461,8 @@ static const int opt2attr[] = {
 	['l']	= ATTR_CONNLABELS,
 	['<']	= ATTR_CONNLABELS,
 	['>']	= ATTR_CONNLABELS,
+	['(']	= ATTR_ORIG_ZONE,
+	[')']	= ATTR_REPL_ZONE,
 };
 
 static char exit_msg[NUMBER_OF_CMD][64] = {
@@ -511,6 +526,8 @@ static const char usage_parameters[] =
 	"  -t, --timeout timeout\t\tSet timeout\n"
 	"  -u, --status status\t\tSet status, eg. ASSURED\n"
 	"  -w, --zone value\t\tSet conntrack zone\n"
+	"  --orig-zone value\t\tSet zone for original direction\n"
+	"  --reply-zone value\t\tSet zone for reply direction\n"
 	"  -b, --buffer-size\t\tNetlink socket buffer size\n"
 	;
 
@@ -2117,6 +2134,8 @@ int main(int argc, char *argv[])
 			break;
 		}
 		case 'w':
+		case '(':
+		case ')':
 			options |= opt2type[c];
 			nfct_set_attr_u16(tmpl.ct,
 					  opt2attr[c],
