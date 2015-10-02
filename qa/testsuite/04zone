@@ -1,8 +1,0 @@
-# create dummy
--I -s 1.1.1.1 -d 2.2.2.2 -p tcp --sport 10 --dport 20 --state LISTEN -u SEEN_REPLY -t 50 --zone 1; OK
-# display dummy
--L --zone 1; OK
-# display dummy
--L --zone 0; OK
-# delete dummy
--D --zone 1; OK

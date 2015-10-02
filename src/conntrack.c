@@ -1,5 +1,6 @@
 /*
- * (C) 2005-2008 by Pablo Neira Ayuso <pablo@netfilter.org>
+ * (C) 2005-2012 by Pablo Neira Ayuso <pablo@netfilter.org>
+ * (C) 2012 by Intra2net AG <http://www.intra2net.com>
  *
  *      This program is free software; you can redistribute it and/or modify
  *      it under the terms of the GNU General Public License as published by
@@ -33,6 +34,8 @@
  * 	Ported to the new libnetfilter_conntrack API
  * 2008-04-13 Pablo Neira Ayuso <pablo@netfilter.org>:
  *	Way more flexible update and delete operations
+ *
+ * Part of this code has been funded by Sophos Astaro <http://www.sophos.com>
  */
 
 #include "conntrack.h"
@@ -56,6 +59,7 @@
 #include <netdb.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <libmnl/libmnl.h>
 #include <libnetfilter_conntrack/libnetfilter_conntrack.h>
 
 struct u32_mask {
@@ -72,6 +76,15 @@ static struct {
 
 	/* Allows filtering/setting specific bits in the ctmark */
 	struct u32_mask mark;
+
+	/* Allow to filter by mark from kernel-space. */
+	struct nfct_filter_dump_mark filter_mark_kernel;
+
+	/* Allows filtering by ctlabels */
+	struct nfct_bitmask *label;
+
+	/* Allows setting/removing specific ctlabels */
+	struct nfct_bitmask *label_modify;
 } tmpl;
 
 static int alloc_tmpl_objects(void)
@@ -97,6 +110,10 @@ static void free_tmpl_objects(void)
 		nfct_destroy(tmpl.mask);
 	if (tmpl.exp)
 		nfexp_destroy(tmpl.exp);
+	if (tmpl.label)
+		nfct_bitmask_destroy(tmpl.label);
+	if (tmpl.label_modify)
+		nfct_bitmask_destroy(tmpl.label_modify);
 }
 
 enum ct_command {
@@ -153,8 +170,11 @@ enum ct_command {
 	EXP_COUNT_BIT	= 16,
 	EXP_COUNT	= (1 << EXP_COUNT_BIT),
 
-	X_STATS_BIT	= 17,
-	X_STATS		= (1 << X_STATS_BIT),
+	CT_STATS_BIT	= 17,
+	CT_STATS	= (1 << CT_STATS_BIT),
+
+	EXP_STATS_BIT	= 18,
+	EXP_STATS	= (1 << EXP_STATS_BIT),
 };
 /* If you add a new command, you have to update NUMBER_OF_CMD in conntrack.h */
 
@@ -237,13 +257,29 @@ enum ct_options {
 
 	CT_OPT_ZONE_BIT		= 23,
 	CT_OPT_ZONE		= (1 << CT_OPT_ZONE_BIT),
+
+	CT_OPT_LABEL_BIT	= 24,
+	CT_OPT_LABEL		= (1 << CT_OPT_LABEL_BIT),
+
+	CT_OPT_ADD_LABEL_BIT	= 25,
+	CT_OPT_ADD_LABEL	= (1 << CT_OPT_ADD_LABEL_BIT),
+
+	CT_OPT_DEL_LABEL_BIT	= 26,
+	CT_OPT_DEL_LABEL	= (1 << CT_OPT_DEL_LABEL_BIT),
+
+	CT_OPT_ORIG_ZONE_BIT	= 27,
+	CT_OPT_ORIG_ZONE	= (1 << CT_OPT_ORIG_ZONE_BIT),
+
+	CT_OPT_REPL_ZONE_BIT	= 28,
+	CT_OPT_REPL_ZONE	= (1 << CT_OPT_REPL_ZONE_BIT),
 };
 /* If you add a new option, you have to update NUMBER_OF_OPT in conntrack.h */
 
 /* Update this mask to allow to filter based on new options. */
 #define CT_COMPARISON (CT_OPT_PROTO | CT_OPT_ORIG | CT_OPT_REPL | \
 		       CT_OPT_MARK | CT_OPT_SECMARK |  CT_OPT_STATUS | \
-		       CT_OPT_ID | CT_OPT_ZONE)
+		       CT_OPT_ID | CT_OPT_ZONE | CT_OPT_LABEL | \
+		       CT_OPT_ORIG_ZONE | CT_OPT_REPL_ZONE)
 
 static const char *optflags[NUMBER_OF_OPT] = {
 	[CT_OPT_ORIG_SRC_BIT] 	= "src",
@@ -270,6 +306,11 @@ static const char *optflags[NUMBER_OF_OPT] = {
 	[CT_OPT_BUFFERSIZE_BIT]	= "buffer-size",
 	[CT_OPT_ANY_NAT_BIT]	= "any-nat",
 	[CT_OPT_ZONE_BIT]	= "zone",
+	[CT_OPT_LABEL_BIT]	= "label",
+	[CT_OPT_ADD_LABEL_BIT]	= "label-add",
+	[CT_OPT_DEL_LABEL_BIT]	= "label-del",
+	[CT_OPT_ORIG_ZONE_BIT]	= "orig-zone",
+	[CT_OPT_REPL_ZONE_BIT]	= "reply-zone",
 };
 
 static struct option original_opts[] = {
@@ -310,12 +351,17 @@ static struct option original_opts[] = {
 	{"buffer-size", 1, 0, 'b'},
 	{"any-nat", 2, 0, 'j'},
 	{"zone", 1, 0, 'w'},
+	{"label", 1, 0, 'l'},
+	{"label-add", 1, 0, '<'},
+	{"label-del", 2, 0, '>'},
+	{"orig-zone", 1, 0, '('},
+	{"reply-zone", 1, 0, ')'},
 	{0, 0, 0, 0}
 };
 
-static const char *getopt_str = "L::I::U::D::G::E::F::hVs:d:r:q:"
+static const char *getopt_str = ":L::I::U::D::G::E::F::hVs:d:r:q:"
 				"p:t:u:e:a:z[:]:{:}:m:i:f:o:n::"
-				"g::c:b:C::Sj::w:";
+				"g::c:b:C::Sj::w:l:<:>::(:):";
 
 /* Table of legal combinations of commands and options.  If any of the
  * given commands make an option legal, that option is legal (applies to
@@ -330,25 +376,26 @@ static const char *getopt_str = "L::I::U::D::G::E::F::hVs:d:r:q:"
 static char commands_v_options[NUMBER_OF_CMD][NUMBER_OF_OPT] =
 /* Well, it's better than "Re: Linux vs FreeBSD" */
 {
-          /*   s d r q p t u z e [ ] { } a m i f n g o c b j w*/
-/*CT_LIST*/   {2,2,2,2,2,0,2,2,0,0,0,0,0,0,2,0,2,2,2,2,2,0,2,2},
-/*CT_CREATE*/ {3,3,3,3,1,1,2,0,0,0,0,0,0,2,2,0,0,2,2,0,0,0,0,2},
-/*CT_UPDATE*/ {2,2,2,2,2,2,2,0,0,0,0,0,0,0,2,2,2,2,2,2,0,0,0,0},
-/*CT_DELETE*/ {2,2,2,2,2,2,2,0,0,0,0,0,0,0,2,2,2,2,2,2,0,0,0,2},
-/*CT_GET*/    {3,3,3,3,1,0,0,0,0,0,0,0,0,0,0,2,0,0,0,2,0,0,0,0},
-/*CT_FLUSH*/  {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-/*CT_EVENT*/  {2,2,2,2,2,0,0,0,2,0,0,0,0,0,2,0,0,2,2,2,2,2,2,2},
-/*VERSION*/   {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-/*HELP*/      {0,0,0,0,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-/*EXP_LIST*/  {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,0,0,2,0,0,0,0},
-/*EXP_CREATE*/{1,1,2,2,1,1,2,0,0,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0},
-/*EXP_DELETE*/{1,1,2,2,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-/*EXP_GET*/   {1,1,2,2,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-/*EXP_FLUSH*/ {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-/*EXP_EVENT*/ {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,0,0,0,0},
-/*CT_COUNT*/  {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-/*EXP_COUNT*/ {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
-/*X_STATS*/   {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+          /*   s d r q p t u z e [ ] { } a m i f n g o c b j w l < > ( ) */
+/*CT_LIST*/   {2,2,2,2,2,0,2,2,0,0,0,0,0,0,2,0,2,2,2,2,2,0,2,2,2,0,0,2,2},
+/*CT_CREATE*/ {3,3,3,3,1,1,2,0,0,0,0,0,0,2,2,0,0,2,2,0,0,0,0,2,0,2,0,2,2},
+/*CT_UPDATE*/ {2,2,2,2,2,2,2,0,0,0,0,0,0,0,2,2,2,2,2,2,0,0,0,0,2,2,2,0,0},
+/*CT_DELETE*/ {2,2,2,2,2,2,2,0,0,0,0,0,0,0,2,2,2,2,2,2,0,0,0,2,2,0,0,2,2},
+/*CT_GET*/    {3,3,3,3,1,0,0,0,0,0,0,0,0,0,0,2,0,0,0,2,0,0,0,0,2,0,0,0,0},
+/*CT_FLUSH*/  {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+/*CT_EVENT*/  {2,2,2,2,2,0,0,0,2,0,0,0,0,0,2,0,0,2,2,2,2,2,2,2,2,0,0,2,2},
+/*VERSION*/   {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+/*HELP*/      {0,0,0,0,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+/*EXP_LIST*/  {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,0,0,2,0,0,0,0,0,0,0,0,0},
+/*EXP_CREATE*/{1,1,2,2,1,1,2,0,0,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+/*EXP_DELETE*/{1,1,2,2,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+/*EXP_GET*/   {1,1,2,2,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+/*EXP_FLUSH*/ {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+/*EXP_EVENT*/ {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,0,0,0,0,0,0,0,0,0},
+/*CT_COUNT*/  {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+/*EXP_COUNT*/ {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+/*CT_STATS*/  {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
+/*EXP_STATS*/ {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
 };
 
 static const int cmd2type[][2] = {
@@ -361,6 +408,7 @@ static const int cmd2type[][2] = {
 	['V']	= { CT_VERSION,	CT_VERSION },
 	['h']	= { CT_HELP,	CT_HELP },
 	['C']	= { CT_COUNT,	EXP_COUNT },
+	['S']	= { CT_STATS,	EXP_STATS },
 };
 
 static const int opt2type[] = {
@@ -379,6 +427,11 @@ static const int opt2type[] = {
 	['i']	= CT_OPT_ID,
 	['j']	= CT_OPT_ANY_NAT,
 	['w']	= CT_OPT_ZONE,
+	['l']	= CT_OPT_LABEL,
+	['<']	= CT_OPT_ADD_LABEL,
+	['>']	= CT_OPT_DEL_LABEL,
+	['(']	= CT_OPT_ORIG_ZONE,
+	[')']	= CT_OPT_REPL_ZONE,
 };
 
 static const int opt2family_attr[][2] = {
@@ -397,10 +450,19 @@ static const int opt2attr[] = {
 	['d']	= ATTR_ORIG_L3PROTO,
 	['r']	= ATTR_REPL_L3PROTO,
 	['q']	= ATTR_REPL_L3PROTO,
+	['{']	= ATTR_ORIG_L3PROTO,
+	['}']	= ATTR_ORIG_L3PROTO,
+	['[']	= ATTR_ORIG_L3PROTO,
+	[']']	= ATTR_ORIG_L3PROTO,
 	['m']	= ATTR_MARK,
 	['c']	= ATTR_SECMARK,
 	['i']	= ATTR_ID,
 	['w']	= ATTR_ZONE,
+	['l']	= ATTR_CONNLABELS,
+	['<']	= ATTR_CONNLABELS,
+	['>']	= ATTR_CONNLABELS,
+	['(']	= ATTR_ORIG_ZONE,
+	[')']	= ATTR_REPL_ZONE,
 };
 
 static char exit_msg[NUMBER_OF_CMD][64] = {
@@ -438,7 +500,8 @@ static const char usage_conntrack_parameters[] =
 	"  -c, --secmark secmark\t\t\tSet selinux secmark\n"
 	"  -e, --event-mask eventmask\t\tEvent mask, eg. NEW,DESTROY\n"
 	"  -z, --zero \t\t\t\tZero counters while listing\n"
-	"  -o, --output type[,...]\t\tOutput format, eg. xml\n";
+	"  -o, --output type[,...]\t\tOutput format, eg. xml\n"
+	"  -l, --label label[,...]\t\tconntrack labels\n";
 
 static const char usage_expectation_parameters[] =
 	"Expectation parameters and options:\n"
@@ -446,6 +509,11 @@ static const char usage_expectation_parameters[] =
 	"  --tuple-dst ip\tDestination address in expect tuple\n"
 	"  --mask-src ip\t\tSource mask address\n"
 	"  --mask-dst ip\t\tDestination mask address\n";
+
+static const char usage_update_parameters[] =
+	"Updating parameters and options:\n"
+	"  --label-add label\tAdd label\n"
+	"  --label-del label\tDelete label\n";
 
 static const char usage_parameters[] =
 	"Common parameters and options:\n"
@@ -458,6 +526,8 @@ static const char usage_parameters[] =
 	"  -t, --timeout timeout\t\tSet timeout\n"
 	"  -u, --status status\t\tSet status, eg. ASSURED\n"
 	"  -w, --zone value\t\tSet conntrack zone\n"
+	"  --orig-zone value\t\tSet zone for original direction\n"
+	"  --reply-zone value\t\tSet zone for reply direction\n"
 	"  -b, --buffer-size\t\tNetlink socket buffer size\n"
 	;
 
@@ -476,6 +546,7 @@ static unsigned int addr_valid_flags[ADDR_VALID_FLAGS_MAX] = {
 static LIST_HEAD(proto_list);
 
 static unsigned int options;
+static struct nfct_labelmap *labelmap;
 
 void register_proto(struct ctproto_handler *h)
 {
@@ -497,7 +568,7 @@ static struct ctproto_handler *findproto(char *name, int *pnum)
 
 	/* is it in the list of supported protocol? */
 	list_for_each_entry(cur, &proto_list, head) {
-		if (strcmp(cur->name, name) == 0) {
+		if (strcasecmp(cur->name, name) == 0) {
 			*pnum = cur->protonum;
 			return cur;
 		}
@@ -717,6 +788,7 @@ enum {
 	_O_TMS	= (1 << 2),
 	_O_ID	= (1 << 3),
 	_O_KTMS	= (1 << 4),
+	_O_CL	= (1 << 5),
 };
 
 enum {
@@ -735,8 +807,8 @@ static struct parse_parameter {
 	  { IPS_ASSURED, IPS_SEEN_REPLY, 0, IPS_FIXED_TIMEOUT, IPS_EXPECTED} },
 	{ {"ALL", "NEW", "UPDATES", "DESTROY"}, 4,
 	  { CT_EVENT_F_ALL, CT_EVENT_F_NEW, CT_EVENT_F_UPD, CT_EVENT_F_DEL } },
-	{ {"xml", "extended", "timestamp", "id", "ktimestamp"}, 5, 
-	  { _O_XML, _O_EXT, _O_TMS, _O_ID, _O_KTMS },
+	{ {"xml", "extended", "timestamp", "id", "ktimestamp", "labels", }, 6,
+	  { _O_XML, _O_EXT, _O_TMS, _O_ID, _O_KTMS, _O_CL },
 	},
 };
 
@@ -800,6 +872,59 @@ parse_u32_mask(const char *arg, struct u32_mask *m)
 		m->mask = ~0;
 }
 
+static int
+get_label(char *name)
+{
+	int bit = nfct_labelmap_get_bit(labelmap, name);
+	if (bit < 0)
+		exit_error(PARAMETER_PROBLEM, "unknown label '%s'", name);
+	return bit;
+}
+
+static void
+set_label(struct nfct_bitmask *b, char *name)
+{
+	int bit = get_label(name);
+	nfct_bitmask_set_bit(b, bit);
+}
+
+static unsigned int
+set_max_label(char *name, unsigned int current_max)
+{
+	int bit = get_label(name);
+	if ((unsigned int) bit > current_max)
+		return (unsigned int) bit;
+	return current_max;
+}
+
+static unsigned int
+parse_label_get_max(char *arg)
+{
+	unsigned int max = 0;
+	char *parse;
+
+	while ((parse = strchr(arg, ',')) != NULL) {
+		parse[0] = '\0';
+		max = set_max_label(arg, max);
+		arg = &parse[1];
+	}
+
+	max = set_max_label(arg, max);
+	return max;
+}
+
+static void
+parse_label(struct nfct_bitmask *b, char *arg)
+{
+	char * parse;
+	while ((parse = strchr(arg, ',')) != NULL) {
+		parse[0] = '\0';
+		set_label(b, arg);
+		arg = &parse[1];
+	}
+	set_label(b, arg);
+}
+
 static void
 add_command(unsigned int *cmd, const int newcmd)
 {
@@ -808,27 +933,45 @@ add_command(unsigned int *cmd, const int newcmd)
 	*cmd |= newcmd;
 }
 
-static unsigned int
-check_type(int argc, char *argv[])
+static char *get_optional_arg(int argc, char *argv[])
 {
-	char *table = NULL;
+	char *arg = NULL;
 
-	/* Nasty bug or feature in getopt_long ? 
+	/* Nasty bug or feature in getopt_long ?
 	 * It seems that it behaves badly with optional arguments.
 	 * Fortunately, I just stole the fix from iptables ;) */
 	if (optarg)
-		return 0;
-	else if (optind < argc && argv[optind][0] != '-' 
-			&& argv[optind][0] != '!')
-		table = argv[optind++];
-	
-	if (!table)
-		return 0;
-		
+		return arg;
+	else if (optind < argc && argv[optind][0] != '-' &&
+		 argv[optind][0] != '!')
+		arg = argv[optind++];
+
+	return arg;
+}
+
+enum {
+	CT_TABLE_CONNTRACK,
+	CT_TABLE_EXPECT,
+	CT_TABLE_DYING,
+	CT_TABLE_UNCONFIRMED,
+};
+
+static unsigned int check_type(int argc, char *argv[])
+{
+	const char *table = get_optional_arg(argc, argv);
+
+	/* default to conntrack subsystem if nothing has been specified. */
+	if (table == NULL)
+		return CT_TABLE_CONNTRACK;
+
 	if (strncmp("expect", table, strlen(table)) == 0)
-		return 1;
+		return CT_TABLE_EXPECT;
 	else if (strncmp("conntrack", table, strlen(table)) == 0)
-		return 0;
+		return CT_TABLE_CONNTRACK;
+	else if (strncmp("dying", table, strlen(table)) == 0)
+		return CT_TABLE_DYING;
+	else if (strncmp("unconfirmed", table, strlen(table)) == 0)
+		return CT_TABLE_UNCONFIRMED;
 	else
 		exit_error(PARAMETER_PROBLEM, "unknown type `%s'", table);
 
@@ -945,11 +1088,30 @@ usage(char *prog)
 	fprintf(stdout, "\n%s", usage_tables);
 	fprintf(stdout, "\n%s", usage_conntrack_parameters);
 	fprintf(stdout, "\n%s", usage_expectation_parameters);
+	fprintf(stdout, "\n%s", usage_update_parameters);
 	fprintf(stdout, "\n%s\n", usage_parameters);
 }
 
 static unsigned int output_mask;
 
+static int
+filter_label(const struct nf_conntrack *ct)
+{
+	if (tmpl.label == NULL)
+		return 0;
+
+	const struct nfct_bitmask *ctb = nfct_get_attr(ct, ATTR_CONNLABELS);
+	if (ctb == NULL)
+		return 1;
+
+	for (unsigned int i = 0; i <= nfct_bitmask_maxbit(tmpl.label); i++) {
+		if (nfct_bitmask_test_bit(tmpl.label, i) &&
+		    !nfct_bitmask_test_bit(ctb, i))
+				return 1;
+	}
+
+	return 0;
+}
 
 static int
 filter_mark(const struct nf_conntrack *ct)
@@ -959,7 +1121,6 @@ filter_mark(const struct nf_conntrack *ct)
 		return 1;
 	return 0;
 }
-
 
 static int 
 filter_nat(const struct nf_conntrack *obj, const struct nf_conntrack *ct)
@@ -1091,6 +1252,9 @@ static int event_cb(enum nf_conntrack_msg_type type,
 	if (filter_mark(ct))
 		return NFCT_CB_CONTINUE;
 
+	if (filter_label(ct))
+		return NFCT_CB_CONTINUE;
+
 	if (options & CT_COMPARISON &&
 	    !nfct_cmp(obj, ct, NFCT_CMP_ALL | NFCT_CMP_MASK))
 		return NFCT_CB_CONTINUE;
@@ -1109,7 +1273,7 @@ static int event_cb(enum nf_conntrack_msg_type type,
 		if (!(output_mask & _O_XML)) {
 			struct timeval tv;
 			gettimeofday(&tv, NULL);
-			printf("[%-8ld.%-6ld]\t", tv.tv_sec, tv.tv_usec);
+			printf("[%-.8ld.%-.6ld]\t", tv.tv_sec, tv.tv_usec);
 		} else
 			op_flags |= NFCT_OF_TIME;
 	}
@@ -1118,7 +1282,7 @@ static int event_cb(enum nf_conntrack_msg_type type,
 	if (output_mask & _O_ID)
 		op_flags |= NFCT_OF_ID;
 
-	nfct_snprintf(buf, sizeof(buf), ct, type, op_type, op_flags);
+	nfct_snprintf_labels(buf, sizeof(buf), ct, type, op_type, op_flags, labelmap);
 
 	printf("%s\n", buf);
 	fflush(stdout);
@@ -1143,6 +1307,9 @@ static int dump_cb(enum nf_conntrack_msg_type type,
 	if (filter_mark(ct))
 		return NFCT_CB_CONTINUE;
 
+	if (filter_label(ct))
+		return NFCT_CB_CONTINUE;
+
 	if (options & CT_COMPARISON &&
 	    !nfct_cmp(obj, ct, NFCT_CMP_ALL | NFCT_CMP_MASK))
 		return NFCT_CB_CONTINUE;
@@ -1162,7 +1329,7 @@ static int dump_cb(enum nf_conntrack_msg_type type,
 	if (output_mask & _O_ID)
 		op_flags |= NFCT_OF_ID;
 
-	nfct_snprintf(buf, sizeof(buf), ct, NFCT_T_UNKNOWN, op_type, op_flags);
+	nfct_snprintf_labels(buf, sizeof(buf), ct, NFCT_T_UNKNOWN, op_type, op_flags, labelmap);
 	printf("%s\n", buf);
 
 	counter++;
@@ -1226,7 +1393,7 @@ static int print_cb(enum nf_conntrack_msg_type type,
 	if (output_mask & _O_ID)
 		op_flags |= NFCT_OF_ID;
 
-	nfct_snprintf(buf, sizeof(buf), ct, NFCT_T_UNKNOWN, op_type, op_flags);
+	nfct_snprintf_labels(buf, sizeof(buf), ct, NFCT_T_UNKNOWN, op_type, op_flags, labelmap);
 	printf("%s\n", buf);
 
 	return NFCT_CB_CONTINUE;
@@ -1253,6 +1420,72 @@ static void copy_status(struct nf_conntrack *tmp, const struct nf_conntrack *ct)
 	}
 }
 
+static struct nfct_bitmask *xnfct_bitmask_clone(const struct nfct_bitmask *a)
+{
+	struct nfct_bitmask *b = nfct_bitmask_clone(a);
+	if (!b)
+		exit_error(OTHER_PROBLEM, "out of memory");
+	return b;
+}
+
+static void copy_label(struct nf_conntrack *tmp, const struct nf_conntrack *ct)
+{
+	struct nfct_bitmask *ctb, *newmask;
+	unsigned int i;
+
+	if ((options & (CT_OPT_ADD_LABEL|CT_OPT_DEL_LABEL)) == 0)
+		return;
+
+	nfct_copy_attr(tmp, ct, ATTR_CONNLABELS);
+	ctb = (void *) nfct_get_attr(tmp, ATTR_CONNLABELS);
+
+	if (options & CT_OPT_ADD_LABEL) {
+		if (ctb == NULL) {
+			nfct_set_attr(tmp, ATTR_CONNLABELS,
+					xnfct_bitmask_clone(tmpl.label_modify));
+			return;
+		}
+		/* If we send a bitmask shorter than the kernel sent to us, the bits we
+		 * omit will be cleared (as "padding").  So we always have to send the
+		 * same sized bitmask as we received.
+		 *
+		 * Mask has to have the same size as the labels, otherwise it will not
+		 * be encoded by libnetfilter_conntrack, as different sizes are not
+		 * accepted by the kernel.
+		 */
+		newmask = nfct_bitmask_new(nfct_bitmask_maxbit(ctb));
+
+		for (i = 0; i <= nfct_bitmask_maxbit(ctb); i++) {
+			if (nfct_bitmask_test_bit(tmpl.label_modify, i)) {
+				nfct_bitmask_set_bit(ctb, i);
+				nfct_bitmask_set_bit(newmask, i);
+			} else if (nfct_bitmask_test_bit(ctb, i)) {
+				/* Kernel only retains old bit values that are sent as
+				 * zeroes in BOTH labels and mask.
+				 */
+				nfct_bitmask_unset_bit(ctb, i);
+			}
+		}
+		nfct_set_attr(tmp, ATTR_CONNLABELS_MASK, newmask);
+	} else if (ctb != NULL) {
+		/* CT_OPT_DEL_LABEL */
+		if (tmpl.label_modify == NULL) {
+			newmask = nfct_bitmask_new(0);
+			if (newmask)
+				nfct_set_attr(tmp, ATTR_CONNLABELS, newmask);
+			return;
+		}
+
+		for (i = 0; i <= nfct_bitmask_maxbit(ctb); i++) {
+			if (nfct_bitmask_test_bit(tmpl.label_modify, i))
+				nfct_bitmask_unset_bit(ctb, i);
+		}
+
+		newmask = xnfct_bitmask_clone(tmpl.label_modify);
+		nfct_set_attr(tmp, ATTR_CONNLABELS_MASK, newmask);
+	}
+}
+
 static int update_cb(enum nf_conntrack_msg_type type,
 		     struct nf_conntrack *ct,
 		     void *data)
@@ -1272,6 +1505,9 @@ static int update_cb(enum nf_conntrack_msg_type type,
 	if (options & CT_OPT_TUPLE_REPL && !nfct_cmp(obj, ct, NFCT_CMP_REPL))
 		return NFCT_CB_CONTINUE;
 
+	if (filter_label(ct))
+		return NFCT_CB_CONTINUE;
+
 	tmp = nfct_new();
 	if (tmp == NULL)
 		exit_error(OTHER_PROBLEM, "out of memory");
@@ -1280,6 +1516,7 @@ static int update_cb(enum nf_conntrack_msg_type type,
 	nfct_copy(tmp, obj, NFCT_CP_META);
 	copy_mark(tmp, ct, &tmpl.mark);
 	copy_status(tmp, ct);
+	copy_label(tmp, ct);
 
 	/* do not send NFCT_Q_UPDATE if ct appears unchanged */
 	if (nfct_cmp(tmp, ct, NFCT_CMP_ALL | NFCT_CMP_MASK)) {
@@ -1288,12 +1525,10 @@ static int update_cb(enum nf_conntrack_msg_type type,
 	}
 
 	res = nfct_query(ith, NFCT_Q_UPDATE, tmp);
-	if (res < 0) {
-		nfct_destroy(tmp);
-		exit_error(OTHER_PROBLEM,
-			   "Operation failed: %s",
+	if (res < 0)
+		fprintf(stderr,
+			   "Operation failed: %s\n",
 			   err2str(errno, CT_UPDATE));
-	}
 	nfct_callback_register(ith, NFCT_T_ALL, print_cb, NULL);
 
 	res = nfct_query(ith, NFCT_Q_GET, tmp);
@@ -1374,6 +1609,7 @@ static int event_exp_cb(enum nf_conntrack_msg_type type,
 
 	nfexp_snprintf(buf,sizeof(buf), exp, type, op_type, op_flags);
 	printf("%s\n", buf);
+	fflush(stdout);
 	counter++;
 
 	return NFCT_CB_CONTINUE;
@@ -1455,7 +1691,304 @@ out_err:
 	return ret;
 }
 
+static struct nfct_mnl_socket {
+	struct mnl_socket	*mnl;
+	uint32_t		portid;
+} sock;
+
+static int nfct_mnl_socket_open(void)
+{
+	sock.mnl = mnl_socket_open(NETLINK_NETFILTER);
+	if (sock.mnl == NULL) {
+		perror("mnl_socket_open");
+		return -1;
+	}
+	if (mnl_socket_bind(sock.mnl, 0, MNL_SOCKET_AUTOPID) < 0) {
+		perror("mnl_socket_bind");
+		return -1;
+	}
+	sock.portid = mnl_socket_get_portid(sock.mnl);
+
+	return 0;
+}
+
+static struct nlmsghdr *
+nfct_mnl_nlmsghdr_put(char *buf, uint16_t subsys, uint16_t type,
+		      uint8_t family)
+{
+	struct nlmsghdr *nlh;
+	struct nfgenmsg *nfh;
+
+	nlh = mnl_nlmsg_put_header(buf);
+	nlh->nlmsg_type = (subsys << 8) | type;
+	nlh->nlmsg_flags = NLM_F_REQUEST|NLM_F_DUMP;
+	nlh->nlmsg_seq = time(NULL);
+
+	nfh = mnl_nlmsg_put_extra_header(nlh, sizeof(struct nfgenmsg));
+	nfh->nfgen_family = family;
+	nfh->version = NFNETLINK_V0;
+	nfh->res_id = 0;
+
+	return nlh;
+}
+
+static void nfct_mnl_socket_close(void)
+{
+	mnl_socket_close(sock.mnl);
+}
+
+static int
+nfct_mnl_dump(uint16_t subsys, uint16_t type, mnl_cb_t cb, uint8_t family)
+{
+	char buf[MNL_SOCKET_BUFFER_SIZE];
+	struct nlmsghdr *nlh;
+	int res;
+
+	nlh = nfct_mnl_nlmsghdr_put(buf, subsys, type, family);
+
+	res = mnl_socket_sendto(sock.mnl, nlh, nlh->nlmsg_len);
+	if (res < 0)
+		return res;
+
+	res = mnl_socket_recvfrom(sock.mnl, buf, sizeof(buf));
+	while (res > 0) {
+		res = mnl_cb_run(buf, res, nlh->nlmsg_seq, sock.portid,
+					 cb, NULL);
+		if (res <= MNL_CB_STOP)
+			break;
+
+		res = mnl_socket_recvfrom(sock.mnl, buf, sizeof(buf));
+	}
+
+	return res;
+}
+
+static int
+nfct_mnl_get(uint16_t subsys, uint16_t type, mnl_cb_t cb, uint8_t family)
+{
+	char buf[MNL_SOCKET_BUFFER_SIZE];
+	struct nlmsghdr *nlh;
+	int res;
+
+	nlh = nfct_mnl_nlmsghdr_put(buf, subsys, type, family);
+
+	res = mnl_socket_sendto(sock.mnl, nlh, nlh->nlmsg_len);
+	if (res < 0)
+		return res;
+
+	res = mnl_socket_recvfrom(sock.mnl, buf, sizeof(buf));
+	if (res < 0)
+		return res;
+
+	return mnl_cb_run(buf, res, nlh->nlmsg_seq, sock.portid, cb, NULL);
+}
+
+static int nfct_stats_attr_cb(const struct nlattr *attr, void *data)
+{
+	const struct nlattr **tb = data;
+	int type = mnl_attr_get_type(attr);
+
+	if (mnl_attr_type_valid(attr, CTA_STATS_MAX) < 0)
+		return MNL_CB_OK;
+
+	if (mnl_attr_validate(attr, MNL_TYPE_U32) < 0) {
+		perror("mnl_attr_validate");
+		return MNL_CB_ERROR;
+	}
+
+	tb[type] = attr;
+	return MNL_CB_OK;
+}
+
+static int nfct_stats_cb(const struct nlmsghdr *nlh, void *data)
+{
+	struct nlattr *tb[CTA_STATS_MAX+1] = {};
+	struct nfgenmsg *nfg = mnl_nlmsg_get_payload(nlh);
+	const char *attr2name[CTA_STATS_MAX+1] = {
+		[CTA_STATS_SEARCHED]	= "searched",
+		[CTA_STATS_FOUND]	= "found",
+		[CTA_STATS_NEW]		= "new",
+		[CTA_STATS_INVALID]	= "invalid",
+		[CTA_STATS_IGNORE]	= "ignore",
+		[CTA_STATS_DELETE]	= "delete",
+		[CTA_STATS_DELETE_LIST]	= "delete_list",
+		[CTA_STATS_INSERT]	= "insert",
+		[CTA_STATS_INSERT_FAILED] = "insert_failed",
+		[CTA_STATS_DROP]	= "drop",
+		[CTA_STATS_EARLY_DROP]	= "early_drop",
+		[CTA_STATS_ERROR]	= "error",
+		[CTA_STATS_SEARCH_RESTART] = "search_restart",
+	};
+	int i;
+
+	mnl_attr_parse(nlh, sizeof(*nfg), nfct_stats_attr_cb, tb);
+
+	printf("cpu=%-4u\t", ntohs(nfg->res_id));
+
+	for (i=0; i<CTA_STATS_MAX+1; i++) {
+		if (tb[i]) {
+			printf("%s=%u ",
+				attr2name[i], ntohl(mnl_attr_get_u32(tb[i])));
+		}
+	}
+	printf("\n");
+	return MNL_CB_OK;
+}
+
+static int nfexp_stats_attr_cb(const struct nlattr *attr, void *data)
+{
+	const struct nlattr **tb = data;
+	int type = mnl_attr_get_type(attr);
+
+	if (mnl_attr_type_valid(attr, CTA_STATS_EXP_MAX) < 0)
+		return MNL_CB_OK;
+
+	if (mnl_attr_validate(attr, MNL_TYPE_U32) < 0) {
+		perror("mnl_attr_validate");
+		return MNL_CB_ERROR;
+	}
+
+	tb[type] = attr;
+	return MNL_CB_OK;
+}
+
+static int nfexp_stats_cb(const struct nlmsghdr *nlh, void *data)
+{
+	struct nlattr *tb[CTA_STATS_EXP_MAX+1] = {};
+	struct nfgenmsg *nfg = mnl_nlmsg_get_payload(nlh);
+	const char *attr2name[CTA_STATS_EXP_MAX+1] = {
+		[CTA_STATS_EXP_NEW] = "expect_new",
+		[CTA_STATS_EXP_CREATE] = "expect_create",
+		[CTA_STATS_EXP_DELETE] = "expect_delete",
+	};
+	int i;
+
+	mnl_attr_parse(nlh, sizeof(*nfg), nfexp_stats_attr_cb, tb);
+
+	printf("cpu=%-4u\t", ntohs(nfg->res_id));
+
+	for (i=0; i<CTA_STATS_EXP_MAX+1; i++) {
+		if (tb[i]) {
+			printf("%s=%u ",
+				attr2name[i], ntohl(mnl_attr_get_u32(tb[i])));
+		}
+	}
+	printf("\n");
+	return MNL_CB_OK;
+}
+
+static int nfct_stats_global_attr_cb(const struct nlattr *attr, void *data)
+{
+	const struct nlattr **tb = data;
+	int type = mnl_attr_get_type(attr);
+
+	if (mnl_attr_type_valid(attr, CTA_STATS_GLOBAL_MAX) < 0)
+		return MNL_CB_OK;
+
+	if (mnl_attr_validate(attr, MNL_TYPE_U32) < 0) {
+		perror("mnl_attr_validate");
+		return MNL_CB_ERROR;
+	}
+
+	tb[type] = attr;
+	return MNL_CB_OK;
+}
+
+static int nfct_global_stats_cb(const struct nlmsghdr *nlh, void *data)
+{
+	struct nlattr *tb[CTA_STATS_GLOBAL_MAX+1] = {};
+	struct nfgenmsg *nfg = mnl_nlmsg_get_payload(nlh);
+
+	mnl_attr_parse(nlh, sizeof(*nfg), nfct_stats_global_attr_cb, tb);
+
+	if (tb[CTA_STATS_GLOBAL_ENTRIES]) {
+		printf("%d\n",
+			ntohl(mnl_attr_get_u32(tb[CTA_STATS_GLOBAL_ENTRIES])));
+	}
+	return MNL_CB_OK;
+}
+
+static int mnl_nfct_dump_cb(const struct nlmsghdr *nlh, void *data)
+{
+	struct nf_conntrack *ct;
+	char buf[4096];
+
+	ct = nfct_new();
+	if (ct == NULL)
+		return MNL_CB_OK;
+
+	nfct_nlmsg_parse(nlh, ct);
+
+	nfct_snprintf(buf, sizeof(buf), ct, NFCT_T_UNKNOWN, NFCT_O_DEFAULT, 0);
+	printf("%s\n", buf);
+
+	nfct_destroy(ct);
+
+	counter++;
+
+	return MNL_CB_OK;
+}
+
 static struct ctproto_handler *h;
+
+static void labelmap_init(void)
+{
+	if (labelmap)
+		return;
+	labelmap = nfct_labelmap_new(NULL);
+	if (!labelmap)
+		perror("nfct_labelmap_new");
+}
+
+static void merge_bitmasks(struct nfct_bitmask **current,
+			  struct nfct_bitmask *src)
+{
+	unsigned int i;
+
+	if (*current == NULL) {
+		*current = src;
+		return;
+	}
+
+	/* "current" must be the larger bitmask object */
+	if (nfct_bitmask_maxbit(src) > nfct_bitmask_maxbit(*current)) {
+		struct nfct_bitmask *tmp = *current;
+		*current = src;
+		src = tmp;
+	}
+
+	for (i = 0; i <= nfct_bitmask_maxbit(src); i++) {
+		if (nfct_bitmask_test_bit(src, i))
+			nfct_bitmask_set_bit(*current, i);
+	}
+
+	nfct_bitmask_destroy(src);
+}
+
+static void
+nfct_set_addr_from_opt(int opt, struct nf_conntrack *ct, union ct_address *ad,
+		       int *family)
+{
+	int l3protonum;
+
+	options |= opt2type[opt];
+	l3protonum = parse_addr(optarg, ad);
+	if (l3protonum == AF_UNSPEC) {
+		exit_error(PARAMETER_PROBLEM,
+			   "Invalid IP address `%s'", optarg);
+	}
+	set_family(family, l3protonum);
+	if (l3protonum == AF_INET) {
+		nfct_set_attr_u32(ct,
+				  opt2family_attr[opt][0],
+				  ad->v4);
+	} else if (l3protonum == AF_INET6) {
+		nfct_set_attr(ct,
+			      opt2family_attr[opt][1],
+			      &ad->v6);
+	}
+	nfct_set_attr_u8(ct, opt2attr[opt], l3protonum);
+}
 
 int main(int argc, char *argv[])
 {
@@ -1464,7 +1997,7 @@ int main(int argc, char *argv[])
 	int res = 0, partial;
 	size_t socketbuffersize = 0;
 	int family = AF_UNSPEC;
-	int l3protonum, protonum = 0;
+	int protonum = 0;
 	union ct_address ad;
 	unsigned int command = 0;
 
@@ -1489,6 +2022,16 @@ int main(int argc, char *argv[])
 	switch(c) {
 		/* commands */
 		case 'L':
+			type = check_type(argc, argv);
+			/* Special case: dumping dying and unconfirmed list
+			 * are handled like normal conntrack dumps.
+			 */
+			if (type == CT_TABLE_DYING ||
+			    type == CT_TABLE_UNCONFIRMED)
+				add_command(&command, cmd2type[c][0]);
+			else
+				add_command(&command, cmd2type[c][type]);
+			break;
 		case 'I':
 		case 'D':
 		case 'G':
@@ -1497,66 +2040,43 @@ int main(int argc, char *argv[])
 		case 'V':
 		case 'h':
 		case 'C':
+		case 'S':
 			type = check_type(argc, argv);
+			if (type == CT_TABLE_DYING ||
+			    type == CT_TABLE_UNCONFIRMED) {
+				exit_error(PARAMETER_PROBLEM,
+					   "Can't do that command with "
+					   "tables `dying' and `unconfirmed'");
+			}
 			add_command(&command, cmd2type[c][type]);
 			break;
 		case 'U':
 			type = check_type(argc, argv);
-			if (type == 0)
+			if (type == CT_TABLE_DYING ||
+			    type == CT_TABLE_UNCONFIRMED) {
+				exit_error(PARAMETER_PROBLEM,
+					   "Can't do that command with "
+					   "tables `dying' and `unconfirmed'");
+			} else if (type == CT_TABLE_CONNTRACK)
 				add_command(&command, CT_UPDATE);
 			else
-				exit_error(PARAMETER_PROBLEM, 
+				exit_error(PARAMETER_PROBLEM,
 					   "Can't update expectations");
-			break;
-		case 'S':
-			add_command(&command, X_STATS);
 			break;
 		/* options */
 		case 's':
 		case 'd':
 		case 'r':
 		case 'q':
-			options |= opt2type[c];
-
-			l3protonum = parse_addr(optarg, &ad);
-			if (l3protonum == AF_UNSPEC) {
-				exit_error(PARAMETER_PROBLEM,
-					   "Invalid IP address `%s'", optarg);
-			}
-			set_family(&family, l3protonum);
-			if (l3protonum == AF_INET) {
-				nfct_set_attr_u32(tmpl.ct,
-						  opt2family_attr[c][0],
-						  ad.v4);
-			} else if (l3protonum == AF_INET6) {
-				nfct_set_attr(tmpl.ct,
-					      opt2family_attr[c][1],
-					      &ad.v6);
-			}
-			nfct_set_attr_u8(tmpl.ct, opt2attr[c], l3protonum);
+			nfct_set_addr_from_opt(c, tmpl.ct, &ad, &family);
 			break;
 		case '{':
 		case '}':
+			nfct_set_addr_from_opt(c, tmpl.exptuple, &ad, &family);
+			break;
 		case '[':
 		case ']':
-			options |= opt2type[c];
-			l3protonum = parse_addr(optarg, &ad);
-			if (l3protonum == AF_UNSPEC) {
-				exit_error(PARAMETER_PROBLEM,
-					   "Invalid IP address `%s'", optarg);
-			}
-			set_family(&family, l3protonum);
-			if (l3protonum == AF_INET) {
-				nfct_set_attr_u32(tmpl.mask, 
-						  opt2family_attr[c][0],
-						  ad.v4);
-			} else if (l3protonum == AF_INET6) {
-				nfct_set_attr(tmpl.mask,
-					      opt2family_attr[c][1],
-					      &ad.v6);
-			}
-			nfct_set_attr_u8(tmpl.mask,
-					 ATTR_ORIG_L3PROTO, l3protonum);
+			nfct_set_addr_from_opt(c, tmpl.mask, &ad, &family);
 			break;
 		case 'p':
 			options |= CT_OPT_PROTO;
@@ -1590,6 +2110,8 @@ int main(int argc, char *argv[])
 		case 'o':
 			options |= CT_OPT_OUTPUT;
 			parse_parameter(optarg, &output_mask, PARSE_OUTPUT);
+			if (output_mask & _O_CL)
+				labelmap_init();
 			break;
 		case 'z':
 			options |= CT_OPT_ZERO;
@@ -1601,12 +2123,7 @@ int main(int argc, char *argv[])
 
 			options |= opt2type[c];
 
-			if (optarg)
-				continue;
-			else if (optind < argc && argv[optind][0] != '-'
-				 && argv[optind][0] != '!')
-				tmp = argv[optind++];
-
+			tmp = get_optional_arg(argc, argv);
 			if (tmp == NULL)
 				continue;
 
@@ -1615,6 +2132,8 @@ int main(int argc, char *argv[])
 			break;
 		}
 		case 'w':
+		case '(':
+		case ')':
 			options |= opt2type[c];
 			nfct_set_attr_u16(tmpl.ct,
 					  opt2attr[c],
@@ -1630,6 +2149,44 @@ int main(int argc, char *argv[])
 		case 'm':
 			options |= opt2type[c];
 			parse_u32_mask(optarg, &tmpl.mark);
+			tmpl.filter_mark_kernel.val = tmpl.mark.value;
+			tmpl.filter_mark_kernel.mask = tmpl.mark.mask;
+			break;
+		case 'l':
+		case '<':
+		case '>':
+			options |= opt2type[c];
+
+			labelmap_init();
+
+			if ((options & (CT_OPT_DEL_LABEL|CT_OPT_ADD_LABEL)) ==
+			    (CT_OPT_DEL_LABEL|CT_OPT_ADD_LABEL))
+				exit_error(OTHER_PROBLEM, "cannot use --label-add and "
+							"--label-del at the same time");
+
+			if (c == '>') { /* DELETE */
+				char *tmp = get_optional_arg(argc, argv);
+				if (tmp == NULL) /* delete all labels */
+					break;
+				optarg = tmp;
+			}
+
+			char *optarg2 = strdup(optarg);
+			unsigned int max = parse_label_get_max(optarg);
+			struct nfct_bitmask * b = nfct_bitmask_new(max);
+			if (!b)
+				exit_error(OTHER_PROBLEM, "out of memory");
+
+			parse_label(b, optarg2);
+
+			/* join "-l foo -l bar" into single bitmask object */
+			if (c == 'l') {
+				merge_bitmasks(&tmpl.label, b);
+			} else {
+				merge_bitmasks(&tmpl.label_modify, b);
+			}
+
+			free(optarg2);
 			break;
 		case 'a':
 			fprintf(stderr, "WARNING: ignoring -%c, "
@@ -1650,15 +2207,13 @@ int main(int argc, char *argv[])
 			socketbuffersize = atol(optarg);
 			options |= CT_OPT_BUFFERSIZE;
 			break;
+		case ':':
+			exit_error(PARAMETER_PROBLEM,
+				   "option `%s' requires an "
+				   "argument", argv[optind-1]);
 		case '?':
-			if (optopt)
-				exit_error(PARAMETER_PROBLEM,
-					   "option `%s' requires an "
-					   "argument", argv[optind-1]);
-			else
-				exit_error(PARAMETER_PROBLEM,
-					   "unknown option `%s'", 
-					   argv[optind-1]);
+			exit_error(PARAMETER_PROBLEM,
+				   "unknown option `%s'", argv[optind-1]);
 			break;
 		default:
 			if (h && h->parse_opts 
@@ -1703,8 +2258,31 @@ int main(int argc, char *argv[])
 		h->final_check(l4flags, cmd, tmpl.ct);
 
 	switch(command) {
+	struct nfct_filter_dump *filter_dump;
 
 	case CT_LIST:
+		if (type == CT_TABLE_DYING) {
+			if (nfct_mnl_socket_open() < 0)
+				exit_error(OTHER_PROBLEM, "Can't open handler");
+
+			res = nfct_mnl_dump(NFNL_SUBSYS_CTNETLINK,
+					    IPCTNL_MSG_CT_GET_DYING,
+					    mnl_nfct_dump_cb, family);
+
+			nfct_mnl_socket_close();
+			break;
+		} else if (type == CT_TABLE_UNCONFIRMED) {
+			if (nfct_mnl_socket_open() < 0)
+				exit_error(OTHER_PROBLEM, "Can't open handler");
+
+			res = nfct_mnl_dump(NFNL_SUBSYS_CTNETLINK,
+					    IPCTNL_MSG_CT_GET_UNCONFIRMED,
+					    mnl_nfct_dump_cb, family);
+
+			nfct_mnl_socket_close();
+			break;
+		}
+
 		cth = nfct_open(CONNTRACK, 0);
 		if (!cth)
 			exit_error(OTHER_PROBLEM, "Can't open handler");
@@ -1716,10 +2294,23 @@ int main(int argc, char *argv[])
 
 		nfct_callback_register(cth, NFCT_T_ALL, dump_cb, tmpl.ct);
 
+		filter_dump = nfct_filter_dump_create();
+		if (filter_dump == NULL)
+			exit_error(OTHER_PROBLEM, "OOM");
+
+		nfct_filter_dump_set_attr(filter_dump, NFCT_FILTER_DUMP_MARK,
+					  &tmpl.filter_mark_kernel);
+		nfct_filter_dump_set_attr_u8(filter_dump,
+					     NFCT_FILTER_DUMP_L3NUM,
+					     family);
+
 		if (options & CT_OPT_ZERO)
-			res = nfct_query(cth, NFCT_Q_DUMP_RESET, &family);
+			res = nfct_query(cth, NFCT_Q_DUMP_FILTER_RESET,
+					filter_dump);
 		else
-			res = nfct_query(cth, NFCT_Q_DUMP, &family);
+			res = nfct_query(cth, NFCT_Q_DUMP_FILTER, filter_dump);
+
+		nfct_filter_dump_destroy(filter_dump);
 
 		if (dump_xml_header_done == 0) {
 			printf("</conntrack>\n");
@@ -1752,6 +2343,10 @@ int main(int argc, char *argv[])
 
 		if (options & CT_OPT_MARK)
 			nfct_set_attr_u32(tmpl.ct, ATTR_MARK, tmpl.mark.value);
+
+		if (options & CT_OPT_ADD_LABEL)
+			nfct_set_attr(tmpl.ct, ATTR_CONNLABELS,
+					xnfct_bitmask_clone(tmpl.label_modify));
 
 		cth = nfct_open(CONNTRACK, 0);
 		if (!cth)
@@ -1798,7 +2393,20 @@ int main(int argc, char *argv[])
 
 		nfct_callback_register(cth, NFCT_T_ALL, delete_cb, tmpl.ct);
 
-		res = nfct_query(cth, NFCT_Q_DUMP, &family);
+		filter_dump = nfct_filter_dump_create();
+		if (filter_dump == NULL)
+			exit_error(OTHER_PROBLEM, "OOM");
+
+		nfct_filter_dump_set_attr(filter_dump, NFCT_FILTER_DUMP_MARK,
+					  &tmpl.filter_mark_kernel);
+		nfct_filter_dump_set_attr_u8(filter_dump,
+					     NFCT_FILTER_DUMP_L3NUM,
+					     family);
+
+		res = nfct_query(cth, NFCT_Q_DUMP_FILTER, filter_dump);
+
+		nfct_filter_dump_destroy(filter_dump);
+
 		nfct_close(ith);
 		nfct_close(cth);
 		break;
@@ -1929,7 +2537,25 @@ int main(int argc, char *argv[])
 		res = nfexp_catch(cth);
 		nfct_close(cth);
 		break;
-	case CT_COUNT: {
+	case CT_COUNT:
+		/* If we fail with netlink, fall back to /proc to ensure
+		 * backward compatibility.
+		 */
+		if (nfct_mnl_socket_open() < 0)
+			goto try_proc_count;
+
+		res = nfct_mnl_get(NFNL_SUBSYS_CTNETLINK,
+				   IPCTNL_MSG_CT_GET_STATS,
+				   nfct_global_stats_cb, AF_UNSPEC);
+
+		nfct_mnl_socket_close();
+
+		/* don't look at /proc, we got the information via ctnetlink */
+		if (res >= 0)
+			break;
+
+try_proc_count:
+		{
 #define NF_CONNTRACK_COUNT_PROC "/proc/sys/net/netfilter/nf_conntrack_count"
 		FILE *fd;
 		int count;
@@ -1956,7 +2582,42 @@ int main(int argc, char *argv[])
 		nfct_close(cth);
 		printf("%d\n", counter);
 		break;
-	case X_STATS:
+	case CT_STATS:
+		/* If we fail with netlink, fall back to /proc to ensure
+		 * backward compatibility.
+		 */
+		if (nfct_mnl_socket_open() < 0)
+			goto try_proc;
+
+		res = nfct_mnl_dump(NFNL_SUBSYS_CTNETLINK,
+				    IPCTNL_MSG_CT_GET_STATS_CPU,
+				    nfct_stats_cb, AF_UNSPEC);
+
+		nfct_mnl_socket_close();
+
+		/* don't look at /proc, we got the information via ctnetlink */
+		if (res >= 0)
+			break;
+
+		goto try_proc;
+
+	case EXP_STATS:
+		/* If we fail with netlink, fall back to /proc to ensure
+		 * backward compatibility.
+		 */
+		if (nfct_mnl_socket_open() < 0)
+			goto try_proc;
+
+		res = nfct_mnl_dump(NFNL_SUBSYS_CTNETLINK_EXP,
+				    IPCTNL_MSG_EXP_GET_STATS_CPU,
+				    nfexp_stats_cb, AF_UNSPEC);
+
+		nfct_mnl_socket_close();
+
+		/* don't look at /proc, we got the information via ctnetlink */
+		if (res >= 0)
+			break;
+try_proc:
 		if (display_proc_conntrack_stats() < 0)
 			exit_error(OTHER_PROBLEM, "Can't open /proc interface");
 		break;
@@ -1979,6 +2640,8 @@ int main(int argc, char *argv[])
 
 	free_tmpl_objects();
 	free_options();
+	if (labelmap)
+		nfct_labelmap_destroy(labelmap);
 
 	if (command && exit_msg[cmd][0]) {
 		fprintf(stderr, "%s v%s (conntrack-tools): ",PROGNAME,VERSION);

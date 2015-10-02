@@ -81,7 +81,7 @@ static char sctp_commands_v_options[NUMBER_OF_CMD][SCTP_OPT_MAX] =
 /*CT_VERSION*/	  {0,0,0,0,0,0,0,0,0,0,0},
 /*CT_HELP*/	  {0,0,0,0,0,0,0,0,0,0,0},
 /*EXP_LIST*/	  {0,0,0,0,0,0,0,0,0,0,0},
-/*EXP_CREATE*/	  {1,1,1,1,1,1,0,1,1,1,1},
+/*EXP_CREATE*/	  {1,1,0,0,1,1,0,1,1,1,1},
 /*EXP_DELETE*/	  {1,1,1,1,0,0,0,0,0,0,0},
 /*EXP_GET*/	  {1,1,1,1,0,0,0,0,0,0,0},
 /*EXP_FLUSH*/	  {0,0,0,0,0,0,0,0,0,0,0},
@@ -120,8 +120,8 @@ parse_options(char c, struct nf_conntrack *ct,
 	      unsigned int *flags)
 {
 	int i;
-	u_int16_t port;
-	u_int32_t vtag;
+	uint16_t port;
+	uint32_t vtag;
 
 	switch(c) {
 	case 1:

@@ -19,7 +19,7 @@
   </authorgroup>
 
   <copyright>
-   <year>2008-2011</year>
+   <year>2008-2012</year>
    <holder>Pablo Neira Ayuso</holder>
   </copyright>
 
@@ -37,7 +37,7 @@
   <releaseinfo>
   This document details how to install and configure the
   <ulink url="http://conntrack-tools.netfilter.org">conntrack-tools</ulink>
-  &gt;= 1.0.0. This document will evolve in the future to cover new features
+  &gt;= 1.4.0. This document will evolve in the future to cover new features
   and changes.</releaseinfo>
 
  </bookinfo>
@@ -641,10 +641,11 @@ Sync {
  broken.</para>
 
  <para>The following example shows how to only generate the
- <emphasis>assured</emphasis> event:</para>
+ <emphasis>assured</emphasis> and <emphasis>destroy</emphasis>
+ events:</para>
 
  <programlisting>
- # iptables -I PREROUTING -t raw -j CT --ctevents assured
+ # iptables -I PREROUTING -t raw -j CT --ctevents assured,destroy
  </programlisting>
 
  <note><title>Assured flows</title>
@@ -658,6 +659,13 @@ Sync {
 </sect3>
 
 <sect3 id="sync-expect"><title>Synchronization of expectations</title>
+
+   <note><title>Check your Linux kernel version first</title>
+    <para>
+     The synchronization of expectations require a Linux kernel &gt;= 3.5
+     to work appropriately.
+    </para>
+   </note>
 
  <para>The connection tracking system provides helpers that allows you to
  filter multi-flow application protocols like FTP, H.323 and SIP among many
@@ -688,7 +696,9 @@ Sync {
                ExpectationSync {
                        ftp
                        sip
-                       h323
+                       ras    # for H.323
+                       q.931  # for H.323
+                       h.245  # for H.323
                }
        }
 }</programlisting>
@@ -817,7 +827,155 @@ Sync {
 
 </sect2>
 
-<sect2 id="sync-trouble"><title>Troubleshooting</title>
+</sect1>
+
+<sect1 id="helpers"><title>User-space helpers</title>
+
+   <note><title>Check your Linux kernel version first</title>
+    <para>
+     The user-space helper infrastructure requires a Linux kernel &gt;= 3.6
+     to work appropriately.
+    </para>
+   </note>
+
+<para>Connection tracking helpers allows you to filter multi-flow protocols
+that usually separate control and data traffic into different flows.
+These protocols usually violate network layering by including layer 3/4
+details, eg. IP address and TCP/UDP ports, in their application protocol
+(which resides in layer 7). This is problematic for gateways since they
+operate at packet-level, ie. layers 3/4, and therefore they miss this
+important information to filter these protocols appropriately.</para>
+
+<para>Helpers inspect packet content (at layer 7) and create the so-called
+expectations. These expectations are added to one internal table
+that resides in the gateway. For each new packet arriving to the
+gateway, the gateway first looks up for matching expectations. If
+there is any, then this flow is accepted since it's been expected.
+Note this lookup only occurs for the first packet that is part of one
+newly established flow, not for all packets.</para>
+
+<para>Since 1.4.0, conntrackd provides the infrastructure to develop
+helpers in user-space. The main features of the user-space infrastructure
+for helpers are:</para>
+
+<itemizedlist>
+
+<listitem><para>Rapid connection tracking helper development, as developing code
+in user-space is usually faster.</para></listitem>
+
+<listitem><para>Reliability: A buggy helper does not crash the kernel. If the helper
+fails, ie. the conntrackd crashes, Moreover, we can monitor the helper process
+and restart it in case of problems.</para></listitem>
+
+<listitem><para>Security: Avoid complex string matching and mangling in
+kernel-space running in privileged mode. Going further, we can even think
+about running user-space helper as a non-root process.</para></listitem>
+
+<listitem><para>It allows the development of very specific helpers for
+proprietary protocols that are not standard. This is the case of the SQL*net
+helper. Implementing this in kernel-space may be problematic, since
+this may not be accepted for ainline inclusion in the Linux kernel.
+As an alternative, we can still distribute this support as separate
+patches. However, my personal experience is that, given that the
+kernel API/ABI is not stable, changes in the interface lead to the
+breakage of the patch. This highly increase the overhead in the
+maintainance.</para></listitem>
+
+</itemizedlist>
+
+<para>Currently, the infrastructure supports the following user-space helpers:
+</para>
+
+<itemizedlist>
+<listitem><para>Oracle*TNS, to support its special <emphasis>Redirect</emphasis> message.</para></listitem>
+<listitem><para>NFSv3, mind that version 4 does not require this helper.</para></listitem>
+<listitem><para>FTP (this helper is also available in kernel-space).</para></listitem>
+<listitem><para>SSDP.</para></listitem>
+</itemizedlist>
+
+<para>The following steps describe how to enable the RPC portmapper helper for NFSv3 (this is similar for other helpers):</para>
+
+<orderedlist>
+<listitem><para>Register user-space helper:
+
+<programlisting>
+nfct add helper rpc inet udp
+nfct add helper rpc inet tcp
+</programlisting>
+
+This registers the portmapper helper for both UDP and TCP (NFSv3 traffic goes both over TCP and UDP).
+</para></listitem>
+
+<listitem><para>Add iptables rule using the CT target:
+
+<programlisting>
+# iptables -I OUTPUT -t raw -p udp --dport 111 -j CT --helper rpc
+# iptables -I OUTPUT -t raw -p tcp --dport 111 -j CT --helper rpc
+</programlisting>
+
+With this, packets matching port TCP/UDP/111 are passed to user-space for
+inspection. If there is no instance of conntrackd configured to support
+user-space helpers, no inspection happens and packets are not sent to
+user-space.</para></listitem>
+
+<listitem><para>Add configuration to conntrackd.conf:
+
+<programlisting>
+Helper {
+        Type rpc inet udp {
+                QueueNum 1
+		QueueLen 10240
+                Policy rpc {
+                        ExpectMax 1
+                        ExpectTimeout 300
+                }
+        }
+        Type rpc inet tcp {
+                QueueNum 2
+		QueueLen 10240
+                Policy rpc {
+                        ExpectMax 1
+                        ExpectTimeout 300
+                }
+        }
+}
+</programlisting>
+
+This configures conntrackd to use NFQUEUE queue numbers 1 and 2 to send traffic
+for inspection to user-space</para>
+
+   <note><title>If you have some custom libnetfilter_queue application</title>
+    <para>
+    Make sure your queue numbers do not collide with those used in your
+    conntrackd.conf file.
+    </para>
+   </note>
+
+</listitem>
+
+</orderedlist>
+
+<para>Now you can test this (assuming you have some working NFSv3 setup) with:
+
+<programlisting>
+mount -t nfs -onfsvers=3 mynfs.server.info:/srv/cvs /mnt/
+</programlisting>
+
+</para>
+
+<para>You should see new expectations being added via:
+
+<programlisting>
+# conntrack -E expect
+    [NEW] 300 proto=17 src=1.2.3.4 dst=1.2.3.4 sport=0 dport=54834 mask-src=255.255.255.255 mask-dst=255.255.255.255 sport=0 dport=65535 master-src=1.2.3.4 master-dst=1.2.3.4 sport=58190 dport=111 PERMANENT class=0 helper=rpc
+    [NEW] 300 proto=6 src=1.2.3.4 dst=1.2.3.4 sport=0 dport=2049 mask-src=255.255.255.255 mask-dst=255.255.255.255 sport=0 dport=65535 master-src=1.2.3.4 master-dst=1.2.3.4 sport=55450 dport=111 PERMANENT class=0 helper=rpc
+    [NEW] 300 proto=17 src=1.2.3.4 dst=1.2.3.4 sport=0 dport=58031 mask-src=255.255.255.255 mask-dst=255.255.255.255 sport=0 dport=65535 master-src=1.2.3.4 master-dst=1.2.3.4 sport=56309 dport=111 PERMANENT class=0 helper=rpc
+</programlisting>
+</para>
+
+</sect1>
+
+<sect1 id="sync-trouble"><title>Troubleshooting</title>
 
  <para>Problems with <emphasis>conntrackd</emphasis>? The following list 
  of questions should help for troubleshooting:</para>
@@ -1022,8 +1180,6 @@ not enough space errors:                   0
   </qandaentry>
 
  </qandaset>
-
-</sect2>
 
 </sect1>
 

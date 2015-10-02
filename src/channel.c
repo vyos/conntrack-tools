@@ -109,6 +109,7 @@ channel_open(struct channel_conf *cfg)
 
 	if (ioctl(fd, SIOCGIFMTU, &ifr) == -1) {
 		free(c);
+		close(fd);
 		return NULL;
 	}
 	close(fd);
@@ -309,4 +310,9 @@ int channel_isset(struct channel *c, fd_set *readfds)
 int channel_accept(struct channel *c)
 {
 	return c->ops->accept(c);
+}
+
+int channel_type(struct channel *c)
+{
+	return c->ops->type;
 }

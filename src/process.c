@@ -27,25 +27,19 @@ int fork_process_new(int type, int flags, void (*cb)(void *data), void *data)
 	struct child_process *c, *this;
 	int pid;
 
-	/* block SIGCHLD to avoid the access of the list concurrently */
-	sigprocmask(SIG_BLOCK, &STATE(block), NULL);
-
 	/* We only want one process of this type at the same time. This is
 	 * useful if you want to prevent two child processes from accessing
 	 * a shared descriptor at the same time. */
 	if (flags & CTD_PROC_F_EXCL) {
 		list_for_each_entry(this, &process_list, head) {
 			if (this->type == type) {
-				sigprocmask(SIG_UNBLOCK, &STATE(block), NULL);
 				return -1;
 			}
 		}
 	}
 	c = calloc(sizeof(struct child_process), 1);
-	if (c == NULL) {
-		sigprocmask(SIG_UNBLOCK, &STATE(block), NULL);
+	if (c == NULL)
 		return -1;
-	}
 
 	c->type = type;
 	c->cb = cb;
@@ -54,8 +48,8 @@ int fork_process_new(int type, int flags, void (*cb)(void *data), void *data)
 
 	if (c->pid > 0)
 		list_add(&c->head, &process_list);
-
-	sigprocmask(SIG_UNBLOCK, &STATE(block), NULL);
+	else
+		free(c);
 
 	return pid;
 }
@@ -89,7 +83,6 @@ void fork_process_dump(int fd)
 	char buf[4096];
 	int size = 0;
 
-	sigprocmask(SIG_BLOCK, &STATE(block), NULL);
 	list_for_each_entry(this, &process_list, head) {
 		size += snprintf(buf+size, sizeof(buf),
 				 "PID=%u type=%s\n",
@@ -97,7 +90,6 @@ void fork_process_dump(int fd)
 				 this->type < CTD_PROC_MAX ?
 				 process_type_to_name[this->type] : "unknown");
 	}
-	sigprocmask(SIG_UNBLOCK, &STATE(block), NULL);
 
 	send(fd, buf, size, 0);
 }

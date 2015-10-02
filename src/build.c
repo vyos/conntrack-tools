@@ -105,14 +105,14 @@ static enum nf_conntrack_attr nat_type[] =
 	  ATTR_ORIG_NAT_SEQ_OFFSET_AFTER, ATTR_REPL_NAT_SEQ_CORRECTION_POS,
 	  ATTR_REPL_NAT_SEQ_OFFSET_BEFORE, ATTR_REPL_NAT_SEQ_OFFSET_AFTER };
 
+/* ICMP, UDP and TCP are always loaded with nf_conntrack_ipv4 */
 static void build_l4proto_tcp(const struct nf_conntrack *ct, struct nethdr *n)
 {
-	ct_build_group(ct, ATTR_GRP_ORIG_PORT, n, NTA_PORT,
-		      sizeof(struct nfct_attr_grp_port));
-
 	if (!nfct_attr_is_set(ct, ATTR_TCP_STATE))
 		return;
 
+	ct_build_group(ct, ATTR_GRP_ORIG_PORT, n, NTA_PORT,
+		      sizeof(struct nfct_attr_grp_port));
 	ct_build_u8(ct, ATTR_TCP_STATE, n, NTA_TCP_STATE);
 	if (CONFIG(sync).tcp_window_tracking) {
 		ct_build_u8(ct, ATTR_TCP_WSCALE_ORIG, n, NTA_TCP_WSCALE_ORIG);
@@ -122,12 +122,12 @@ static void build_l4proto_tcp(const struct nf_conntrack *ct, struct nethdr *n)
 
 static void build_l4proto_sctp(const struct nf_conntrack *ct, struct nethdr *n)
 {
-	ct_build_group(ct, ATTR_GRP_ORIG_PORT, n, NTA_PORT,
-		      sizeof(struct nfct_attr_grp_port));
-
+	/* SCTP is optional, make sure nf_conntrack_sctp is loaded */
 	if (!nfct_attr_is_set(ct, ATTR_SCTP_STATE))
 		return;
 
+	ct_build_group(ct, ATTR_GRP_ORIG_PORT, n, NTA_PORT,
+		      sizeof(struct nfct_attr_grp_port));
 	ct_build_u8(ct, ATTR_SCTP_STATE, n, NTA_SCTP_STATE);
 	ct_build_u32(ct, ATTR_SCTP_VTAG_ORIG, n, NTA_SCTP_VTAG_ORIG);
 	ct_build_u32(ct, ATTR_SCTP_VTAG_REPL, n, NTA_SCTP_VTAG_REPL);
@@ -135,18 +135,22 @@ static void build_l4proto_sctp(const struct nf_conntrack *ct, struct nethdr *n)
 
 static void build_l4proto_dccp(const struct nf_conntrack *ct, struct nethdr *n)
 {
-	ct_build_group(ct, ATTR_GRP_ORIG_PORT, n, NTA_PORT,
-		      sizeof(struct nfct_attr_grp_port));
-
+	/* DCCP is optional, make sure nf_conntrack_dccp is loaded */
 	if (!nfct_attr_is_set(ct, ATTR_DCCP_STATE))
 		return;
 
+	ct_build_group(ct, ATTR_GRP_ORIG_PORT, n, NTA_PORT,
+		      sizeof(struct nfct_attr_grp_port));
 	ct_build_u8(ct, ATTR_DCCP_STATE, n, NTA_DCCP_STATE);
 	ct_build_u8(ct, ATTR_DCCP_ROLE, n, NTA_DCCP_ROLE);
 }
 
 static void build_l4proto_icmp(const struct nf_conntrack *ct, struct nethdr *n)
 {
+	/* This is also used by ICMPv6 and nf_conntrack_ipv6 is optional */
+	if (!nfct_attr_is_set(ct, ATTR_ICMP_TYPE))
+		return;
+
 	ct_build_u8(ct, ATTR_ICMP_TYPE, n, NTA_ICMP_TYPE);
 	ct_build_u8(ct, ATTR_ICMP_CODE, n, NTA_ICMP_CODE);
 	ct_build_u16(ct, ATTR_ICMP_ID, n, NTA_ICMP_ID);
@@ -156,6 +160,42 @@ static void build_l4proto_udp(const struct nf_conntrack *ct, struct nethdr *n)
 {
 	ct_build_group(ct, ATTR_GRP_ORIG_PORT, n, NTA_PORT,
 		      sizeof(struct nfct_attr_grp_port));
+}
+
+static void ct_build_clabel(const struct nf_conntrack *ct, struct nethdr *n)
+{
+	const struct nfct_bitmask *b;
+	uint32_t *words;
+	unsigned int wordcount, i, maxbit;
+
+	if (!nfct_attr_is_set(ct, ATTR_CONNLABELS))
+		return;
+
+	b = nfct_get_attr(ct, ATTR_CONNLABELS);
+
+	maxbit = nfct_bitmask_maxbit(b);
+	for (i=0; i <= maxbit; i++) {
+		if (nfct_bitmask_test_bit(b, i))
+			break;
+	}
+
+	if (i > maxbit)
+		return;
+
+	wordcount = (nfct_bitmask_maxbit(b) / 32) + 1;
+	words = put_header(n, NTA_LABELS, wordcount * sizeof(*words));
+
+	for (i=0; i < wordcount; i++) {
+		int bit = 31;
+		uint32_t tmp = 0;
+
+		do {
+			if (nfct_bitmask_test_bit(b, (32 * i) + bit))
+				tmp |= (1 << bit);
+		} while (--bit >= 0);
+
+		words[i] = htonl(tmp);
+	}
 }
 
 #ifndef IPPROTO_DCCP
@@ -233,6 +273,9 @@ void ct2msg(const struct nf_conntrack *ct, struct nethdr *n)
 
 	if (nfct_attr_is_set(ct, ATTR_HELPER_NAME))
 		ct_build_str(ct, ATTR_HELPER_NAME, n, NTA_HELPER_NAME);
+
+	if (nfct_attr_is_set(ct, ATTR_CONNLABELS))
+		ct_build_clabel(ct, n);
 }
 
 static void
@@ -356,7 +399,8 @@ void exp2msg(const struct nf_expect *exp, struct nethdr *n)
 
 		exp_build_u32(exp, ATTR_EXP_NAT_DIR, n, NTA_EXP_NAT_DIR);
 	}
-	exp_build_str(exp, ATTR_EXP_HELPER_NAME, n, NTA_EXP_HELPER_NAME);
+	if (nfexp_attr_is_set(exp, ATTR_EXP_HELPER_NAME))
+		exp_build_str(exp, ATTR_EXP_HELPER_NAME, n, NTA_EXP_HELPER_NAME);
 	if (nfexp_attr_is_set(exp, ATTR_EXP_FN))
 		exp_build_str(exp, ATTR_EXP_FN, n, NTA_EXP_FN);
 }

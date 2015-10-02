@@ -1,4 +1,4 @@
-.TH CONNTRACKD 8 "Oct 21, 2008" "" ""
+.TH CONNTRACKD 8 "Sep 25, 2014" "" ""
 
 .\" Man page written by Pablo Neira Ayuso <pablo@netfilter.org> (Dec 2007)
 
@@ -32,7 +32,7 @@ Dump the external cache, i.e. show foreign states
 .TP
 .BI "-x "
 Display output in XML format. This option is only valid in combination
-with "-i" and "-e" parameters.
+with "\-i" and "\-e" parameters.
 .TP
 .BI "-f " "[|internal|external]"
 Flush the internal and/or external cache
@@ -41,9 +41,15 @@ Flush the internal and/or external cache
 Flush the kernel conntrack table (if you use a Linux kernel >= 2.6.29, this
 option will not flush your internal and external cache).
 .TP
+.BI "-c "
+Commit external cache to conntrack table.
+.TP
 .BI "-B "
 Force a bulk send to other replica firewalls. With this command, you will
 ask conntrackd to send the state-entries that it owns to others.
+.TP
+.BI "-n "
+Request resync with other node (only FT-FW and NOTRACK modes).
 .TP
 .BI "-k "
 Kill the daemon
@@ -69,6 +75,10 @@ Display version information.
 .TP
 .BI "-h "
 Display help information.
+.TP
+.BI "-C config file"
+Configuration file path.
+.TP
 .SH DIAGNOSTICS
 The exit code is 0 for correct function. Errors cause an exit code of 1.
 .SH EXAMPLES

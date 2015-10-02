@@ -1,4 +1,4 @@
-AC_INIT(conntrack-tools, 1.0.1, pablo@netfilter.org)
+AC_INIT(conntrack-tools, 1.4.3, pablo@netfilter.org)
 AC_CONFIG_AUX_DIR([build-aux])
 
 AC_CANONICAL_HOST
@@ -9,8 +9,12 @@ AM_INIT_AUTOMAKE([-Wall foreign subdir-objects
 dnl kernel style compile messages
 m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
 
+AC_SEARCH_LIBS([dlopen], [dl], [libdl_LIBS="$LIBS"; LIBS=""])
+AC_SUBST([libdl_LIBS])
+
 AC_PROG_CC
 AC_DISABLE_STATIC
+AM_PROG_AR
 AM_PROG_LIBTOOL
 AC_PROG_INSTALL
 AC_PROG_LN_S
@@ -51,8 +55,27 @@ else
 	flex.])
 fi
 
-PKG_CHECK_MODULES([LIBNFNETLINK], [libnfnetlink >= 1.0.0])
-PKG_CHECK_MODULES([LIBNETFILTER_CONNTRACK], [libnetfilter_conntrack >= 1.0.0])
+AC_ARG_ENABLE([cthelper],
+        AS_HELP_STRING([--disable-cthelper], [Do not build userspace helper support]),
+        [enable_cthelper="no"], [enable_cthelper="yes"])
+AC_ARG_ENABLE([cttimeout],
+        AS_HELP_STRING([--disable-cttimeout], [Do not build timeout support]),
+        [enable_cttimeout="no"], [enable_cttimeout="yes"])
+
+PKG_CHECK_MODULES([LIBNFNETLINK], [libnfnetlink >= 1.0.1])
+PKG_CHECK_MODULES([LIBMNL], [libmnl >= 1.0.3])
+PKG_CHECK_MODULES([LIBNETFILTER_CONNTRACK], [libnetfilter_conntrack >= 1.0.4])
+AS_IF([test "x$enable_cttimeout" = "xyes"], [
+	PKG_CHECK_MODULES([LIBNETFILTER_CTTIMEOUT], [libnetfilter_cttimeout >= 1.0.0])
+])
+AM_CONDITIONAL([HAVE_CTTIMEOUT], [test "x$enable_cttimeout" = "xyes"])
+
+AS_IF([test "x$enable_cthelper" = "xyes"], [
+	PKG_CHECK_MODULES([LIBNETFILTER_CTHELPER], [libnetfilter_cthelper >= 1.0.0])
+	PKG_CHECK_MODULES([LIBNETFILTER_QUEUE], [libnetfilter_queue >= 1.0.2])
+	AC_DEFINE([BUILD_CTHELPER], [1], [Building cthelper support])
+])
+AM_CONDITIONAL([HAVE_CTHELPER], [test "x$enable_cthelper" = "xyes"])
 
 AC_CHECK_HEADERS([linux/capability.h],, [AC_MSG_ERROR([Cannot find linux/capabibility.h])])
 
@@ -112,5 +135,15 @@ dnl                  debug/src/Makefile
 dnl                  extensions/Makefile
 dnl                  src/Makefile])
 
-AC_CONFIG_FILES([Makefile src/Makefile include/Makefile extensions/Makefile])
+if test ! -z "$libdir"; then
+	MODULE_DIR="\\\"$libdir/conntrack-tools/\\\""
+	CFLAGS="$CFLAGS -DCONNTRACKD_LIB_DIR=$MODULE_DIR"
+fi
+
+AC_CONFIG_FILES([Makefile src/Makefile include/Makefile include/linux/Makefile include/linux/netfilter/Makefile extensions/Makefile src/helpers/Makefile])
 AC_OUTPUT
+
+echo "
+conntrack-tools configuration:
+  userspace conntrack helper support:	${enable_cthelper}
+  conntrack timeout support:		${enable_cttimeout}"

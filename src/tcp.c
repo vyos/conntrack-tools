@@ -27,7 +27,7 @@
 
 struct tcp_sock *tcp_server_create(struct tcp_conf *c)
 {
-	int yes = 1, ret;
+	int yes = 1;
 	struct tcp_sock *m;
 	socklen_t socklen = sizeof(int);
 
@@ -109,30 +109,7 @@ struct tcp_sock *tcp_server_create(struct tcp_conf *c)
 		return NULL;
 	}
 
-	/* now we accept new connections ... */
-	ret = accept(m->fd, NULL, NULL);
-	if (ret == -1) {
-		if (errno != EAGAIN) {
-			/* unexpected error, give up. */
-			close(m->fd);
-			free(m);
-			m = NULL;
-		} else {
-			/* still in progress ... we'll do it in tcp_recv() */
-			m->state = TCP_SERVER_ACCEPTING;
-		}
-	} else {
-		/* very unlikely at this stage. */
-		if (fcntl(ret, F_SETFL, O_NONBLOCK) == -1) {
-			/* unexpected error, give up. */
-			close(m->fd);
-			free(m);
-			return NULL;
-		}
-		m->client_fd = ret;
-		m->state = TCP_SERVER_CONNECTED;
-		register_fd(m->client_fd, STATE(fds));
-	}
+	m->state = TCP_SERVER_ACCEPTING;
 
 	return m;
 }
@@ -270,13 +247,11 @@ int tcp_accept(struct tcp_sock *m)
 	/* the other peer wants to connect ... */
 	ret = accept(m->fd, NULL, NULL);
 	if (ret == -1) {
-		if (errno != EAGAIN) {
-			/* unexpected error. Give us another try. */
-			m->state = TCP_SERVER_ACCEPTING;
-		} else {
-			/* waiting for new connections. */
-			m->state = TCP_SERVER_ACCEPTING;
-		}
+		/* unexpected error: Give us another try. Or we have hit
+ 		 * -EAGAIN, in that case we remain in the accepting connections
+		 * state.
+		 */
+		m->state = TCP_SERVER_ACCEPTING;
 	} else {
 		/* the peer finally got connected. */
 		if (fcntl(ret, F_SETFL, O_NONBLOCK) == -1) {
@@ -287,7 +262,6 @@ int tcp_accept(struct tcp_sock *m)
 
 		m->client_fd = ret;
 		m->state = TCP_SERVER_CONNECTED;
-		register_fd(m->client_fd, STATE(fds));
 	}
 	return m->client_fd;
 }
@@ -367,7 +341,6 @@ ssize_t tcp_recv(struct tcp_sock *m, void *data, int size)
 			close(m->client_fd);
 			m->client_fd = -1;
 			m->state = TCP_SERVER_ACCEPTING;
-			tcp_accept(m);
 		} else if (errno != EAGAIN) {
 			m->stats.error++;
 		}
@@ -377,7 +350,6 @@ ssize_t tcp_recv(struct tcp_sock *m, void *data, int size)
 		close(m->client_fd);
 		m->client_fd = -1;
 		m->state = TCP_SERVER_ACCEPTING;
-		tcp_accept(m);
 	}
 
 	if (ret >= 0) {

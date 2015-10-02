@@ -1,5 +1,6 @@
 /conntrack
 /conntrackd
+/nfct
 
 /read_config_lex.c
 /read_config_yy.c

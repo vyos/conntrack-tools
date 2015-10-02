@@ -29,7 +29,7 @@
 	1; \
 })
 
-#define prefetch(x)		1
+#define prefetch(x)		((void)0)
 
 /* empty define to make this work in userspace -HW */
 #ifndef smp_wmb

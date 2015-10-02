@@ -65,7 +65,7 @@ static char tcp_commands_v_options[NUMBER_OF_CMD][TCP_NUMBER_OF_OPT] =
 /*CT_VERSION*/	  {0,0,0,0,0,0,0,0,0},
 /*CT_HELP*/	  {0,0,0,0,0,0,0,0,0},
 /*EXP_LIST*/	  {0,0,0,0,0,0,0,0,0},
-/*EXP_CREATE*/	  {1,1,1,1,1,1,0,1,1},
+/*EXP_CREATE*/	  {1,1,0,0,1,1,0,1,1},
 /*EXP_DELETE*/	  {1,1,1,1,0,0,0,0,0},
 /*EXP_GET*/	  {1,1,1,1,0,0,0,0,0},
 /*EXP_FLUSH*/	  {0,0,0,0,0,0,0,0,0},
@@ -106,7 +106,7 @@ static int parse_options(char c,
 			 unsigned int *flags)
 {
 	int i;
-	u_int16_t port;
+	uint16_t port;
 
 	switch(c) {
 	case '1':

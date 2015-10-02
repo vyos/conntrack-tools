@@ -43,8 +43,8 @@ static char icmp_commands_v_options[NUMBER_OF_CMD][ICMP_NUMBER_OF_OPT] =
 		/* 1 2 3 */
 /*CT_LIST*/	  {2,2,2},
 /*CT_CREATE*/	  {1,1,2},
-/*CT_UPDATE*/	  {1,1,2},
-/*CT_DELETE*/	  {1,1,2},
+/*CT_UPDATE*/	  {2,2,2},
+/*CT_DELETE*/	  {2,2,2},
 /*CT_GET*/	  {1,1,2},
 /*CT_FLUSH*/	  {0,0,0},
 /*CT_EVENT*/	  {2,2,2},
@@ -72,8 +72,8 @@ static int parse(char c,
 		 unsigned int *flags)
 {
 	switch(c) {
-		u_int8_t tmp;
-		u_int16_t id;
+		uint8_t tmp;
+		uint16_t id;
 		case '1':
 			tmp = atoi(optarg);
 			nfct_set_attr_u8(ct, ATTR_ICMP_TYPE, tmp);

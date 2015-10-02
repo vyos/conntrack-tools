@@ -34,7 +34,7 @@ struct cache_feature *cache_feature[CACHE_MAX_FEATURE] = {
 };
 
 struct cache *cache_create(const char *name, enum cache_type type,
-			   unsigned int features, 
+			   unsigned int features,
 			   struct cache_extra *extra,
 			   struct cache_ops *ops)
 {
@@ -53,7 +53,8 @@ struct cache *cache_create(const char *name, enum cache_type type,
 		return NULL;
 	memset(c, 0, sizeof(struct cache));
 
-	strcpy(c->name, name);
+	strncpy(c->name, name, CACHE_MAX_NAMELEN);
+	c->name[CACHE_MAX_NAMELEN - 1] = '\0';
 	c->type = type;
 
 	for (i = 0; i < CACHE_MAX_FEATURE; i++) {

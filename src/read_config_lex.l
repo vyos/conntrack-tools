@@ -44,10 +44,10 @@ ip4		{ip4_part}\.{ip4_part}\.{ip4_part}\.{ip4_part}{ip4_cidr}?
 hex_255		[0-9a-fA-F]{1,4}
 ip6_cidr	\/[0-1]*[0-9]*[0-9]+
 ip6_part	{hex_255}":"?
-ip6_form1	{ip6_part}{0,16}"::"{ip6_part}{0,16}
-ip6_form2	({hex_255}":"){16}{hex_255}
+ip6_form1	{ip6_part}{0,7}"::"{ip6_part}{0,7}
+ip6_form2	({hex_255}":"){0,7}{hex_255}
 ip6		{ip6_form1}{ip6_cidr}?|{ip6_form2}{ip6_cidr}?
-string		[a-zA-Z][a-zA-Z0-9\.\-]*
+string		[a-zA-Z][a-zA-Z0-9\.\-\_]*
 persistent	[P|p][E|e][R|r][S|s][I|i][S|s][T|t][E|e][N|n][T|T]
 nack		[N|n][A|a][C|c][K|k]
 alarm		[A|a][L|l][A|a][R|r][M|m]
@@ -142,6 +142,12 @@ notrack		[N|n][O|o][T|t][R|r][A|a][C|c][K|k]
 "TCPWindowTracking"		{ return T_TCP_WINDOW_TRACKING; }
 "ExpectationSync"		{ return T_EXPECT_SYNC; }
 "ErrorQueueLength"		{ return T_ERROR_QUEUE_LENGTH; }
+"Helper"			{ return T_HELPER; }
+"QueueNum"			{ return T_HELPER_QUEUE_NUM; }
+"QueueLen"			{ return T_HELPER_QUEUE_LEN; }
+"Policy"			{ return T_HELPER_POLICY; }
+"ExpectMax"			{ return T_HELPER_EXPECT_MAX; }
+"ExpectTimeout"			{ return T_HELPER_EXPECT_TIMEOUT; }
 
 {is_on}			{ return T_ON; }
 {is_off}		{ return T_OFF; }
