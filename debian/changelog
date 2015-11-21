@@ -1,3 +1,10 @@
+conntrack (1:1.4.0-1+vyos2+lithium8) unstable; urgency=low
+
+  [ Alex Harpin ]
+  * Update to upstream version 1.4.0
+
+ -- Alex Harpin <development@landsofshadow.co.uk>  Sat, 21 Nov 2015 14:46:29 +0000
+ 
 conntrack (1:1.2.1-1+vyos2+lithium7) unstable; urgency=low
 
   [ Alex Harpin ]
