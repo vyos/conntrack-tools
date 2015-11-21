@@ -473,7 +473,17 @@ int exp_filter_find(struct exp_filter *f, const struct nf_expect *exp)
 		return 1;
 
 	list_for_each_entry(item, &f->list, head) {
-		const char *name = nfexp_get_attr(exp, ATTR_EXP_HELPER_NAME);
+		const char *name;
+
+		if (nfexp_attr_is_set(exp, ATTR_EXP_HELPER_NAME))
+			name = nfexp_get_attr(exp, ATTR_EXP_HELPER_NAME);
+		else {
+			/* No helper name, this is likely to be a kernel older
+			 * which does not include the helper name, just skip
+			 * this so we don't crash.
+			 */
+			return 0;
+		}
 
 		/* we allow partial matching to support things like sip-PORT. */
 		if (strncasecmp(item->helper_name, name,

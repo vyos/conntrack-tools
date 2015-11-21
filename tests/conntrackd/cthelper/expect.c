@@ -25,7 +25,8 @@ cthelper_expect_init(struct nf_expect *exp, struct nf_conntrack *master,
 		  uint32_t class,
 		  union nfct_attr_grp_addr *saddr,
 		  union nfct_attr_grp_addr *daddr,
-		  uint8_t l4proto, uint16_t *sport, uint16_t *dport)
+		  uint8_t l4proto, uint16_t *sport, uint16_t *dport,
+		  uint32_t flags)
 {
 	struct nf_conntrack *expected, *mask;
 

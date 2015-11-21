@@ -360,7 +360,8 @@ void exp2msg(const struct nf_expect *exp, struct nethdr *n)
 
 		exp_build_u32(exp, ATTR_EXP_NAT_DIR, n, NTA_EXP_NAT_DIR);
 	}
-	exp_build_str(exp, ATTR_EXP_HELPER_NAME, n, NTA_EXP_HELPER_NAME);
+	if (nfexp_attr_is_set(exp, ATTR_EXP_HELPER_NAME))
+		exp_build_str(exp, ATTR_EXP_HELPER_NAME, n, NTA_EXP_HELPER_NAME);
 	if (nfexp_attr_is_set(exp, ATTR_EXP_FN))
 		exp_build_str(exp, ATTR_EXP_FN, n, NTA_EXP_FN);
 }

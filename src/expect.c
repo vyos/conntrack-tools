@@ -177,7 +177,7 @@ static int cthelper_expect_cmd(struct nf_expect *exp, int cmd)
 
 int cthelper_add_expect(struct nf_expect *exp)
 {
-	return cthelper_expect_cmd(exp, NFCT_Q_CREATE);
+	return cthelper_expect_cmd(exp, NFCT_Q_CREATE_UPDATE);
 }
 
 int cthelper_del_expect(struct nf_expect *exp)

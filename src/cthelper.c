@@ -353,8 +353,9 @@ static int cthelper_setup(struct ctd_helper_instance *cur)
 	nfct_helper_attr_set_u32(t, NFCTH_ATTR_STATUS,
 					NFCT_HELPER_STATUS_ENABLED);
 
-	dlog(LOG_NOTICE, "configuring helper `%s' with queuenum=%d",
-		cur->helper->name, cur->queue_num);
+	dlog(LOG_NOTICE, "configuring helper `%s' with queuenum=%d and "
+			 "queuelen=%d", cur->helper->name, cur->queue_num,
+			 cur->queue_len);
 
 	for (j=0; j<CTD_HELPER_POLICY_MAX; j++) {
 		struct nfct_helper_policy *p;
@@ -431,7 +432,9 @@ static int cthelper_nfqueue_setup(struct ctd_helper_instance *cur)
 
 	nlh = nfq_hdr_put(buf, NFQNL_MSG_CONFIG, cur->queue_num);
 	nfq_nlmsg_cfg_put_params(nlh, NFQNL_COPY_PACKET, 0xffff);
-	mnl_attr_put_u32(nlh, NFQA_CFG_FLAGS, htonl(NFQNL_F_CONNTRACK));
+	mnl_attr_put_u32(nlh, NFQA_CFG_FLAGS, htonl(NFQA_CFG_F_CONNTRACK));
+	mnl_attr_put_u32(nlh, NFQA_CFG_MASK, htonl(0xffffffff));
+	mnl_attr_put_u32(nlh, NFQA_CFG_QUEUE_MAXLEN, htonl(cur->queue_len));
 
 	if (mnl_socket_sendto(STATE_CTH(nl), nlh, nlh->nlmsg_len) < 0) {
 		dlog(LOG_ERR, "failed to send configuration");

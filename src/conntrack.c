@@ -587,6 +587,8 @@ exit_error(enum exittype status, const char *msg, ...)
 	va_end(args);
 	if (status == PARAMETER_PROBLEM)
 		exit_tryhelp(status);
+	/* release template objects that were allocated in the setup stage. */
+	free_tmpl_objects();
 	exit(status);
 }
 
@@ -820,45 +822,27 @@ add_command(unsigned int *cmd, const int newcmd)
 	*cmd |= newcmd;
 }
 
-static char *get_table(int argc, char *argv[])
+static unsigned int
+check_type(int argc, char *argv[])
 {
 	char *table = NULL;
 
-	/* Nasty bug or feature in getopt_long ?
+	/* Nasty bug or feature in getopt_long ? 
 	 * It seems that it behaves badly with optional arguments.
 	 * Fortunately, I just stole the fix from iptables ;) */
 	if (optarg)
 		return 0;
-	else if (optind < argc && argv[optind][0] != '-' &&
-		 argv[optind][0] != '!')
+	else if (optind < argc && argv[optind][0] != '-' 
+			&& argv[optind][0] != '!')
 		table = argv[optind++];
-
-	return table;
-}
-
-enum {
-	CT_TABLE_CONNTRACK,
-	CT_TABLE_EXPECT,
-	CT_TABLE_DYING,
-	CT_TABLE_UNCONFIRMED,
-};
-
-static unsigned int check_type(int argc, char *argv[])
-{
-	const char *table = get_table(argc, argv);
-
-	/* default to conntrack subsystem if nothing has been specified. */
-	if (table == NULL)
-		return CT_TABLE_CONNTRACK;
-
+	
+	if (!table)
+		return 0;
+		
 	if (strncmp("expect", table, strlen(table)) == 0)
-		return CT_TABLE_EXPECT;
+		return 1;
 	else if (strncmp("conntrack", table, strlen(table)) == 0)
-		return CT_TABLE_CONNTRACK;
-	else if (strncmp("dying", table, strlen(table)) == 0)
-		return CT_TABLE_DYING;
-	else if (strncmp("unconfirmed", table, strlen(table)) == 0)
-		return CT_TABLE_UNCONFIRMED;
+		return 0;
 	else
 		exit_error(PARAMETER_PROBLEM, "unknown type `%s'", table);
 
@@ -1072,7 +1056,7 @@ filter_nat(const struct nf_conntrack *obj, const struct nf_conntrack *ct)
 	else if (options & CT_OPT_DST_NAT)
 		return !has_dstnat;
 
-	return (options & (CT_OPT_SRC_NAT | CT_OPT_DST_NAT)) ? 1 : 0;
+	return 0;
 }
 
 static int counter;
@@ -1557,6 +1541,26 @@ nfct_mnl_dump(uint16_t subsys, uint16_t type, mnl_cb_t cb)
 	return res;
 }
 
+static int
+nfct_mnl_get(uint16_t subsys, uint16_t type, mnl_cb_t cb)
+{
+	char buf[MNL_SOCKET_BUFFER_SIZE];
+	struct nlmsghdr *nlh;
+	int res;
+
+	nlh = nfct_mnl_nlmsghdr_put(buf, subsys, type);
+
+	res = mnl_socket_sendto(sock.mnl, nlh, nlh->nlmsg_len);
+	if (res < 0)
+		return res;
+
+	res = mnl_socket_recvfrom(sock.mnl, buf, sizeof(buf));
+	if (res < 0)
+		return res;
+
+	return mnl_cb_run(buf, res, nlh->nlmsg_seq, sock.portid, cb, NULL);
+}
+
 static int nfct_stats_attr_cb(const struct nlattr *attr, void *data)
 {
 	const struct nlattr **tb = data;
@@ -1651,24 +1655,34 @@ static int nfexp_stats_cb(const struct nlmsghdr *nlh, void *data)
 	return MNL_CB_OK;
 }
 
-static int mnl_nfct_dump_cb(const struct nlmsghdr *nlh, void *data)
+static int nfct_stats_global_attr_cb(const struct nlattr *attr, void *data)
 {
-	struct nf_conntrack *ct;
-	char buf[4096];
+	const struct nlattr **tb = data;
+	int type = mnl_attr_get_type(attr);
 
-	ct = nfct_new();
-	if (ct == NULL)
+	if (mnl_attr_type_valid(attr, CTA_STATS_GLOBAL_MAX) < 0)
 		return MNL_CB_OK;
 
-	nfct_nlmsg_parse(nlh, ct);
+	if (mnl_attr_validate(attr, MNL_TYPE_U32) < 0) {
+		perror("mnl_attr_validate");
+		return MNL_CB_ERROR;
+	}
 
-	nfct_snprintf(buf, sizeof(buf), ct, NFCT_T_UNKNOWN, NFCT_O_DEFAULT, 0);
-	printf("%s\n", buf);
+	tb[type] = attr;
+	return MNL_CB_OK;
+}
 
-	nfct_destroy(ct);
+static int nfct_global_stats_cb(const struct nlmsghdr *nlh, void *data)
+{
+	struct nlattr *tb[CTA_STATS_GLOBAL_MAX+1] = {};
+	struct nfgenmsg *nfg = mnl_nlmsg_get_payload(nlh);
 
-	counter++;
+	mnl_attr_parse(nlh, sizeof(*nfg), nfct_stats_global_attr_cb, tb);
 
+	if (tb[CTA_STATS_GLOBAL_ENTRIES]) {
+		printf("%d\n",
+			ntohl(mnl_attr_get_u32(tb[CTA_STATS_GLOBAL_ENTRIES])));
+	}
 	return MNL_CB_OK;
 }
 
@@ -1706,16 +1720,6 @@ int main(int argc, char *argv[])
 	switch(c) {
 		/* commands */
 		case 'L':
-			type = check_type(argc, argv);
-			/* Special case: dumping dying and unconfirmed list
-			 * are handled like normal conntrack dumps.
-			 */
-			if (type == CT_TABLE_DYING ||
-			    type == CT_TABLE_UNCONFIRMED)
-				add_command(&command, cmd2type[c][0]);
-			else
-				add_command(&command, cmd2type[c][type]);
-			break;
 		case 'I':
 		case 'D':
 		case 'G':
@@ -1726,25 +1730,14 @@ int main(int argc, char *argv[])
 		case 'C':
 		case 'S':
 			type = check_type(argc, argv);
-			if (type == CT_TABLE_DYING ||
-			    type == CT_TABLE_UNCONFIRMED) {
-				exit_error(PARAMETER_PROBLEM,
-					   "Can't do that command with "
-					   "tables `dying' and `unconfirmed'");
-			}
 			add_command(&command, cmd2type[c][type]);
 			break;
 		case 'U':
 			type = check_type(argc, argv);
-			if (type == CT_TABLE_DYING ||
-			    type == CT_TABLE_UNCONFIRMED) {
-				exit_error(PARAMETER_PROBLEM,
-					   "Can't do that command with "
-					   "tables `dying' and `unconfirmed'");
-			} else if (type == CT_TABLE_CONNTRACK)
+			if (type == 0)
 				add_command(&command, CT_UPDATE);
 			else
-				exit_error(PARAMETER_PROBLEM,
+				exit_error(PARAMETER_PROBLEM, 
 					   "Can't update expectations");
 			break;
 		/* options */
@@ -1944,28 +1937,6 @@ int main(int argc, char *argv[])
 	struct nfct_filter_dump *filter_dump;
 
 	case CT_LIST:
-		if (type == CT_TABLE_DYING) {
-			if (nfct_mnl_socket_open() < 0)
-				exit_error(OTHER_PROBLEM, "Can't open handler");
-
-			res = nfct_mnl_dump(NFNL_SUBSYS_CTNETLINK,
-					    IPCTNL_MSG_CT_GET_DYING,
-					    mnl_nfct_dump_cb);
-
-			nfct_mnl_socket_close();
-			break;
-		} else if (type == CT_TABLE_UNCONFIRMED) {
-			if (nfct_mnl_socket_open() < 0)
-				exit_error(OTHER_PROBLEM, "Can't open handler");
-
-			res = nfct_mnl_dump(NFNL_SUBSYS_CTNETLINK,
-					    IPCTNL_MSG_CT_GET_UNCONFIRMED,
-					    mnl_nfct_dump_cb);
-
-			nfct_mnl_socket_close();
-			break;
-		}
-
 		cth = nfct_open(CONNTRACK, 0);
 		if (!cth)
 			exit_error(OTHER_PROBLEM, "Can't open handler");
@@ -2216,7 +2187,25 @@ int main(int argc, char *argv[])
 		res = nfexp_catch(cth);
 		nfct_close(cth);
 		break;
-	case CT_COUNT: {
+	case CT_COUNT:
+		/* If we fail with netlink, fall back to /proc to ensure
+		 * backward compatibility.
+		 */
+		if (nfct_mnl_socket_open() < 0)
+			goto try_proc_count;
+
+		res = nfct_mnl_get(NFNL_SUBSYS_CTNETLINK,
+				   IPCTNL_MSG_CT_GET_STATS,
+				   nfct_global_stats_cb);
+
+		nfct_mnl_socket_close();
+
+		/* don't look at /proc, we got the information via ctnetlink */
+		if (res >= 0)
+			break;
+
+try_proc_count:
+		{
 #define NF_CONNTRACK_COUNT_PROC "/proc/sys/net/netfilter/nf_conntrack_count"
 		FILE *fd;
 		int count;

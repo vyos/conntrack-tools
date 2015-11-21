@@ -56,6 +56,7 @@ struct stack symbol_stack;
 
 enum {
 	SYMBOL_HELPER_QUEUE_NUM,
+	SYMBOL_HELPER_QUEUE_LEN,
 	SYMBOL_HELPER_POLICY_EXPECT_ROOT,
 	SYMBOL_HELPER_EXPECT_POLICY_LEAF,
 };
@@ -86,8 +87,8 @@ enum {
 %token T_SCHEDULER T_TYPE T_PRIO T_NETLINK_EVENTS_RELIABLE
 %token T_DISABLE_INTERNAL_CACHE T_DISABLE_EXTERNAL_CACHE T_ERROR_QUEUE_LENGTH
 %token T_OPTIONS T_TCP_WINDOW_TRACKING T_EXPECT_SYNC
-%token T_HELPER T_HELPER_QUEUE_NUM T_HELPER_POLICY T_HELPER_EXPECT_MAX
-%token T_HELPER_EXPECT_TIMEOUT
+%token T_HELPER T_HELPER_QUEUE_NUM T_HELPER_QUEUE_LEN T_HELPER_POLICY
+%token T_HELPER_EXPECT_TIMEOUT T_HELPER_EXPECT_MAX
 
 %token <string> T_IP T_PATH_VAL
 %token <val> T_NUMBER
@@ -1313,25 +1314,6 @@ filter_protocol_item : T_UDP
 				 pent->p_proto);
 };
 
-filter_protocol_item : T_UDP
-{
-	struct protoent *pent;
-
-	pent = getprotobyname("udp");
-	if (pent == NULL) {
-		print_err(CTD_CFG_WARN, "getprotobyname() cannot find "
-					"protocol `udp' in /etc/protocols");
-		break;
-	}
-	ct_filter_add_proto(STATE(us_filter), pent->p_proto);
-
-	__kernel_filter_start();
-
-	nfct_filter_add_attr_u32(STATE(filter),
-				 NFCT_FILTER_L4PROTO,
-				 pent->p_proto);
-};
-
 filter_item : T_ADDRESS T_ACCEPT '{' filter_address_list '}'
 {
 	ct_filter_set_logic(STATE(us_filter),
@@ -1658,6 +1640,13 @@ helper_type: T_TYPE T_STRING T_STRING T_STRING '{' helper_type_list  '}'
 			stack_item_free(e);
 			break;
 		}
+		case SYMBOL_HELPER_QUEUE_LEN: {
+			int *qlen = (int *) &e->data;
+
+			helper_inst->queue_len = *qlen;
+			stack_item_free(e);
+			break;
+		}
 		case SYMBOL_HELPER_POLICY_EXPECT_ROOT: {
 			struct ctd_helper_policy *pol =
 				(struct ctd_helper_policy *) &e->data;
@@ -1712,6 +1701,17 @@ helper_type: T_HELPER_QUEUE_NUM T_NUMBER
 	e = stack_item_alloc(SYMBOL_HELPER_QUEUE_NUM, sizeof(int));
 	qnum = (int *) e->data;
 	*qnum = $2;
+	stack_item_push(&symbol_stack, e);
+};
+
+helper_type: T_HELPER_QUEUE_LEN T_NUMBER
+{
+	int *qlen;
+	struct stack_item *e;
+
+	e = stack_item_alloc(SYMBOL_HELPER_QUEUE_LEN, sizeof(int));
+	qlen = (int *) e->data;
+	*qlen = $2;
 	stack_item_push(&symbol_stack, e);
 };
 

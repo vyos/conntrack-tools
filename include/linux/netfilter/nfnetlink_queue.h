@@ -80,19 +80,20 @@ struct nfqnl_msg_config_params {
 	__u8	copy_mode;	/* enum nfqnl_config_mode */
 } __attribute__ ((packed));
 
-enum nfqnl_flags {
-	NFQNL_F_NONE		= 0,
-	NFQNL_F_CONNTRACK	= (1 << 0),
-};
 
 enum nfqnl_attr_config {
 	NFQA_CFG_UNSPEC,
 	NFQA_CFG_CMD,			/* nfqnl_msg_config_cmd */
 	NFQA_CFG_PARAMS,		/* nfqnl_msg_config_params */
 	NFQA_CFG_QUEUE_MAXLEN,		/* __u32 */
-	NFQA_CFG_FLAGS,			/* __u32 */
+	NFQA_CFG_MASK,			/* identify which flags to change */
+	NFQA_CFG_FLAGS,			/* value of these flags (__u32) */
 	__NFQA_CFG_MAX
 };
 #define NFQA_CFG_MAX (__NFQA_CFG_MAX-1)
+
+/* Flags for NFQA_CFG_FLAGS */
+#define NFQA_CFG_F_FAIL_OPEN			(1 << 0)
+#define NFQA_CFG_F_CONNTRACK			(1 << 1)
 
 #endif /* _NFNETLINK_QUEUE_H */

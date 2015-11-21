@@ -346,7 +346,12 @@ static int nf_nat_ftp_fmt_cmd(enum nf_ct_ftp_type type,
 				port >> 8,
 				port & 0xFF);
 	case NF_CT_FTP_EPRT:
-		return snprintf(buffer, buflen, "|1|%pI4|%u|", &addr, port);
+		return snprintf(buffer, buflen, "|1|%u.%u.%u.%u|%u|",
+				((unsigned char *)&addr)[0],
+				((unsigned char *)&addr)[1],
+				((unsigned char *)&addr)[2],
+				((unsigned char *)&addr)[3],
+				port);
 	case NF_CT_FTP_EPSV:
 		return snprintf(buffer, buflen, "|||%u|", port);
 	}

@@ -35,6 +35,7 @@ struct ctd_helper {
 struct ctd_helper_instance {
 	struct list_head	head;
 	uint32_t		queue_num;
+	uint32_t		queue_len;
 	uint16_t		l3proto;
 	uint8_t			l4proto;
 	struct ctd_helper	*helper;
@@ -99,6 +100,12 @@ enum ip_conntrack_info {
 
 #define CTINFO2DIR(ctinfo) ((ctinfo) >= IP_CT_IS_REPLY ? IP_CT_DIR_REPLY : IP_CT_DIR_ORIGINAL)
 
-#define pr_debug printf
+#if 0
+#define pr_debug(fmt, arg...) \
+	printf(fmt, ##arg)
+#else
+#define pr_debug(fmt, arg...) \
+        ({ if (0) printf(fmt, ##arg); 0; })
+#endif
 
 #endif
