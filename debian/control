@@ -3,8 +3,10 @@ Section: net
 Priority: optional
 Maintainer: VyOS Package Maintainers <maintainers@vyos.net>
 Homepage: http://conntrack-tools.netfilter.org/
-Build-Depends: debhelper (>= 5), libnfnetlink-dev (>= 1.0.0),
- libnetfilter-conntrack-dev (>= 0.0.101), bison, flex
+Build-Depends: debhelper (>= 5), libnfnetlink-dev (>= 1.0.1),
+ libnetfilter-conntrack-dev (>= 1.0.1), libmnl-dev (>= 1.0.1),
+ libnetfilter-cthelper0-dev, libnetfilter-cttimeout-dev (>= 1.0.0),
+ libnetfilter-queue-dev (>= 1.0.2), bison, flex, autotools-dev
 Standards-Version: 3.8.4
 
 Package: conntrack
@@ -26,12 +28,16 @@ Description: Connection tracking daemon
 Package: nfct
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
-Build-Depends: libnetfilter_cttimeout (>= 0.0.1), 
-Description: nfct library
- nfct library 
-
+Build-Depends: libnetfilter-cttimeout-dev (>= 1.0.0), 
+Description: Tool to interact with the connection tracking system
+ nfct is the command line tool that allows you to manipulate the Netfilter's
+ Connection Tracking System.
+ .
+ By now, the supported subsystem is timeout.
+ 
 Package: conntrack-helpers
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
-Description: conntrack-helpers
- conntrack-helpers 
+Description: Conntrack tracking helpers
+ Conntrack tracking helper modules to assist the firewall in tracking FTP,
+ RPC and TNS protocols.
