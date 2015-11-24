@@ -40,10 +40,15 @@
 #include <time.h>
 #include <fcntl.h>
 
-void killer(int foo)
+void killer(int signal)
 {
-	/* no signals while handling signals */
-	sigprocmask(SIG_BLOCK, &STATE(block), NULL);
+	/* Signals are re-entrant, disable signal handling to avoid problems
+	 * in case we receive SIGINT and SIGTERM in a row. This function is
+	 * also called via -k from the unix socket context, we already disabled
+	 * signals in that path, so don't do it.
+	 */
+	if (signal)
+		sigprocmask(SIG_BLOCK, &STATE(block), NULL);
 
 	local_server_destroy(&STATE(local));
 
@@ -57,8 +62,6 @@ void killer(int foo)
 	unlink(CONFIG(lockfile));
 	dlog(LOG_NOTICE, "---- shutdown received ----");
 	close_log();
-
-	sigprocmask(SIG_UNBLOCK, &STATE(block), NULL);
 
 	exit(0);
 }
