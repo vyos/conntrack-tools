@@ -4,8 +4,8 @@ Priority: optional
 Maintainer: VyOS Package Maintainers <maintainers@vyos.net>
 Homepage: http://conntrack-tools.netfilter.org/
 Build-Depends: debhelper (>= 5), libnfnetlink-dev (>= 1.0.1),
- libnetfilter-conntrack-dev (>= 1.0.2), libmnl-dev (>= 1.0.1),
- libnetfilter-cthelper0-dev, libnetfilter-cttimeout-dev (>= 1.0.0),
+ libnetfilter-conntrack-dev (>= 1.0.2), libmnl-dev (>= 1.0.3),
+ libnetfilter-cthelper0-dev (>= 1.0.0), libnetfilter-cttimeout-dev (>= 1.0.0),
  libnetfilter-queue-dev (>= 1.0.2), bison, flex, autotools-dev
 Standards-Version: 3.8.4
 
