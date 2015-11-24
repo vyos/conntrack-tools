@@ -1,3 +1,10 @@
+conntrack (1:1.4.0-1+vyos2+lithium10) unstable; urgency=low
+
+  [ Alex Harpin ]
+  * conntrack-tools: bump build requirements to actual level
+
+ -- Alex Harpin <development@landsofshadow.co.uk>  Tue, 24 Nov 2015 21:24:11 +0000
+
 conntrack (1:1.4.0-1+vyos2+lithium9) unstable; urgency=low
 
   [ Alex Harpin ]
