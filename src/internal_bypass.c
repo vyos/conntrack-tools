@@ -283,6 +283,11 @@ static int internal_bypass_exp_event_del(struct nf_expect *exp, int origin)
 	return 1;
 }
 
+static int internal_bypass_exp_master_find(const struct nf_conntrack *master)
+{
+	return nl_get_conntrack(STATE(get), master) == 0;
+}
+
 struct internal_handler internal_bypass = {
 	.init			= internal_bypass_init,
 	.close			= internal_bypass_close,
@@ -309,5 +314,6 @@ struct internal_handler internal_bypass = {
 		.new			= internal_bypass_exp_event_new,
 		.upd			= internal_bypass_exp_event_upd,
 		.del			= internal_bypass_exp_event_del,
+		.find			= internal_bypass_exp_master_find,
 	},
 };

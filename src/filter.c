@@ -373,8 +373,8 @@ static inline int ct_filter_sanity_check(const struct nf_conntrack *ct)
 
 	switch(nfct_get_attr_u8(ct, ATTR_L3PROTO)) {
 	case AF_INET:
-		if (!nfct_attr_is_set(ct, ATTR_IPV4_SRC) ||
-		    !nfct_attr_is_set(ct, ATTR_IPV4_DST)) {
+		if (!nfct_attr_is_set(ct, ATTR_ORIG_IPV4_SRC) ||
+		    !nfct_attr_is_set(ct, ATTR_REPL_IPV4_SRC)) {
 		    	dlog(LOG_ERR, "missing IPv4 address. "
 				      "You forgot to load "
 				      "nf_conntrack_ipv4?");
@@ -382,8 +382,8 @@ static inline int ct_filter_sanity_check(const struct nf_conntrack *ct)
 		}
 		break;
 	case AF_INET6:
-		if (!nfct_attr_is_set(ct, ATTR_IPV6_SRC) ||
-		    !nfct_attr_is_set(ct, ATTR_IPV6_DST)) {
+		if (!nfct_attr_is_set(ct, ATTR_ORIG_IPV6_SRC) ||
+		    !nfct_attr_is_set(ct, ATTR_REPL_IPV6_SRC)) {
 		    	dlog(LOG_ERR, "missing IPv6 address. "
 				      "You forgot to load "
 				      "nf_conntrack_ipv6?");
@@ -405,6 +405,51 @@ int ct_filter_conntrack(const struct nf_conntrack *ct, int userspace)
 		return 1;
 
 	return 0;
+}
+
+static inline int
+ct_filter_master_sanity_check(const struct nf_conntrack *master)
+{
+	if (master == NULL) {
+		dlog(LOG_ERR, "no master tuple in expectation");
+		return 0;
+	}
+
+	if (!nfct_attr_is_set(master, ATTR_L3PROTO)) {
+		dlog(LOG_ERR, "missing layer 3 protocol");
+		return 0;
+	}
+
+	switch (nfct_get_attr_u8(master, ATTR_L3PROTO)) {
+	case AF_INET:
+		if (!nfct_attr_is_set(master, ATTR_IPV4_SRC) ||
+		    !nfct_attr_is_set(master, ATTR_IPV4_DST)) {
+		    	dlog(LOG_ERR, "missing IPv4 address. "
+			     "You forgot to load nf_conntrack_ipv4?");
+			return 0;
+		}
+		break;
+	case AF_INET6:
+		if (!nfct_attr_is_set(master, ATTR_IPV6_SRC) ||
+		    !nfct_attr_is_set(master, ATTR_IPV6_DST)) {
+		    	dlog(LOG_ERR, "missing IPv6 address. "
+			     "You forgot to load nf_conntrack_ipv6?");
+			return 0;
+		}
+		break;
+	}
+	return 1;
+}
+
+int ct_filter_master(const struct nf_conntrack *master)
+{
+	if (!ct_filter_master_sanity_check(master))
+		return 1;
+
+	/* Check if we've got a master conntrack for this expectation in our
+	 * caches. If there is not, we don't want this expectation either.
+	 */
+	return STATE(mode)->internal->exp.find(master) ? 0 : 1;
 }
 
 struct exp_filter {

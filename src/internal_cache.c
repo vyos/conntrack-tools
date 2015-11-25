@@ -364,6 +364,16 @@ static int internal_cache_exp_event_del(struct nf_expect *exp, int origin)
 	return 1;
 }
 
+static int internal_cache_exp_master_find(const struct nf_conntrack *master)
+{
+	struct cache_object *obj;
+	int id;
+
+	obj = cache_find(STATE(mode)->internal->ct.data,
+			 (struct nf_conntrack *)master, &id);
+	return obj ? 1 : 0;
+}
+
 struct internal_handler internal_cache = {
 	.flags			= INTERNAL_F_POPULATE | INTERNAL_F_RESYNC,
 	.init			= internal_cache_init,
@@ -391,5 +401,6 @@ struct internal_handler internal_cache = {
 		.new			= internal_cache_exp_event_new,
 		.upd			= internal_cache_exp_event_upd,
 		.del			= internal_cache_exp_event_del,
+		.find			= internal_cache_exp_master_find,
 	},
 };

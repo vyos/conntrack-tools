@@ -40,6 +40,7 @@ struct internal_handler {
 		void	(*new)(struct nf_expect *exp, int origin_type);
 		void	(*upd)(struct nf_expect *exp, int origin_type);
 		int	(*del)(struct nf_expect *exp, int origin_type);
+		int	(*find)(const struct nf_conntrack *master);
 
 		void	(*dump)(int fd, int type);
 		void	(*populate)(struct nf_expect *exp);

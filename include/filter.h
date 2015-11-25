@@ -51,6 +51,7 @@ void ct_filter_set_logic(struct ct_filter *f,
 			 enum ct_filter_type type,
 			 enum ct_filter_logic logic);
 int ct_filter_conntrack(const struct nf_conntrack *ct, int userspace);
+int ct_filter_master(const struct nf_conntrack *master);
 
 struct exp_filter;
 struct nf_expect;
