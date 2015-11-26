@@ -28,7 +28,6 @@ Description: Connection tracking daemon
 Package: nfct
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
-Build-Depends: libnetfilter-cttimeout-dev (>= 1.0.0), 
 Description: Tool to interact with the connection tracking system
  nfct is the command line tool that allows you to manipulate the Netfilter's
  Connection Tracking System.
