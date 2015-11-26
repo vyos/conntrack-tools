@@ -33,8 +33,8 @@
 
 struct ct_filter {
 	int logic[CT_FILTER_MAX];
-	u_int32_t l4protomap[IPPROTO_MAX/32];
-	u_int16_t statemap[IPPROTO_MAX];
+	uint32_t l4protomap[IPPROTO_MAX/32];
+	uint16_t statemap[IPPROTO_MAX];
 	struct hashtable *h;
 	struct hashtable *h6;
 	struct vector *v;

@@ -890,6 +890,7 @@ maintainance.</para></listitem>
 <listitem><para>Oracle*TNS, to support its special <emphasis>Redirect</emphasis> message.</para></listitem>
 <listitem><para>NFSv3, mind that version 4 does not require this helper.</para></listitem>
 <listitem><para>FTP (this helper is also available in kernel-space).</para></listitem>
+<listitem><para>SSDP.</para></listitem>
 </itemizedlist>
 
 <para>The following steps describe how to enable the RPC portmapper helper for NFSv3 (this is similar for other helpers):</para>
@@ -898,8 +899,8 @@ maintainance.</para></listitem>
 <listitem><para>Register user-space helper:
 
 <programlisting>
-nfct helper add rpc inet udp
-nfct helper add rpc inet tcp
+nfct add helper rpc inet udp
+nfct add helper rpc inet tcp
 </programlisting>
 
 This registers the portmapper helper for both UDP and TCP (NFSv3 traffic goes both over TCP and UDP).

@@ -48,6 +48,8 @@ int fork_process_new(int type, int flags, void (*cb)(void *data), void *data)
 
 	if (c->pid > 0)
 		list_add(&c->head, &process_list);
+	else
+		free(c);
 
 	return pid;
 }

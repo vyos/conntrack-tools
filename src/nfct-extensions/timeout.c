@@ -1,5 +1,5 @@
 /*
- * (C) 2012 by Pablo Neira Ayuso <pablo@netfilter.org>
+ * (C) 2012-2013 by Pablo Neira Ayuso <pablo@netfilter.org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published
@@ -19,6 +19,7 @@
 #include <unistd.h>
 #include <time.h>
 #include <netinet/in.h>
+#include <netdb.h>
 #include <errno.h>
 
 #include <libmnl/libmnl.h>
@@ -31,50 +32,67 @@ static void
 nfct_cmd_timeout_usage(char *argv[])
 {
 	fprintf(stderr, "nfct v%s: Missing command\n"
-			"%s timeout list|add|delete|get|flush "
-			"[parameters...]\n", VERSION, argv[0]);
+			"%s <list|add|delete|get|flush|set> timeout "
+			"[<parameters>, ...]\n", VERSION, argv[0]);
 }
 
-int nfct_cmd_timeout_parse_params(int argc, char *argv[])
+static int nfct_cmd_timeout_list(struct mnl_socket *nl, int argc, char *argv[]);
+static int nfct_cmd_timeout_add(struct mnl_socket *nl, int argc, char *argv[]);
+static int nfct_cmd_timeout_delete(struct mnl_socket *nl, int argc, char *argv[]);
+static int nfct_cmd_timeout_get(struct mnl_socket *nl, int argc, char *argv[]);
+static int nfct_cmd_timeout_flush(struct mnl_socket *nl, int argc, char *argv[]);
+static int nfct_cmd_timeout_default_set(struct mnl_socket *nl, int argc, char *argv[]);
+static int nfct_cmd_timeout_default_get(struct mnl_socket *nl, int argc, char *argv[]);
+
+static int
+nfct_timeout_parse_params(struct mnl_socket *nl, int argc, char *argv[], int cmd)
 {
-	int cmd = NFCT_CMD_NONE, ret;
+	int ret;
 
 	if (argc < 3) {
 		nfct_cmd_timeout_usage(argv);
 		return -1;
 	}
-	if (strncmp(argv[2], "list", strlen(argv[2])) == 0)
-		cmd = NFCT_CMD_LIST;
-	else if (strncmp(argv[2], "add", strlen(argv[2])) == 0)
-		cmd = NFCT_CMD_ADD;
-	else if (strncmp(argv[2], "delete", strlen(argv[2])) == 0)
-		cmd = NFCT_CMD_DELETE;
-	else if (strncmp(argv[2], "get", strlen(argv[2])) == 0)
-		cmd = NFCT_CMD_GET;
-	else if (strncmp(argv[2], "flush", strlen(argv[2])) == 0)
-		cmd = NFCT_CMD_FLUSH;
-	else {
-		fprintf(stderr, "nfct v%s: Unknown command: %s\n",
-			VERSION, argv[2]);
+
+	switch (cmd) {
+	case NFCT_CMD_LIST:
+	case NFCT_CMD_ADD:
+	case NFCT_CMD_DELETE:
+	case NFCT_CMD_GET:
+	case NFCT_CMD_FLUSH:
+	case NFCT_CMD_DEFAULT_SET:
+	case NFCT_CMD_DEFAULT_GET:
+		break;
+	default:
 		nfct_cmd_timeout_usage(argv);
 		return -1;
 	}
-	switch(cmd) {
+
+	switch (cmd) {
 	case NFCT_CMD_LIST:
-		ret = nfct_cmd_timeout_list(argc, argv);
+		ret = nfct_cmd_timeout_list(nl, argc, argv);
 		break;
 	case NFCT_CMD_ADD:
-		ret = nfct_cmd_timeout_add(argc, argv);
+		ret = nfct_cmd_timeout_add(nl, argc, argv);
 		break;
 	case NFCT_CMD_DELETE:
-		ret = nfct_cmd_timeout_delete(argc, argv);
+		ret = nfct_cmd_timeout_delete(nl, argc, argv);
 		break;
 	case NFCT_CMD_GET:
-		ret = nfct_cmd_timeout_get(argc, argv);
+		ret = nfct_cmd_timeout_get(nl, argc, argv);
 		break;
 	case NFCT_CMD_FLUSH:
-		ret = nfct_cmd_timeout_flush(argc, argv);
+		ret = nfct_cmd_timeout_flush(nl, argc, argv);
 		break;
+	case NFCT_CMD_DEFAULT_SET:
+		ret = nfct_cmd_timeout_default_set(nl, argc, argv);
+		break;
+	case NFCT_CMD_DEFAULT_GET:
+		ret = nfct_cmd_timeout_default_get(nl, argc, argv);
+		break;
+	default:
+		nfct_cmd_timeout_usage(argv);
+		return -1;
 	}
 
 	return ret;
@@ -105,13 +123,11 @@ err:
 	return MNL_CB_OK;
 }
 
-int nfct_cmd_timeout_list(int argc, char *argv[])
+static int nfct_cmd_timeout_list(struct mnl_socket *nl, int argc, char *argv[])
 {
-	struct mnl_socket *nl;
 	char buf[MNL_SOCKET_BUFFER_SIZE];
 	struct nlmsghdr *nlh;
 	unsigned int seq, portid;
-	int ret;
 
 	if (argc > 3) {
 		nfct_perror("too many arguments");
@@ -122,35 +138,11 @@ int nfct_cmd_timeout_list(int argc, char *argv[])
 	nlh = nfct_timeout_nlmsg_build_hdr(buf, IPCTNL_MSG_TIMEOUT_GET,
 						NLM_F_DUMP, seq);
 
-	nl = mnl_socket_open(NETLINK_NETFILTER);
-	if (nl == NULL) {
-		nfct_perror("mnl_socket_open");
-		return -1;
-	}
-
-	if (mnl_socket_bind(nl, 0, MNL_SOCKET_AUTOPID) < 0) {
-		nfct_perror("mnl_socket_bind");
-		return -1;
-	}
 	portid = mnl_socket_get_portid(nl);
-
-	if (mnl_socket_sendto(nl, nlh, nlh->nlmsg_len) < 0) {
-		nfct_perror("mnl_socket_send");
+	if (nfct_mnl_talk(nl, nlh, seq, portid, nfct_timeout_cb, NULL) < 0) {
+		nfct_perror("netlink error");
 		return -1;
 	}
-
-	ret = mnl_socket_recvfrom(nl, buf, sizeof(buf));
-	while (ret > 0) {
-		ret = mnl_cb_run(buf, ret, seq, portid, nfct_timeout_cb, NULL);
-		if (ret <= 0)
-			break;
-		ret = mnl_socket_recvfrom(nl, buf, sizeof(buf));
-	}
-	if (ret == -1) {
-		nfct_perror("error");
-		return -1;
-	}
-	mnl_socket_close(nl);
 
 	return 0;
 }
@@ -167,69 +159,71 @@ static uint32_t nfct_timeout_attr_max[IPPROTO_MAX] = {
 	[IPPROTO_RAW]		= NFCT_TIMEOUT_ATTR_GENERIC_MAX,
 };
 
-int nfct_cmd_timeout_add(int argc, char *argv[])
+static int nfct_cmd_get_l3proto(char *argv[])
 {
-	struct mnl_socket *nl;
-	char buf[MNL_SOCKET_BUFFER_SIZE];
-	struct nlmsghdr *nlh;
-	uint32_t portid, seq;
-	struct nfct_timeout *t;
-	uint16_t l3proto;
-	uint8_t l4proto;
-	int ret, i;
-	unsigned int j;
+	int l3proto;
 
-	if (argc < 6) {
-		nfct_perror("missing parameters\n"
-			    "syntax: nfct timeout add name "
-			    "family protocol state1 "
-			    "timeout1 state2 timeout2...");
-		return -1;
-	}
-
-	t = nfct_timeout_alloc();
-	if (t == NULL) {
-		nfct_perror("OOM");
-		return -1;
-	}
-
-	nfct_timeout_attr_set(t, NFCT_TIMEOUT_ATTR_NAME, argv[3]);
-
-	if (strcmp(argv[4], "inet") == 0)
+	if (strcmp(*argv, "inet") == 0)
 		l3proto = AF_INET;
-	else if (strcmp(argv[4], "inet6") == 0)
+	else if (strcmp(*argv, "inet6") == 0)
 		l3proto = AF_INET6;
 	else {
 		nfct_perror("unknown layer 3 protocol");
 		return -1;
 	}
+	return l3proto;
+}
+
+static int nfct_cmd_get_l4proto(char *argv[])
+{
+	int l4proto;
+	struct protoent *pent;
+
+	pent = getprotobyname(*argv);
+	if (!pent) {
+		/* In Debian, /etc/protocols says ipv6-icmp. Support icmpv6
+		 * as well not to break backward compatibility.
+		 */
+		if (strcmp(*argv, "icmpv6") == 0)
+			l4proto = IPPROTO_ICMPV6;
+		else if (strcmp(*argv, "generic") == 0)
+			l4proto = IPPROTO_RAW;
+		else {
+			nfct_perror("unknown layer 4 protocol");
+			return -1;
+		}
+	} else
+		l4proto = pent->p_proto;
+
+	return l4proto;
+}
+
+static int
+nfct_cmd_timeout_parse(struct nfct_timeout *t, int argc, char *argv[])
+{
+	int l3proto, l4proto;
+	unsigned int j;
+	const char *proto_name;
+
+	l3proto = nfct_cmd_get_l3proto(argv);
+	if (l3proto < 0)
+		return -1;
+
 	nfct_timeout_attr_set_u16(t, NFCT_TIMEOUT_ATTR_L3PROTO, l3proto);
 
-	if (strcmp(argv[5], "tcp") == 0)
-		l4proto = IPPROTO_TCP;
-	else if (strcmp(argv[5], "udp") == 0)
-		l4proto = IPPROTO_UDP;
-	else if (strcmp(argv[5], "udplite") == 0)
-		l4proto = IPPROTO_UDPLITE;
-	else if (strcmp(argv[5], "sctp") == 0)
-		l4proto = IPPROTO_SCTP;
-	else if (strcmp(argv[5], "dccp") == 0)
-		l4proto = IPPROTO_DCCP;
-	else if (strcmp(argv[5], "icmp") == 0)
-		l4proto = IPPROTO_ICMP;
-	else if (strcmp(argv[5], "icmpv6") == 0)
-		l4proto = IPPROTO_ICMPV6;
-	else if (strcmp(argv[5], "gre") == 0)
-		l4proto = IPPROTO_GRE;
-	else if (strcmp(argv[5], "generic") == 0)
-		l4proto = IPPROTO_RAW;
-	else {
-		nfct_perror("unknown layer 4 protocol");
-		return -1;
-	}
-	nfct_timeout_attr_set_u8(t, NFCT_TIMEOUT_ATTR_L4PROTO, l4proto);
+	argc--;
+	argv++;
+	proto_name = *argv;
 
-	for (i=6; i<argc; i+=2) {
+	l4proto = nfct_cmd_get_l4proto(argv);
+	if (l4proto < 0)
+		return -1;
+
+	nfct_timeout_attr_set_u8(t, NFCT_TIMEOUT_ATTR_L4PROTO, l4proto);
+	argc--;
+	argv++;
+
+	for (; argc>1; argc-=2, argv+=2) {
 		int matching = -1;
 
 		for (j=0; j<nfct_timeout_attr_max[l4proto]; j++) {
@@ -241,27 +235,53 @@ int nfct_cmd_timeout_add(int argc, char *argv[])
 				nfct_perror("state name is NULL");
 				return -1;
 			}
-			if (strcasecmp(argv[i], state_name) != 0)
+			if (strcasecmp(*argv, state_name) != 0)
 				continue;
 
 			matching = j;
 			break;
 		}
 		if (matching != -1) {
-			if (i+1 >= argc) {
-				nfct_perror("missing value for this timeout");
-				return -1;
-			}
 			nfct_timeout_policy_attr_set_u32(t, matching,
-							 atoi(argv[i+1]));
-			matching = -1;
+							 atoi(*(argv+1)));
 		} else {
 			fprintf(stderr, "nfct v%s: Wrong state name: `%s' "
 					"for protocol `%s'\n",
-					VERSION, argv[i], argv[5]);
+					VERSION, *argv, proto_name);
 			return -1;
 		}
 	}
+	if (argc > 0) {
+		nfct_perror("missing value for this timeout");
+		return -1;
+	}
+
+	return 0;
+}
+
+int nfct_cmd_timeout_add(struct mnl_socket *nl, int argc, char *argv[])
+{
+	char buf[MNL_SOCKET_BUFFER_SIZE];
+	struct nlmsghdr *nlh;
+	uint32_t portid, seq;
+	struct nfct_timeout *t;
+
+	if (argc < 6) {
+		nfct_perror("missing parameters\n"
+			    "syntax: nfct add timeout name family protocol state1 timeout1 ...");
+		return -1;
+	}
+
+	t = nfct_timeout_alloc();
+	if (t == NULL) {
+		nfct_perror("OOM");
+		return -1;
+	}
+
+	nfct_timeout_attr_set(t, NFCT_TIMEOUT_ATTR_NAME, argv[3]);
+
+	if (nfct_cmd_timeout_parse(t, argc-4, &argv[4]) < 0)
+		return -1;
 
 	seq = time(NULL);
 	nlh = nfct_timeout_nlmsg_build_hdr(buf, IPCTNL_MSG_TIMEOUT_NEW,
@@ -270,47 +290,21 @@ int nfct_cmd_timeout_add(int argc, char *argv[])
 
 	nfct_timeout_free(t);
 
-	nl = mnl_socket_open(NETLINK_NETFILTER);
-	if (nl == NULL) {
-		nfct_perror("mnl_socket_open");
-		return -1;
-	}
-
-	if (mnl_socket_bind(nl, 0, MNL_SOCKET_AUTOPID) < 0) {
-		nfct_perror("mnl_socket_bind");
-		return -1;
-	}
 	portid = mnl_socket_get_portid(nl);
-
-	if (mnl_socket_sendto(nl, nlh, nlh->nlmsg_len) < 0) {
-		nfct_perror("mnl_socket_send");
+	if (nfct_mnl_talk(nl, nlh, seq, portid, NULL, NULL) < 0) {
+		nfct_perror("netlink error");
 		return -1;
 	}
-
-	ret = mnl_socket_recvfrom(nl, buf, sizeof(buf));
-	while (ret > 0) {
-		ret = mnl_cb_run(buf, ret, seq, portid, NULL, NULL);
-		if (ret <= 0)
-			break;
-		ret = mnl_socket_recvfrom(nl, buf, sizeof(buf));
-	}
-	if (ret == -1) {
-		nfct_perror("error");
-		return -1;
-	}
-	mnl_socket_close(nl);
 
 	return 0;
 }
 
-int nfct_cmd_timeout_delete(int argc, char *argv[])
+int nfct_cmd_timeout_delete(struct mnl_socket *nl, int argc, char *argv[])
 {
-	struct mnl_socket *nl;
 	char buf[MNL_SOCKET_BUFFER_SIZE];
 	struct nlmsghdr *nlh;
 	uint32_t portid, seq;
 	struct nfct_timeout *t;
-	int ret;
 
 	if (argc < 4) {
 		nfct_perror("missing timeout policy name");
@@ -335,48 +329,21 @@ int nfct_cmd_timeout_delete(int argc, char *argv[])
 
 	nfct_timeout_free(t);
 
-	nl = mnl_socket_open(NETLINK_NETFILTER);
-	if (nl == NULL) {
-		nfct_perror("mnl_socket_open");
-		return -1;
-	}
-
-	if (mnl_socket_bind(nl, 0, MNL_SOCKET_AUTOPID) < 0) {
-		nfct_perror("mnl_socket_bind");
-		return -1;
-	}
 	portid = mnl_socket_get_portid(nl);
-
-	if (mnl_socket_sendto(nl, nlh, nlh->nlmsg_len) < 0) {
-		nfct_perror("mnl_socket_send");
+	if (nfct_mnl_talk(nl, nlh, seq, portid, NULL, NULL) < 0) {
+		nfct_perror("netlink error");
 		return -1;
 	}
-
-	ret = mnl_socket_recvfrom(nl, buf, sizeof(buf));
-	while (ret > 0) {
-		ret = mnl_cb_run(buf, ret, seq, portid, NULL, NULL);
-		if (ret <= 0)
-			break;
-		ret = mnl_socket_recvfrom(nl, buf, sizeof(buf));
-	}
-	if (ret == -1) {
-		nfct_perror("error");
-		return -1;
-	}
-
-	mnl_socket_close(nl);
 
 	return 0;
 }
 
-int nfct_cmd_timeout_get(int argc, char *argv[])
+int nfct_cmd_timeout_get(struct mnl_socket *nl, int argc, char *argv[])
 {
-	struct mnl_socket *nl;
 	char buf[MNL_SOCKET_BUFFER_SIZE];
 	struct nlmsghdr *nlh;
 	uint32_t portid, seq;
 	struct nfct_timeout *t;
-	int ret;
 
 	if (argc < 4) {
 		nfct_perror("missing timeout policy name");
@@ -401,46 +368,20 @@ int nfct_cmd_timeout_get(int argc, char *argv[])
 
 	nfct_timeout_free(t);
 
-	nl = mnl_socket_open(NETLINK_NETFILTER);
-	if (nl == NULL) {
-		nfct_perror("mnl_socket_open");
-		return -1;
-	}
-
-	if (mnl_socket_bind(nl, 0, MNL_SOCKET_AUTOPID) < 0) {
-		nfct_perror("mnl_socket_bind");
-		return -1;
-	}
 	portid = mnl_socket_get_portid(nl);
-
-	if (mnl_socket_sendto(nl, nlh, nlh->nlmsg_len) < 0) {
-		nfct_perror("mnl_socket_send");
+	if (nfct_mnl_talk(nl, nlh, seq, portid, nfct_timeout_cb, NULL) < 0) {
+		nfct_perror("netlink error");
 		return -1;
 	}
-
-	ret = mnl_socket_recvfrom(nl, buf, sizeof(buf));
-	while (ret > 0) {
-		ret = mnl_cb_run(buf, ret, seq, portid, nfct_timeout_cb, NULL);
-		if (ret <= 0)
-			break;
-		ret = mnl_socket_recvfrom(nl, buf, sizeof(buf));
-	}
-	if (ret == -1) {
-		nfct_perror("error");
-		return -1;
-	}
-	mnl_socket_close(nl);
 
 	return 0;
 }
 
-int nfct_cmd_timeout_flush(int argc, char *argv[])
+int nfct_cmd_timeout_flush(struct mnl_socket *nl, int argc, char *argv[])
 {
-	struct mnl_socket *nl;
 	char buf[MNL_SOCKET_BUFFER_SIZE];
 	struct nlmsghdr *nlh;
 	uint32_t portid, seq;
-	int ret;
 
 	if (argc > 3) {
 		nfct_perror("too many arguments");
@@ -451,36 +392,108 @@ int nfct_cmd_timeout_flush(int argc, char *argv[])
 	nlh = nfct_timeout_nlmsg_build_hdr(buf, IPCTNL_MSG_TIMEOUT_DELETE,
 					   NLM_F_ACK, seq);
 
-	nl = mnl_socket_open(NETLINK_NETFILTER);
-	if (nl == NULL) {
-		nfct_perror("mnl_socket_open");
-		return -1;
-	}
-
-	if (mnl_socket_bind(nl, 0, MNL_SOCKET_AUTOPID) < 0) {
-		nfct_perror("mnl_socket_bind");
-		return -1;
-	}
 	portid = mnl_socket_get_portid(nl);
-
-	if (mnl_socket_sendto(nl, nlh, nlh->nlmsg_len) < 0) {
-		nfct_perror("mnl_socket_send");
+	if (nfct_mnl_talk(nl, nlh, seq, portid, NULL, NULL) < 0) {
+		nfct_perror("netlink error");
 		return -1;
 	}
-
-	ret = mnl_socket_recvfrom(nl, buf, sizeof(buf));
-	while (ret > 0) {
-		ret = mnl_cb_run(buf, ret, seq, portid, NULL, NULL);
-		if (ret <= 0)
-			break;
-		ret = mnl_socket_recvfrom(nl, buf, sizeof(buf));
-	}
-	if (ret == -1) {
-		nfct_perror("error");
-		return -1;
-	}
-
-	mnl_socket_close(nl);
 
 	return 0;
+}
+
+static int
+nfct_cmd_timeout_default_set(struct mnl_socket *nl, int argc, char *argv[])
+{
+	char buf[MNL_SOCKET_BUFFER_SIZE];
+	struct nlmsghdr *nlh;
+	uint32_t portid, seq;
+	struct nfct_timeout *t;
+
+	if (argc < 6) {
+		nfct_perror("missing parameters\n"
+			    "syntax: nfct default-set timeout family protocol state1 timeout1...");
+		return -1;
+	}
+
+	t = nfct_timeout_alloc();
+	if (t == NULL)
+		return -1;
+
+	if (nfct_cmd_timeout_parse(t, argc-3, &argv[3]) < 0)
+		return -1;
+
+	seq = time(NULL);
+	nlh = nfct_timeout_nlmsg_build_hdr(buf, IPCTNL_MSG_TIMEOUT_DEFAULT_SET,
+					   NLM_F_ACK, seq);
+	nfct_timeout_nlmsg_build_payload(nlh, t);
+	nfct_timeout_free(t);
+
+	portid = mnl_socket_get_portid(nl);
+	if (nfct_mnl_talk(nl, nlh, seq, portid, nfct_timeout_cb, NULL) < 0) {
+		nfct_perror("netlink error");
+		return -1;
+	}
+
+	return 0;
+}
+
+static int
+nfct_cmd_timeout_default_get(struct mnl_socket *nl, int argc, char *argv[])
+{
+	char buf[MNL_SOCKET_BUFFER_SIZE];
+	struct nlmsghdr *nlh;
+	uint32_t portid, seq;
+	struct nfct_timeout *t;
+	int l3proto, l4proto;
+
+	if (argc < 5) {
+		nfct_perror("missing parameters\n"
+			    "syntax: nfct default-get timeout family protocol");
+		return -1;
+	}
+
+	t = nfct_timeout_alloc();
+	if (t == NULL)
+		return -1;
+
+	argc-=3;
+	argv+=3;
+
+	l3proto = nfct_cmd_get_l3proto(argv);
+	if (l3proto < 0)
+		return -1;
+
+	nfct_timeout_attr_set_u16(t, NFCT_TIMEOUT_ATTR_L3PROTO, l3proto);
+	argc--;
+	argv++;
+
+	l4proto = nfct_cmd_get_l4proto(argv);
+	if (l4proto < 0)
+		return -1;
+
+	nfct_timeout_attr_set_u8(t, NFCT_TIMEOUT_ATTR_L4PROTO, l4proto);
+
+	seq = time(NULL);
+	nlh = nfct_timeout_nlmsg_build_hdr(buf, IPCTNL_MSG_TIMEOUT_DEFAULT_GET,
+					   NLM_F_ACK, seq);
+	nfct_timeout_nlmsg_build_payload(nlh, t);
+	nfct_timeout_free(t);
+
+	portid = mnl_socket_get_portid(nl);
+	if (nfct_mnl_talk(nl, nlh, seq, portid, nfct_timeout_cb, NULL) < 0) {
+		nfct_perror("netlink error");
+		return -1;
+	}
+
+	return 0;
+}
+
+static struct nfct_extension timeout = {
+	.type		= NFCT_SUBSYS_TIMEOUT,
+	.parse_params	= nfct_timeout_parse_params,
+};
+
+static void __init timeout_init(void)
+{
+	nfct_extension_register(&timeout);
 }

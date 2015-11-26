@@ -10,4 +10,5 @@ DIST_SUBDIRS = include src extensions
 LIBS = @LIBNETFILTER_CONNTRACK_LIBS@
 
 dist-hook:
-	rm -rf `find $(distdir)/doc -name .svn`
+	rm -rf `find $(distdir)/doc -name *.orig`
+	rm -rf `find $(distdir)/doc -name *.rej`

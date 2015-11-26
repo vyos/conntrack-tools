@@ -37,54 +37,60 @@ nfct_cmd_helper_usage(char *argv[])
 			"[parameters...]\n", VERSION, argv[0]);
 }
 
-int
-nfct_cmd_helper_parse_params(int argc, char *argv[])
+static int nfct_cmd_helper_list(struct mnl_socket *nl, int argc, char *argv[]);
+static int nfct_cmd_helper_add(struct mnl_socket *nl, int argc, char *argv[]);
+static int nfct_cmd_helper_delete(struct mnl_socket *nl, int argc, char *argv[]);
+static int nfct_cmd_helper_get(struct mnl_socket *nl, int argc, char *argv[]);
+static int nfct_cmd_helper_flush(struct mnl_socket *nl, int argc, char *argv[]);
+static int nfct_cmd_helper_disable(struct mnl_socket *nl, int argc, char *argv[]);
+
+static int
+nfct_helper_parse_params(struct mnl_socket *nl, int argc, char *argv[], int cmd)
 {
-	int cmd = NFCT_CMD_NONE, ret = 0;
+	int ret;
 
 	if (argc < 3) {
-		fprintf(stderr, "nfct v%s: Missing command\n"
-				"%s helper list|add|delete|get|flush "
-				"[parameters...]\n", VERSION, argv[0]);
-		exit(EXIT_FAILURE);
+		nfct_cmd_helper_usage(argv);
+		return -1;
 	}
-	if (strncmp(argv[2], "list", strlen(argv[2])) == 0)
-		cmd = NFCT_CMD_LIST;
-	else if (strncmp(argv[2], "add", strlen(argv[2])) == 0)
-		cmd = NFCT_CMD_ADD;
-	else if (strncmp(argv[2], "delete", strlen(argv[2])) == 0)
-		cmd = NFCT_CMD_DELETE;
-	else if (strncmp(argv[2], "get", strlen(argv[2])) == 0)
-		cmd = NFCT_CMD_GET;
-	else if (strncmp(argv[2], "flush", strlen(argv[2])) == 0)
-		cmd = NFCT_CMD_FLUSH;
-	else if (strncmp(argv[2], "disable", strlen(argv[2])) == 0)
-		cmd = NFCT_CMD_DISABLE;
-	else {
+
+	switch (cmd) {
+	case NFCT_CMD_LIST:
+	case NFCT_CMD_ADD:
+	case NFCT_CMD_DELETE:
+	case NFCT_CMD_GET:
+	case NFCT_CMD_FLUSH:
+	case NFCT_CMD_DISABLE:
+		break;
+	default:
 		fprintf(stderr, "nfct v%s: Unknown command: %s\n",
 			VERSION, argv[2]);
 		nfct_cmd_helper_usage(argv);
 		exit(EXIT_FAILURE);
 	}
-	switch(cmd) {
+
+	switch (cmd) {
 	case NFCT_CMD_LIST:
-		ret = nfct_cmd_helper_list(argc, argv);
+		ret = nfct_cmd_helper_list(nl, argc, argv);
 		break;
 	case NFCT_CMD_ADD:
-		ret = nfct_cmd_helper_add(argc, argv);
+		ret = nfct_cmd_helper_add(nl, argc, argv);
 		break;
 	case NFCT_CMD_DELETE:
-		ret = nfct_cmd_helper_delete(argc, argv);
+		ret = nfct_cmd_helper_delete(nl, argc, argv);
 		break;
 	case NFCT_CMD_GET:
-		ret = nfct_cmd_helper_get(argc, argv);
+		ret = nfct_cmd_helper_get(nl, argc, argv);
 		break;
 	case NFCT_CMD_FLUSH:
-		ret = nfct_cmd_helper_flush(argc, argv);
+		ret = nfct_cmd_helper_flush(nl, argc, argv);
 		break;
 	case NFCT_CMD_DISABLE:
-		ret = nfct_cmd_helper_disable(argc, argv);
+		ret = nfct_cmd_helper_disable(nl, argc, argv);
 		break;
+	default:
+		nfct_cmd_helper_usage(argv);
+		return -1;
 	}
 
 	return ret;
@@ -115,13 +121,11 @@ err:
 	return MNL_CB_OK;
 }
 
-int nfct_cmd_helper_list(int argc, char *argv[])
+static int nfct_cmd_helper_list(struct mnl_socket *nl, int argc, char *argv[])
 {
-	struct mnl_socket *nl;
 	char buf[MNL_SOCKET_BUFFER_SIZE];
 	struct nlmsghdr *nlh;
 	unsigned int seq, portid;
-	int ret;
 
 	if (argc > 3) {
 		nfct_perror("too many arguments");
@@ -132,42 +136,17 @@ int nfct_cmd_helper_list(int argc, char *argv[])
 	nlh = nfct_helper_nlmsg_build_hdr(buf, NFNL_MSG_CTHELPER_GET,
 						NLM_F_DUMP, seq);
 
-	nl = mnl_socket_open(NETLINK_NETFILTER);
-	if (nl == NULL) {
-		nfct_perror("mnl_socket_open");
-		return -1;
-	}
-
-	if (mnl_socket_bind(nl, 0, MNL_SOCKET_AUTOPID) < 0) {
-		nfct_perror("mnl_socket_bind");
-		return -1;
-	}
 	portid = mnl_socket_get_portid(nl);
-
-	if (mnl_socket_sendto(nl, nlh, nlh->nlmsg_len) < 0) {
-		nfct_perror("mnl_socket_send");
+	if (nfct_mnl_talk(nl, nlh, seq, portid, nfct_helper_cb, NULL) < 0) {
+		nfct_perror("netlink error");
 		return -1;
 	}
-
-	ret = mnl_socket_recvfrom(nl, buf, sizeof(buf));
-	while (ret > 0) {
-		ret = mnl_cb_run(buf, ret, seq, portid, nfct_helper_cb, NULL);
-		if (ret <= 0)
-			break;
-		ret = mnl_socket_recvfrom(nl, buf, sizeof(buf));
-	}
-	if (ret == -1) {
-		nfct_perror("error");
-		return -1;
-	}
-	mnl_socket_close(nl);
 
 	return 0;
 }
 
-int nfct_cmd_helper_add(int argc, char *argv[])
+static int nfct_cmd_helper_add(struct mnl_socket *nl, int argc, char *argv[])
 {
-	struct mnl_socket *nl;
 	char buf[MNL_SOCKET_BUFFER_SIZE];
 	struct nlmsghdr *nlh;
 	uint32_t portid, seq;
@@ -175,12 +154,11 @@ int nfct_cmd_helper_add(int argc, char *argv[])
 	uint16_t l3proto;
 	uint8_t l4proto;
 	struct ctd_helper *helper;
-	int ret, j;
+	int j;
 
 	if (argc < 6) {
 		nfct_perror("missing parameters\n"
-			    "syntax: nfct helper add name "
-			    "family protocol");
+			    "syntax: nfct add helper name family protocol");
 		return -1;
 	}
 
@@ -248,47 +226,22 @@ int nfct_cmd_helper_add(int argc, char *argv[])
 
 	nfct_helper_free(t);
 
-	nl = mnl_socket_open(NETLINK_NETFILTER);
-	if (nl == NULL) {
-		nfct_perror("mnl_socket_open");
-		return -1;
-	}
-
-	if (mnl_socket_bind(nl, 0, MNL_SOCKET_AUTOPID) < 0) {
-		nfct_perror("mnl_socket_bind");
-		return -1;
-	}
 	portid = mnl_socket_get_portid(nl);
-
-	if (mnl_socket_sendto(nl, nlh, nlh->nlmsg_len) < 0) {
-		nfct_perror("mnl_socket_send");
+	if (nfct_mnl_talk(nl, nlh, seq, portid, NULL, NULL) < 0) {
+		nfct_perror("netlink error");
 		return -1;
 	}
-
-	ret = mnl_socket_recvfrom(nl, buf, sizeof(buf));
-	while (ret > 0) {
-		ret = mnl_cb_run(buf, ret, seq, portid, NULL, NULL);
-		if (ret <= 0)
-			break;
-		ret = mnl_socket_recvfrom(nl, buf, sizeof(buf));
-	}
-	if (ret == -1) {
-		nfct_perror("error");
-		return -1;
-	}
-	mnl_socket_close(nl);
 
 	return 0;
 }
 
-int nfct_cmd_helper_delete(int argc, char *argv[])
+static int
+nfct_cmd_helper_delete(struct mnl_socket *nl, int argc, char *argv[])
 {
-	struct mnl_socket *nl;
 	char buf[MNL_SOCKET_BUFFER_SIZE];
 	struct nlmsghdr *nlh;
 	uint32_t portid, seq;
 	struct nfct_helper *t;
-	int ret;
 
 	if (argc < 4) {
 		nfct_perror("missing helper policy name");
@@ -341,48 +294,21 @@ int nfct_cmd_helper_delete(int argc, char *argv[])
 
 	nfct_helper_free(t);
 
-	nl = mnl_socket_open(NETLINK_NETFILTER);
-	if (nl == NULL) {
-		nfct_perror("mnl_socket_open");
-		return -1;
-	}
-
-	if (mnl_socket_bind(nl, 0, MNL_SOCKET_AUTOPID) < 0) {
-		nfct_perror("mnl_socket_bind");
-		return -1;
-	}
 	portid = mnl_socket_get_portid(nl);
-
-	if (mnl_socket_sendto(nl, nlh, nlh->nlmsg_len) < 0) {
-		nfct_perror("mnl_socket_send");
+	if (nfct_mnl_talk(nl, nlh, seq, portid, NULL, NULL) < 0) {
+		nfct_perror("netlink error");
 		return -1;
 	}
-
-	ret = mnl_socket_recvfrom(nl, buf, sizeof(buf));
-	while (ret > 0) {
-		ret = mnl_cb_run(buf, ret, seq, portid, NULL, NULL);
-		if (ret <= 0)
-			break;
-		ret = mnl_socket_recvfrom(nl, buf, sizeof(buf));
-	}
-	if (ret == -1) {
-		nfct_perror("error");
-		return -1;
-	}
-
-	mnl_socket_close(nl);
 
 	return 0;
 }
 
-int nfct_cmd_helper_get(int argc, char *argv[])
+static int nfct_cmd_helper_get(struct mnl_socket *nl, int argc, char *argv[])
 {
-	struct mnl_socket *nl;
 	char buf[MNL_SOCKET_BUFFER_SIZE];
 	struct nlmsghdr *nlh;
 	uint32_t portid, seq;
 	struct nfct_helper *t;
-	int ret;
 
 	if (argc < 4) {
 		nfct_perror("missing helper policy name");
@@ -435,46 +361,21 @@ int nfct_cmd_helper_get(int argc, char *argv[])
 
 	nfct_helper_free(t);
 
-	nl = mnl_socket_open(NETLINK_NETFILTER);
-	if (nl == NULL) {
-		nfct_perror("mnl_socket_open");
-		return -1;
-	}
-
-	if (mnl_socket_bind(nl, 0, MNL_SOCKET_AUTOPID) < 0) {
-		nfct_perror("mnl_socket_bind");
-		return -1;
-	}
 	portid = mnl_socket_get_portid(nl);
-
-	if (mnl_socket_sendto(nl, nlh, nlh->nlmsg_len) < 0) {
-		nfct_perror("mnl_socket_send");
+	if (nfct_mnl_talk(nl, nlh, seq, portid, nfct_helper_cb, NULL) < 0) {
+		nfct_perror("netlink error");
 		return -1;
 	}
-
-	ret = mnl_socket_recvfrom(nl, buf, sizeof(buf));
-	while (ret > 0) {
-		ret = mnl_cb_run(buf, ret, seq, portid, nfct_helper_cb, NULL);
-		if (ret <= 0)
-			break;
-		ret = mnl_socket_recvfrom(nl, buf, sizeof(buf));
-	}
-	if (ret == -1) {
-		nfct_perror("error");
-		return -1;
-	}
-	mnl_socket_close(nl);
 
 	return 0;
 }
 
-int nfct_cmd_helper_flush(int argc, char *argv[])
+static int
+nfct_cmd_helper_flush(struct mnl_socket *nl, int argc, char *argv[])
 {
-	struct mnl_socket *nl;
 	char buf[MNL_SOCKET_BUFFER_SIZE];
 	struct nlmsghdr *nlh;
 	uint32_t portid, seq;
-	int ret;
 
 	if (argc > 3) {
 		nfct_perror("too many arguments");
@@ -485,43 +386,18 @@ int nfct_cmd_helper_flush(int argc, char *argv[])
 	nlh = nfct_helper_nlmsg_build_hdr(buf, NFNL_MSG_CTHELPER_DEL,
 					   NLM_F_ACK, seq);
 
-	nl = mnl_socket_open(NETLINK_NETFILTER);
-	if (nl == NULL) {
-		nfct_perror("mnl_socket_open");
-		return -1;
-	}
-
-	if (mnl_socket_bind(nl, 0, MNL_SOCKET_AUTOPID) < 0) {
-		nfct_perror("mnl_socket_bind");
-		return -1;
-	}
 	portid = mnl_socket_get_portid(nl);
-
-	if (mnl_socket_sendto(nl, nlh, nlh->nlmsg_len) < 0) {
-		nfct_perror("mnl_socket_send");
+	if (nfct_mnl_talk(nl, nlh, seq, portid, NULL, NULL) < 0) {
+		nfct_perror("netlink error");
 		return -1;
 	}
-
-	ret = mnl_socket_recvfrom(nl, buf, sizeof(buf));
-	while (ret > 0) {
-		ret = mnl_cb_run(buf, ret, seq, portid, NULL, NULL);
-		if (ret <= 0)
-			break;
-		ret = mnl_socket_recvfrom(nl, buf, sizeof(buf));
-	}
-	if (ret == -1) {
-		nfct_perror("error");
-		return -1;
-	}
-
-	mnl_socket_close(nl);
 
 	return 0;
 }
 
-int nfct_cmd_helper_disable(int argc, char *argv[])
+static int
+nfct_cmd_helper_disable(struct mnl_socket *nl, int argc, char *argv[])
 {
-	struct mnl_socket *nl;
 	char buf[MNL_SOCKET_BUFFER_SIZE];
 	struct nlmsghdr *nlh;
 	uint32_t portid, seq;
@@ -529,12 +405,10 @@ int nfct_cmd_helper_disable(int argc, char *argv[])
 	uint16_t l3proto;
 	uint8_t l4proto;
 	struct ctd_helper *helper;
-	int ret;
 
 	if (argc < 6) {
 		nfct_perror("missing parameters\n"
-			    "syntax: nfct helper add name "
-			    "family protocol");
+			    "syntax: nfct add helper name family protocol");
 		return -1;
 	}
 
@@ -580,36 +454,21 @@ int nfct_cmd_helper_disable(int argc, char *argv[])
 
 	nfct_helper_free(t);
 
-	nl = mnl_socket_open(NETLINK_NETFILTER);
-	if (nl == NULL) {
-		nfct_perror("mnl_socket_open");
-		return -1;
-	}
-
-	if (mnl_socket_bind(nl, 0, MNL_SOCKET_AUTOPID) < 0) {
-		nfct_perror("mnl_socket_bind");
-		return -1;
-	}
 	portid = mnl_socket_get_portid(nl);
-
-	if (mnl_socket_sendto(nl, nlh, nlh->nlmsg_len) < 0) {
-		nfct_perror("mnl_socket_send");
+	if (nfct_mnl_talk(nl, nlh, seq, portid, NULL, NULL) < 0) {
+		nfct_perror("netlink error");
 		return -1;
 	}
-
-	ret = mnl_socket_recvfrom(nl, buf, sizeof(buf));
-	while (ret > 0) {
-		ret = mnl_cb_run(buf, ret, seq, portid, NULL, NULL);
-		if (ret <= 0)
-			break;
-		ret = mnl_socket_recvfrom(nl, buf, sizeof(buf));
-	}
-	if (ret == -1) {
-		nfct_perror("error");
-		return -1;
-	}
-	mnl_socket_close(nl);
 
 	return 0;
 }
 
+static struct nfct_extension helper = {
+	.type		= NFCT_SUBSYS_HELPER,
+	.parse_params	= nfct_helper_parse_params,
+};
+
+static void __init helper_init(void)
+{
+	nfct_extension_register(&helper);
+}

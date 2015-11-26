@@ -297,7 +297,7 @@ int msg2ct(struct nf_conntrack *ct, struct nethdr *net, size_t remain)
 			return -1;
 		if (attr->nta_len < NTA_LENGTH(0))
 			return -1;
-		if (attr->nta_attr > NTA_MAX)
+		if (attr->nta_attr >= NTA_MAX)
 			return -1;
 		if (h[attr->nta_attr].size &&
 		    attr->nta_len != h[attr->nta_attr].size)
@@ -510,7 +510,7 @@ int msg2exp(struct nf_expect *exp, struct nethdr *net, size_t remain)
 		ATTR_NETWORK2HOST(attr);
 		if (attr->nta_len > len)
 			goto err;
-		if (attr->nta_attr > NTA_MAX)
+		if (attr->nta_attr >= NTA_EXP_MAX)
 			goto err;
 		if (attr->nta_len < NTA_LENGTH(0))
 			goto err;
@@ -524,13 +524,15 @@ int msg2exp(struct nf_expect *exp, struct nethdr *net, size_t remain)
 			attr = NTA_NEXT(attr, len);
 			continue;
 		}
-		switch(exp_h[attr->nta_attr].exp_attr) {
+		switch (exp_h[attr->nta_attr].exp_attr) {
 		case ATTR_EXP_MASTER:
 			exp_h[attr->nta_attr].parse(master, attr->nta_attr,
 						    NTA_DATA(attr));
+			break;
 		case ATTR_EXP_EXPECTED:
 			exp_h[attr->nta_attr].parse(expected, attr->nta_attr,
 						    NTA_DATA(attr));
+			break;
 		case ATTR_EXP_MASK:
 			exp_h[attr->nta_attr].parse(mask, attr->nta_attr,
 						    NTA_DATA(attr));

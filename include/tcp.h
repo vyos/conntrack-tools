@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <netinet/in.h>
+#include <sys/select.h>
 
 struct tcp_conf {
 	int ipproto;

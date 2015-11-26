@@ -31,6 +31,7 @@
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <netinet/ip6.h>
+#define _GNU_SOURCE
 #include <netinet/tcp.h>
 #include <netinet/udp.h>
 #include <net/ethernet.h>
@@ -182,6 +183,15 @@ pkt_verdict_issue(struct ctd_helper_instance *cur, struct myct *myct,
 	nfct_nlmsg_build(nlh, myct->ct);
 	mnl_attr_nest_end(nlh, nest);
 
+	if (myct->exp) {
+		nest = mnl_attr_nest_start(nlh, NFQA_EXP);
+		if (nest == NULL)
+			return -1;
+
+		nfexp_nlmsg_build(nlh, myct->exp);
+		mnl_attr_nest_end(nlh, nest);
+	}
+
 	if (mnl_socket_sendto(STATE_CTH(nl), nlh, nlh->nlmsg_len) < 0) {
 		dlog(LOG_ERR, "failed to send verdict: %s", strerror(errno));
 		return -1;
@@ -267,11 +277,11 @@ static int nfq_queue_cb(const struct nlmsghdr *nlh, void *data)
 
 	if (!attr[NFQA_PAYLOAD]) {
 		dlog(LOG_ERR, "packet with no payload");
-		goto err;
+		goto err1;
 	}
 	if (!attr[NFQA_CT] || !attr[NFQA_CT_INFO]) {
 		dlog(LOG_ERR, "no CT attached to this packet");
-		goto err;
+		goto err1;
 	}
 
 	pkt = mnl_attr_get_payload(attr[NFQA_PAYLOAD]);
@@ -282,22 +292,22 @@ static int nfq_queue_cb(const struct nlmsghdr *nlh, void *data)
 	queue_num = ntohs(nfg->res_id);
 
 	if (pkt_get(pkt, pktlen, ntohs(ph->hw_protocol), &protoff))
-		goto err;
+		goto err1;
 
 	ct = nfct_new();
 	if (ct == NULL)
-		goto err;
+		goto err1;
 
 	if (nfct_payload_parse(mnl_attr_get_payload(attr[NFQA_CT]),
 			       mnl_attr_get_payload_len(attr[NFQA_CT]),
 			       l3num, ct) < 0) {
 		dlog(LOG_ERR, "cannot convert message to CT");
-		goto err;
+		goto err2;
 	}
 
 	myct = calloc(1, sizeof(struct myct));
 	if (myct == NULL)
-		goto err;
+		goto err2;
 
 	myct->ct = ct;
 	ctinfo = ntohl(mnl_attr_get_u32(attr[NFQA_CT_INFO]));
@@ -305,35 +315,36 @@ static int nfq_queue_cb(const struct nlmsghdr *nlh, void *data)
 	/* XXX: 256 bytes enough for possible NAT mangling in helpers? */
 	pktb = pktb_alloc(AF_INET, pkt, pktlen, 256);
 	if (pktb == NULL)
-		goto err;
+		goto err3;
 
 	/* Misconfiguration: if no helper found, accept the packet. */
 	helper = helper_run(pktb, protoff, myct, ctinfo, queue_num, &verdict);
 	if (!helper)
-		goto err_pktb;
+		goto err4;
 
 	if (pkt_verdict_issue(helper, myct, queue_num, id, verdict, pktb) < 0)
-		goto err_pktb;
+		goto err4;
 
-	if (ct != NULL)
-		nfct_destroy(ct);
-	if (myct && myct->priv_data != NULL)
+	nfct_destroy(ct);
+	if (myct->exp != NULL)
+		nfexp_destroy(myct->exp);
+	if (myct->priv_data != NULL)
 		free(myct->priv_data);
-	if (myct != NULL)
-		free(myct);
+	free(myct);
 
 	return MNL_CB_OK;
-err_pktb:
+err4:
 	pktb_free(pktb);
-err:
+err3:
+	free(myct);
+err2:
+	nfct_destroy(ct);
+err1:
 	/* In case of error, we don't want to disrupt traffic. We accept all.
 	 * This is connection tracking after all. The policy is not to drop
 	 * packet unless we enter some inconsistent state.
 	 */
 	pkt_verdict_error(queue_num, id);
-
-	if (ct != NULL)
-		nfct_destroy(ct);
 
 	return MNL_CB_OK;
 }
@@ -458,7 +469,10 @@ static int cthelper_nfqueue_setup(struct ctd_helper_instance *cur)
 	nfq_nlmsg_cfg_put_params(nlh, NFQNL_COPY_PACKET, 0xffff);
 	mnl_attr_put_u32(nlh, NFQA_CFG_FLAGS, htonl(NFQA_CFG_F_CONNTRACK));
 	mnl_attr_put_u32(nlh, NFQA_CFG_MASK, htonl(0xffffffff));
-	mnl_attr_put_u32(nlh, NFQA_CFG_QUEUE_MAXLEN, htonl(cur->queue_len));
+	if (cur->queue_len > 0) {
+		mnl_attr_put_u32(nlh, NFQA_CFG_QUEUE_MAXLEN,
+				 htonl(cur->queue_len));
+	}
 
 	if (mnl_socket_sendto(STATE_CTH(nl), nlh, nlh->nlmsg_len) < 0) {
 		dlog(LOG_ERR, "failed to send configuration");

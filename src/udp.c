@@ -136,14 +136,18 @@ struct udp_sock *udp_client_create(struct udp_conf *conf)
 		m->addr.ipv4.sin_family = AF_INET;
 		m->addr.ipv4.sin_port = htons(conf->port);
 		m->addr.ipv4.sin_addr = conf->client.inet_addr;
-		m->sockaddr_len = sizeof(struct sockaddr_in); 
+		m->sockaddr_len = sizeof(struct sockaddr_in);
 		break;
 	case AF_INET6:
 		m->addr.ipv6.sin6_family = AF_INET6;
 		m->addr.ipv6.sin6_port = htons(conf->port);
 		memcpy(&m->addr.ipv6.sin6_addr, &conf->client.inet_addr6,
 		       sizeof(struct in6_addr));
-		m->sockaddr_len = sizeof(struct sockaddr_in6); 
+		m->sockaddr_len = sizeof(struct sockaddr_in6);
+		/* Bind the sender side to the same interface that we use to
+		 * receive sync messages.
+		 */
+		m->addr.ipv6.sin6_scope_id = conf->server.ipv6.scope_id;
 		break;
 	default:
 		ret = -1;

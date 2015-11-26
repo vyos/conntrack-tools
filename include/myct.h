@@ -37,6 +37,7 @@ struct myct_tuple {
 
 struct myct {
 	struct nf_conntrack *ct;
+	struct nf_expect *exp;
 	void *priv_data;
 };
 

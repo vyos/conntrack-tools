@@ -73,7 +73,7 @@ static char udp_commands_v_options[NUMBER_OF_CMD][UDP_NUMBER_OF_OPT] =
 /*CT_VERSION*/    {0,0,0,0,0,0,0,0},
 /*CT_HELP*/       {0,0,0,0,0,0,0,0},
 /*EXP_LIST*/      {0,0,0,0,0,0,0,0},
-/*EXP_CREATE*/    {1,1,1,1,1,1,1,1},
+/*EXP_CREATE*/    {1,1,0,0,1,1,1,1},
 /*EXP_DELETE*/    {1,1,1,1,0,0,0,0},
 /*EXP_GET*/       {1,1,1,1,0,0,0,0},
 /*EXP_FLUSH*/     {0,0,0,0,0,0,0,0},
@@ -87,7 +87,7 @@ static int parse_options(char c,
 			 unsigned int *flags)
 {
 	switch(c) {
-		u_int16_t port;
+		uint16_t port;
 		case '1':
 			port = htons(atoi(optarg));
 			nfct_set_attr_u16(ct, ATTR_ORIG_PORT_SRC, port);

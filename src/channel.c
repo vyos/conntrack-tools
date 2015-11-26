@@ -109,6 +109,7 @@ channel_open(struct channel_conf *cfg)
 
 	if (ioctl(fd, SIOCGIFMTU, &ifr) == -1) {
 		free(c);
+		close(fd);
 		return NULL;
 	}
 	close(fd);

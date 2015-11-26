@@ -1,12 +1,15 @@
 #ifndef _NFCT_H_
 #define _NFCT_H_
 
+#include "linux_list.h"
+
 enum {
 	NFCT_SUBSYS_NONE = 0,
 	NFCT_SUBSYS_TIMEOUT,
 	NFCT_SUBSYS_HELPER,
 	NFCT_SUBSYS_VERSION,
 	NFCT_SUBSYS_HELP,
+	NFCT_SUBSYS_MAX
 };
 
 enum {
@@ -17,23 +20,27 @@ enum {
 	NFCT_CMD_GET,
 	NFCT_CMD_FLUSH,
 	NFCT_CMD_DISABLE,
+	NFCT_CMD_DEFAULT_SET,
+	NFCT_CMD_DEFAULT_GET,
+	NFCT_CMD_MAX,
 };
+
+#define __init __attribute__((constructor))
 
 void nfct_perror(const char *msg);
 
-int nfct_cmd_timeout_parse_params(int argc, char *argv[]);
-int nfct_cmd_timeout_list(int argc, char *argv[]);
-int nfct_cmd_timeout_add(int argc, char *argv[]);
-int nfct_cmd_timeout_delete(int argc, char *argv[]);
-int nfct_cmd_timeout_get(int argc, char *argv[]);
-int nfct_cmd_timeout_flush(int argc, char *argv[]);
+struct nfct_extension {
+	struct list_head	head;
+	int			type;
+	int (*parse_params)(struct mnl_socket *nl, int argc, char *argv[], int cmd);
+};
 
-int nfct_cmd_helper_parse_params(int argc, char *argv[]);
-int nfct_cmd_helper_list(int argc, char *argv[]);
-int nfct_cmd_helper_add(int argc, char *argv[]);
-int nfct_cmd_helper_delete(int argc, char *argv[]);
-int nfct_cmd_helper_get(int argc, char *argv[]);
-int nfct_cmd_helper_flush(int argc, char *argv[]);
-int nfct_cmd_helper_disable(int argc, char *argv[]);
+void nfct_extension_register(struct nfct_extension *ext);
+
+struct mnl_socket *nfct_mnl_open(void);
+int nfct_mnl_talk(struct mnl_socket *nl, struct nlmsghdr *nlh,
+		  uint32_t seq, uint32_t portid,
+		  int (*cb)(const struct nlmsghdr *nlh, void *data),
+		  void *data);
 
 #endif

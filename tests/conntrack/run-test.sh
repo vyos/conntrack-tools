@@ -1,6 +1,5 @@
 #!/bin/bash
 
-UID=`id -u`
 if [ $UID -ne 0 ]
 then
 	echo "Run this test as root"

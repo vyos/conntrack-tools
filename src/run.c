@@ -55,9 +55,10 @@ void killer(int signo)
 	if (CONFIG(flags) & (CTD_SYNC_MODE | CTD_STATS_MODE))
 		ctnl_kill();
 
+#ifdef BUILD_CTHELPER
 	if (CONFIG(flags) & CTD_HELPER)
 		cthelper_kill();
-
+#endif
 	destroy_fds(STATE(fds));
 	unlink(CONFIG(lockfile));
 	dlog(LOG_NOTICE, "---- shutdown received ----");
@@ -205,9 +206,10 @@ static int local_handler(int fd, void *data)
 	if (CONFIG(flags) & (CTD_SYNC_MODE | CTD_STATS_MODE))
 		return ctnl_local(fd, type, data);
 
+#ifdef BUILD_CTHELPER
 	if (CONFIG(flags) & CTD_HELPER)
 		return cthelper_local(fd, type, data);
-
+#endif
 	return ret;
 }
 
@@ -259,11 +261,12 @@ init(void)
 		if (ctnl_init() < 0)
 			return -1;
 
+#ifdef BUILD_CTHELPER
 	if (CONFIG(flags) & CTD_HELPER) {
 		if (cthelper_init() < 0)
 			return -1;
 	}
-
+#endif
 	time(&STATE(stats).daemon_start_time);
 
 	dlog(LOG_NOTICE, "initialization completed");

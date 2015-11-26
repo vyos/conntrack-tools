@@ -9,11 +9,11 @@ more similar to `ip' and `nftables' tools (in the long run!).
 The `nfct' command line tool allows you to define custom timeout
 policies:
 
-# nfct timeout add custom-tcp-policy1 inet tcp established 100
+# nfct add timeout custom-tcp-policy1 inet tcp established 100
 
 You can also retrieve the existing timeout policies with:
 
-# nfct timeout list
+# nfct list timeout
 .tcp-policy = {
         .l3proto = 2,
         .l4proto = 6,
@@ -39,7 +39,7 @@ Then, you can use the timeout policy with iptables:
 
 You can define policies for other protocols as well, eg:
 
-# nfct timeout add custom-udp-policy1 inet udp unreplied 10 replied 20
+# nfct add timeout custom-udp-policy1 inet udp unreplied 10 replied 20
 
 And attach them via iptables:
 

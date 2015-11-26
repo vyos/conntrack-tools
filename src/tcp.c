@@ -247,13 +247,11 @@ int tcp_accept(struct tcp_sock *m)
 	/* the other peer wants to connect ... */
 	ret = accept(m->fd, NULL, NULL);
 	if (ret == -1) {
-		if (errno != EAGAIN) {
-			/* unexpected error. Give us another try. */
-			m->state = TCP_SERVER_ACCEPTING;
-		} else {
-			/* waiting for new connections. */
-			m->state = TCP_SERVER_ACCEPTING;
-		}
+		/* unexpected error: Give us another try. Or we have hit
+ 		 * -EAGAIN, in that case we remain in the accepting connections
+		 * state.
+		 */
+		m->state = TCP_SERVER_ACCEPTING;
 	} else {
 		/* the peer finally got connected. */
 		if (fcntl(ret, F_SETFL, O_NONBLOCK) == -1) {

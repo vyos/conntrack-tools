@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <netinet/in.h>
 #include <net/if.h>
+#include <sys/select.h>
 
 struct mcast_conf {
 	int ipproto;
