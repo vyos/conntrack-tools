@@ -46,7 +46,7 @@ install: debian/stamp-install
 debian/stamp-install: debian/stamp-build
 	dh_testdir
 	dh_testroot
-	dh_clean -k
+	dh_prep
 	dh_installdirs
 
 	$(MAKE) DESTDIR=`pwd`/debian/tmp install
@@ -71,7 +71,7 @@ binary-arch: build install
 	dh_compress -a
 	dh_fixperms -a
 	dh_installdeb -a
-	dh_shlibdeps -av
+	dh_shlibdeps -a
 	if [ -f "../.VYOS_DEV_BUILD" ]; then \
 		dh_gencontrol -- -v999.dev; \
 	else \
