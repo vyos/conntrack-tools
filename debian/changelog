@@ -1,3 +1,11 @@
+conntrack (1:1.4.2-1+vyos2+lithium12) unstable; urgency=low
+
+  [ Alex Harpin ]
+  * conntrack-tools: bump build requirements for 1.4.2
+  * Update to upstream version 1.4.2
+
+ -- Alex Harpin <development@landsofshadow.co.uk>  Thu, 26 Nov 2015 07:24:29 +0000
+
 conntrack (1:1.4.1-1+vyos2+lithium11) unstable; urgency=low
 
   [ Alex Harpin ]
