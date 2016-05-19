@@ -1,3 +1,10 @@
+conntrack (1:1.4.2-2+vyos2+current1) UNRELEASED; urgency=medium
+
+  * Non-maintainer upload.
+  * Merge: Debian package conntrack-helpers to package helpers in user space
+
+ -- Kim Hagen <kim.sidney@gmail.com>  Thu, 19 May 2016 07:37:33 -0400
+
 conntrack (1:1.4.2-2+deb8u1) jessie-security; urgency=high
 
   * [d2fe984] d/patches: add CVE-2015-6496.patch (Closes: #796103)
